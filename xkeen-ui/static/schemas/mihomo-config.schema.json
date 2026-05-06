@@ -1081,10 +1081,10 @@
         },
         "mode": {
           "type": "string",
-          "enum": ["stream-one", "stream-up", "packet-up"],
-          "default": "stream-one",
-          "description": "Режим XHTTP. `stream-one` — безопасный baseline, `stream-up` — чаще для browser-like TCP, `packet-up` — для packet/UDP-like сценариев.",
-          "examples": ["stream-one", "stream-up", "packet-up"]
+          "enum": ["auto", "stream-one", "stream-up", "packet-up"],
+          "default": "auto",
+          "description": "Режим XHTTP. `auto` — актуальный авто-режим Mihomo, `stream-one` — безопасный baseline, `stream-up` — чаще для browser-like TCP, `packet-up` — для packet/UDP-like сценариев.",
+          "examples": ["auto", "stream-one", "stream-up", "packet-up"]
         },
         "headers": { "type": "object", "description": "Дополнительные HTTP-заголовки.", "additionalProperties": { "type": "string" } },
         "no-grpc-header": { "type": "boolean", "description": "Не добавлять gRPC-совместимый заголовок." },

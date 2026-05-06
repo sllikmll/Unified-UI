@@ -823,6 +823,7 @@ def test_mihomo_schema_tracks_xhttp_transport_and_multiplexing_fields():
     assert 'max-streams' in grpc_props
 
     xhttp_opts = schema['definitions']['xhttpOpts']['properties']
+    assert 'auto' in xhttp_opts['mode']['enum']
     assert xhttp_opts['reuse-settings']['$ref'] == '#/definitions/xhttpReuseSettings'
     assert xhttp_opts['download-settings']['$ref'] == '#/definitions/xhttpDownloadSettings'
 

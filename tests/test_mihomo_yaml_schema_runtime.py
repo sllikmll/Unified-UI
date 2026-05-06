@@ -96,7 +96,7 @@ def test_mihomo_yaml_schema_runtime_accepts_xhttp_and_reuse_settings():
             "    tls: true",
             "    xhttp-opts:",
             "      path: /gateway",
-            "      mode: stream-up",
+            "      mode: auto",
             "      reuse-settings:",
             "        max-connections: 0",
             '        max-concurrency: "16-32"',
