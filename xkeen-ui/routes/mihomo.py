@@ -57,6 +57,11 @@ from services.mihomo_proxy_config import (
     rename_proxy_in_config,
     replace_proxy_in_config,
 )
+from services.mihomo_xray_json import (
+    convert_subscription_text as _xray_convert_subscription_text,
+    format_proxies_section as _xray_format_proxies_section,
+)
+from services.xray_subscriptions import fetch_subscription_body as _xray_fetch_subscription_body
 
 
 import xkeen_mihomo_service as mihomo_svc
@@ -993,6 +998,115 @@ def create_mihomo_blueprint(
                 exc=e,
                 status=400,
             )
+
+    @bp.post("/api/mihomo/parse/xray-json")
+    def api_mihomo_parse_xray_json():
+        """Detect/parse an Xray-style JSON subscription and return Mihomo proxies.
+
+        Accepts ``{"url": ...}`` (server fetches via the SSRF-safe subscription
+        fetcher) or ``{"text": ...}`` (caller-supplied body).  Optional
+        ``existing_names`` is a list of proxy names already present in the target
+        config — used to keep generated names unique without a second roundtrip.
+
+        Response on success::
+
+            {"ok": true, "count": N,
+             "proxies": [{"proxy_name": "...", "proxy_yaml": "- name: ...\\n..."}],
+             "proxies_yaml": "proxies:\\n  - name: ...",
+             "skipped": [{"name": "...", "reason": "..."}]}
+
+        Distinct error codes the frontend can branch on:
+          - ``not_xray_json`` (422): body parses but isn't recognizable as Xray JSON.
+          - ``no_supported_proxies`` (422): JSON parsed but every outbound was skipped.
+          - ``url_blocked`` (400): URL policy rejected the destination.
+          - ``size_limit`` (413): subscription body exceeded ``XKEEN_SUBSCRIPTION_MAX_BYTES``.
+          - ``fetch_failed`` (502): network/HTTP error talking to upstream.
+        """
+        guard = _patch_guard()
+        if guard is not None:
+            return guard
+
+        data = request.get_json(silent=True) or {}
+        url = (data.get("url") or "").strip()
+        text = _norm_text(data.get("text") or "")
+        existing_names_raw = data.get("existing_names") or []
+        existing_names = [str(n) for n in existing_names_raw if str(n or "").strip()] if isinstance(existing_names_raw, list) else []
+
+        if request.content_length is None:
+            total = len(url) + len(text) + sum(len(n) for n in existing_names)
+            if total > _PATCH_MAX_BYTES:
+                return _api_error("payload too large", 413, ok=False)
+
+        if not url and not text:
+            return _api_error("url or text is required", 400, ok=False)
+
+        if url and not text:
+            try:
+                text, _headers = _xray_fetch_subscription_body(url)
+            except RuntimeError as e:
+                reason = str(e or "")
+                if reason.startswith("url_blocked:"):
+                    return _mihomo_error(
+                        "URL заблокирован политикой подписок: " + reason.split(":", 1)[1],
+                        status=400,
+                        code="url_blocked",
+                    )
+                if reason == "size_limit":
+                    return _mihomo_error(
+                        "Подписка превышает разрешённый размер.",
+                        status=413,
+                        code="size_limit",
+                    )
+                return _mihomo_error(
+                    f"Не удалось скачать подписку: {reason}",
+                    status=502,
+                    code="fetch_failed",
+                )
+            except Exception as e:
+                return _mihomo_exception(
+                    "Не удалось скачать подписку.",
+                    code="fetch_failed",
+                    hint="Проверьте URL и сетевую доступность.",
+                    exc=e,
+                    status=502,
+                )
+
+        try:
+            proxies, skipped = _xray_convert_subscription_text(
+                text, existing_names=existing_names
+            )
+        except ValueError:
+            return _mihomo_error(
+                "Не похоже на Xray-JSON подписку.",
+                status=422,
+                code="not_xray_json",
+                hint="Если это обычная Mihomo/Clash YAML-подписка — добавьте её как proxy-provider.",
+            )
+        except Exception as e:
+            return _mihomo_exception(
+                "Не удалось разобрать Xray-подписку.",
+                code="parse_xray_json_failed",
+                hint="Проверьте содержимое подписки и попробуйте снова.",
+                exc=e,
+                status=400,
+            )
+
+        if not proxies:
+            return _mihomo_error(
+                "В подписке не нашлось поддерживаемых прокси.",
+                status=422,
+                code="no_supported_proxies",
+                hint="Поддерживаются VLESS-узлы (TCP/WS/gRPC/xhttp/HTTPUpgrade, TLS/Reality).",
+                skipped=skipped,
+            )
+
+        return jsonify({
+            "ok": True,
+            "count": len(proxies),
+            "proxies": [{"proxy_name": p.name, "proxy_yaml": p.yaml} for p in proxies],
+            "proxies_yaml": _xray_format_proxies_section(proxies),
+            "skipped": skipped,
+        }), 200
 
 
     # ---------- Same-origin proxy: Mihomo external UI (Zashboard) ----------

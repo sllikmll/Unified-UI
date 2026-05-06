@@ -1348,6 +1348,58 @@ let mihomoImportModuleApi = null;
     return { type: 'proxy', proxy_name, content: proxy_yaml };
   }
 
+  function collectProxyNamesFromText(text) {
+    const names = [];
+    const lines = String(text || '').split(/\r?\n/);
+    for (const ln of lines) {
+      const m = ln.match(/^\s*-\s*name\s*:\s*(?:'((?:[^']|'')*)'|"((?:[^"\\]|\\.)*)"|(\S+))/);
+      if (m) names.push((m[1] || m[2] || m[3] || '').replace(/''/g, "'"));
+    }
+    return names.filter(Boolean);
+  }
+
+  // Probe a URL against the backend Xray-JSON parser. Returns:
+  //   - array of {type:'proxy', proxy_name, content} on success,
+  //   - null when the response says "not_xray_json" (caller should fall back),
+  //   - throws on any other error so the caller can surface it.
+  async function parseXrayJsonViaApi(url, existingNames) {
+    const http = getMihomoCoreHttpApi();
+    const post = http && typeof http.postJSON === 'function' ? http.postJSON : null;
+    if (!post) throw new Error('core http.postJSON недоступен');
+
+    const body = { url: String(url || '') };
+    if (Array.isArray(existingNames) && existingNames.length) {
+      body.existing_names = existingNames.slice(0, 4096);
+    }
+
+    let data;
+    try {
+      data = await post('/api/mihomo/parse/xray-json', body);
+    } catch (e) {
+      const code = (e && e.data && e.data.code) || '';
+      if (code === 'not_xray_json') return null;
+      const msg = (e && e.data && e.data.error) || (e && e.message) || 'parse/xray-json failed';
+      const err = new Error(msg);
+      if (code) err.code = code;
+      if (e && e.status) err.status = e.status;
+      throw err;
+    }
+
+    if (!data || data.ok === false) {
+      const code = (data && data.code) || '';
+      if (code === 'not_xray_json') return null;
+      throw new Error((data && data.error) || 'parse/xray-json failed');
+    }
+
+    const proxies = Array.isArray(data.proxies) ? data.proxies : [];
+    return proxies.map((p) => ({
+      type: 'proxy',
+      proxy_name: String(p.proxy_name || '').trim(),
+      content: String(p.proxy_yaml || '').trimEnd() + '\n',
+      xrayBulk: true,
+    }));
+  }
+
 
   // ---------------------------------------------------------------------------
   // UI Actions
@@ -1421,6 +1473,22 @@ let mihomoImportModuleApi = null;
             throw new Error('Это похоже на подписку. Выбери «HTTPS subscription» или «Auto».');
           }
 
+          // For http(s) URLs in subscription/auto modes, try the backend
+          // Xray-JSON parser first; on not_xray_json we transparently fall
+          // back to creating a regular proxy-provider entry.
+          if (/^https?:\/\//i.test(line) && mode !== 'proxy') {
+            setStatus(`Распознаю подписку ${line}…`, false);
+            const existingNames = collectProxyNamesFromText(tmp);
+            const xrayProxies = await parseXrayJsonViaApi(line, existingNames);
+            if (xrayProxies && xrayProxies.length) {
+              for (const p of xrayProxies) {
+                outputs.push({ ...p, uri: line });
+                tmp += '\n' + p.content;
+              }
+              continue;
+            }
+          }
+
           const out = generateConfigForMihomo(line, tmp);
 
           if (mode === 'subscription' && out.type !== 'proxy-provider') {
@@ -1449,26 +1517,51 @@ let mihomoImportModuleApi = null;
 
     _lastResult = { outputs };
 
-    // Build preview
-    const preview = outputs
-      .map((o) => {
-        if (o.type === 'proxy-provider') {
-          return `# proxy-providers\n${String(o.content || '').trimEnd()}`;
+    // Build preview. Group consecutive xrayBulk proxies sharing the same
+    // source URI into a single section so that a 27-node subscription doesn't
+    // render as 27 repeated "# proxies" headers.
+    const previewSections = [];
+    let i = 0;
+    while (i < outputs.length) {
+      const o = outputs[i];
+      if (o.type === 'proxy-provider') {
+        previewSections.push(`# proxy-providers\n${String(o.content || '').trimEnd()}`);
+        i += 1;
+        continue;
+      }
+      if (o.xrayBulk) {
+        const startUri = o.uri;
+        const group = [];
+        while (i < outputs.length && outputs[i].xrayBulk && outputs[i].uri === startUri) {
+          const raw = String(outputs[i].content || '').trimEnd();
+          group.push(raw.split('\n').map((l) => (l ? '  ' + l : l)).join('\n'));
+          i += 1;
         }
-        const raw = String(o.content || '').trimEnd();
-        const ind = raw.split('\n').map((l) => (l ? '  ' + l : l)).join('\n');
-        return `# proxies\n${ind}`;
-      })
-      .join('\n\n');
+        const header = `# proxies (Xray-подписка: ${group.length} узлов из ${startUri})`;
+        previewSections.push(`${header}\n${group.join('\n')}`);
+        continue;
+      }
+      const raw = String(o.content || '').trimEnd();
+      const ind = raw.split('\n').map((l) => (l ? '  ' + l : l)).join('\n');
+      previewSections.push(`# proxies\n${ind}`);
+      i += 1;
+    }
+    const preview = previewSections.join('\n\n');
 
     setPreview(preview + '\n');
 
     const targets = Array.from(new Set(outputs.map((o) => (o.type === 'proxy-provider' ? 'proxy-providers' : 'proxies'))));
     setHint('Будет добавлено в секцию: ' + targets.join(' + '));
 
+    const xrayNodeCount = outputs.filter((o) => o.xrayBulk).length;
     if (errors.length) {
       setStatus('Часть данных распознана, часть — нет. Проверь строки ниже в preview.', true);
       setPreview(preview + '\n\n# Ошибки\n' + errors.map((x) => '# ' + x).join('\n') + '\n');
+    } else if (xrayNodeCount > 0) {
+      setStatus(
+        `Распознана Xray-подписка: ${xrayNodeCount} узлов будут вставлены как блок proxies. Нажми «Вставить в конфиг».`,
+        false,
+      );
     } else {
       setStatus('Готово. Нажми «Вставить в конфиг».', false);
     }

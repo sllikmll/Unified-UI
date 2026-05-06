@@ -64,8 +64,9 @@ def test_parse_vless_xhttp_preserves_reuse_settings_and_extra_opts():
     assert "sc-max-each-post-bytes: 1000000" in result.yaml
     assert "reuse-settings:" in result.yaml
     assert "max-concurrency: 16-32" in result.yaml
-    assert "max-connections: 0" in result.yaml
-    assert "c-max-reuse-times: 0" in result.yaml
+    # Numeric-looking strings are quoted to preserve string type in YAML.
+    assert "max-connections: '0'" in result.yaml
+    assert "c-max-reuse-times: '0'" in result.yaml
     assert "h-max-request-times: 600-900" in result.yaml
     assert "h-max-reusable-secs: 1800-3000" in result.yaml
 
@@ -108,11 +109,12 @@ def test_parse_vless_xhttp_preserves_download_settings_overrides():
     assert "download-settings:" in result.yaml
     assert "path: /download" in result.yaml
     assert "host: download.example.com" in result.yaml
-    assert "X-Download: 1" in result.yaml
+    # Numeric-looking string header values are quoted to preserve string type.
+    assert "X-Download: '1'" in result.yaml
     assert "no-grpc-header: false" in result.yaml
     assert "x-padding-bytes: 10-20" in result.yaml
     assert "sc-max-each-post-bytes: 131072" in result.yaml
-    assert "max-connections: 2" in result.yaml
+    assert "max-connections: '2'" in result.yaml
     assert "server: download-edge.example.com" in result.yaml
     assert "port: 8443" in result.yaml
     assert "tls: false" in result.yaml

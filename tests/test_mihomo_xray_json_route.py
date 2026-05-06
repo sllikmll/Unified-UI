@@ -1,0 +1,194 @@
+"""Route-level tests for ``POST /api/mihomo/parse/xray-json``."""
+
+from __future__ import annotations
+
+import json
+from unittest.mock import patch
+
+import pytest
+from flask import Flask
+
+from routes.mihomo import create_mihomo_blueprint
+
+
+@pytest.fixture()
+def client(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text("proxies: []\n", encoding="utf-8")
+    bp = create_mihomo_blueprint(
+        MIHOMO_CONFIG_FILE=str(cfg),
+        MIHOMO_TEMPLATES_DIR=str(tmp_path),
+        MIHOMO_DEFAULT_TEMPLATE=str(tmp_path / "default.yaml"),
+        restart_xkeen=lambda: None,
+    )
+    app = Flask(__name__)
+    app.register_blueprint(bp)
+    return app.test_client()
+
+
+_SAMPLE_XRAY_SUBSCRIPTION = json.dumps(
+    [
+        {
+            "remarks": "🇩🇪-Germany",
+            "outbounds": [
+                {
+                    "tag": "proxy",
+                    "protocol": "vless",
+                    "settings": {
+                        "vnext": [
+                            {
+                                "address": "1.2.3.4",
+                                "port": 443,
+                                "users": [
+                                    {
+                                        "id": "11111111-1111-1111-1111-111111111111",
+                                        "encryption": "none",
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "streamSettings": {
+                        "network": "xhttp",
+                        "security": "tls",
+                        "tlsSettings": {
+                            "serverName": "edge.example.com",
+                            "alpn": ["h2"],
+                        },
+                        "xhttpSettings": {"path": "/api/v2/", "mode": "auto"},
+                    },
+                },
+                {"protocol": "freedom", "tag": "direct"},
+            ],
+        },
+    ]
+)
+
+
+def test_parse_xray_json_with_inline_text(client):
+    r = client.post(
+        "/api/mihomo/parse/xray-json", json={"text": _SAMPLE_XRAY_SUBSCRIPTION}
+    )
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["ok"] is True
+    assert data["count"] == 1
+    assert data["proxies"][0]["proxy_name"].endswith("Germany")
+    assert "type: vless" in data["proxies"][0]["proxy_yaml"]
+    assert data["skipped"] == []
+    assert data["proxies_yaml"].startswith("proxies:")
+
+
+def test_parse_xray_json_url_fetched_through_fetcher(client):
+    with patch(
+        "routes.mihomo._xray_fetch_subscription_body",
+        return_value=(_SAMPLE_XRAY_SUBSCRIPTION, {"content-type": "application/json"}),
+    ) as mock:
+        r = client.post(
+            "/api/mihomo/parse/xray-json",
+            json={"url": "https://example.com/sub"},
+        )
+    assert r.status_code == 200
+    assert r.get_json()["ok"] is True
+    mock.assert_called_once_with("https://example.com/sub")
+
+
+def test_parse_xray_json_returns_422_for_non_xray_body(client):
+    r = client.post("/api/mihomo/parse/xray-json", json={"text": "<html>nope</html>"})
+    assert r.status_code == 422
+    body = r.get_json()
+    assert body["code"] == "not_xray_json"
+    assert body["ok"] is False
+
+
+def test_parse_xray_json_returns_400_when_neither_url_nor_text(client):
+    r = client.post("/api/mihomo/parse/xray-json", json={})
+    assert r.status_code == 400
+
+
+def test_parse_xray_json_propagates_url_blocked(client):
+    with patch(
+        "routes.mihomo._xray_fetch_subscription_body",
+        side_effect=RuntimeError("url_blocked:loopback"),
+    ):
+        r = client.post(
+            "/api/mihomo/parse/xray-json", json={"url": "http://127.0.0.1/x"}
+        )
+    assert r.status_code == 400
+    body = r.get_json()
+    assert body["code"] == "url_blocked"
+
+
+def test_parse_xray_json_propagates_size_limit(client):
+    with patch(
+        "routes.mihomo._xray_fetch_subscription_body",
+        side_effect=RuntimeError("size_limit"),
+    ):
+        r = client.post(
+            "/api/mihomo/parse/xray-json", json={"url": "https://example.com/big"}
+        )
+    assert r.status_code == 413
+    assert r.get_json()["code"] == "size_limit"
+
+
+def test_parse_xray_json_returns_422_when_no_supported_proxies(client):
+    body = json.dumps(
+        [
+            {
+                "remarks": "ss-only",
+                "outbounds": [
+                    {
+                        "tag": "proxy",
+                        "protocol": "shadowsocks",
+                        "settings": {"servers": [{"address": "x", "port": 1}]},
+                    }
+                ],
+            }
+        ]
+    )
+    r = client.post("/api/mihomo/parse/xray-json", json={"text": body})
+    assert r.status_code == 422
+    out = r.get_json()
+    assert out["code"] == "no_supported_proxies"
+    assert len(out.get("skipped") or []) == 1
+
+
+def test_parse_xray_json_dedupes_against_existing_names(client):
+    body = json.dumps(
+        [
+            {
+                "remarks": "Germany",
+                "outbounds": [
+                    {
+                        "tag": "proxy",
+                        "protocol": "vless",
+                        "settings": {
+                            "vnext": [
+                                {
+                                    "address": "1.2.3.4",
+                                    "port": 443,
+                                    "users": [
+                                        {
+                                            "id": "11111111-1111-1111-1111-111111111111",
+                                            "encryption": "none",
+                                        }
+                                    ],
+                                }
+                            ]
+                        },
+                        "streamSettings": {
+                            "network": "tcp",
+                            "security": "none",
+                        },
+                    }
+                ],
+            }
+        ]
+    )
+    r = client.post(
+        "/api/mihomo/parse/xray-json",
+        json={"text": body, "existing_names": ["Germany"]},
+    )
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["proxies"][0]["proxy_name"] == "Germany_2"

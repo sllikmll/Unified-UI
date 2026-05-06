@@ -23,7 +23,12 @@ _YAML_NEEDS_QUOTING_RE = re.compile(r"""[\s:#\[\]{}&,*>!%`"'|@?]""")
 
 
 def _yaml_str(v) -> str:
-    """Return a YAML-safe scalar for arbitrary values."""
+    """Return a YAML-safe scalar for arbitrary values.
+
+    All callers of `_yaml_str` semantically want a *string* in the YAML output.
+    We therefore also quote bare scalars that PyYAML would otherwise reinterpret
+    as a number (e.g. an all-digit Reality short-id like ``"28000000"``).
+    """
     if v is None:
         return "''"
     s = str(v)
@@ -37,7 +42,11 @@ def _yaml_str(v) -> str:
         or s[:1] in "-?:&*"
     ):
         return "'" + s.replace("'", "''") + "'"
-    return s
+    try:
+        float(s)
+    except (TypeError, ValueError):
+        return s
+    return "'" + s.replace("'", "''") + "'"
 
 
 def _yaml_list(items) -> str:

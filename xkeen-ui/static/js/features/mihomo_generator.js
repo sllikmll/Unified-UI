@@ -1347,18 +1347,146 @@ function initEngineToggle() {
         });
       
         // ----- subscriptions -----
+
+        // Probe a URL against the Xray-JSON parser endpoint. Returns the API
+        // response on success, ``null`` for not_xray_json, throws on real errors.
+        async function fetchXrayJsonParse(url, existingNames) {
+          const body = { url: String(url || "") };
+          if (Array.isArray(existingNames) && existingNames.length) {
+            body.existing_names = existingNames.slice(0, 4096);
+          }
+          let res;
+          try {
+            res = await fetch("/api/mihomo/parse/xray-json", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            });
+          } catch (e) {
+            throw new Error("Сеть недоступна: " + (e && e.message ? e.message : e));
+          }
+          let data;
+          try { data = await res.json(); } catch (e) { data = null; }
+          if (!res.ok) {
+            const code = (data && data.code) || "";
+            if (code === "not_xray_json") return null;
+            const msg = (data && data.error) || `HTTP ${res.status}`;
+            const err = new Error(msg);
+            if (code) err.code = code;
+            err.status = res.status;
+            throw err;
+          }
+          if (!data || data.ok === false) {
+            const code = (data && data.code) || "";
+            if (code === "not_xray_json") return null;
+            throw new Error((data && data.error) || "parse/xray-json failed");
+          }
+          return data;
+        }
+
+        // After the user finishes editing a subscription URL, probe it for
+        // Xray JSON. If detected, offer to convert to a YAML proxy block.
+        const _xrayProbeTimers = new WeakMap();
+        async function maybeOfferXrayConversion(input, row) {
+          const url = String(input.value || "").trim();
+          if (!url || !/^https?:\/\//i.test(url)) return;
+          if (row._xrayProbedValue === url) return;
+          row._xrayProbedValue = url;
+          if (row._xrayInProgress) return;
+          row._xrayInProgress = true;
+
+          let data = null;
+          try {
+            data = await fetchXrayJsonParse(url);
+          } catch (e) {
+            console.warn("Xray-JSON probe failed for", url, e);
+            row._xrayInProgress = false;
+            return;
+          }
+          row._xrayInProgress = false;
+          if (!data) return;  // not Xray JSON — silent, fall through to normal proxy-provider
+
+          const count = Number(data.count || 0);
+          const sample = (data.proxies && data.proxies[0] && data.proxies[0].proxy_name) || "";
+          const message =
+            "Это Xray-JSON подписка (" + count + " " + plural(count, ["узел", "узла", "узлов"]) + ").\n" +
+            (sample ? ("Например: " + sample + "\n") : "") +
+            "\nMihomo не умеет читать такие подписки напрямую как proxy-provider.\n" +
+            "Конвертировать в YAML-блок прокси? Auto-обновление будет потеряно — для обновления нужно будет переимпортировать вручную.";
+          if (!window.confirm(message)) {
+            return;
+          }
+
+          const items = (data.proxies || [])
+            .map((p) => String(p.proxy_yaml || "").trim())
+            .filter(Boolean)
+            .join("\n");
+          if (!items) {
+            try { toast("Конвертация не дала ни одного узла.", "error"); } catch (e) {}
+            return;
+          }
+          createProxyCard({
+            kind: "yaml",
+            data: items,
+            tags: deriveTagFromUrl(url),
+          });
+          input.value = "";
+          try {
+            toast(
+              "Распознана Xray-подписка: " + count + " " +
+                plural(count, ["узел", "узла", "узлов"]) +
+                " добавлены как YAML-блок.",
+              "success",
+            );
+          } catch (e) {}
+          try { schedulePreview(); } catch (e) {}
+          try { scheduleSessionDraftSave(60); } catch (e) {}
+        }
+
+        function plural(n, forms) {
+          const a = Math.abs(n) % 100;
+          const b = a % 10;
+          if (a > 10 && a < 20) return forms[2];
+          if (b > 1 && b < 5) return forms[1];
+          if (b === 1) return forms[0];
+          return forms[2];
+        }
+
+        function deriveTagFromUrl(url) {
+          try {
+            const u = new URL(url);
+            return "xray-sub:" + u.hostname;
+          } catch (e) {
+            return "xray-sub";
+          }
+        }
+
         function createSubscriptionRow(value) {
           const row = document.createElement("div");
           row.className = "subscription-row";
-      
+
           const input = document.createElement("input");
           input.type = "text";
           input.placeholder = "https://example.com/sub";
           input.value = value || "";
-      
+
           // Автопредпросмотр при изменении URL подписки
           autoPreviewOnChange(input, ["change", "blur", "input"], 400);
-      
+
+          // Detect Xray-JSON subscriptions and offer to convert. Debounced so
+          // that mid-typing doesn't trigger a probe — only fires shortly after
+          // the user pauses or blurs the input.
+          const scheduleProbe = () => {
+            const old = _xrayProbeTimers.get(input);
+            if (old) clearTimeout(old);
+            _xrayProbeTimers.set(input, setTimeout(() => {
+              maybeOfferXrayConversion(input, row);
+            }, 700));
+          };
+          input.addEventListener("blur", () => maybeOfferXrayConversion(input, row));
+          input.addEventListener("paste", () => setTimeout(scheduleProbe, 50));
+          input.addEventListener("change", scheduleProbe);
+
           const btn = document.createElement("button");
           btn.type = "button";
           btn.className = "btn btn-ghost btn-xs";
@@ -1370,7 +1498,7 @@ function initEngineToggle() {
             }
             schedulePreview();
           };
-      
+
           row.appendChild(input);
           row.appendChild(btn);
           return row;

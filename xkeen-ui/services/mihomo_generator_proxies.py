@@ -127,6 +127,44 @@ def normalise_proxy_name_for_check(name: Any) -> str:
     return str(name or "").strip().strip('"').strip("'")
 
 
+def _split_multi_proxy_yaml(yaml_block: str) -> List[str]:
+    """Split a list-of-proxies YAML block into one-proxy chunks.
+
+    A multi-proxy block looks like::
+
+        - name: A
+          type: vless
+          ...
+        - name: B
+          type: vless
+          ...
+
+    We split on the leading ``-`` markers that share the indent of the first
+    item.  Returns a single-element list when only one proxy is present.
+    """
+    text = str(yaml_block or "").rstrip("\n")
+    if not text or not text.strip():
+        return []
+    lines = text.splitlines()
+    blocks: List[List[str]] = []
+    current: List[str] = []
+    leading_indent: Optional[int] = None
+    for line in lines:
+        stripped = line.lstrip()
+        indent = len(line) - len(stripped)
+        is_dash_start = stripped.startswith("- ") or stripped == "-"
+        if is_dash_start:
+            if leading_indent is None:
+                leading_indent = indent
+            if indent == leading_indent and current:
+                blocks.append(current)
+                current = []
+        current.append(line)
+    if current:
+        blocks.append(current)
+    return ["\n".join(b) for b in blocks]
+
+
 def insert_proxies_from_state(content: str, state: Dict[str, Any]) -> str:
     """Use parse_vless / parse_wireguard / raw YAML to inject proxies into config."""
     proxies = state.get("proxies") or []
@@ -223,6 +261,35 @@ def insert_proxies_from_state(content: str, state: Dict[str, Any]) -> str:
                     _warn(f"Прокси {name or f'proxy#{idx}'}: пустой YAML-блок")
                     continue
                 yaml_block = ensure_leading_dash_for_yaml_block(yaml_block)
+
+                # Multi-proxy YAML (e.g. converted Xray-JSON subscription) —
+                # split into individual proxies so that *every* one is registered
+                # in proxy-groups, not just the first.  Single-proxy blocks fall
+                # through to the existing path below.
+                sub_blocks = _split_multi_proxy_yaml(yaml_block)
+                if len(sub_blocks) > 1:
+                    for sub_idx, sub_block in enumerate(sub_blocks, 1):
+                        sub_match = re.search(r"-\s*name:\s*([^\n]+)", sub_block)
+                        if not sub_match:
+                            _warn(
+                                f"Прокси {name or f'proxy#{idx}'} #{sub_idx}: "
+                                "не нашёл `- name:` в YAML-блоке"
+                            )
+                            continue
+                        sub_name_raw = sub_match.group(1).strip()
+                        if sub_name_raw and not (sub_name_raw.startswith('"') or sub_name_raw.startswith("'")):
+                            sub_name_raw = re.sub(r"\s+#.*$", "", sub_name_raw).strip()
+                        sub_name = sub_name_raw.strip('"').strip("'")
+                        sub_yaml = append_proxy_meta_yaml(sub_block, item)
+                        sub_norm = normalise_proxy_name_for_check(sub_name)
+                        if sub_norm in seen_proxy_names:
+                            raise ValueError(
+                                f"Дублирующееся имя узла '{sub_norm}'. "
+                                "У каждого узла должно быть уникальное имя."
+                            )
+                        seen_proxy_names.add(sub_norm)
+                        cfg = apply_proxy_insert(cfg, sub_yaml, sub_norm, groups)
+                    continue
 
                 match = re.search(r"-\s*name:\s*([^\n]+)", yaml_block)
                 if name:
