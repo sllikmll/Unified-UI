@@ -1,6 +1,7 @@
 import { getMihomoPanelApi } from './mihomo_panel.js';
 import { getMihomoYamlPatchApi } from './mihomo_yaml_patch.js';
 import {
+  confirmMihomoAction,
   getMihomoCoreHttpApi,
   getMihomoEditorEngineApi,
   refreshSharedMihomoEditor,
@@ -45,6 +46,7 @@ let mihomoImportModuleApi = null;
     xrayRefreshBlock: 'mihomo-import-xray-refresh-block',
     xrayInterval: 'mihomo-import-xray-interval',
     xrayRefreshNote: 'mihomo-import-xray-refresh-note',
+    xrayManagedList: 'mihomo-import-xray-managed',
 
     btnParse: 'mihomo-import-parse-btn',
     btnInsert: 'mihomo-import-insert-btn',
@@ -63,6 +65,7 @@ let mihomoImportModuleApi = null;
   let _engineSyncing = false;
   let _previewLayoutRaf = 0;
   let _previewResizeObserver = null;
+  let _managedXraySubscriptions = [];
 
   // Groups selection (proxy-groups)
   const GROUPS_PREF_KEY = 'xkeen.mihomo.import.groups.v1';
@@ -203,6 +206,154 @@ let mihomoImportModuleApi = null;
     return Array.from(map.entries()).map(([uri, items]) => ({ uri, items }));
   }
 
+  function isConfigManagedXraySubscription(sub) {
+    if (!sub || typeof sub !== 'object') return false;
+    const source = String(sub.source || '').trim().toLowerCase();
+    if (source === 'config') return true;
+    return Array.isArray(sub.proxy_names) || Array.isArray(sub.proxyNames) || !!sub.managed_yaml;
+  }
+
+  function managedConfigXraySubscriptions() {
+    return (Array.isArray(_managedXraySubscriptions) ? _managedXraySubscriptions : [])
+      .filter(isConfigManagedXraySubscription);
+  }
+
+  function formatXraySubTime(ts) {
+    const value = Number(ts || 0);
+    if (!Number.isFinite(value) || value <= 0) return 'не запланировано';
+    try {
+      return new Date(value * 1000).toLocaleString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch (e) {}
+    return 'запланировано';
+  }
+
+  function markMihomoEditorModified() {
+    try {
+      if (typeof window.updateLastActivity === 'function') {
+        const fp = getXkeenFilePath('mihomo', '/opt/etc/mihomo/config.yaml');
+        window.updateLastActivity('modified', 'mihomo', fp);
+      }
+    } catch (e) {}
+  }
+
+  function makeManagedIconButton(icon, label, onClick, extraClass) {
+    const safeLabel = String(label || '');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-secondary xk-mi-managed-btn' + (extraClass ? ' ' + extraClass : '');
+    btn.textContent = String(icon || '');
+    btn.setAttribute('aria-label', safeLabel);
+    btn.setAttribute('title', safeLabel);
+    btn.setAttribute('data-tooltip', safeLabel);
+    btn.onclick = onClick;
+    return btn;
+  }
+
+  function renderManagedXraySubscriptions() {
+    const list = $(IDS.xrayManagedList);
+    if (!list) return;
+    list.textContent = '';
+
+    const subs = managedConfigXraySubscriptions();
+    if (!subs.length) return;
+
+    subs.forEach((sub) => {
+      const item = document.createElement('div');
+      item.className = 'mihomo-managed-sub-item xk-mi-managed-row';
+
+      const copy = document.createElement('div');
+      copy.className = 'xk-mi-managed-copy';
+
+      const title = document.createElement('div');
+      title.className = 'mihomo-managed-sub-title';
+      title.textContent = String((sub && (sub.tag || sub.id || sub.url)) || 'Xray-JSON');
+
+      const count = Number(
+        sub && sub.last_count
+          ? sub.last_count
+          : (Array.isArray(sub && sub.proxy_names) ? sub.proxy_names.length : 0),
+      );
+      const intervalHours = clampXrayIntervalHours(sub && sub.interval_hours);
+      const enabled = !(sub && sub.enabled === false);
+      const nodeText = count ? `${count} ${pluralRu(count, ['узел', 'узла', 'узлов'])}` : 'узлы из config.yaml';
+      const stateText = enabled ? 'активна' : 'на паузе';
+
+      const meta = document.createElement('div');
+      meta.className = 'mihomo-managed-sub-meta';
+      meta.textContent =
+        `${stateText} · ${nodeText} · каждые ${intervalHours} ч · след.: ` +
+        (enabled ? formatXraySubTime(sub && sub.next_update_ts) : 'не запланировано');
+
+      copy.appendChild(title);
+      copy.appendChild(meta);
+
+      const actions = document.createElement('div');
+      actions.className = 'mihomo-managed-sub-actions xk-mi-managed-actions';
+
+      const intervalInput = document.createElement('input');
+      intervalInput.type = 'number';
+      intervalInput.min = '1';
+      intervalInput.max = '168';
+      intervalInput.step = '1';
+      intervalInput.value = String(intervalHours);
+      intervalInput.className = 'xray-log-select mihomo-managed-sub-interval xk-mi-managed-interval';
+      intervalInput.title = 'Интервал обновления: от 1 до 168 часов';
+
+      const intervalLabel = document.createElement('span');
+      intervalLabel.className = 'mihomo-managed-sub-interval-label';
+      intervalLabel.textContent = 'ч';
+
+      const saveBtn = makeManagedIconButton('💾', 'Сохранить интервал обновления', () => saveManagedXraySubscription(String(sub.id || ''), {
+        interval_hours: intervalInput.value,
+      }));
+
+      const toggleBtn = makeManagedIconButton(
+        enabled ? '⏸' : '▶',
+        enabled ? 'Поставить автообновление на паузу' : 'Включить автообновление',
+        () => saveManagedXraySubscription(String(sub.id || ''), {
+          enabled: !enabled,
+          interval_hours: intervalInput.value,
+        }),
+      );
+
+      const refreshBtn = makeManagedIconButton(
+        '↻',
+        'Обновить подписку сейчас',
+        () => refreshManagedXraySubscription(String(sub.id || '')),
+      );
+
+      const detachBtn = makeManagedIconButton(
+        '⛓',
+        'Убрать из автообновления, прокси оставить',
+        () => deleteManagedXraySubscription(String(sub.id || ''), false),
+      );
+
+      const removeBtn = makeManagedIconButton(
+        '🗑',
+        'Удалить автообновление и proxy-блоки',
+        () => deleteManagedXraySubscription(String(sub.id || ''), true),
+        'xk-mi-managed-btn--danger',
+      );
+
+      actions.appendChild(intervalInput);
+      actions.appendChild(intervalLabel);
+      actions.appendChild(saveBtn);
+      actions.appendChild(toggleBtn);
+      actions.appendChild(refreshBtn);
+      actions.appendChild(detachBtn);
+      actions.appendChild(removeBtn);
+
+      item.appendChild(copy);
+      item.appendChild(actions);
+      list.appendChild(item);
+    });
+  }
+
   function updateXrayRefreshUi(outputs) {
     const block = $(IDS.xrayRefreshBlock);
     const note = $(IDS.xrayRefreshNote);
@@ -210,17 +361,154 @@ let mihomoImportModuleApi = null;
     const groups = groupXrayOutputsByUri(outputs);
     if (!block) return;
     const hasXray = groups.length > 0;
-    block.classList.toggle('hidden', !hasXray);
+    const managed = managedConfigXraySubscriptions();
+    block.classList.toggle('hidden', !hasXray && !managed.length);
+    try {
+      const field = input && input.closest ? input.closest('.xk-mi-refresh-field') : null;
+      if (field) field.style.display = hasXray ? '' : 'none';
+    } catch (e) {}
     if (input && !String(input.value || '').trim()) {
       input.value = String(loadXrayIntervalPref());
     }
+    renderManagedXraySubscriptions();
     if (note) {
       const count = groups.reduce((sum, group) => sum + group.items.length, 0);
       const subWord = pluralRu(groups.length, ['подписка', 'подписки', 'подписок']);
       const nodeWord = pluralRu(count, ['узел', 'узла', 'узлов']);
-      note.textContent = hasXray
-        ? `Будет создана запись автообновления: ${groups.length} ${subWord}, ${count} ${nodeWord}. Интервал применится при «Вставить в конфиг».`
-        : 'От 1 часа до 7 дней. Отдельная кнопка сохранения не нужна: интервал применяется при вставке в конфиг.';
+      if (hasXray) {
+        note.textContent = `Будет создана запись автообновления: ${groups.length} ${subWord}, ${count} ${nodeWord}. Интервал применится при «Вставить в конфиг».`;
+      } else if (managed.length) {
+        const managedWord = pluralRu(managed.length, ['подписка уже управляется', 'подписки уже управляются', 'подписок уже управляется']);
+        note.textContent = `${managed.length} ${managedWord}. Для существующей записи интервал меняется кнопкой сохранения.`;
+      } else {
+        note.textContent = 'От 1 часа до 7 дней. Отдельная кнопка сохранения не нужна: интервал применяется при вставке в конфиг.';
+      }
+    }
+  }
+
+  async function requestSubscriptionJson(url, options) {
+    const opts = options || {};
+    const init = {
+      method: opts.method || 'GET',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      headers: opts.body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    };
+    if (opts.body !== undefined) init.body = JSON.stringify(opts.body || {});
+    const res = await fetch(url, init);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || (data && data.ok === false)) {
+      const err = new Error((data && data.error) || `HTTP ${res.status}`);
+      err.status = res.status;
+      err.data = data;
+      throw err;
+    }
+    return data;
+  }
+
+  async function loadManagedXraySubscriptions(silent) {
+    try {
+      const data = await requestSubscriptionJson('/api/mihomo/subscriptions');
+      _managedXraySubscriptions = Array.isArray(data.subscriptions) ? data.subscriptions : [];
+      updateXrayRefreshUi((_lastResult && _lastResult.outputs) || []);
+      return _managedXraySubscriptions;
+    } catch (e) {
+      _managedXraySubscriptions = [];
+      updateXrayRefreshUi((_lastResult && _lastResult.outputs) || []);
+      if (!silent) {
+        toastMsg('Не удалось прочитать автообновление Mihomo: ' + (e && e.message ? e.message : String(e || 'ошибка')), true);
+      }
+      return [];
+    }
+  }
+
+  async function saveManagedXraySubscription(subId, payload) {
+    const id = String(subId || '').trim();
+    if (!id) return;
+    try {
+      const body = {
+        ...(payload || {}),
+        interval_hours: clampXrayIntervalHours(payload && payload.interval_hours),
+      };
+      await requestSubscriptionJson('/api/mihomo/subscriptions/' + encodeURIComponent(id), {
+        method: 'POST',
+        body,
+      });
+      await loadManagedXraySubscriptions(true);
+      toastMsg('Настройки автообновления сохранены.', false);
+    } catch (e) {
+      toastMsg('Не удалось сохранить автообновление: ' + (e && e.message ? e.message : String(e || 'ошибка')), true);
+      await loadManagedXraySubscriptions(true);
+    }
+  }
+
+  async function refreshManagedXraySubscription(subId) {
+    const id = String(subId || '').trim();
+    if (!id) return;
+    try {
+      const data = await requestSubscriptionJson('/api/mihomo/subscriptions/' + encodeURIComponent(id) + '/refresh', {
+        method: 'POST',
+      });
+      await loadManagedXraySubscriptions(true);
+      const count = Number(data && data.count ? data.count : 0);
+      toastMsg(
+        data && data.changed
+          ? `Подписка обновлена: ${count} ${pluralRu(count, ['узел', 'узла', 'узлов'])}.`
+          : 'Подписка проверена: изменений нет.',
+        false,
+      );
+    } catch (e) {
+      const code = String((e && e.data && (e.data.error || e.data.code)) || '');
+      const msg = code === 'active_config_changed'
+        ? 'Активный config.yaml менялся после последней синхронизации. Обновление остановлено, чтобы не перетереть правки.'
+        : 'Не удалось обновить подписку: ' + (e && e.message ? e.message : String(e || 'ошибка'));
+      toastMsg(msg, true);
+      await loadManagedXraySubscriptions(true);
+    }
+  }
+
+  async function deleteManagedXraySubscription(subId, removeBlocks) {
+    const id = String(subId || '').trim();
+    if (!id) return;
+
+    const ok = await confirmMihomoAction({
+      title: removeBlocks ? 'Удалить Xray-JSON прокси из config.yaml?' : 'Убрать Xray-JSON из автообновления?',
+      message: removeBlocks
+        ? 'Запись автообновления будет удалена, а связанные proxy-блоки будут вырезаны из текущего редактора config.yaml.'
+        : 'Прокси останутся в config.yaml, но панель больше не будет обновлять и перезаписывать этот блок.',
+      details: removeBlocks
+        ? ['После удаления сохрани config.yaml, чтобы применить правку на роутере.']
+        : ['Эту подписку можно будет импортировать заново позже.'],
+      okText: removeBlocks ? 'Удалить прокси' : 'Убрать авто',
+      cancelText: 'Отмена',
+      danger: !!removeBlocks,
+    }, removeBlocks
+      ? 'Удалить запись автообновления и proxy-блоки из config.yaml?'
+      : 'Убрать подписку из автообновления?');
+    if (!ok) return;
+
+    try {
+      const body = { remove_blocks: !!removeBlocks };
+      if (removeBlocks) body.content = getEditorText() || '';
+      const data = await requestSubscriptionJson('/api/mihomo/subscriptions/' + encodeURIComponent(id), {
+        method: 'DELETE',
+        body,
+      });
+      if (removeBlocks && data && typeof data.content === 'string') {
+        setEditorText(data.content);
+        refreshEditor();
+        markMihomoEditorModified();
+      }
+      await loadManagedXraySubscriptions(true);
+      toastMsg(
+        removeBlocks
+          ? 'Автообновление удалено, proxy-блок вырезан из текущего config.yaml.'
+          : 'Подписка убрана из автообновления. Proxy-блок остался в config.yaml.',
+        false,
+      );
+    } catch (e) {
+      toastMsg('Не удалось удалить подписку: ' + (e && e.message ? e.message : String(e || 'ошибка')), true);
+      await loadManagedXraySubscriptions(true);
     }
   }
 
@@ -802,6 +1090,7 @@ let mihomoImportModuleApi = null;
         const intervalInput = $(IDS.xrayInterval);
         if (intervalInput) intervalInput.value = String(loadXrayIntervalPref());
         updateXrayRefreshUi([]);
+        loadManagedXraySubscriptions(true);
       } catch (e4d) {}
       const ins = $(IDS.btnInsert);
       if (ins) ins.disabled = true;
@@ -1795,6 +2084,9 @@ let mihomoImportModuleApi = null;
       try {
         const registered = await registerImportedXraySubscriptions(txt, groups);
         registeredXrayCount = Array.isArray(registered) ? registered.length : 0;
+        if (registeredXrayCount) {
+          try { await loadManagedXraySubscriptions(true); } catch (e4b) {}
+        }
       } catch (registerErr) {
         xrayRegisterFailed = true;
         try { console.warn('mihomo import subscription register failed', registerErr); } catch (e4a) {}

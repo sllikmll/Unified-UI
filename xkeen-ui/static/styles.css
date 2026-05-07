@@ -7822,6 +7822,94 @@ html[data-theme="light"] #routing-forced-rules-modal .xk-chip[data-kind="ip"] {
   line-height: 1.42;
 }
 
+.xk-mi-managed-list {
+  display: grid;
+  gap: 7px;
+}
+
+.xk-mi-managed-list:empty {
+  display: none;
+}
+
+.xk-mi-managed-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 9px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(2, 6, 23, 0.28);
+}
+
+.xk-mi-managed-copy {
+  min-width: 0;
+}
+
+.xk-mi-managed-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.xk-mi-managed-interval {
+  width: 54px;
+  min-width: 54px;
+  height: 26px;
+  padding: 2px 18px 2px 7px;
+  font-size: calc(12px * var(--xk-font-scale));
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  background-position: right 6px center;
+  background-size: 11px 11px;
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.28);
+}
+
+.xk-mi-managed-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0;
+  border-radius: 9px;
+  font-size: calc(13px * var(--xk-font-scale));
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.xk-mi-managed-btn--danger {
+  border-color: rgba(248, 113, 113, 0.38);
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.18);
+}
+
+.mihomo-managed-sub-title {
+  color: #e5e7eb;
+  font-size: calc(12px * var(--xk-font-scale));
+  font-weight: 700;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mihomo-managed-sub-meta,
+.mihomo-managed-sub-interval-label {
+  color: #93a4bf;
+  font-size: calc(11px * var(--xk-font-scale));
+  line-height: 1.35;
+}
+
+.mihomo-managed-sub-meta {
+  margin-top: 2px;
+}
+
 .xk-mi-section-head {
   display: flex;
   align-items: flex-start;
@@ -7959,6 +8047,14 @@ html[data-theme="light"] #routing-forced-rules-modal .xk-chip[data-kind="ip"] {
     justify-content: flex-start;
   }
 
+  .xk-mi-managed-row {
+    grid-template-columns: 1fr;
+  }
+
+  .xk-mi-managed-actions {
+    justify-content: flex-start;
+  }
+
   #mihomo-import-preview,
   #mihomo-import-preview-monaco,
   #mihomo-import-modal .xk-mihomo-import-preview,
@@ -8001,6 +8097,26 @@ html[data-theme="light"] .xk-mi-target {
   color: #1d4ed8;
   background: rgba(59, 130, 246, 0.08);
   border-color: rgba(59, 130, 246, 0.16);
+}
+
+html[data-theme="light"] .xk-mi-managed-row {
+  background: rgba(255, 255, 255, 0.74);
+  border-color: rgba(2, 6, 23, 0.10);
+}
+
+html[data-theme="light"] .xk-mi-managed-btn--danger {
+  color: #b91c1c;
+  background: rgba(254, 242, 242, 0.88);
+  border-color: rgba(248, 113, 113, 0.28);
+}
+
+html[data-theme="light"] .mihomo-managed-sub-title {
+  color: #111827;
+}
+
+html[data-theme="light"] .mihomo-managed-sub-meta,
+html[data-theme="light"] .mihomo-managed-sub-interval-label {
+  color: #64748b;
 }
 
 html[data-theme="light"] .xk-mi-section-subtitle,

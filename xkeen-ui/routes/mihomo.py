@@ -62,6 +62,7 @@ from services.mihomo_xray_json import (
     format_proxies_section as _xray_format_proxies_section,
 )
 from services.mihomo_subscriptions import (
+    delete_subscription as _mh_sub_delete_subscription,
     list_subscriptions as _mh_sub_list_subscriptions,
     refresh_due_subscriptions as _mh_sub_refresh_due_subscriptions,
     refresh_subscription as _mh_sub_refresh_subscription,
@@ -1096,6 +1097,55 @@ def create_mihomo_blueprint(
                 status=400,
             )
         return jsonify({"ok": True, "subscription": subscription}), 200
+
+    @bp.delete("/api/mihomo/subscriptions/<string:sub_id>")
+    def api_mihomo_subscription_delete(sub_id: str):
+        """Delete one managed Mihomo Xray-JSON subscription entry."""
+        guard = _patch_guard()
+        if guard is not None:
+            return guard
+
+        payload = request.get_json(silent=True) or {}
+        remove_blocks = _bool_arg("remove_blocks", False) or bool(
+            payload.get("remove_blocks") or payload.get("removeConfigBlocks")
+        )
+        raw_content = payload.get("content", payload.get("config", payload.get("config_text")))
+        config_text = _norm_text(raw_content) if isinstance(raw_content, str) else None
+
+        if request.content_length is None and config_text is not None:
+            total = len(config_text) + len(sub_id)
+            if total > _PATCH_MAX_BYTES:
+                return _api_error("payload too large", 413, ok=False)
+
+        try:
+            result = _mh_sub_delete_subscription(
+                ui_state_dir,
+                sub_id,
+                mihomo_config_file=MIHOMO_CONFIG_FILE,
+                remove_config_blocks=remove_blocks,
+                config_text=config_text,
+                save_callback=save_config,
+            )
+        except KeyError:
+            return _mihomo_error("Подписка не найдена.", status=404, ok=False, code="subscription_not_found")
+        except RuntimeError as e:
+            code = str(e) or "mihomo_subscription_delete_refused"
+            return _mihomo_error(
+                "Не удалось удалить подписку Mihomo.",
+                status=400,
+                ok=False,
+                code=code,
+                hint="Проверьте, что запись относится к Xray-JSON блоку proxies.",
+            )
+        except Exception as e:
+            return _mihomo_exception(
+                "Не удалось удалить подписку Mihomo.",
+                code="mihomo_subscription_delete_failed",
+                hint="Подробности смотрите в server logs.",
+                exc=e,
+                status=500,
+            )
+        return jsonify(result), 200
 
     @bp.post("/api/mihomo/subscriptions/refresh-due")
     def api_mihomo_subscriptions_refresh_due():

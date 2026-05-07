@@ -171,6 +171,22 @@ def test_update_subscription_settings_clamps_interval_and_updates_generator_meta
     assert proxy_meta["interval_hours"] == 168
 
 
+def test_delete_generator_subscription_clears_generator_meta(tmp_path):
+    state = _state_with_managed_yaml("- name: Old\n  type: vless\n")
+    svc.sync_from_generator_state(str(tmp_path), state, config_text="config")
+
+    result = svc.delete_subscription(str(tmp_path), "xray-example")
+
+    assert result["ok"] is True
+    assert result["removed_config_blocks"] is False
+    saved = svc.load_subscription_state(str(tmp_path))
+    assert saved["subscriptions"] == []
+    proxy = saved["generator_state"]["proxies"][0]
+    assert "xray_json_subscription" not in proxy
+    assert "xrayJsonSubscription" not in proxy
+    assert "xraySubscription" not in proxy
+
+
 def test_sync_imported_xray_subscription_stores_config_source(tmp_path):
     proxy_yaml = "- name: Old Node\n  type: vless\n  server: 1.1.1.1\n  port: 443\n"
     config = (
@@ -202,6 +218,91 @@ def test_sync_imported_xray_subscription_stores_config_source(tmp_path):
     state = svc.load_subscription_state(str(tmp_path))
     assert state["subscriptions"][0]["id"] == saved["id"]
     assert state["last_config_hash"] == svc._hash_text(config)
+
+
+def test_delete_config_subscription_can_detach_without_touching_config(tmp_path):
+    proxy_yaml = "- name: Old Node\n  type: vless\n  server: 1.1.1.1\n  port: 443\n"
+    config = (
+        "proxies:\n"
+        "  - name: Old Node\n"
+        "    type: vless\n"
+        "    server: 1.1.1.1\n"
+        "    port: 443\n"
+        "proxy-groups:\n"
+        "  - name: Заблок. сервисы\n"
+        "    type: select\n"
+        "    proxies:\n"
+        "      - \"Old Node\"\n"
+    )
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(config, encoding="utf-8")
+    saved = svc.sync_imported_xray_subscription(
+        str(tmp_path),
+        url="https://example.test/xray.json",
+        config_text=config,
+        proxy_yamls=[proxy_yaml],
+        groups=["Заблок. сервисы"],
+        interval_hours=24,
+    )
+
+    result = svc.delete_subscription(
+        str(tmp_path),
+        saved["id"],
+        mihomo_config_file=str(config_path),
+        remove_config_blocks=False,
+    )
+
+    assert result["ok"] is True
+    assert result["removed_config_blocks"] is False
+    assert config_path.read_text(encoding="utf-8") == config
+    assert svc.load_subscription_state(str(tmp_path))["subscriptions"] == []
+
+
+def test_delete_config_subscription_can_remove_proxy_blocks_from_editor_text(tmp_path):
+    proxy_yaml = "- name: Old Node\n  type: vless\n  server: 1.1.1.1\n  port: 443\n"
+    config = (
+        "proxies:\n"
+        "  - name: Old Node\n"
+        "    type: vless\n"
+        "    server: 1.1.1.1\n"
+        "    port: 443\n"
+        "\n"
+        "  - name: Keep Node\n"
+        "    type: vless\n"
+        "    server: 2.2.2.2\n"
+        "    port: 443\n"
+        "proxy-groups:\n"
+        "  - name: Заблок. сервисы\n"
+        "    type: select\n"
+        "    proxies:\n"
+        "      - \"Old Node\"\n"
+        "      - \"Keep Node\"\n"
+    )
+    saved = svc.sync_imported_xray_subscription(
+        str(tmp_path),
+        url="https://example.test/xray.json",
+        config_text=config,
+        proxy_yamls=[proxy_yaml],
+        groups=["Заблок. сервисы"],
+        interval_hours=24,
+    )
+
+    result = svc.delete_subscription(
+        str(tmp_path),
+        saved["id"],
+        remove_config_blocks=True,
+        config_text=config,
+    )
+
+    assert result["ok"] is True
+    assert result["removed_config_blocks"] is True
+    assert result["changed"] is True
+    assert "Old Node" not in result["content"]
+    assert "Keep Node" in result["content"]
+    assert '      - "Keep Node"' in result["content"]
+    state = svc.load_subscription_state(str(tmp_path))
+    assert state["subscriptions"] == []
+    assert state["last_config_hash"] == svc._hash_text(result["content"])
 
 
 def test_refresh_config_subscription_replaces_imported_proxy_blocks(tmp_path, monkeypatch):

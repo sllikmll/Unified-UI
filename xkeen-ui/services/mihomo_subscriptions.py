@@ -231,6 +231,98 @@ def update_subscription_settings(
         return copy.deepcopy(entry)
 
 
+def delete_subscription(
+    ui_state_dir: str,
+    sub_id: str,
+    *,
+    mihomo_config_file: str | None = None,
+    remove_config_blocks: bool = False,
+    config_text: str | None = None,
+    save_callback: SaveCallback | None = None,
+) -> Dict[str, Any]:
+    """Delete a managed Mihomo subscription entry.
+
+    For subscriptions imported directly into ``config.yaml`` the caller may also
+    ask to remove the proxy blocks that were created from that subscription. If
+    ``config_text`` is provided, the patched text is returned without writing to
+    disk so the open editor can stay the source of truth.
+    """
+    with _STATE_LOCK:
+        state = load_subscription_state(ui_state_dir)
+        sub_idx, sub = _find_subscription(state, sub_id)
+        if sub_idx < 0 or sub is None:
+            raise KeyError("subscription not found")
+
+        entry = dict(sub)
+        removed_config_blocks = False
+        changed = False
+        patched_content: str | None = None
+
+        if remove_config_blocks:
+            if str(entry.get("source") or "generator") != "config":
+                raise RuntimeError("remove_config_blocks_supported_only_for_config_source")
+
+            old_names = _clean_string_list(entry.get("proxy_names"))
+            if not old_names:
+                old_names = _extract_proxy_names_from_yaml(entry.get("managed_yaml") or "")
+            if not old_names:
+                raise RuntimeError("managed_proxy_not_found")
+
+            if config_text is not None:
+                active_text = str(config_text or "")
+                should_write = False
+            else:
+                if not mihomo_config_file:
+                    raise ValueError("mihomo_config_file is required")
+                active_text = load_text(mihomo_config_file, default="") or ""
+                should_write = True
+
+            patched = _remove_group_references(active_text, old_names)
+            patched = _remove_proxy_blocks(patched, old_names)
+            patched_content = patched.rstrip("\n")
+            changed = _hash_text(patched_content) != _hash_text(active_text)
+            removed_config_blocks = True
+
+            if should_write and changed:
+                if save_callback is not None:
+                    save_callback(patched_content)
+                else:
+                    _atomic_write_text(str(mihomo_config_file), patched_content + "\n")
+
+            state["last_config_hash"] = _hash_text(patched_content)
+            state["last_synced_ts"] = _now()
+
+        generator_state = state.get("generator_state")
+        if isinstance(generator_state, dict):
+            proxy_index = _find_proxy_index_for_subscription(generator_state, entry)
+            proxies = generator_state.get("proxies")
+            if proxy_index >= 0 and isinstance(proxies, list) and proxy_index < len(proxies):
+                proxy = proxies[proxy_index]
+                if isinstance(proxy, dict):
+                    proxy.pop("xray_json_subscription", None)
+                    proxy.pop("xrayJsonSubscription", None)
+                    proxy.pop("xraySubscription", None)
+
+        state["subscriptions"] = [
+            copy.deepcopy(item)
+            for idx, item in enumerate(state.get("subscriptions") or [])
+            if idx != sub_idx
+        ]
+        _write_state(ui_state_dir, state)
+
+        result: Dict[str, Any] = {
+            "ok": True,
+            "id": entry.get("id"),
+            "removed": True,
+            "removed_config_blocks": removed_config_blocks,
+            "changed": bool(changed),
+            "subscription": copy.deepcopy(entry),
+        }
+        if patched_content is not None:
+            result["content"] = patched_content
+        return result
+
+
 def _extract_meta(proxy: Dict[str, Any]) -> Dict[str, Any] | None:
     for key in ("xray_json_subscription", "xrayJsonSubscription", "xraySubscription"):
         value = proxy.get(key)
@@ -1090,6 +1182,7 @@ def start_subscription_scheduler(
 __all__ = [
     "DEFAULT_INTERVAL_HOURS",
     "STATE_FILENAME",
+    "delete_subscription",
     "load_subscription_state",
     "list_subscriptions",
     "refresh_due_subscriptions",
