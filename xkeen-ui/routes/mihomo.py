@@ -1282,6 +1282,7 @@ def create_mihomo_blueprint(
                     f"Не удалось скачать подписку: {reason}",
                     status=502,
                     code="fetch_failed",
+                    hint="Проверьте интернет, DNS/блокировки и доступность URL подписки.",
                 )
             except Exception as e:
                 return _mihomo_exception(

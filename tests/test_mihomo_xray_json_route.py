@@ -131,6 +131,20 @@ def test_parse_xray_json_propagates_size_limit(client):
     assert r.get_json()["code"] == "size_limit"
 
 
+def test_parse_xray_json_fetch_failed_returns_user_hint(client):
+    with patch(
+        "routes.mihomo._xray_fetch_subscription_body",
+        side_effect=RuntimeError("connection timeout"),
+    ):
+        r = client.post(
+            "/api/mihomo/parse/xray-json", json={"url": "https://example.com/sub"}
+        )
+    assert r.status_code == 502
+    body = r.get_json()
+    assert body["code"] == "fetch_failed"
+    assert "DNS" in body["hint"]
+
+
 def test_parse_xray_json_returns_422_when_no_supported_proxies(client):
     body = json.dumps(
         [

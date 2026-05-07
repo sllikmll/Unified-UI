@@ -1849,8 +1849,10 @@ let mihomoImportModuleApi = null;
       const code = (e && e.data && e.data.code) || '';
       if (code === 'not_xray_json') return null;
       const msg = (e && e.data && e.data.error) || (e && e.message) || 'parse/xray-json failed';
-      const err = new Error(msg);
+      const hint = (e && e.data && e.data.hint) || '';
+      const err = new Error(hint && !String(msg).includes(hint) ? `${msg}. ${hint}` : msg);
       if (code) err.code = code;
+      if (hint) err.hint = hint;
       if (e && e.status) err.status = e.status;
       throw err;
     }
@@ -1858,7 +1860,12 @@ let mihomoImportModuleApi = null;
     if (!data || data.ok === false) {
       const code = (data && data.code) || '';
       if (code === 'not_xray_json') return null;
-      throw new Error((data && data.error) || 'parse/xray-json failed');
+      const msg = (data && data.error) || 'parse/xray-json failed';
+      const hint = (data && data.hint) || '';
+      const err = new Error(hint && !String(msg).includes(hint) ? `${msg}. ${hint}` : msg);
+      if (code) err.code = code;
+      if (hint) err.hint = hint;
+      throw err;
     }
 
     const proxies = Array.isArray(data.proxies) ? data.proxies : [];

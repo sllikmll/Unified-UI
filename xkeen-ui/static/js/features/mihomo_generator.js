@@ -1384,7 +1384,10 @@ function initEngineToggle() {
               body: JSON.stringify(body),
             });
           } catch (e) {
-            throw new Error("Сеть недоступна: " + (e && e.message ? e.message : e));
+            const err = new Error("Сеть недоступна: " + (e && e.message ? e.message : e));
+            err.code = "network_error";
+            err.status = 0;
+            throw err;
           }
           let data;
           try { data = await res.json(); } catch (e) { data = null; }
@@ -1394,15 +1397,86 @@ function initEngineToggle() {
             const msg = (data && data.error) || `HTTP ${res.status}`;
             const err = new Error(msg);
             if (code) err.code = code;
+            if (data && data.hint) err.hint = data.hint;
+            if (data) err.data = data;
             err.status = res.status;
             throw err;
           }
           if (!data || data.ok === false) {
             const code = (data && data.code) || "";
             if (code === "not_xray_json") return null;
-            throw new Error((data && data.error) || "parse/xray-json failed");
+            const err = new Error((data && data.error) || "parse/xray-json failed");
+            if (code) err.code = code;
+            if (data && data.hint) err.hint = data.hint;
+            if (data) err.data = data;
+            throw err;
           }
           return data;
+        }
+
+        function isProbablyCompleteHttpUrl(url) {
+          const raw = String(url || "").trim();
+          if (!/^https?:\/\//i.test(raw)) return false;
+          try {
+            const parsed = new URL(raw);
+            const host = String(parsed.hostname || "").trim();
+            return Boolean(
+              host &&
+              (
+                host === "localhost" ||
+                host.includes(".") ||
+                /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host) ||
+                /^\[[0-9a-f:]+\]$/i.test(host)
+              )
+            );
+          } catch (e) {
+            return false;
+          }
+        }
+
+        function describeXrayProbeFailure(error) {
+          const err = error || {};
+          const code = String(err.code || (err.data && err.data.code) || "");
+          const status = Number(err.status || 0);
+          const rawMessage = String(err.message || (err.data && err.data.error) || "").trim();
+          const hint = String(err.hint || (err.data && err.data.hint) || "").trim();
+          let message;
+
+          if (code === "url_blocked") {
+            message = "URL подписки заблокирован политикой панели.";
+          } else if (code === "size_limit") {
+            message = "Подписка слишком большая, панель не смогла её обработать.";
+          } else if (code === "no_supported_proxies") {
+            message = "Подписка распознана, но поддерживаемых VLESS-узлов в ней не найдено.";
+          } else if (code === "parse_xray_json_failed") {
+            message = "Подписка скачалась, но Xray-JSON не удалось разобрать.";
+          } else if (code === "fetch_failed" || code === "network_error" || status === 0 || status === 502) {
+            message = "Не удалось проверить Xray-JSON подписку: панель не смогла скачать URL.";
+          } else {
+            message = "Не удалось проверить Xray-JSON подписку.";
+          }
+
+          const advice = hint || "Проверь интернет, DNS/блокировки и доступность ссылки.";
+          const details = rawMessage && !message.includes(rawMessage) ? " Детали: " + rawMessage : "";
+          return message + " " + advice + details;
+        }
+
+        function notifyXrayProbeFailure(input, row, error) {
+          if (!row) return;
+          const url = getSubscriptionInputValue(input);
+          if (!isProbablyCompleteHttpUrl(url)) return;
+          const err = error || {};
+          const code = String(err.code || (err.data && err.data.code) || "");
+          const key = [url, code, String(err.message || "")].join("|");
+          const now = Date.now();
+          if (row._xrayLastProbeFailureKey === key && now - Number(row._xrayLastProbeFailureAt || 0) < 30000) {
+            return;
+          }
+          row._xrayLastProbeFailureKey = key;
+          row._xrayLastProbeFailureAt = now;
+          const msg = describeXrayProbeFailure(error);
+          setStatus(msg, "warn");
+          try { toast(msg, "warning"); } catch (e) {}
         }
 
         // After the user finishes editing a subscription URL, probe it for
@@ -1424,6 +1498,8 @@ function initEngineToggle() {
           row._xrayProbedValue = "";
           row._xrayPendingValue = "";
           row._xrayLastInputValue = "";
+          row._xrayLastProbeFailureKey = "";
+          row._xrayLastProbeFailureAt = 0;
         }
 
         function noteXrayProbeInputChange(input, row) {
@@ -1455,6 +1531,7 @@ function initEngineToggle() {
             data = await fetchXrayJsonParse(url);
           } catch (e) {
             console.warn("Xray-JSON probe failed for", url, e);
+            notifyXrayProbeFailure(input, row, e);
             row._xrayProbedValue = "";
             row._xrayInProgress = false;
             return;
