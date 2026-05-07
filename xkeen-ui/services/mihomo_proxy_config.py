@@ -12,6 +12,11 @@ def insert_proxy_into_groups(content: str, proxy_name: str, target_groups: Itera
     if not groups_set:
         return content
 
+    include_all_groups = _proxy_groups_with_include_all(content)
+    groups_set = {group for group in groups_set if group not in include_all_groups}
+    if not groups_set:
+        return content
+
     def _inject_into_inline_proxies(line: str) -> str:
         stripped = line.lstrip()
         indent = line[: len(line) - len(stripped)]
@@ -155,6 +160,41 @@ def insert_proxy_into_groups(content: str, proxy_name: str, target_groups: Itera
         flush_group_if_needed()
 
     return "\n".join(out2) + "\n"
+
+
+def _proxy_groups_with_include_all(content: str) -> set[str]:
+    """Return proxy-group names where include-all is explicitly enabled."""
+    lines = str(content or "").replace("\r\n", "\n").replace("\r", "\n").splitlines()
+    groups: set[str] = set()
+    in_groups = False
+    current_group: Optional[str] = None
+
+    for line in lines:
+        stripped = line.lstrip()
+        indent = len(line) - len(stripped)
+
+        if indent == 0 and stripped.startswith("proxy-groups:"):
+            in_groups = True
+            current_group = None
+            continue
+
+        if in_groups and indent == 0 and stripped and not stripped.startswith("#"):
+            in_groups = False
+            current_group = None
+
+        if not in_groups:
+            continue
+
+        if stripped.startswith("- name:"):
+            current_group = _normalize_yaml_scalar(stripped.split(":", 1)[1])
+            continue
+
+        if current_group and stripped.startswith("include-all:"):
+            value = _normalize_yaml_scalar(stripped.split(":", 1)[1]).lower()
+            if value in {"true", "yes", "on", "1"}:
+                groups.add(current_group)
+
+    return groups
 
 
 def _quote_proxy_list_item(proxy_name: str) -> str:

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import yaml
 
+from mihomo_config_generator import build_full_config
 from services.mihomo_generator_proxies import (
     _split_multi_proxy_yaml,
     insert_proxies_from_state,
@@ -90,7 +91,8 @@ def test_yaml_kind_with_multi_proxy_registers_every_proxy_in_group():
     assert "uuid: aaaa\n\n  - name: B" in result
     assert "uuid: bbbb\n\n  - name: C" in result
     selector = next(g for g in parsed["proxy-groups"] if g["name"] == "Selector")
-    assert set(selector.get("proxies") or []) == {"A", "B", "C"}
+    assert selector.get("include-all") is True
+    assert "proxies" not in selector
 
 
 def test_yaml_kind_with_single_proxy_still_works_after_split_helper():
@@ -117,7 +119,67 @@ def test_yaml_kind_with_single_proxy_still_works_after_split_helper():
 
     assert [p["name"] for p in parsed["proxies"]] == ["Solo"]
     g = next(g for g in parsed["proxy-groups"] if g["name"] == "G")
-    assert g.get("proxies") == ["Solo"]
+    assert g.get("include-all") is True
+    assert "proxies" not in g
+
+
+def test_yaml_kind_with_multi_proxy_registers_every_proxy_in_explicit_group_without_include_all():
+    template = (
+        "proxy-groups:\n"
+        "  - name: Selector\n"
+        "    type: select\n"
+        "    proxies: [DIRECT]\n"
+        "\n"
+        "rule-providers:\n"
+        "  some: ~\n"
+    )
+    multi = (
+        "- name: A\n"
+        "  type: vless\n"
+        "  server: 1.1.1.1\n"
+        "  port: 443\n"
+        "  uuid: aaaa\n"
+        "- name: B\n"
+        "  type: vless\n"
+        "  server: 2.2.2.2\n"
+        "  port: 443\n"
+        "  uuid: bbbb\n"
+    )
+    state = {"proxies": [{"kind": "yaml", "yaml": multi, "groups": ["Selector"]}]}
+    result = insert_proxies_from_state(template, state)
+    parsed = yaml.safe_load(result)
+
+    assert {p["name"] for p in parsed["proxies"]} == {"A", "B"}
+    selector = next(g for g in parsed["proxy-groups"] if g["name"] == "Selector")
+    assert set(selector.get("proxies") or []) == {"DIRECT", "A", "B"}
+
+
+def test_router_custom_xray_json_import_does_not_duplicate_include_all_group_entries():
+    multi = (
+        "- name: A\n"
+        "  type: vless\n"
+        "  server: 1.1.1.1\n"
+        "  port: 443\n"
+        "  uuid: aaaa\n"
+        "- name: B\n"
+        "  type: vless\n"
+        "  server: 2.2.2.2\n"
+        "  port: 443\n"
+        "  uuid: bbbb\n"
+    )
+    cfg = build_full_config({
+        "profile": "router_custom",
+        "enabledRuleGroups": ["Blocked", "YouTube"],
+        "proxies": [
+            {"kind": "yaml", "yaml": multi, "groups": ["Заблок. сервисы"]},
+        ],
+    })
+    parsed = yaml.safe_load(cfg)
+
+    assert {p["name"] for p in parsed["proxies"]} == {"A", "B"}
+    blocked = next(g for g in parsed["proxy-groups"] if g["name"] == "Заблок. сервисы")
+    assert blocked.get("include-all") is True
+    assert "proxies" not in blocked
 
 
 def test_yaml_kind_multi_proxy_raises_on_duplicate_names():

@@ -140,6 +140,30 @@ def test_mihomo_generator_xray_subscription_prompt_uses_theme_confirm_modal():
     assert 'data-modal-key="mihomo-generator-confirm"' in template
 
 
+def test_mihomo_generator_xray_subscription_prompt_is_scoped_to_generator_screen():
+    script = Path('xkeen-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
+    init = Path('xkeen-ui/static/js/pages/mihomo_generator.init.js').read_text(encoding='utf-8')
+    screen = Path('xkeen-ui/static/js/pages/top_level_mihomo_generator_screen.js').read_text(encoding='utf-8')
+
+    assert 'getXkeenPageName,' in script
+    assert 'function isMihomoGeneratorDocument() {' in script
+    assert "getXkeenPageName() === 'mihomo_generator'" in script
+    assert "document.body?.classList.contains('mihomo-generator-page')" in script
+    assert 'if (!isMihomoGeneratorDocument()) return;' in script
+    assert 'if (!input || !row || (subscriptionsList && !subscriptionsList.contains(row))) return;' in script
+
+    assert "getXkeenPageName() === 'mihomo_generator'" in init
+    assert "document.body?.classList.contains('mihomo-generator-page')" in init
+    assert "document.getElementById('profileSelect') ||" not in init
+    assert "document.getElementById('previewTextarea')" not in init
+    assert "document.getElementById('mihomo-preview-engine-select')" not in init
+
+    assert "window.XKeen?.pageConfig?.page === 'mihomo_generator'" in screen
+    assert "document.body?.classList.contains('mihomo-generator-page')" in screen
+    assert "document.getElementById('profileSelect') ||" not in screen
+    assert "document.getElementById('previewTextarea')" not in screen
+
+
 def test_mihomo_result_modal_collapses_empty_log_column_and_uses_compact_sections():
     script = Path('xkeen-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
     template = Path('xkeen-ui/templates/mihomo_generator.html').read_text(encoding='utf-8')

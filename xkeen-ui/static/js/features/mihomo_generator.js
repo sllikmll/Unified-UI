@@ -10,6 +10,7 @@ import {
   getXkeenEditorToolbarDefaultItems,
   getXkeenEditorToolbarIcons,
   getXkeenEditorToolbarMiniItems,
+  getXkeenPageName,
 } from './xkeen_runtime.js';
 
 let mihomoGeneratorModuleApi = null;
@@ -57,12 +58,25 @@ let mihomoGeneratorModuleApi = null;
       afterNextPaint(fn);
     }
 
+    function isMihomoGeneratorDocument() {
+      try {
+        return !!(
+          getXkeenPageName() === 'mihomo_generator' ||
+          document.body?.classList.contains('mihomo-generator-page')
+        );
+      } catch (e) {
+        return false;
+      }
+    }
+
     function init() {
       if (inited) return;
-      inited = true;
 
-      // The generator UI exists only on mihomo_generator.html
+      // The generator UI must not initialize from panel modals that reuse
+      // generic form ids.
+      if (!isMihomoGeneratorDocument()) return;
       if (!document.getElementById('profileSelect')) return;
+      inited = true;
 
         // ---- constants ----
         const RULE_GROUP_PRESETS = [
@@ -1389,6 +1403,8 @@ function initEngineToggle() {
         // Xray JSON. If detected, offer to convert to a YAML proxy block.
         const _xrayProbeTimers = new WeakMap();
         async function maybeOfferXrayConversion(input, row) {
+          if (!isMihomoGeneratorDocument()) return;
+          if (!input || !row || (subscriptionsList && !subscriptionsList.contains(row))) return;
           const url = String(input.value || "").trim();
           if (!url || !/^https?:\/\//i.test(url)) return;
           if (row._xrayProbedValue === url) return;

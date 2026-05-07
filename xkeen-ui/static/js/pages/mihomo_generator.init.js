@@ -5,9 +5,7 @@ import { wireTopLevelNavigation } from './top_level_nav.shared.js';
 function isMihomoGeneratorPage() {
   return !!(
     getXkeenPageName() === 'mihomo_generator' ||
-    document.getElementById('profileSelect') ||
-    document.getElementById('previewTextarea') ||
-    document.getElementById('mihomo-preview-engine-select')
+    document.body?.classList.contains('mihomo-generator-page')
   );
 }
 

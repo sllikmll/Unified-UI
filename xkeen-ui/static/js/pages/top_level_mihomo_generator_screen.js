@@ -12,9 +12,7 @@ function isMihomoLocation() {
   try {
     return !!(
       window.XKeen?.pageConfig?.page === 'mihomo_generator' ||
-      document.body?.classList.contains('mihomo-generator-page') ||
-      document.getElementById('profileSelect') ||
-      document.getElementById('previewTextarea')
+      document.body?.classList.contains('mihomo-generator-page')
     );
   } catch (error) {
     return false;
