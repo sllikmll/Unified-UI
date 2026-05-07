@@ -2902,6 +2902,16 @@
           "lazy_features": []
         },
         {
+          "path": "static/js/ui/confirm_modal.js",
+          "globals": [
+            "XKeen.ui",
+            "XKeen.ui.confirm",
+            "XKeen.ui.modal",
+            "XKeen.ui.toast"
+          ],
+          "lazy_features": []
+        },
+        {
           "path": "static/js/ui/theme.js",
           "globals": [
             "XKeen.ui",
