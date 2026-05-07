@@ -177,6 +177,9 @@ let mihomoGeneratorModuleApi = null;
         const defaultGroupsInput = document.getElementById("defaultGroupsInput");
         const subscriptionsList = document.getElementById("subscriptionsList");
         const addSubscriptionBtn = document.getElementById("addSubscriptionBtn");
+        const managedSubscriptionsList = document.getElementById("mihomoManagedSubscriptionsList");
+        const reloadManagedSubscriptionsBtn = document.getElementById("reloadMihomoManagedSubsBtn");
+        const refreshManagedDueBtn = document.getElementById("refreshMihomoManagedDueBtn");
         const ruleGroupsList = document.getElementById("ruleGroupsList");
         const ruleGroupsSelectAll = document.getElementById("ruleGroupsSelectAll");
         const proxiesList = document.getElementById("proxiesList");
@@ -1472,7 +1475,7 @@ function initEngineToggle() {
             "Это Xray-JSON подписка (" + count + " " + plural(count, ["узел", "узла", "узлов"]) + ").\n" +
             (sample ? ("Например: " + sample + "\n") : "") +
             "\nMihomo не умеет читать такие подписки напрямую как proxy-provider.\n" +
-            "Конвертировать в YAML-блок прокси? Auto-обновление будет потеряно — для обновления нужно будет переимпортировать вручную.";
+            "Конвертировать в YAML-блок прокси? Исходный URL сохранится для ручного и планового обновления.";
           const ok = await confirmMihomoAction({
             title: "Конвертировать Xray-JSON подписку?",
             message:
@@ -1482,7 +1485,7 @@ function initEngineToggle() {
             details: [
               sample ? ("Например: " + sample) : "",
               "Можно конвертировать её в YAML-блок прокси.",
-              "Auto-обновление будет потеряно — для обновления нужно будет переимпортировать вручную.",
+              "Генератор сохранит исходный URL для ручного и планового обновления.",
             ],
             okText: "Конвертировать",
             cancelText: "Оставить как подписку",
@@ -1506,6 +1509,7 @@ function initEngineToggle() {
             kind: "yaml",
             data: items,
             tags: deriveTagFromUrl(url),
+            xrayJsonSubscription: buildXrayJsonSubscriptionMeta(url),
           });
           clearXrayProbeTimer(input);
           input.value = "";
@@ -1538,6 +1542,44 @@ function initEngineToggle() {
           } catch (e) {
             return "xray-sub";
           }
+        }
+
+        function hashSmall(text) {
+          const raw = String(text || "");
+          let h = 2166136261;
+          for (let i = 0; i < raw.length; i += 1) {
+            h ^= raw.charCodeAt(i);
+            h = Math.imul(h, 16777619);
+          }
+          return (h >>> 0).toString(36);
+        }
+
+        function buildXrayJsonSubscriptionMeta(url) {
+          const tag = deriveTagFromUrl(url);
+          return {
+            id: "xray-" + hashSmall(url),
+            url: String(url || "").trim(),
+            tag,
+            enabled: true,
+            intervalHours: 24,
+          };
+        }
+
+        function normalizeXrayJsonSubscriptionMeta(meta) {
+          if (!meta || typeof meta !== "object") return null;
+          const url = String(meta.url || meta.source_url || meta.sourceUrl || "").trim();
+          if (!url) return null;
+          const tag = String(meta.tag || deriveTagFromUrl(url)).trim() || "xray-sub";
+          const intervalRaw = meta.interval_hours !== undefined ? meta.interval_hours : meta.intervalHours;
+          const intervalHours = Math.max(1, Math.min(168, parseInt(String(intervalRaw || "24"), 10) || 24));
+          const id = String(meta.id || ("xray-" + hashSmall(url))).trim();
+          return {
+            id,
+            url,
+            tag,
+            enabled: meta.enabled !== false,
+            intervalHours,
+          };
         }
 
         function createSubscriptionRow(value) {
@@ -1589,6 +1631,153 @@ function initEngineToggle() {
         function addInitialSubscriptionRow() {
           if (!subscriptionsList.children.length) {
             subscriptionsList.appendChild(createSubscriptionRow(""));
+          }
+        }
+
+        function formatMihomoSubTime(ts) {
+          const n = Number(ts || 0);
+          if (!n) return "не задано";
+          try {
+            return new Date(n * 1000).toLocaleString("ru-RU", {
+              day: "2-digit",
+              month: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+          } catch (e) {
+            return String(ts);
+          }
+        }
+
+        function renderManagedSubscriptions(items) {
+          if (!managedSubscriptionsList) return;
+          managedSubscriptionsList.textContent = "";
+
+          const subs = Array.isArray(items) ? items : [];
+          if (!subs.length) {
+            const empty = document.createElement("div");
+            empty.className = "mihomo-managed-sub-empty";
+            empty.textContent = "Пока нет применённых Xray-JSON подписок.";
+            managedSubscriptionsList.appendChild(empty);
+            return;
+          }
+
+          subs.forEach((sub) => {
+            const item = document.createElement("div");
+            item.className = "mihomo-managed-sub-item";
+
+            const copy = document.createElement("div");
+            copy.style.minWidth = "0";
+            const title = document.createElement("div");
+            title.className = "mihomo-managed-sub-title";
+            title.textContent = String((sub && (sub.tag || sub.id || sub.url)) || "Xray-JSON");
+            const meta = document.createElement("div");
+            meta.className = "mihomo-managed-sub-meta";
+            const count = Number(sub && sub.last_count ? sub.last_count : 0);
+            const status = sub && sub.last_ok === false
+              ? ("ошибка: " + String(sub.last_error || "refresh_failed"))
+              : (count ? (count + " " + plural(count, ["узел", "узла", "узлов"])) : "ещё не обновлялась");
+            meta.textContent =
+              status + " · каждые " + String((sub && sub.interval_hours) || 24) +
+              " ч · след.: " + formatMihomoSubTime(sub && sub.next_update_ts);
+            copy.appendChild(title);
+            copy.appendChild(meta);
+
+            const actions = document.createElement("div");
+            actions.className = "mihomo-managed-sub-actions";
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "btn btn-ghost btn-xs";
+            btn.textContent = "Обновить";
+            btn.onclick = () => refreshManagedSubscription(String(sub.id || ""));
+            actions.appendChild(btn);
+
+            item.appendChild(copy);
+            item.appendChild(actions);
+            managedSubscriptionsList.appendChild(item);
+          });
+        }
+
+        async function loadManagedSubscriptions(silent = false) {
+          if (!managedSubscriptionsList) return [];
+          try {
+            const res = await fetch("/api/mihomo/subscriptions", { method: "GET" });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) throw new Error((data && data.error) || ("HTTP " + res.status));
+            renderManagedSubscriptions(data.subscriptions || []);
+            return data.subscriptions || [];
+          } catch (e) {
+            if (!silent) {
+              const msg = "Не удалось прочитать автообновление Mihomo: " + (e && e.message ? e.message : e);
+              setStatus(msg, "err");
+              try { toast(msg, "error"); } catch (e2) {}
+            }
+            return [];
+          }
+        }
+
+        async function applyRefreshedGeneratorState(generatorState) {
+          if (!generatorState || typeof generatorState !== "object") return;
+          try {
+            const draft = {
+              state: generatorState,
+              editable: false,
+              engine: normalizeEngine(_engine || (previewEngineSelect && previewEngineSelect.value) || "codemirror"),
+            };
+            hydrateSessionDraft(draft);
+            await finalizeSessionDraftRestore(draft);
+            try { scheduleSessionDraftSave(60); } catch (e) {}
+          } catch (e) {}
+        }
+
+        async function refreshManagedSubscription(id) {
+          const subId = String(id || "").trim();
+          if (!subId) return;
+          setStatus("Обновляю Xray-JSON подписку Mihomo...", "ok");
+          try {
+            const res = await fetch("/api/mihomo/subscriptions/" + encodeURIComponent(subId) + "/refresh", {
+              method: "POST",
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+              const code = String((data && (data.error || data.code)) || "");
+              const msg = code === "active_config_changed"
+                ? "Активный config.yaml менялся вручную после генерации. Автообновление остановлено, чтобы не перетереть правки."
+                : ("Не удалось обновить подписку: " + ((data && data.error) || res.status));
+              throw new Error(msg);
+            }
+            await applyRefreshedGeneratorState(data.generator_state);
+            await loadManagedSubscriptions(true);
+            const count = Number(data.count || 0);
+            const msg = "Подписка обновлена: " + count + " " + plural(count, ["узел", "узла", "узлов"]) + ".";
+            setStatus(msg, data.changed ? "ok" : null);
+            try { toast(data.changed ? "Mihomo подписка обновлена." : "Изменений в подписке нет.", data.changed ? "success" : "info"); } catch (e) {}
+          } catch (e) {
+            const msg = e && e.message ? e.message : String(e || "refresh failed");
+            setStatus(msg, "err");
+            try { toast(msg, "error"); } catch (e2) {}
+            await loadManagedSubscriptions(true);
+          }
+        }
+
+        async function refreshManagedDueSubscriptions() {
+          setStatus("Проверяю плановые Xray-JSON обновления Mihomo...", "ok");
+          try {
+            const res = await fetch("/api/mihomo/subscriptions/refresh-due", { method: "POST" });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) throw new Error((data && data.error) || ("HTTP " + res.status));
+            await loadManagedSubscriptions(true);
+            const updated = Number(data.updated || 0);
+            const okCount = Number(data.ok_count || 0);
+            const msg = updated
+              ? ("Плановые обновления: " + okCount + " из " + updated + " успешно.")
+              : "Сейчас нет подписок, которым пора обновляться.";
+            setStatus(msg, okCount === updated ? "ok" : "warn");
+            try { toast(msg, okCount === updated ? "success" : "info"); } catch (e) {}
+          } catch (e) {
+            const msg = "Не удалось запустить плановое обновление: " + (e && e.message ? e.message : e);
+            setStatus(msg, "err");
+            try { toast(msg, "error"); } catch (e2) {}
           }
         }
       
@@ -1724,6 +1913,9 @@ function initEngineToggle() {
       
         function createProxyCard(initial) {
           const idx = proxyControllers.length + 1;
+          const xrayJsonSubscription = normalizeXrayJsonSubscriptionMeta(
+            initial && (initial.xrayJsonSubscription || initial.xray_json_subscription)
+          );
           const wrapper = document.createElement("div");
           wrapper.className = "proxy-card";
       
@@ -1953,7 +2145,23 @@ function initEngineToggle() {
               if (prio !== null && !Number.isNaN(prio)) out.priority = prio;
 
               if (kind === "wireguard") out.config = data;
-              else if (kind === "yaml") out.yaml = data;
+              else if (kind === "yaml") {
+                out.yaml = data;
+                if (xrayJsonSubscription) {
+                  out.xray_json_subscription = {
+                    id: xrayJsonSubscription.id,
+                    url: xrayJsonSubscription.url,
+                    tag: xrayJsonSubscription.tag,
+                    enabled: xrayJsonSubscription.enabled,
+                    interval_hours: xrayJsonSubscription.intervalHours,
+                  };
+                  if (out.tags) {
+                    if (!out.tags.includes(xrayJsonSubscription.tag)) out.tags.push(xrayJsonSubscription.tag);
+                  } else {
+                    out.tags = [xrayJsonSubscription.tag];
+                  }
+                }
+              }
               else out.link = data.trim();
               return out;
             },
@@ -2871,6 +3079,9 @@ function initEngineToggle() {
           if (proxy.icon) initial.icon = String(proxy.icon);
           if (proxy.priority !== undefined && proxy.priority !== null && String(proxy.priority) !== "") {
             initial.priority = proxy.priority;
+          }
+          if (proxy.xray_json_subscription || proxy.xrayJsonSubscription) {
+            initial.xray_json_subscription = proxy.xray_json_subscription || proxy.xrayJsonSubscription;
           }
 
           if (kind === "wireguard") initial.data = String(proxy.config || "");
@@ -3886,6 +4097,7 @@ function initEngineToggle() {
             const core = (data && data.core) ? String(data.core) : (snap && snap.core ? String(snap.core) : (_lastKnownCore || ''));
             if (core) _lastKnownCore = core;
             try { _setCorePill(core, true); } catch (e) {}
+            try { await loadManagedSubscriptions(true); } catch (e) {}
 
             if (core && core !== 'mihomo') {
               const coreWarning = 'Сейчас активно ядро ' + core + '. Конфиг Mihomo сохранён, но применится только после переключения ядра на Mihomo.';
@@ -4133,6 +4345,7 @@ function initEngineToggle() {
           try { await loadProfileDefaults(profileSelect && profileSelect.value); } catch (e) {}
           try { await finalizeSessionDraftRestore(initialSessionDraft); } catch (e) {}
           try { refreshActiveCorePill({ silent: true }); } catch (e) {}
+          try { await loadManagedSubscriptions(true); } catch (e) {}
         });
       
         addSubscriptionBtn.onclick = () => {
@@ -4145,6 +4358,8 @@ function initEngineToggle() {
         };
         if (bulkImportBtn) bulkImportBtn.onclick = () => showBulkImportModal();
         if (normalizeProxiesBtn) normalizeProxiesBtn.onclick = () => applyTemplatesToExistingProxies();
+        if (reloadManagedSubscriptionsBtn) reloadManagedSubscriptionsBtn.onclick = () => loadManagedSubscriptions(false);
+        if (refreshManagedDueBtn) refreshManagedDueBtn.onclick = () => refreshManagedDueSubscriptions();
         if (bulkImportApplyBtn) bulkImportApplyBtn.onclick = () => doBulkImport();
         if (bulkImportApplyExistingBtn) bulkImportApplyExistingBtn.onclick = () => applyTemplatesToExistingProxies();
         generateBtn.onclick = () => generatePreviewDemo(true);

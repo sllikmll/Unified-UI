@@ -61,6 +61,12 @@ from services.mihomo_xray_json import (
     convert_subscription_text as _xray_convert_subscription_text,
     format_proxies_section as _xray_format_proxies_section,
 )
+from services.mihomo_subscriptions import (
+    list_subscriptions as _mh_sub_list_subscriptions,
+    refresh_due_subscriptions as _mh_sub_refresh_due_subscriptions,
+    refresh_subscription as _mh_sub_refresh_subscription,
+    sync_from_generator_state as _mh_sub_sync_from_generator_state,
+)
 from services.xray_subscriptions import fetch_subscription_body as _xray_fetch_subscription_body
 
 
@@ -189,8 +195,26 @@ def create_mihomo_blueprint(
     MIHOMO_TEMPLATES_DIR: str,
     MIHOMO_DEFAULT_TEMPLATE: str,
     restart_xkeen: Any,
+    ui_state_dir: str = "",
 ) -> Blueprint:
     bp = Blueprint("mihomo", __name__)
+
+    def _bool_arg(name: str, default: bool) -> bool:
+        raw = request.args.get(name)
+        if raw is None:
+            return bool(default)
+        return str(raw or "").strip().lower() in {"1", "true", "yes", "on", "y"}
+
+    def _same_config_text(left: str, right: str) -> bool:
+        return str(left or "").replace("\r\n", "\n").rstrip("\n") == str(right or "").replace("\r\n", "\n").rstrip("\n")
+
+    def _sync_mihomo_managed_subscriptions(state: Dict[str, Any], cfg: str) -> None:
+        try:
+            _mh_sub_sync_from_generator_state(ui_state_dir, state, config_text=cfg)
+        except Exception:
+            # Managed subscription metadata is best-effort; config save/restart
+            # must not fail just because the sidecar state could not be updated.
+            pass
 
     # ---------- API: mihomo config.yaml ----------
 
@@ -572,6 +596,7 @@ def create_mihomo_blueprint(
         try:
             state = _mihomo_get_state_from_request()
             cfg, active_profile, warnings = mihomo_svc.generate_and_save_config(state)
+            _sync_mihomo_managed_subscriptions(state, cfg)
             return (
                 jsonify(
                     {
@@ -606,6 +631,7 @@ def create_mihomo_blueprint(
 
                 ensure_mihomo_layout()
                 save_config(cfg.rstrip("\n"))
+                _sync_mihomo_managed_subscriptions(state, cfg)
                 active_profile = get_active_profile_name()
                 running_core = detect_running_core()
 
@@ -635,6 +661,7 @@ def create_mihomo_blueprint(
         try:
             state = _mihomo_get_state_from_request()
             cfg, log, warnings = mihomo_svc.generate_save_and_restart(state)
+            _sync_mihomo_managed_subscriptions(state, cfg)
             return (
                 jsonify({"ok": True, "config_length": len(cfg), "log": log, "warnings": warnings}),
                 200,
@@ -669,6 +696,7 @@ def create_mihomo_blueprint(
 
             # Build generated config (for warnings) but save override if provided.
             cfg_generated, warnings = mihomo_svc.generate_preview(data)
+            state = _mihomo_parse_state(data)
 
             cfg_to_save = cfg_override.rstrip("\n") if cfg_override.strip() else (cfg_generated or "")
             if not cfg_to_save.strip():
@@ -676,6 +704,8 @@ def create_mihomo_blueprint(
 
             ensure_mihomo_layout()
             save_config(cfg_to_save)
+            if _same_config_text(cfg_to_save, cfg_generated):
+                _sync_mihomo_managed_subscriptions(state, cfg_to_save)
             active_profile = get_active_profile_name()
 
             # Snapshot current running core (best-effort) so UI can warn when it's not mihomo.
@@ -998,6 +1028,76 @@ def create_mihomo_blueprint(
                 exc=e,
                 status=400,
             )
+
+    @bp.get("/api/mihomo/subscriptions")
+    def api_mihomo_subscriptions_list():
+        """List Xray-JSON subscriptions managed through the Mihomo generator."""
+        try:
+            return (
+                jsonify(
+                    {
+                        "ok": True,
+                        "subscriptions": _mh_sub_list_subscriptions(ui_state_dir),
+                    }
+                ),
+                200,
+            )
+        except Exception as e:
+            return _mihomo_exception(
+                "Не удалось прочитать подписки Mihomo.",
+                code="mihomo_subscription_list_failed",
+                hint="Подробности смотрите в server logs.",
+                exc=e,
+                status=500,
+            )
+
+    @bp.post("/api/mihomo/subscriptions/<string:sub_id>/refresh")
+    def api_mihomo_subscription_refresh(sub_id: str):
+        """Refresh one managed Mihomo Xray-JSON subscription now."""
+        try:
+            result = _mh_sub_refresh_subscription(
+                ui_state_dir,
+                sub_id,
+                mihomo_config_file=MIHOMO_CONFIG_FILE,
+                restart_xkeen=restart_xkeen,
+                restart=_bool_arg("restart", True),
+                force=_bool_arg("force", False),
+                save_callback=save_config,
+            )
+        except KeyError:
+            return _mihomo_error("Подписка не найдена.", status=404, ok=False, code="subscription_not_found")
+        except Exception as e:
+            return _mihomo_exception(
+                "Не удалось обновить подписку Mihomo.",
+                code="mihomo_subscription_refresh_failed",
+                hint="Проверьте URL подписки и server logs.",
+                exc=e,
+                status=500,
+            )
+        status = 200 if result.get("ok") else (409 if result.get("error") == "active_config_changed" else 400)
+        return jsonify(result), status
+
+    @bp.post("/api/mihomo/subscriptions/refresh-due")
+    def api_mihomo_subscriptions_refresh_due():
+        """Refresh every due managed Mihomo Xray-JSON subscription."""
+        try:
+            results = _mh_sub_refresh_due_subscriptions(
+                ui_state_dir,
+                mihomo_config_file=MIHOMO_CONFIG_FILE,
+                restart_xkeen=restart_xkeen,
+                restart=_bool_arg("restart", True),
+                save_callback=save_config,
+            )
+        except Exception as e:
+            return _mihomo_exception(
+                "Не удалось обновить подписки Mihomo.",
+                code="mihomo_subscription_refresh_due_failed",
+                hint="Подробности смотрите в server logs.",
+                exc=e,
+                status=500,
+            )
+        ok_count = sum(1 for item in results if item.get("ok"))
+        return jsonify({"ok": True, "updated": len(results), "ok_count": ok_count, "results": results}), 200
 
     @bp.post("/api/mihomo/parse/xray-json")
     def api_mihomo_parse_xray_json():

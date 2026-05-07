@@ -496,6 +496,47 @@
     .subscription-row input {
       flex: 1;
     }
+    .mihomo-managed-sub-list {
+      display: grid;
+      gap: 7px;
+      margin-bottom: 9px;
+    }
+    .mihomo-managed-sub-empty {
+      color: #93a4bf;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .mihomo-managed-sub-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 9px;
+      border-radius: 12px;
+      border: 1px solid rgba(148,163,184,0.14);
+      background: rgba(2, 6, 23, 0.28);
+    }
+    .mihomo-managed-sub-title {
+      color: #e5e7eb;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.35;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .mihomo-managed-sub-meta {
+      color: #93a4bf;
+      font-size: 11px;
+      line-height: 1.35;
+      margin-top: 2px;
+    }
+    .mihomo-managed-sub-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;
+    }
     .btn {
       border-radius: 7px;
       border: 1px solid #4b5563;
@@ -889,6 +930,20 @@
     html[data-theme="light"] .proxy-card {
       background: #ffffff;
       border-color: #d1d5db;
+    }
+
+    html[data-theme="light"] .mihomo-managed-sub-item {
+      background: #ffffff;
+      border-color: rgba(148,163,184,0.24);
+    }
+
+    html[data-theme="light"] .mihomo-managed-sub-title {
+      color: #111827;
+    }
+
+    html[data-theme="light"] .mihomo-managed-sub-empty,
+    html[data-theme="light"] .mihomo-managed-sub-meta {
+      color: #64748b;
     }
 
     html[data-theme="light"] .proxy-header-type {
@@ -1936,6 +1991,22 @@
               <div class="hint xk-card-desc">
                 Подписки будут заполнены в proxy-providers как: proxy-sub, proxy-sub-2, proxy-sub-3, ...
                 Если подписок больше 5 — дополнительные proxy-providers будут добавлены автоматически.
+              </div>
+            </div>
+
+            <div class="generator-field-card" id="mihomoManagedSubscriptionsBlock">
+              <label>Автообновление Xray-JSON</label>
+              <div id="mihomoManagedSubscriptionsList" class="mihomo-managed-sub-list"></div>
+              <div class="generator-action-row">
+                <button type="button" id="reloadMihomoManagedSubsBtn" class="btn btn-ghost btn-xs" data-tooltip="Обновить список управляемых Xray-JSON подписок.">
+                  Обновить список
+                </button>
+                <button type="button" id="refreshMihomoManagedDueBtn" class="btn btn-ghost btn-xs" data-tooltip="Запустить обновление подписок, у которых подошло время.">
+                  Обновить due
+                </button>
+              </div>
+              <div class="hint xk-card-desc">
+                Работает для Xray-JSON подписок, которые были конвертированы в YAML-блок прокси и применены без ручной правки предпросмотра.
               </div>
             </div>
           </div>

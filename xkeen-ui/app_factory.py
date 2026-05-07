@@ -628,4 +628,27 @@ def create_app(*, ws_runtime: bool = False):
         except Exception:
             pass
 
+    try:
+        from mihomo_server_core import save_config as _mihomo_save_config
+        from services.mihomo_subscriptions import start_subscription_scheduler as start_mihomo_subscription_scheduler
+
+        start_mihomo_subscription_scheduler(
+            UI_STATE_DIR,
+            mihomo_config_file=MIHOMO_CONFIG_FILE,
+            restart_xkeen=restart_xkeen,
+            save_callback=_mihomo_save_config,
+        )
+    except Exception as e:  # noqa: BLE001
+        try:
+            from core.logging import core_log_once
+
+            core_log_once(
+                "warning",
+                "mihomo_subscriptions_scheduler_failed",
+                "mihomo subscriptions scheduler init failed (non-fatal)",
+                error=str(e),
+            )
+        except Exception:
+            pass
+
     return app

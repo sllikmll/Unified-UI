@@ -114,6 +114,7 @@ def register_blueprints(app, ctx: Optional[AppContext] = None):
             MIHOMO_CONFIG_FILE=ctx.mihomo_config_file,
             MIHOMO_TEMPLATES_DIR=ctx.mihomo_templates_dir,
             MIHOMO_DEFAULT_TEMPLATE=ctx.mihomo_default_template,
+            ui_state_dir=ctx.ui_state_dir,
             restart_xkeen=ctx.restart_xkeen,
         )
     )
