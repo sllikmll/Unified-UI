@@ -366,6 +366,22 @@ def test_root_sniffer_snippet_replaces_partial_key_with_colon_cleanly():
     assert result["context"]["kind"] == "key"
     assert result["applied"] == "sniffer:\n  enable: true\n  sniff:\n    HTTP:\n    TLS:\n"
 
+def test_root_sniffer_snippet_is_hidden_after_existing_sniffer_block():
+    result = _run_completion(
+        "\n".join([
+            "sniffer:",
+            "  enable: true",
+            "  sniff:",
+            "    HTTP:",
+            "    TLS:",
+            "__CURSOR__",
+        ])
+    )
+
+    assert result is not None
+    assert not any("sniffer block" in label for label in result["labels"])
+    assert any("tun block" in label for label in result["labels"])
+
 
 def test_proxy_snippet_keeps_nested_yaml_indent_inside_array_item():
     result = _apply_completion(

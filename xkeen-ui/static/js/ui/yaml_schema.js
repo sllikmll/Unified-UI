@@ -1284,6 +1284,32 @@ function buildYamlSnippetRange(context, insertText) {
   return { from, to };
 }
 
+function yamlBlockSnippetRootKeys(text) {
+  const source = asString(text);
+  if (!looksLikeYamlBlockSnippet(source)) return [];
+  const keys = [];
+  source.split('\n').forEach((line) => {
+    const match = /^([^\s:#][^:\n]*):(?:\s|$)/.exec(line);
+    if (match && match[1]) keys.push(match[1]);
+  });
+  return keys;
+}
+
+function filterYamlSnippetsForContext(snippets, context, data) {
+  const list = Array.isArray(snippets) ? snippets : [];
+  const ctx = context && typeof context === 'object' ? context : {};
+  const path = Array.isArray(ctx.path) ? ctx.path : [];
+  if (path.length || !isPlainObject(data)) return list;
+  const existingRootKeys = new Set(Object.keys(data));
+  if (!existingRootKeys.size) return list;
+
+  return list.filter((item) => {
+    const insertText = item && (item.insertText || item.monacoSnippet);
+    const rootKeys = yamlBlockSnippetRootKeys(insertText);
+    return !rootKeys.some((key) => existingRootKeys.has(key));
+  });
+}
+
 function buildYamlSnippetCompletionOptions(snippets, context) {
   const list = Array.isArray(snippets) ? snippets : [];
   return list
@@ -1347,6 +1373,7 @@ export function completeYamlTextFromSchema(text, schema, options = {}) {
     } catch (e) {
       snippets = null;
     }
+    snippets = filterYamlSnippetsForContext(snippets, context, data);
     snippetOptions = buildYamlSnippetCompletionOptions(snippets, context);
     if (snippetOptions.length) list = list.concat(snippetOptions);
   }
