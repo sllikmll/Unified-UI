@@ -973,6 +973,7 @@ function buildYamlCursorContext(text, offset) {
   const lineIndex = lineIndexFromOffset(index.starts, safeOffset);
   const lineStart = index.starts[Math.max(0, lineIndex)] || 0;
   const lineText = index.lines[Math.max(0, lineIndex)] || '';
+  const lineEnd = lineStart + lineText.length;
   const column = Math.max(0, safeOffset - lineStart);
   if (isOffsetInsideYamlComment(lineText, column)) return null;
 
@@ -988,6 +989,32 @@ function buildYamlCursorContext(text, offset) {
 
   let parent = stack[stack.length - 1];
   if (!parent) parent = stack[0];
+
+  function blockReplaceToForCurrentLine() {
+    let end = lineEnd;
+    let sawNestedLine = false;
+    for (let idx = lineIndex + 1; idx < index.lines.length; idx += 1) {
+      const nextLine = index.lines[idx] || '';
+      const nextStart = index.starts[idx] || end;
+      const nextEnd = nextStart + nextLine.length;
+      const trimmed = nextLine.trim();
+      if (!trimmed) {
+        if (sawNestedLine) end = nextEnd;
+        continue;
+      }
+      const nextIndent = nextLine.length - nextLine.replace(/^\s+/, '').length;
+      if (nextIndent <= indent) break;
+      sawNestedLine = true;
+      end = nextEnd;
+    }
+    return end;
+  }
+
+  function withBlockReplaceTo(ctx) {
+    return Object.assign({}, ctx, {
+      blockReplaceTo: blockReplaceToForCurrentLine(),
+    });
+  }
 
   if (trimmedPrefix.startsWith('-')) {
     const hyphenOffset = lineText.indexOf('-', indent);
@@ -1013,7 +1040,7 @@ function buildYamlCursorContext(text, offset) {
       const keyBase = lineStart + hyphenOffset + 1;
       const keyPath = pathWithKey(itemPath, kv.key);
       if (column <= hyphenOffset + 1 + kv.delimiterIndex) {
-        return {
+        return withBlockReplaceTo({
           kind: 'key',
           path: itemPath,
           replaceFrom: keyBase + kv.keyStart,
@@ -1022,7 +1049,7 @@ function buildYamlCursorContext(text, offset) {
           preserveExistingDelimiter: true,
           lineStart,
           lineText,
-        };
+        });
       }
       if (kv.hasInlineValue && column >= hyphenOffset + 1 + kv.valueStart) {
         return {
@@ -1048,7 +1075,7 @@ function buildYamlCursorContext(text, offset) {
     const fullAfterDash = lineText.slice(hyphenOffset + 1);
     const fullKv = splitYamlKeyValue(fullAfterDash);
     if (fullKv && column <= hyphenOffset + 1 + fullKv.delimiterIndex) {
-      return {
+      return withBlockReplaceTo({
         kind: 'key',
         path: itemPath,
         replaceFrom: lineStart + hyphenOffset + 1 + fullKv.keyStart,
@@ -1057,11 +1084,11 @@ function buildYamlCursorContext(text, offset) {
         preserveExistingDelimiter: true,
         lineStart,
         lineText,
-      };
+      });
     }
     const leading = afterDash.match(/^\s*/);
     const keyStart = hyphenOffset + 1 + (leading ? leading[0].length : 0);
-    return {
+    return withBlockReplaceTo({
       kind: 'key',
       path: itemPath,
       replaceFrom: lineStart + keyStart,
@@ -1069,12 +1096,12 @@ function buildYamlCursorContext(text, offset) {
       prefix: prefix.slice(keyStart),
       lineStart,
       lineText,
-    };
+    });
   }
 
   const content = prefix.slice(indent);
   if (!content.trim()) {
-    return {
+    return withBlockReplaceTo({
       kind: 'key',
       path: parent.path.slice(),
       replaceFrom: lineStart + indent,
@@ -1082,7 +1109,7 @@ function buildYamlCursorContext(text, offset) {
       prefix: '',
       lineStart,
       lineText,
-    };
+    });
   }
 
   const kv = splitYamlKeyValue(content);
@@ -1090,7 +1117,7 @@ function buildYamlCursorContext(text, offset) {
     const keyBase = lineStart + indent;
     const keyPath = pathWithKey(parent.path, kv.key);
     if (column <= indent + kv.delimiterIndex) {
-      return {
+      return withBlockReplaceTo({
         kind: 'key',
         path: parent.path.slice(),
         replaceFrom: keyBase + kv.keyStart,
@@ -1099,7 +1126,7 @@ function buildYamlCursorContext(text, offset) {
         preserveExistingDelimiter: true,
         lineStart,
         lineText,
-      };
+      });
     }
     if (kv.hasInlineValue && column >= indent + kv.valueStart) {
       return {
@@ -1125,7 +1152,7 @@ function buildYamlCursorContext(text, offset) {
   const fullContent = lineText.slice(indent);
   const fullKv = splitYamlKeyValue(fullContent);
   if (fullKv && column <= indent + fullKv.delimiterIndex) {
-    return {
+    return withBlockReplaceTo({
       kind: 'key',
       path: parent.path.slice(),
       replaceFrom: lineStart + indent + fullKv.keyStart,
@@ -1134,10 +1161,10 @@ function buildYamlCursorContext(text, offset) {
       preserveExistingDelimiter: true,
       lineStart,
       lineText,
-    };
+    });
   }
 
-  return {
+  return withBlockReplaceTo({
     kind: 'key',
     path: parent.path.slice(),
     replaceFrom: lineStart + indent,
@@ -1145,7 +1172,7 @@ function buildYamlCursorContext(text, offset) {
     prefix: content,
     lineStart,
     lineText,
-  };
+  });
 }
 
 function prefixMatches(label, prefix) {
@@ -1280,6 +1307,9 @@ function buildYamlSnippetRange(context, insertText) {
     const lineStart = Math.max(0, Number(ctx.lineStart || 0));
     const lineText = asString(ctx.lineText);
     to = Math.max(to, lineStart + lineText.length);
+  }
+  if (ctx.kind === 'key' && looksLikeYamlBlockSnippet(insertText)) {
+    to = Math.max(to, Number(ctx.blockReplaceTo || 0));
   }
   return { from, to };
 }

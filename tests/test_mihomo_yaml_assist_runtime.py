@@ -67,7 +67,9 @@ const result = completeYamlTextFromSchema(doc, schema, {{ offset, snippetProvide
   if (!result) {{
   console.log('null');
 }} else {{
-  const item = (result.options || []).find((entry) => entry.label === targetLabel) || null;
+  const item = (result.options || []).find((entry) => entry.label === targetLabel)
+    || (result.options || []).find((entry) => String(entry.label || '').endsWith(targetLabel))
+    || null;
   if (!item) {{
     console.log('null');
   }} else {{
@@ -365,6 +367,39 @@ def test_root_sniffer_snippet_replaces_partial_key_with_colon_cleanly():
     assert result is not None
     assert result["context"]["kind"] == "key"
     assert result["applied"] == "sniffer:\n  enable: true\n  sniff:\n    HTTP:\n    TLS:\n"
+
+def test_root_sniffer_snippet_replaces_stale_nested_block_without_breaking_following_section():
+    result = _apply_completion(
+        "\n".join([
+            "log-level: silent",
+            "sniffe__CURSOR__",
+            "  enable: true",
+            "  sniff:",
+            "    HTTP:",
+            "    TLS:",
+            "anchors:",
+            "  a1: &domain { type: http }",
+            "",
+        ]),
+        "sniffer block",
+    )
+
+    assert result is not None
+    assert result["context"]["kind"] == "key"
+    assert result["applied"] == "\n".join([
+        "log-level: silent",
+        "sniffer:",
+        "  enable: true",
+        "  sniff:",
+        "    HTTP:",
+        "    TLS:",
+        "anchors:",
+        "  a1: &domain { type: http }",
+        "",
+    ])
+    assert result["applied"].count("enable: true") == 1
+    assert result["applied"].count("  sniff:") == 1
+
 
 def test_root_sniffer_snippet_is_hidden_after_existing_sniffer_block():
     result = _run_completion(
