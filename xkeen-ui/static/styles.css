@@ -20927,10 +20927,25 @@ html[data-theme="light"] .routing-rule-grid.is-dnd-live .routing-rule-handle {
   max-width: 82ch;
 }
 
+#mihomo-hwid-modal {
+  padding: 10px;
+}
+
+#mihomo-hwid-modal .modal-content {
+  width: min(96vw, 1160px);
+  max-width: 1160px;
+  max-height: min(92vh, 860px);
+  min-height: min(650px, 92vh);
+  overflow: hidden;
+}
+
 .xk-hw-body {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   gap: 14px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .xk-hw-lead {
@@ -20997,7 +21012,9 @@ html[data-theme="light"] .routing-rule-grid.is-dnd-live .routing-rule-handle {
 .xk-hw-grid {
   display: grid;
   grid-template-columns: minmax(380px, 0.96fr) minmax(420px, 1.04fr);
+  flex: 1 1 auto;
   gap: 12px;
+  min-height: 0;
 }
 
 .xk-hw-panel {
@@ -21014,6 +21031,11 @@ html[data-theme="light"] .routing-rule-grid.is-dnd-live .routing-rule-handle {
 }
 
 .xk-hw-panel--controls {
+  overflow: auto;
+}
+
+.xk-hw-panel--preview {
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -21165,6 +21187,9 @@ html[data-theme="light"] .routing-rule-grid.is-dnd-live .routing-rule-handle {
 }
 
 .xk-hw-preview-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   flex: 1 1 auto;
   border-radius: 16px;
@@ -21174,8 +21199,8 @@ html[data-theme="light"] .routing-rule-grid.is-dnd-live .routing-rule-handle {
 }
 
 .xk-hw-preview {
-  min-height: 356px;
-  height: 356px;
+  min-height: 320px;
+  height: 100%;
   resize: none;
   margin: 0;
   border: 0;
@@ -21184,18 +21209,31 @@ html[data-theme="light"] .routing-rule-grid.is-dnd-live .routing-rule-handle {
   line-height: 1.42;
 }
 
+#mihomo-hwid-preview-monaco,
+.xk-hw-preview-monaco,
 .xk-hw-preview-cm,
 .xk-hw-preview-wrap .CodeMirror,
 .xk-hw-preview-wrap .xkeen-cm6-host {
-  min-height: 356px;
-  height: 356px;
+  min-height: 320px;
+  height: 100%;
   border: 0;
   border-radius: 0;
   background: transparent;
 }
 
-.xk-hw-preview-wrap .xkeen-cm6-editor {
+.xk-hw-preview-wrap .xkeen-cm6-editor,
+.xk-hw-preview-wrap .cm-editor,
+.xk-hw-preview-wrap .cm-scroller {
   height: 100%;
+}
+
+.xk-hw-preview-wrap .xk-hw-preview-cm .cm-scroller {
+  overflow: auto;
+}
+
+.xk-hw-preview-wrap .xk-hw-preview-cm .cm-foldGutter,
+.xk-hw-preview-wrap .xk-hw-preview-cm .cm-diagnosticGutter {
+  display: none;
 }
 
 .xk-hw-footer {
@@ -21271,19 +21309,23 @@ html[data-theme="light"] .routing-rule-grid.is-dnd-live .routing-rule-handle {
 
   #mihomo-hwid-modal .modal-content {
     width: min(100vw, 820px);
+    min-height: min(680px, 94vh);
+    max-height: 94vh;
     border-radius: 18px;
   }
 
   .xk-hw-preview {
     min-height: 280px;
-    height: 280px;
+    height: 100%;
   }
 
+  #mihomo-hwid-preview-monaco,
+  .xk-hw-preview-monaco,
   .xk-hw-preview-cm,
   .xk-hw-preview-wrap .CodeMirror,
   .xk-hw-preview-wrap .xkeen-cm6-host {
     min-height: 280px;
-    height: 280px;
+    height: 100%;
   }
 }
 

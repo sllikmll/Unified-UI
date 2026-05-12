@@ -34,6 +34,8 @@ let mihomoHwidSubModuleApi = null;
     insecure: 'mihomo-hwid-insecure',
     name: 'mihomo-hwid-name',
     preview: 'mihomo-hwid-preview',
+    previewMonaco: 'mihomo-hwid-preview-monaco',
+    engineSelect: 'mihomo-hwid-engine-select',
 
     status: 'mihomo-hwid-status',
     meta: 'mihomo-hwid-meta',
@@ -55,8 +57,13 @@ let mihomoHwidSubModuleApi = null;
   let _busy = false;
   let _previewCm = null;
   let _previewFacade = null;
+  let _previewMonaco = null;
+  let _previewMonacoFacade = null;
+  let _previewKind = 'codemirror';
   let _previewLastText = '';
   let _previewLayoutRaf = 0;
+  let _engineUnsub = null;
+  let _engineSyncing = false;
 
   const CM6_SCOPE = 'mihomo-hwid-preview';
 
@@ -134,6 +141,77 @@ let mihomoHwidSubModuleApi = null;
     return null;
   }
 
+  function normalizeEngine(engine) {
+    return String(engine || '').toLowerCase() === 'monaco' ? 'monaco' : 'codemirror';
+  }
+
+  function showNode(node) {
+    if (!node) return;
+    try { node.classList.remove('hidden'); } catch (e) {}
+    try { node.style.display = ''; } catch (e2) {}
+  }
+
+  function hideNode(node) {
+    if (!node) return;
+    try { node.classList.add('hidden'); } catch (e) {}
+    try { node.style.display = 'none'; } catch (e2) {}
+  }
+
+  function cmWrapper(cm) {
+    try { return (cm && typeof cm.getWrapperElement === 'function') ? cm.getWrapperElement() : null; } catch (e) { return null; }
+  }
+
+  function setEngineSelectValue(engine) {
+    const sel = $(IDS.engineSelect);
+    if (!sel) return;
+    try { sel.value = normalizeEngine(engine); } catch (e) {}
+  }
+
+  async function resolvePreferredEngine() {
+    let engine = 'codemirror';
+    const ee = getEngineHelper();
+    try {
+      if (ee && typeof ee.ensureLoaded === 'function') engine = normalizeEngine(await ee.ensureLoaded());
+      else if (ee && typeof ee.get === 'function') engine = normalizeEngine(ee.get());
+    } catch (e) {
+      try { engine = normalizeEngine(ee && ee.get ? ee.get() : 'codemirror'); } catch (e2) { engine = 'codemirror'; }
+    }
+    return engine;
+  }
+
+  function previewTextFallback() {
+    try { if (_previewLastText) return String(_previewLastText || ''); } catch (e) {}
+    try {
+      if (_previewKind === 'monaco' && _previewMonacoFacade && _previewMonacoFacade.getValue) return String(_previewMonacoFacade.getValue() || '');
+    } catch (e2) {}
+    try {
+      if (_previewFacade && _previewFacade.getValue) return String(_previewFacade.getValue() || '');
+    } catch (e3) {}
+    try {
+      if (_previewCm && _previewCm.getValue) return String(_previewCm.getValue() || '');
+    } catch (e4) {}
+    const ta = $(IDS.preview);
+    return ta ? String(ta.value || '') : '';
+  }
+
+  function disposePreviewMonaco() {
+    try {
+      if (_previewMonacoFacade && _previewMonacoFacade.dispose) _previewMonacoFacade.dispose();
+      else if (_previewMonaco && _previewMonaco.dispose) _previewMonaco.dispose();
+    } catch (e) {}
+    _previewMonaco = null;
+    _previewMonacoFacade = null;
+  }
+
+  function createMonacoFacade(editor) {
+    if (!editor) return null;
+    const helper = getEngineHelper();
+    try {
+      if (helper && typeof helper.fromMonaco === 'function') return helper.fromMonaco(editor);
+    } catch (e) {}
+    return null;
+  }
+
   function createCodeMirrorFacade(cm) {
     if (!cm) return null;
     const runtime = getEditorRuntime('codemirror');
@@ -173,13 +251,18 @@ let mihomoHwidSubModuleApi = null;
         try {
           if (_previewFacade && typeof _previewFacade.layout === 'function') _previewFacade.layout();
         } catch (e2) {}
+        try {
+          if (_previewMonacoFacade && typeof _previewMonacoFacade.layout === 'function') _previewMonacoFacade.layout();
+          else if (_previewMonaco && typeof _previewMonaco.layout === 'function') _previewMonaco.layout();
+        } catch (e3) {}
       });
     } catch (e) {
       try { if (_previewCm && typeof _previewCm.refresh === 'function') _previewCm.refresh(); } catch (e2) {}
+      try { if (_previewMonaco && typeof _previewMonaco.layout === 'function') _previewMonaco.layout(); } catch (e3) {}
     }
   }
 
-  async function ensurePreviewEditor() {
+  async function ensureCodeMirrorPreviewEditor() {
     const ta = $(IDS.preview);
     if (!ta) return null;
 
@@ -228,6 +311,98 @@ let mihomoHwidSubModuleApi = null;
     return _previewCm;
   }
 
+  async function activatePreviewEngine(engine) {
+    const next = normalizeEngine(engine);
+    const ta = $(IDS.preview);
+    const host = $(IDS.previewMonaco);
+    const value = previewTextFallback();
+
+    if (next === 'monaco') {
+      const runtime = await ensureEditorRuntime('monaco');
+      if (!runtime || !host || typeof runtime.create !== 'function') {
+        setEngineSelectValue('codemirror');
+        return activatePreviewEngine('codemirror');
+      }
+
+      const w = cmWrapper(_previewCm);
+      if (w) hideNode(w);
+      if (ta) hideNode(ta);
+      showNode(host);
+
+      if (!_previewMonaco) {
+        const ed = await runtime.create(host, {
+          language: 'yaml',
+          value: value,
+          readOnly: true,
+          tabSize: 2,
+          insertSpaces: true,
+          wordWrap: 'on',
+          minimap: { enabled: false },
+        });
+        if (!ed) {
+          hideNode(host);
+          setEngineSelectValue('codemirror');
+          return activatePreviewEngine('codemirror');
+        }
+        _previewMonaco = ed;
+        _previewMonacoFacade = createMonacoFacade(ed);
+        try { if (runtime.layoutOnVisible) runtime.layoutOnVisible(ed, host); } catch (e) {}
+      } else if (_previewMonacoFacade && _previewMonacoFacade.setValue) {
+        _previewMonacoFacade.setValue(value);
+      } else if (_previewMonaco && typeof _previewMonaco.setValue === 'function') {
+        _previewMonaco.setValue(value);
+      }
+
+      _previewKind = 'monaco';
+      setEngineSelectValue('monaco');
+      try { if (_previewMonacoFacade && _previewMonacoFacade.scrollTo) _previewMonacoFacade.scrollTo(0, 0); } catch (e2) {}
+      layoutPreviewEditor();
+      return 'monaco';
+    }
+
+    if (host) hideNode(host);
+    try { disposePreviewMonaco(); } catch (e) {}
+
+    const cm = await ensureCodeMirrorPreviewEditor();
+    const w = cmWrapper(cm);
+    if (cm) {
+      if (w) showNode(w);
+      if (ta) hideNode(ta);
+    } else if (ta) {
+      showNode(ta);
+    }
+
+    if (cm && cm.setOption) {
+      try { cm.setOption('theme', cmThemeFromPage()); } catch (e) {}
+    }
+    setPreview(value);
+    _previewKind = 'codemirror';
+    setEngineSelectValue('codemirror');
+    layoutPreviewEditor();
+    return 'codemirror';
+  }
+
+  async function ensurePreviewEditor() {
+    const engine = await resolvePreferredEngine();
+    return activatePreviewEngine(engine);
+  }
+
+  async function syncEngineNow() {
+    if (_engineSyncing) return;
+    _engineSyncing = true;
+    try {
+      const engine = await resolvePreferredEngine();
+      setEngineSelectValue(engine);
+      if (modalOpen()) await activatePreviewEngine(engine);
+    } finally {
+      _engineSyncing = false;
+    }
+  }
+
+  function scheduleEngineSync() {
+    try { setTimeout(() => { try { syncEngineNow(); } catch (e) {} }, 0); } catch (e) {}
+  }
+
   function schedulePreviewEditor() {
     try {
       Promise.resolve(ensurePreviewEditor()).catch(() => null);
@@ -264,24 +439,41 @@ let mihomoHwidSubModuleApi = null;
     const v = String(text || '');
     _previewLastText = v;
     try {
+      if (_previewKind === 'monaco' && _previewMonacoFacade && typeof _previewMonacoFacade.setValue === 'function') {
+        _previewMonacoFacade.setValue(v);
+        try { _previewMonacoFacade.scrollTo(0, 0); } catch (e1) {}
+        return;
+      }
+      if (_previewKind === 'monaco' && _previewMonacoFacade && typeof _previewMonacoFacade.set === 'function') {
+        _previewMonacoFacade.set(v);
+        try { _previewMonacoFacade.scrollTo(0, 0); } catch (e2) {}
+        return;
+      }
+      if (_previewKind === 'monaco' && _previewMonaco && typeof _previewMonaco.setValue === 'function') {
+        _previewMonaco.setValue(v);
+        try {
+          if (typeof _previewMonaco.setScrollPosition === 'function') _previewMonaco.setScrollPosition({ scrollTop: 0, scrollLeft: 0 });
+        } catch (e3) {}
+        return;
+      }
       if (_previewFacade && typeof _previewFacade.setValue === 'function') {
         _previewFacade.setValue(v);
-        try { _previewFacade.scrollTo(0, 0); } catch (e2) {}
+        try { _previewFacade.scrollTo(0, 0); } catch (e4) {}
         return;
       }
       if (_previewFacade && typeof _previewFacade.set === 'function') {
         _previewFacade.set(v);
-        try { _previewFacade.scrollTo(0, 0); } catch (e3) {}
+        try { _previewFacade.scrollTo(0, 0); } catch (e5) {}
         return;
       }
     } catch (e) {}
     try {
       if (_previewCm && typeof _previewCm.setValue === 'function') {
         _previewCm.setValue(v);
-        try { _previewCm.scrollTo(0, 0); } catch (e4) {}
+        try { _previewCm.scrollTo(0, 0); } catch (e6) {}
         return;
       }
-    } catch (e5) {}
+    } catch (e7) {}
     const ta = $(IDS.preview);
     if (!ta) return;
     try { ta.value = v; } catch (e) {}
@@ -934,6 +1126,28 @@ let mihomoHwidSubModuleApi = null;
       bindLivePreview($(IDS.name));
       bindLivePreview($(IDS.url), { invalidateProbe: true });
       bindLivePreview($(IDS.insecure), { invalidateProbe: true });
+    } catch (e) {}
+
+    try {
+      const sel = $(IDS.engineSelect);
+      if (sel && (!sel.dataset || sel.dataset.xkWired !== '1')) {
+        sel.addEventListener('change', async () => {
+          const ee = getEngineHelper();
+          try { if (ee && typeof ee.set === 'function') await ee.set(sel.value); } catch (e) {}
+          scheduleEngineSync();
+        });
+        if (sel.dataset) sel.dataset.xkWired = '1';
+      }
+      if (!_engineUnsub) {
+        const ee = getEngineHelper();
+        if (ee && typeof ee.onChange === 'function') {
+          _engineUnsub = ee.onChange((d) => {
+            try { setEngineSelectValue(d && d.engine ? d.engine : 'codemirror'); } catch (e) {}
+            if (modalOpen()) scheduleEngineSync();
+          });
+        }
+      }
+      scheduleEngineSync();
     } catch (e) {}
 
     // Close on backdrop click (outside content)

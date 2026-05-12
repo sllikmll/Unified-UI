@@ -3044,9 +3044,16 @@ https://..."></textarea>
                   <div class="xk-hw-section-title">YAML preview</div>
                   <div class="xk-hw-section-subtitle">Provider будет добавлен в <code>proxy-providers</code> именно в таком виде.</div>
                 </div>
-                <div class="xk-hw-current-pill">header + health-check</div>
+                <div class="xk-editor-engine xk-hw-editor-engine" id="mihomo-hwid-preview-engine">
+                  <span class="xk-editor-engine-label">Редактор</span>
+                  <select id="mihomo-hwid-engine-select" class="xk-editor-engine-select" title="Выбор движка YAML preview" data-tooltip="Выбор движка YAML preview" aria-label="Выбор движка YAML preview">
+                    <option value="codemirror">CodeMirror</option>
+                    <option value="monaco">Monaco</option>
+                  </select>
+                </div>
               </div>
               <div class="xk-hw-preview-wrap">
+                <div id="mihomo-hwid-preview-monaco" class="xk-monaco-editor xk-monaco-editor--modal xk-hw-preview-monaco hidden"></div>
                 <textarea id="mihomo-hwid-preview" class="xkeen-textarea outbounds-gen-preview xk-hw-preview" spellcheck="false" readonly></textarea>
               </div>
             </section>

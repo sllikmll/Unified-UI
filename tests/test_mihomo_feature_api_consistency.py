@@ -105,7 +105,10 @@ def test_mihomo_menu_feature_flows_keep_editor_patch_integrations_and_single_sav
             "const r = await postJSONAllowError('/api/mihomo/hwid/apply', {",
             "getMihomoEditorEngineApi,",
             "async function ensurePreviewEditor()",
+            "async function activatePreviewEngine(engine)",
             "mode: 'yaml'",
+            "language: 'yaml'",
+            "wordWrap: 'on'",
             "readOnly: 'nocursor'",
         ],
     }
@@ -114,6 +117,38 @@ def test_mihomo_menu_feature_flows_keep_editor_patch_integrations_and_single_sav
         src = _read(rel_path)
         for marker in markers:
             assert marker in src, f"expected '{marker}' in {rel_path}"
+
+
+def test_mihomo_hwid_preview_uses_shared_editor_host_contract():
+    panel_src = _read("xkeen-ui/templates/panel.html")
+    feature_src = _read("xkeen-ui/static/js/features/mihomo_hwid_sub.js")
+    css_src = _read("xkeen-ui/static/styles.css")
+
+    required_panel_fragments = [
+        'id="mihomo-hwid-engine-select"',
+        'id="mihomo-hwid-preview-monaco"',
+        'class="xk-monaco-editor xk-monaco-editor--modal xk-hw-preview-monaco hidden"',
+    ]
+    for fragment in required_panel_fragments:
+        assert fragment in panel_src, f"missing HWID preview DOM contract: {fragment}"
+
+    required_feature_fragments = [
+        "previewMonaco: 'mihomo-hwid-preview-monaco'",
+        "engineSelect: 'mihomo-hwid-engine-select'",
+        "setEngineSelectValue(engine)",
+        "resolvePreferredEngine()",
+        "runtime.create(host, {",
+    ]
+    for fragment in required_feature_fragments:
+        assert fragment in feature_src, f"missing HWID preview editor integration: {fragment}"
+
+    required_css_fragments = [
+        "#mihomo-hwid-preview-monaco",
+        ".xk-hw-preview-wrap .xk-hw-preview-cm .cm-scroller",
+        ".xk-hw-preview-wrap .xk-hw-preview-cm .cm-foldGutter",
+    ]
+    for fragment in required_css_fragments:
+        assert fragment in css_src, f"missing HWID preview layout CSS: {fragment}"
 
 
 def test_mihomo_runtime_helper_exposes_shared_window_xkeen_adapters():
