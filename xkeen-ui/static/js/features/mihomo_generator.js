@@ -87,6 +87,7 @@ let mihomoGeneratorModuleApi = null;
           { id: "Twitch",    label: "Twitch" },
           { id: "Reddit",    label: "Reddit" },
           { id: "Spotify",   label: "Spotify" },
+          { id: "Speedtest", label: "Speedtest" },
           { id: "Steam",     label: "Steam / игры" },
           { id: "Telegram",  label: "Telegram" },
 
@@ -120,42 +121,31 @@ let mihomoGeneratorModuleApi = null;
       # Группа "Заблок. сервисы" содержит список доменов большинства заблокированных ресурсов (как снаружи, так и внутри)
       # Остальные группы YouTube/Discord и тд имеют приоритет над группой "Заблок. сервисы". Eсли переопределение не нужно, можно выбрать "Заблок. сервисы" в качестве подключения и управлять всеми группами разом в группе "Заблок. сервисы"
       #######################################################################################################
-      # Для работы Discord требуется проксировать порты XKeen: 80,443,2000:2300,8443,19200:19400,50000:50030
-      # Для работы Whatsapp/Telegram требуется проксировать порты Xkeen: 80,443,596:599,1400,3478,5222
+      # Если XKeen работает не на всех портах (xkeen -cp), то для корректной работы следующих сервисов выполните:
+      # Для Discord:
+      # xkeen -ap 80,443,2053:2096,8443,19200:19400,50000:50100
+      # Для Whatsapp/Telegram:
+      # xkeen -ap 80,443,596:599,1400,3478,5222
       #######################################################################################################
       
       log-level: silent
       allow-lan: true
       redir-port: 5000
       tproxy-port: 5001
-      ipv6: true
-      mode: rule
+      routing-mark: 255
+      find-process-mode: off
+      unified-delay: true
       external-controller: 0.0.0.0:9090
       external-ui: zashboard
       external-ui-url: https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip
       profile: { store-selected: true }
-      
-      sniffer:
-        enable: true
-        sniff:
-          HTTP:
-          TLS:
-          QUIC:
+      sniffer: { enable: true, sniff: { HTTP: { ports: [80, 8080] }, TLS: { ports: [443, 8443] } }, skip-dst-address: [rule-set:telegram@ipcidr] }
       
       anchors:
         a1: &domain { type: http, format: mrs, behavior: domain, interval: 86400 }
         a2: &ipcidr { type: http, format: mrs, behavior: ipcidr, interval: 86400 }
         a3: &classical { type: http, format: text, behavior: classical, interval: 86400 }
         a4: &inline { type: inline, behavior: classical }
-      
-      #############################################################################################
-      # Пример VLESS подключения БЕЗ использования подписки #
-      #############################################################################################
-      
-      
-      ######################################################################################
-      # Подключение С использованием подписки #
-      ######################################################################################
       
       
       proxy-groups:

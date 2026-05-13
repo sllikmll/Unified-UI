@@ -344,16 +344,16 @@ def test_key_completion_reuses_existing_yaml_mapping_delimiter_without_duplicati
     assert result["applied"] == "log-level:\n"
 
 
-def test_zkeen_template_hover_exposes_description_and_default_for_geodata_mode():
+def test_zkeen_template_hover_exposes_description_for_routing_mark():
     template = (ROOT / "xkeen-ui" / "opt" / "etc" / "mihomo" / "templates" / "zkeen.yaml").read_text(encoding="utf-8")
-    doc = template.replace("geodata-mode", "geo__CURSOR__data-mode", 1)
+    doc = template.replace("routing-mark", "routing-__CURSOR__mark", 1)
 
     result = _run_hover(doc)
 
     assert result is not None
-    assert result["path"] == "geodata-mode"
-    assert "Использовать .dat файлы вместо mmdb" in result["plain"]
-    assert "По умолчанию: false." in result["plain"]
+    assert result["path"] == "routing-mark"
+    assert "fwmark для исходящих соединений" in result["plain"]
+    assert "Keenetic" in result["plain"]
 
 
 def test_beginner_hover_explains_proxy_group_use_as_provider_reference():

@@ -45,12 +45,13 @@ def provider_name_for_index(idx: int) -> str:
 
 
 RULE_GROUP_ID_TO_GROUP_NAMES: Dict[str, Sequence[str]] = {
-    "Blocked": ("Заблок. сервисы", "refilter@domain"),
+    "Blocked": ("Заблок. сервисы", "adlist@domain", "refilter@domain", "user@classical"),
     "YouTube": ("YouTube", "youtube@domain"),
     "Discord": ("Discord", "discord@classical"),
     "Twitch": ("Twitch", "twitch@domain"),
     "Reddit": ("Reddit", "reddit@domain"),
     "Spotify": ("Spotify", "spotify@domain"),
+    "Speedtest": ("Speedtest", "speedtest@domain"),
     "Steam": ("Steam", "steam@domain"),
     "Telegram": ("Telegram", "telegram@domain", "telegram@ipcidr", "telegram@ip"),
     "Meta": ("Meta", "meta@domain", "meta@ipcidr"),
@@ -75,12 +76,13 @@ RULE_GROUP_ID_TO_GROUP_NAMES: Dict[str, Sequence[str]] = {
         "oracle@ipcidr",
         "ovh@ipcidr",
         "scaleway@ipcidr",
+        "vodafone@ipcidr",
         "vultr@ipcidr",
     ),
     "Google": ("Google", "google@domain", "google@ipcidr"),
     "GitHub": ("GitHub", "github@domain"),
     "AI": ("AI", "category-ai@domain"),
-    "QUIC": ("QUIC",),
+    "QUIC": ("QUIC", "quic@inline"),
 }
 
 

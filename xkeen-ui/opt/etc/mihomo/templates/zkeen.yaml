@@ -5,8 +5,11 @@
 # Группа "Заблок. сервисы" содержит список доменов большинства заблокированных ресурсов.
 # Остальные группы YouTube/Discord и тд имеют приоритет над группой "Заблок. сервисы".
 #######################################################################################################
-# Для работы Discord требуется проксировать порты XKeen: 80,443,2000:2300,8443,19200:19400,50000:50030
-# Для работы Whatsapp/Telegram требуется проксировать порты Xkeen: 80,443,596:599,1400,3478,5222
+# Если XKeen работает не на всех портах (xkeen -cp), то для корректной работы следующих сервисов выполните:
+# Для Discord:
+# xkeen -ap 80,443,2053:2096,8443,19200:19400,50000:50100
+# Для Whatsapp/Telegram:
+# xkeen -ap 80,443,596:599,1400,3478,5222
 #######################################################################################################
 
 log-level: silent
@@ -15,21 +18,16 @@ geodata-mode: true
 geox-url:
   geosite: "https://github.com/jameszeroX/zkeen-domains/releases/latest/download/zkeen.dat"
   geoip: "https://github.com/jameszeroX/zkeen-ip/releases/latest/download/zkeenip.dat"
-
 redir-port: 5000
 tproxy-port: 5001
+routing-mark: 255
 find-process-mode: off
 unified-delay: true
 external-controller: 0.0.0.0:9090
 external-ui: zashboard
 external-ui-url: https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip
 profile: { store-selected: true }
-
-sniffer:
-  enable: true
-  sniff:
-    HTTP:
-    TLS:
+sniffer: { enable: true, sniff: { HTTP: { ports: [80, 8080] }, TLS: { ports: [443, 8443] } }, skip-dst-address: [rule-set:telegram@ipcidr] }
 
 anchors:
   a1: &domain { type: http, format: mrs, behavior: domain, interval: 86400 }
@@ -37,16 +35,6 @@ anchors:
   a3: &classical { type: http, format: text, behavior: classical, interval: 86400 }
   a4: &inline { type: inline, behavior: classical }
 
-#############################################################################################
-# Пример VLESS подключения БЕЗ использования подписки (РАСКОММЕНТИРОВАТЬ ДЛЯ ИСПОЛЬЗОВАНИЯ) #
-#############################################################################################
-#proxies:
-
-
-
-######################################################################################
-# Пример подключения С использованием подписки (РАСКОММЕНТИРОВАТЬ ДЛЯ ИСПОЛЬЗОВАНИЯ) #
-######################################################################################
 proxy-providers:
   proxy-sub:
     type: http
@@ -108,6 +96,12 @@ proxy-groups:
     exclude-filter: 🇷🇺
     proxies: [Заблок. сервисы, DIRECT]
 
+  - name: Speedtest
+    type: select
+    icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Speedtest.png
+    include-all: true
+    proxies: [Заблок. сервисы, DIRECT]
+
   - name: Telegram
     type: select
     icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Telegram.png
@@ -157,24 +151,30 @@ proxy-groups:
     proxies: [REJECT, PASS]
 
 rule-providers:
+  adlist@domain: { <<: *domain, url: https://github.com/zxc-rv/ad-filter/releases/latest/download/adlist.mrs }
   category-ai@domain: { <<: *domain, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geo/geosite/category-ai.mrs }
   steam@domain: { <<: *domain, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geo/geosite/steam.mrs }
   spotify@domain: { <<: *domain, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geo/geosite/spotify.mrs }
+  speedtest@domain: { <<: *domain, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geo/geosite/speedtest.mrs }
   reddit@domain: { <<: *domain, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geo/geosite/reddit.mrs }
   twitch@domain: { <<: *domain, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geo/geosite/twitch.mrs }
   twitter@domain: { <<: *domain, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geo/geosite/twitter.mrs }
   meta@domain: { <<: *domain, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geo/geosite/meta.mrs }
   discord@classical: { <<: *classical, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geo/classical/discord.txt }
   refilter@domain: { <<: *domain, url: https://raw.githubusercontent.com/1andrevich/Re-filter-lists/release/refilter_domains.mrs }
-  telegram@ip: { <<: *ipcidr, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geo/geoip/telegram.mrs }
+  telegram@ipcidr: { <<: *ipcidr, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geo/geoip/telegram.mrs }
   github@domain: { <<: *domain, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geo/geosite/github.mrs }
   private@ip: { <<: *ipcidr, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geo/geoip/private.mrs }
+  quic@inline: { <<: *inline, payload: ['AND,((DST-PORT,443),(NETWORK,UDP))'] }
   user@classical: # СВОИ ПРАВИЛА
     type: inline
     behavior: classical
     payload: # Типы правил и примеры: https://wiki.metacubex.one/ru/config/rules/
       - DOMAIN-SUFFIX,2ip.io
 rules:
+  - RULE-SET,adlist@domain,REJECT # Блокировка рекламы
+  - RULE-SET,quic@inline,REJECT # Блокировка QUIC
+
   # Разблокировка высокого качества на Twitch.tv
   # @pkg Twitch begin
   - OR,((DOMAIN-SUFFIX,gql.twitch.tv),(DOMAIN-SUFFIX,usher.ttvnw.net)),Заблок. сервисы
@@ -190,6 +190,7 @@ rules:
   - RULE-SET,twitch@domain,Twitch
   - RULE-SET,twitter@domain,Twitter
   - RULE-SET,discord@classical,Discord
+  - RULE-SET,speedtest@domain,Speedtest # Для корректного замера нужно добавить порт 8080 через xkeen -ap или в /opt/etc/xkeen/port_proxying.lst
 
   # YouTube: домены + IP через ZKeen
   - GEOSITE,YOUTUBE,YouTube
@@ -217,6 +218,7 @@ rules:
   - GEOIP,OVH,CDN
   - GEOIP,SCALEWAY,CDN
   - GEOIP,TELEGRAM,Telegram
+  - GEOIP,VODAFONE,CDN
   - GEOIP,VULTR,CDN
   # --- ZKeen GEOSITE для заблокированных доменов ---
   - RULE-SET,refilter@domain,Заблок. сервисы
@@ -224,9 +226,8 @@ rules:
   - GEOSITE,OTHER,Заблок. сервисы
   - GEOSITE,POLITIC,Заблок. сервисы
 
-  # Telegram / GitHub
+  # GitHub
   - RULE-SET,github@domain,GitHub
-  - RULE-SET,telegram@ip,Telegram
 
   # Локальные сети
   - RULE-SET,private@ip,DIRECT

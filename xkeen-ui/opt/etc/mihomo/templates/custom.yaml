@@ -5,26 +5,25 @@
 # Группа "Заблок. сервисы" содержит список доменов большинства заблокированных ресурсов.
 # Остальные группы YouTube/Discord и тд имеют приоритет над группой "Заблок. сервисы". 
 #######################################################################################################
-# Для работы Discord требуется проксировать порты XKeen: 80,443,2000:2300,8443,19200:19400,50000:50030
-# Для работы Whatsapp/Telegram требуется проксировать порты Xkeen: 80,443,596:599,1400,3478,5222
+# Если XKeen работает не на всех портах (xkeen -cp), то для корректной работы следующих сервисов выполните:
+# Для Discord:
+# xkeen -ap 80,443,2053:2096,8443,19200:19400,50000:50100
+# Для Whatsapp/Telegram:
+# xkeen -ap 80,443,596:599,1400,3478,5222
 #######################################################################################################
 
 log-level: silent
 allow-lan: true
 redir-port: 5000
 tproxy-port: 5001
+routing-mark: 255
 find-process-mode: off
 unified-delay: true
 external-controller: 0.0.0.0:9090
 external-ui: zashboard
 external-ui-url: https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip
 profile: { store-selected: true }
-
-sniffer:
-  enable: true
-  sniff:
-    HTTP:
-    TLS:
+sniffer: { enable: true, sniff: { HTTP: { ports: [80, 8080] }, TLS: { ports: [443, 8443] } }, skip-dst-address: [rule-set:telegram@ipcidr] }
 
 anchors:
   a1: &domain { type: http, format: mrs, behavior: domain, interval: 86400 }
@@ -32,16 +31,6 @@ anchors:
   a3: &classical { type: http, format: text, behavior: classical, interval: 86400 }
   a4: &inline { type: inline, behavior: classical }
 
-#############################################################################################
-# Пример VLESS подключения БЕЗ использования подписки (РАСКОММЕНТИРОВАТЬ ДЛЯ ИСПОЛЬЗОВАНИЯ) #
-#############################################################################################
-#proxies:
-
-
-
-######################################################################################
-# Пример подключения С использованием подписки (РАСКОММЕНТИРОВАТЬ ДЛЯ ИСПОЛЬЗОВАНИЯ) #
-######################################################################################
 proxy-providers:
   proxy-sub:
     type: http
@@ -101,6 +90,12 @@ proxy-groups:
     icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Spotify.png
     include-all: true
     exclude-filter: 🇷🇺
+    proxies: [Заблок. сервисы, DIRECT]
+
+  - name: Speedtest
+    type: select
+    icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Speedtest.png
+    include-all: true
     proxies: [Заблок. сервисы, DIRECT]
 
   - name: Telegram
@@ -178,12 +173,15 @@ rule-providers:
   scaleway@ipcidr: { <<: *ipcidr, url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/scaleway@ipcidr.mrs }
   spotify@domain: { <<: *domain, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/spotify.mrs }
   steam@domain: { <<: *domain, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/steam.mrs }
+  speedtest@domain: { <<: *domain, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/speedtest.mrs }
   telegram@domain: { <<: *domain, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/telegram.mrs }
   telegram@ipcidr: { <<: *ipcidr, url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/telegram@ipcidr.mrs }
   twitch@domain: { <<: *domain, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/twitch.mrs }
   twitter@domain: { <<: *domain, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/twitter.mrs }
+  vodafone@ipcidr: { <<: *ipcidr, url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/vodafone@ipcidr.mrs }
   vultr@ipcidr: { <<: *ipcidr, url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/vultr@ipcidr.mrs }
   youtube@domain: { <<: *domain, url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/youtube.mrs }
+  quic@inline: { <<: *inline, payload: ['AND,((DST-PORT,443),(NETWORK,UDP))'] }
   user@classical: # СВОИ ПРАВИЛА
     type: inline
     behavior: classical
@@ -192,7 +190,7 @@ rule-providers:
 
 rules:
   - RULE-SET,adlist@domain,REJECT # Блокировка рекламы
-  - AND,((DST-PORT,443),(NETWORK,UDP)),REJECT # Блокировка QUIC
+  - RULE-SET,quic@inline,REJECT # Блокировка QUIC
   # @pkg Twitch begin
   - OR,((DOMAIN-SUFFIX,gql.twitch.tv),(DOMAIN-SUFFIX,usher.ttvnw.net)),Заблок. сервисы # Разблокировка высокого качества на Twitch.tv (может вызвать рекламу)
   # @pkg Twitch end
@@ -204,6 +202,7 @@ rules:
   - RULE-SET,twitch@domain,Twitch
   - RULE-SET,twitter@domain,Twitter
   - RULE-SET,discord@classical,Discord
+  - RULE-SET,speedtest@domain,Speedtest # Для корректного замера нужно добавить порт 8080 через xkeen -ap или в /opt/etc/xkeen/port_proxying.lst
   - OR,((RULE-SET,meta@domain),(RULE-SET,meta@ipcidr,no-resolve)),Meta
   - OR,((RULE-SET,telegram@domain),(RULE-SET,telegram@ipcidr,no-resolve)),Telegram
   - OR,((RULE-SET,refilter@domain),(RULE-SET,user@classical)),Заблок. сервисы
@@ -220,6 +219,7 @@ rules:
   - RULE-SET,scaleway@ipcidr,CDN
   - RULE-SET,ovh@ipcidr,CDN
   - RULE-SET,vultr@ipcidr,CDN
+  - RULE-SET,vodafone@ipcidr,CDN
   - RULE-SET,gcore@ipcidr,CDN
   - RULE-SET,cdn77@ipcidr,CDN
   - MATCH,DIRECT

@@ -123,6 +123,16 @@ def _apply_pkg_markers(content: str, enabled_set: set[str]) -> str:
     return "\n".join(out)
 
 
+def _sniffer_rule_set_references(content: str) -> Set[str]:
+    """Return rule-provider names referenced from sniffer skip lists."""
+    refs: Set[str] = set()
+    for match in re.finditer(r"\brule-set:([A-Za-z0-9_.@-]+)", str(content or "")):
+        name = str(match.group(1) or "").strip()
+        if name:
+            refs.add(name)
+    return refs
+
+
 def _cleanup_rules_section(content: str, enabled_set: set[str], profile: str | None = None) -> str:
     """Clean up `rules:` section after package filtering."""
     if not content:
@@ -248,6 +258,7 @@ def apply_rule_group_filtering(content: str, enabled_ids: Sequence[str], profile
     enabled_set.update(ALWAYS_ENABLED_RULE_IDS)
 
     result = content
+    sniffer_rule_set_refs = _sniffer_rule_set_references(result)
 
     protected_group_names: Set[str] = set()
     for enabled_id in enabled_set:
@@ -312,6 +323,7 @@ def apply_rule_group_filtering(content: str, enabled_ids: Sequence[str], profile
             for group_name in RULE_GROUP_ID_TO_GROUP_NAMES.get(enabled_id, ()):
                 if group_name and "@" in group_name:
                     protected_providers.add(group_name)
+        protected_providers.update(sniffer_rule_set_refs)
 
         for provider_name in providers_to_remove:
             if not provider_name or provider_name in protected_providers:

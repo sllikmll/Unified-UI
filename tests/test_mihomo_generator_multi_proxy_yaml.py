@@ -8,8 +8,10 @@ proxies that must each be registered in proxy-groups.
 from __future__ import annotations
 
 import yaml
+from pathlib import Path
 
 from mihomo_config_generator import build_full_config
+from services import mihomo_generator_meta as generator_meta
 from services.mihomo_generator_proxies import (
     _split_multi_proxy_yaml,
     insert_proxies_from_state,
@@ -180,6 +182,92 @@ def test_router_custom_xray_json_import_does_not_duplicate_include_all_group_ent
     blocked = next(g for g in parsed["proxy-groups"] if g["name"] == "Заблок. сервисы")
     assert blocked.get("include-all") is True
     assert "proxies" not in blocked
+
+
+def test_router_custom_keeps_sniffer_rule_provider_when_telegram_group_is_disabled(monkeypatch):
+    bundled_templates = Path("xkeen-ui/opt/etc/mihomo/templates").resolve()
+    monkeypatch.setattr(generator_meta, "TEMPLATES_DIR", bundled_templates)
+
+    cfg = build_full_config({
+        "profile": "router_custom",
+        "enabledRuleGroups": [],
+        "subscriptions": [],
+        "proxies": [],
+    })
+    parsed = yaml.safe_load(cfg)
+
+    assert parsed["sniffer"]["skip-dst-address"] == ["rule-set:telegram@ipcidr"]
+    assert "telegram@ipcidr" in parsed["rule-providers"]
+    assert all(group.get("name") != "Telegram" for group in parsed.get("proxy-groups") or [])
+    assert "RULE-SET,telegram@ipcidr" not in cfg
+
+
+def test_router_custom_keeps_new_community_rule_sets_when_enabled(monkeypatch):
+    bundled_templates = Path("xkeen-ui/opt/etc/mihomo/templates").resolve()
+    monkeypatch.setattr(generator_meta, "TEMPLATES_DIR", bundled_templates)
+
+    cfg = build_full_config({
+        "profile": "router_custom",
+        "enabledRuleGroups": ["Speedtest", "CDN"],
+        "subscriptions": [],
+        "proxies": [],
+    })
+    parsed = yaml.safe_load(cfg)
+
+    assert "speedtest@domain" in parsed["rule-providers"]
+    assert "vodafone@ipcidr" in parsed["rule-providers"]
+    assert "quic@inline" in parsed["rule-providers"]
+    assert any(group.get("name") == "Speedtest" for group in parsed["proxy-groups"])
+    assert "RULE-SET,speedtest@domain,Speedtest" in cfg
+    assert "RULE-SET,vodafone@ipcidr,CDN" in cfg
+    assert "RULE-SET,quic@inline,REJECT" in cfg
+    assert "Пример VLESS подключения" not in cfg
+    assert "Пример подключения С использованием подписки" not in cfg
+
+
+def test_router_custom_removes_new_optional_rule_sets_when_disabled(monkeypatch):
+    bundled_templates = Path("xkeen-ui/opt/etc/mihomo/templates").resolve()
+    monkeypatch.setattr(generator_meta, "TEMPLATES_DIR", bundled_templates)
+
+    cfg = build_full_config({
+        "profile": "router_custom",
+        "enabledRuleGroups": [],
+        "subscriptions": [],
+        "proxies": [],
+    })
+    parsed = yaml.safe_load(cfg)
+
+    assert "speedtest@domain" not in parsed["rule-providers"]
+    assert "vodafone@ipcidr" not in parsed["rule-providers"]
+    assert all(group.get("name") != "Speedtest" for group in parsed.get("proxy-groups") or [])
+    assert "RULE-SET,speedtest@domain,Speedtest" not in cfg
+    assert "RULE-SET,vodafone@ipcidr,CDN" not in cfg
+
+
+def test_router_zkeen_keeps_geodata_urls_and_new_geo_rules(monkeypatch):
+    bundled_templates = Path("xkeen-ui/opt/etc/mihomo/templates").resolve()
+    monkeypatch.setattr(generator_meta, "TEMPLATES_DIR", bundled_templates)
+
+    cfg = build_full_config({
+        "profile": "router_zkeen",
+        "enabledRuleGroups": ["Telegram", "CDN", "YouTube", "Speedtest"],
+        "subscriptions": [],
+        "proxies": [],
+    })
+    parsed = yaml.safe_load(cfg)
+
+    assert parsed["geodata-mode"] is True
+    assert parsed["geox-url"]["geosite"] == "https://github.com/jameszeroX/zkeen-domains/releases/latest/download/zkeen.dat"
+    assert parsed["geox-url"]["geoip"] == "https://github.com/jameszeroX/zkeen-ip/releases/latest/download/zkeenip.dat"
+    assert "telegram@ipcidr" in parsed["rule-providers"]
+    assert "speedtest@domain" in parsed["rule-providers"]
+    assert "vodafone@ipcidr" not in parsed["rule-providers"]
+    assert "RULE-SET,speedtest@domain,Speedtest" in cfg
+    assert "GEOIP,TELEGRAM,Telegram" in cfg
+    assert "GEOIP,VODAFONE,CDN" in cfg
+    assert "RULE-SET,telegram@ipcidr,Telegram" not in cfg
+    assert any(str(rule).startswith("GEOSITE,") for rule in parsed["rules"])
+    assert any(str(rule).startswith("GEOIP,") for rule in parsed["rules"])
 
 
 def test_yaml_kind_multi_proxy_raises_on_duplicate_names():
