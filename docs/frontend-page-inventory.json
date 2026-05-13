@@ -2936,6 +2936,15 @@
           "lazy_features": []
         },
         {
+          "path": "static/js/util/ansi.js",
+          "globals": [
+            "XKeen.util",
+            "XKeen.util.ansiToHtml",
+            "XKeen.util.escapeHtml"
+          ],
+          "lazy_features": []
+        },
+        {
           "path": "static/js/util/command_job.js",
           "globals": [
             "XKeen.util",
@@ -3107,6 +3116,7 @@
         "XKeen.ui.initThemeToggle",
         "XKeen.ui.syncThemeToggleButtons",
         "XKeen.util.escapeHtml",
+        "XKeen.util.ansiToHtml",
         "XKeen.util.commandJob",
         "XKeen.ui.showGlobalXkeenSpinner",
         "XKeen.ui.hideGlobalXkeenSpinner",
