@@ -25463,7 +25463,7 @@ body.panel-page .routing-scenario-options {
 body.panel-page .routing-scenario-help-row {
   display: flex;
   justify-content: flex-start;
-  margin: 0 0 14px;
+  margin: -6px 0 18px;
 }
 
 body.panel-page .routing-scenario-help-popover .xk-card-help-trigger {
