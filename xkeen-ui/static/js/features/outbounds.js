@@ -6411,7 +6411,10 @@ let outboundsModuleApi = null;
           const err = String((data && (data.error || data.message)) || ('HTTP ' + res.status));
           throw new Error(err);
         }
-        const changed = !!(data.changed || data.observatory_changed);
+        const fileChanged = !!data.changed;
+        const observatoryChanged = !!data.observatory_changed;
+        const routingChanged = !!data.routing_changed;
+        const changed = !!(fileChanged || observatoryChanged || routingChanged);
         data.changed = changed;
         const sourceCount = Number(data.source_count || data.count || 0);
         const filteredOutCount = Number(data.filtered_out_count || 0);
@@ -6422,7 +6425,7 @@ let outboundsModuleApi = null;
         const manualBalancers = Array.isArray(data.routing_manual_balancer_tags)
           ? data.routing_manual_balancer_tags.map((item) => String(item || '').trim()).filter(Boolean)
           : [];
-        const routingParts = data.routing_changed
+        const routingParts = routingChanged
           ? [
               data.routing_balancer_tag
                 ? `leastPing → ${String(data.routing_balancer_tag || 'proxy')} (${Number(data.routing_selector_count || 0)} tag)`
@@ -6431,32 +6434,41 @@ let outboundsModuleApi = null;
             ].filter(Boolean)
           : [];
         const routingNote = routingParts.length ? (' · ' + routingParts.join(' · ')) : '';
+        const migratedCount = Number(data.routing_migrated_rules || 0);
+        const revertedCount = Number(data.routing_reverted_rules || 0);
+        const skippedCount = Number(data.routing_skipped_rules || 0);
         const routingModeNote = data.routing_mode === SUB_ROUTING_MODE_SUBSCRIPTION_ONLY
-          ? (Number(data.routing_migrated_rules || 0) > 0
-            ? ` · only subscription: ${Number(data.routing_migrated_rules || 0)} rule → pool`
-            : ' · only subscription')
+          ? (migratedCount > 0
+            ? ` · только подписка: перенесено в pool ${migratedCount}`
+            : ' · только подписка')
           : data.routing_mode === 'migrate-vless-rules'
-            ? (Number(data.routing_migrated_rules || 0) > 0
-              ? ` · strict: ${Number(data.routing_migrated_rules || 0)} rule → pool`
-              : ' · strict mode')
-            : (Number(data.routing_reverted_rules || 0) > 0
-              ? ` · safe: ${Number(data.routing_reverted_rules || 0)} rule ← vless`
+            ? (migratedCount > 0
+              ? ` · жёсткий pool: перенесено ${migratedCount}`
+              : ' · жёсткий pool')
+            : (revertedCount > 0
+              ? ` · безопасно: возвращено в vless ${revertedCount}`
               : '');
-        const msg = `Готово: ${Number(data.count || 0)} outbound` + filterNote + (data.changed ? ' · файл обновлён' : ' · без изменений');
+        const routingSkippedNote = skippedCount > 0 ? ` · пропущено ручных vless-правил: ${skippedCount}` : '';
+        const changeParts = [
+          fileChanged ? 'файл обновлён' : '',
+          observatoryChanged ? 'observatory обновлён' : '',
+          routingChanged ? 'routing обновлён' : '',
+        ].filter(Boolean);
+        const msg = `Готово: ${Number(data.count || 0)} outbound` + filterNote + (changeParts.length ? (' · ' + changeParts.join(' · ')) : ' · без изменений');
         const fileNote = data.output_file ? (' · ' + String(data.output_file)) : '';
-        subsSetStatus(msg + fileNote + routingNote + routingModeNote + (warningList.length ? ` В· warning: ${warningList[0]}` : ''), false, true);
-        const warningStatusNote = warningList.length ? ' | warning: ' + warningList[0] : '';
-        if (warningStatusNote) {
-          subsSetStatus(msg + fileNote + routingNote + routingModeNote + warningStatusNote, false, true);
-        }
+        const warningStatusNote = warningList.length ? ` · warning: ${warningList[0]}` : '';
+        subsSetStatus(msg + fileNote + routingNote + routingModeNote + routingSkippedNote + warningStatusNote, false, true);
         if (warningList.length) {
           try { toastXkeen(warningList.join(' '), 'warning'); } catch (eWarn) {}
+        }
+        if (skippedCount > 0) {
+          try { toastXkeen(`Пропущено ручных vless-правил: ${skippedCount}. Они остались на vless-reality.`, 'warning'); } catch (eSkip) {}
         }
         if (!changed) {
           try { toastXkeen('Подписка проверена: изменений нет.', 'info'); } catch (e4) {}
         } else if (!data.restarted) {
           const restartNote = restart ? ' Перезапуск xkeen не выполнялся.' : ' Авто-перезапуск xkeen выключен.';
-          const routeToast = data.routing_changed ? ' leastPing и routing тоже синхронизированы.' : '';
+          const routeToast = routingChanged ? ' leastPing и routing тоже синхронизированы.' : '';
           const modeToast = data.routing_mode === SUB_ROUTING_MODE_SUBSCRIPTION_ONLY
             ? ' Включён режим «Только подписка».'
             : data.routing_mode === 'migrate-vless-rules'
@@ -6466,7 +6478,7 @@ let outboundsModuleApi = null;
         }
         await subsSyncOutboundsViewAfterMutation({
           prevActive,
-          touchedFiles: changed && data.output_file ? [data.output_file] : [],
+          touchedFiles: fileChanged && data.output_file ? [data.output_file] : [],
         });
         await subsSyncRoutingViewAfterMutation({
           routingChanged: !!data.routing_changed,
