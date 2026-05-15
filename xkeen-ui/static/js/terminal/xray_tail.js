@@ -33,6 +33,7 @@ import {
 
   let uiDisposers = [];
   let restartTimer = null;
+  const STOP_SETTLE_MS = 260;
 
   function setCtx(ctx) {
     ctxRef = ctx || null;
@@ -191,6 +192,27 @@ import {
     focusTerminalView();
   }
 
+  function waitMs(ms) {
+    return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+  }
+
+  function shellSingleQuote(value) {
+    return "'" + String(value == null ? '' : value).replace(/'/g, "'\\''") + "'";
+  }
+
+  function buildTailCommand(path) {
+    const quotedPath = shellSingleQuote(path);
+    return [
+      '(',
+      '__xk_xray_tail_pid=;',
+      "trap 'if [ -n \"$__xk_xray_tail_pid\" ]; then kill \"$__xk_xray_tail_pid\" 2>/dev/null; wait \"$__xk_xray_tail_pid\" 2>/dev/null; fi; printf \"\\r\\n[XKeen] Xray log tail stopped.\\r\\n\"; exit 130' INT TERM;",
+      `tail -n 200 -f ${quotedPath} &`,
+      '__xk_xray_tail_pid=$!;',
+      'wait "$__xk_xray_tail_pid"',
+      ')',
+    ].join(' ');
+  }
+
   function ensurePtyOpen() {
     try {
       if (getTerminalMode(getCtx()) !== 'pty') {
@@ -236,13 +258,12 @@ import {
     }
 
     if (isRunning) {
-      stopViewer();
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      await stopViewerAndSettle({ force: true, quiet: true });
     }
 
     const kind = getSelectedFile();
     const path = await resolveLogPath(kind);
-    const cmd = `tail -n 200 -f "${String(path).replace(/\"/g, '\\"')}"`;
+    const cmd = buildTailCommand(path);
 
     sendPtyRaw('\r');
     sendPtyRaw(`echo "----- XRAY ${kind}.log (tail -f) -----"\r`);
@@ -254,21 +275,31 @@ import {
     focusTerm();
   }
 
-  function stopViewer() {
-    sendPtyRaw('\x03');
+  function stopViewer(opts) {
+    const o = opts || {};
+    if (!isRunning && !o.force) return false;
+    const sent = sendPtyRaw('\x03');
     isRunning = false;
+    clearRestartTimer();
     focusTerm();
+    if (!sent && !o.quiet) toast('PTY подключён, но остановить tail не удалось.', true);
+    return sent;
+  }
+
+  async function stopViewerAndSettle(opts) {
+    const sent = stopViewer(opts || {});
+    if (sent) await waitMs(STOP_SETTLE_MS);
+    return sent;
   }
 
   function stopTail() {
     hideMenu();
-    if (!isRunning) return;
-    stopViewer();
+    void stopViewerAndSettle({ force: true });
   }
 
   async function disableLogs() {
     hideMenu();
-    if (isRunning) stopViewer();
+    await stopViewerAndSettle({ force: true });
 
     const disabled = await disableLogging();
     if (!disabled.ok) {
@@ -284,8 +315,8 @@ import {
   function restartSoon() {
     if (!isRunning) return;
     clearRestartTimer();
-    stopViewer();
-    restartTimer = setTimeout(() => { try { void start(); } catch (error) {} }, 250);
+    void stopViewerAndSettle({ force: true, quiet: true });
+    restartTimer = setTimeout(() => { try { void start(); } catch (error) {} }, STOP_SETTLE_MS + 80);
   }
 
   function onFileChange() {

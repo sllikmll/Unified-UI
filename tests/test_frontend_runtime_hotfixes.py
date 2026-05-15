@@ -1796,3 +1796,26 @@ def test_codemirror_lint_tooltips_are_scrollable_and_width_limited_inside_editor
     assert 'overflow-x: hidden;' in styles
     assert '.xkeen-cm6-host .cm-tooltip-lint .cm-diagnosticText,' in styles
     assert 'overflow-wrap: anywhere;' in styles
+
+
+def test_terminal_xray_tail_reclaims_pty_after_stop_or_disable():
+    text = Path('xkeen-ui/static/js/terminal/xray_tail.js').read_text(encoding='utf-8')
+    start_body = text.split('async function start()', 1)[1].split('\n  function stopViewer', 1)[0]
+    stop_body = text.split('function stopViewer(opts)', 1)[1].split('\n  async function stopViewerAndSettle', 1)[0]
+    disable_body = text.split('async function disableLogs()', 1)[1].split('\n  function clearRestartTimer', 1)[0]
+
+    assert "const STOP_SETTLE_MS = 260;" in text
+    assert "function shellSingleQuote(value)" in text
+    assert "function buildTailCommand(path)" in text
+    assert "trap 'if [ -n \\\"$__xk_xray_tail_pid\\\" ]" in text
+    assert "kill \\\"$__xk_xray_tail_pid\\\" 2>/dev/null" in text
+    assert "`tail -n 200 -f ${quotedPath} &`" in text
+    assert "'wait \"$__xk_xray_tail_pid\"'" in text
+
+    assert "if (isRunning) {" in start_body
+    assert "await stopViewerAndSettle({ force: true, quiet: true });" in start_body
+    assert "const cmd = buildTailCommand(path);" in start_body
+    assert "if (!isRunning && !o.force) return false;" in stop_body
+    assert "clearRestartTimer();" in stop_body
+    assert "await stopViewerAndSettle({ force: true });" in disable_body
+    assert "void stopViewerAndSettle({ force: true });" in text
