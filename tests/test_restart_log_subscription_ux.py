@@ -164,7 +164,10 @@ def test_outbounds_subscription_refresh_relies_on_restart_log_for_changed_restar
     subs_refresh_src = outbounds_src.split(refresh_marker, 1)[1].split("async function subsRefreshDue() {", 1)[0]
     subs_refresh_due_src = outbounds_src.split("async function subsRefreshDue() {", 1)[1]
 
-    assert "const changed = !!(data.changed || data.observatory_changed);" in outbounds_src
+    assert "const fileChanged = !!data.changed;" in outbounds_src
+    assert "const observatoryChanged = !!data.observatory_changed;" in outbounds_src
+    assert "const routingChanged = !!data.routing_changed;" in outbounds_src
+    assert "const changed = !!(fileChanged || observatoryChanged || routingChanged);" in outbounds_src
     assert "data.changed = changed;" in outbounds_src
     assert "Подписка проверена: изменений нет." in outbounds_src
     assert "Подписка Xray обновлена." in outbounds_src
