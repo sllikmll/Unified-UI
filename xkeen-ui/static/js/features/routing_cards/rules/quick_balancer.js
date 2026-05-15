@@ -55,6 +55,8 @@ import { getRoutingCardsNamespace } from '../../routing_cards_namespace.js';
     overwriteObs: 'routing-balancer-quick-overwrite-observatory',
     summary: 'routing-balancer-quick-summary',
   };
+  const AUTO_RULETAG = 'xk_auto_leastPing';
+  const DEFAULT_INBOUND_TAGS = ['redirect', 'tproxy'];
 
   function $(id) {
     try { return document.getElementById(id); } catch (e) { return null; }
@@ -266,6 +268,20 @@ tag2
     } catch (e) {}
   }
 
+  function ruleInboundTags(rule) {
+    if (!rule || typeof rule !== 'object' || Array.isArray(rule)) return [];
+    const raw = rule.inboundTag;
+    if (Array.isArray(raw)) return raw.map((v) => String(v || '').trim()).filter(Boolean);
+    const one = String(raw || '').trim();
+    return one ? [one] : [];
+  }
+
+  function onlyDefaultInbounds(rule) {
+    const inbound = ruleInboundTags(rule);
+    if (!inbound.length) return true;
+    return inbound.every((tag) => tag === 'redirect' || tag === 'tproxy');
+  }
+
   function isDefaultBalancerRule(rule, balancerTag) {
     const bt = String(balancerTag || '').trim();
     if (!bt || !rule || typeof rule !== 'object' || Array.isArray(rule)) return false;
@@ -278,10 +294,7 @@ tag2
       return false;
     }
 
-    const inbound = Array.isArray(rule.inboundTag)
-      ? rule.inboundTag.map((v) => String(v || '').trim()).filter(Boolean)
-      : (rule.inboundTag ? [String(rule.inboundTag || '').trim()].filter(Boolean) : []);
-
+    const inbound = ruleInboundTags(rule);
     if (!inbound.length) return true;
     const s = new Set(inbound);
     return s.has('redirect') || s.has('tproxy');
@@ -418,12 +431,14 @@ tag2
   function isUnconditionalRule(rule) {
     if (!rule || typeof rule !== 'object' || Array.isArray(rule)) return false;
     const keys = Object.keys(rule);
-    const allowed = new Set(['type', 'outboundTag', 'balancerTag', 'ruleTag']);
+    const allowed = new Set(['type', 'outboundTag', 'balancerTag', 'ruleTag', 'inboundTag']);
     for (const k of keys) {
       if (allowed.has(k)) continue;
       // Treat empty keys as conditions too.
       return false;
     }
+    if (!String(rule.outboundTag || rule.balancerTag || '').trim()) return false;
+    if (!onlyDefaultInbounds(rule)) return false;
     return true;
   }
 
@@ -438,47 +453,64 @@ tag2
 
   function chooseInsertIndex(rules) {
     if (!Array.isArray(rules) || !rules.length) return 0;
-    // If there is an unconditional final rule (direct/block), insert before it.
+    // Insert before the first rule in the final catch-all tail, regardless of
+    // the target tag. Otherwise a generic vless/balancer tail can shadow the
+    // auto leastPing rule.
+    let tailStart = rules.length;
     for (let i = rules.length - 1; i >= 0; i--) {
-      const r = rules[i];
-      if (!isUnconditionalRule(r)) return rules.length;
-      const out = String((r && (r.outboundTag || r.balancerTag)) || '').toLowerCase();
-      if (out === 'direct' || out === 'block' || out === 'blackhole' || out === 'reject') return i;
-      // keep scanning further up to find the first “catch-all” tail
+      if (!isUnconditionalRule(rules[i])) break;
+      tailStart = i;
     }
-    return rules.length;
+    return tailStart;
+  }
+
+  function normalizeDefaultBalancerRule(rule, balancerTag) {
+    for (const key of Object.keys(rule)) {
+      if (key === 'type' || key === 'balancerTag' || key === 'ruleTag' || key === 'inboundTag') continue;
+      try { delete rule[key]; } catch (e) {}
+    }
+    rule.type = 'field';
+    rule.balancerTag = balancerTag;
+    rule.inboundTag = DEFAULT_INBOUND_TAGS.slice();
+    try { delete rule.outboundTag; } catch (e2) {}
+    rule.ruleTag = AUTO_RULETAG;
+    return rule;
   }
 
   function ensureDefaultBalancerRule(model, balancerTag) {
     const m = model || { rules: [] };
     if (!Array.isArray(m.rules)) m.rules = [];
-    const AUTO_RULETAG = 'xk_auto_leastPing';
 
-    const idx = findAutoRuleIdx(m.rules, AUTO_RULETAG);
-    if (idx >= 0) {
-      const r = m.rules[idx];
-      r.type = 'field';
-      r.balancerTag = balancerTag;
-      r.inboundTag = ['redirect', 'tproxy'];
-      try { delete r.outboundTag; } catch (e) {}
-      r.ruleTag = AUTO_RULETAG;
-      return { rule: r, idx, inserted: false };
-    }
-
-    // Do not duplicate an existing catch-all rule for this balancer. Specific
-    // domain/ip rules must not block creation of the default redirect/tproxy rule.
-    for (let i = 0; i < m.rules.length; i++) {
-      const r = m.rules[i];
-      if (!r || typeof r !== 'object' || Array.isArray(r)) continue;
-      if (isDefaultBalancerRule(r, balancerTag)) {
-        return { rule: r, idx: i, inserted: false, existed: true };
+    let candidateIdx = findAutoRuleIdx(m.rules, AUTO_RULETAG);
+    if (candidateIdx < 0) {
+      // Do not duplicate an existing catch-all rule for this balancer. Specific
+      // domain/ip rules must not block creation of the default redirect/tproxy rule.
+      for (let i = 0; i < m.rules.length; i++) {
+        const r = m.rules[i];
+        if (!r || typeof r !== 'object' || Array.isArray(r)) continue;
+        if (isDefaultBalancerRule(r, balancerTag)) {
+          candidateIdx = i;
+          break;
+        }
       }
     }
 
+    const existed = candidateIdx >= 0;
+    let rule = existed ? m.rules.splice(candidateIdx, 1)[0] : {};
+    if (!rule || typeof rule !== 'object' || Array.isArray(rule)) rule = {};
+    normalizeDefaultBalancerRule(rule, balancerTag);
     const ins = chooseInsertIndex(m.rules);
-    const rNew = { type: 'field', balancerTag, inboundTag: ['redirect', 'tproxy'], ruleTag: AUTO_RULETAG };
-    m.rules.splice(ins, 0, rNew);
-    return { rule: rNew, idx: ins, inserted: true };
+    m.rules.splice(ins, 0, rule);
+    return { rule, idx: ins, inserted: !existed, existed };
+  }
+
+  function removeAutoDefaultBalancerRule(model) {
+    const m = model || {};
+    if (!Array.isArray(m.rules)) return { removed: false, idx: -1 };
+    const idx = findAutoRuleIdx(m.rules, AUTO_RULETAG);
+    if (idx < 0) return { removed: false, idx: -1 };
+    m.rules.splice(idx, 1);
+    return { removed: true, idx };
   }
 
   async function generateObservatory(selectorTags, opts) {
@@ -577,6 +609,8 @@ tag2
       const needDefaultRule = !!($(IDS.defaultRule) && $(IDS.defaultRule).checked);
       if (needDefaultRule) {
         ensureDefaultBalancerRule(m, balTag);
+      } else {
+        removeAutoDefaultBalancerRule(m);
       }
 
       try { if (RM && typeof RM.markDirty === 'function') RM.markDirty(true); } catch (e) {}
@@ -597,18 +631,22 @@ tag2
 
       const overwriteObs = !!($(IDS.overwriteObs) && $(IDS.overwriteObs).checked);
       setStatus('Генерирую 07_observatory.json…', false);
-      await generateObservatory(selectorTags, {
+      const obsResult = await generateObservatory(selectorTags, {
         probeUrl: ($(IDS.probeUrl) && $(IDS.probeUrl).value) || '',
         probeInterval: ($(IDS.probeInterval) && $(IDS.probeInterval).value) || '',
         enableConcurrency: !!($(IDS.conc) && $(IDS.conc).checked),
         overwrite: overwriteObs,
       });
+      const observatoryNote = (obsResult && obsResult.existed && obsResult.overwritten === false)
+        ? '07_observatory.json уже существует: перезапись выключена, файл оставлен без изменений.'
+        : '';
+      if (observatoryNote) setStatus(observatoryNote, false, true);
 
-      setStatus('Сохраняю и перезапускаю…', false);
+      setStatus(observatoryNote ? ('Сохраняю routing и перезапускаю. ' + observatoryNote) : 'Сохраняю и перезапускаю…', false);
       const ok = await saveWithForcedRestart();
       if (ok) {
-        setStatus('Готово. Лог операции — в “Журнал операций Xkeen”.', false, true);
-        toast('Готово', false);
+        setStatus(observatoryNote ? ('Готово. ' + observatoryNote + ' Лог операции — в “Журнал операций Xkeen”.') : 'Готово. Лог операции — в “Журнал операций Xkeen”.', false, true);
+        toast(observatoryNote ? 'Готово: observatory не менялся' : 'Готово', false);
         closeModal();
         return true;
       }

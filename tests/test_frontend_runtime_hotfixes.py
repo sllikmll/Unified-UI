@@ -1759,6 +1759,32 @@ def test_forced_rules_wizard_uses_real_outbounds_and_separates_domain_ip_rules()
     assert "if (newRules.length) {" in text
 
 
+def test_quick_balancer_wizard_normalizes_default_rule_and_reports_observatory_noop():
+    text = Path('xkeen-ui/static/js/features/routing_cards/rules/quick_balancer.js').read_text(encoding='utf-8')
+    choose_body = text.split('function chooseInsertIndex(rules)', 1)[1].split('\n  function normalizeDefaultBalancerRule', 1)[0]
+    ensure_body = text.split('function ensureDefaultBalancerRule(model, balancerTag)', 1)[1].split('\n  function removeAutoDefaultBalancerRule', 1)[0]
+
+    assert "const AUTO_RULETAG = 'xk_auto_leastPing';" in text
+    assert "const DEFAULT_INBOUND_TAGS = ['redirect', 'tproxy'];" in text
+    assert "function removeAutoDefaultBalancerRule(model)" in text
+    assert "removeAutoDefaultBalancerRule(m);" in text
+    assert "return inbound.every((tag) => tag === 'redirect' || tag === 'tproxy');" in text
+
+    assert "let tailStart = rules.length;" in choose_body
+    assert "tailStart = i;" in choose_body
+    assert "return tailStart;" in choose_body
+    assert "target tag. Otherwise a generic vless/balancer tail can shadow" in choose_body
+
+    assert "let candidateIdx = findAutoRuleIdx(m.rules, AUTO_RULETAG);" in ensure_body
+    assert "let rule = existed ? m.rules.splice(candidateIdx, 1)[0] : {};" in ensure_body
+    assert "normalizeDefaultBalancerRule(rule, balancerTag);" in ensure_body
+    assert "m.rules.splice(ins, 0, rule);" in ensure_body
+
+    assert "const obsResult = await generateObservatory" in text
+    assert "obsResult.overwritten === false" in text
+    assert "observatoryNote ? 'Готово: observatory не менялся' : 'Готово'" in text
+
+
 def test_codemirror_lint_tooltips_are_scrollable_and_width_limited_inside_editor():
     styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
 
