@@ -1738,6 +1738,27 @@ def test_routing_editor_uses_all_fragments_for_semantic_context_and_separates_js
     assert "Файл загружен, но содержит ошибку JSON/JSONC." in routing
 
 
+def test_forced_rules_wizard_uses_real_outbounds_and_separates_domain_ip_rules():
+    text = Path('xkeen-ui/static/js/features/routing_cards/rules/forced_rules_wizard.js').read_text(encoding='utf-8')
+    remove_body = text.split('function removeExistingWizardForcedRules(rules, importLegacy)', 1)[1].split('\n  function findBalancerRuleIndex', 1)[0]
+
+    assert "if (!filtered.includes('proxy'))" not in text
+    assert "Нет outbound-тегов" in text
+    assert "const knownTags = new Set((FW._state.tags || [])" in text
+    assert "outboundTag не найден в outbounds" in text
+    assert "const existingForced = extractWizardForcedFromModel(m, importLegacy);" in text
+    assert "const hasExistingForcedRules = Object.keys(existingForced).length > 0;" in text
+    assert "if (!tags.length && !hasExistingForcedRules)" in text
+    assert "if (importLegacy && looksLikeLegacyForcedRule(r)) return false;" in remove_body
+    assert "function buildForcedRule(outboundTag, kind, values, opts)" in text
+    assert "const field = kind === 'ip' ? 'ip' : 'domain';" in text
+    assert "safeRuleTagForOutbound(outboundTag, field)" in text
+    assert "buildForcedRule(tag, 'domain', domains, { inboundOnly })" in text
+    assert "buildForcedRule(tag, 'ip', ips, { inboundOnly })" in text
+    assert "fields inside one RuleObject as AND conditions" in text
+    assert "if (newRules.length) {" in text
+
+
 def test_codemirror_lint_tooltips_are_scrollable_and_width_limited_inside_editor():
     styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
 

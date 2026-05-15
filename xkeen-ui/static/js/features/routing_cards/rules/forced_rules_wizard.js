@@ -164,7 +164,7 @@ geoip:private"></textarea>
                     <input type="checkbox" id="routing-forced-rules-import-legacy">
                     <div class="xk-forced-option-copy">
                       <strong>Импорт legacy-правил</strong>
-                      <small>Подтянуть правила без <code>ruleTag</code></small>
+                      <small>Мигрировать правила без <code>ruleTag</code> без дублей</small>
                     </div>
                   </label>
                 </div>
@@ -280,10 +280,11 @@ geoip:private"></textarea>
     return out;
   }
 
-  function safeRuleTagForOutbound(tag) {
+  function safeRuleTagForOutbound(tag, kind) {
     const t = String(tag || '').trim();
     const safe = t.replace(/[^a-zA-Z0-9_-]/g, '_');
-    return RULETAG_PREFIX + (safe || 'proxy');
+    const suffix = kind === 'ip' ? '_ip' : (kind === 'domain' ? '_domain' : '');
+    return RULETAG_PREFIX + (safe || 'proxy') + suffix;
   }
 
   function isBlockOutbound(tag) {
@@ -491,12 +492,16 @@ geoip:private"></textarea>
     const prev = String(sel.value || '').trim();
 
     const filtered = (tags || []).filter((t) => !isReservedOutbound(t));
-    // Common targets (always offer them)
-    if (!filtered.includes('proxy')) filtered.unshift('proxy');
-    if (!filtered.includes('block')) filtered.unshift('block');
-    if (!filtered.includes('direct')) filtered.unshift('direct');
 
     sel.innerHTML = '';
+    if (!filtered.length) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'Нет outbound-тегов';
+      sel.appendChild(opt);
+      sel.value = '';
+      return;
+    }
     for (const t of filtered) {
       const opt = document.createElement('option');
       opt.value = t;
@@ -504,7 +509,7 @@ geoip:private"></textarea>
       sel.appendChild(opt);
     }
     if (prev && filtered.includes(prev)) sel.value = prev;
-    else sel.value = filtered[0] || 'proxy';
+    else sel.value = filtered[0] || '';
   }
 
   function addValuesToState(outboundTag, kind, values) {
@@ -546,12 +551,13 @@ geoip:private"></textarea>
     renderList();
   }
 
-  function removeExistingWizardForcedRules(rules) {
+  function removeExistingWizardForcedRules(rules, importLegacy) {
     if (!Array.isArray(rules)) return [];
     return rules.filter((r) => {
       if (!r || typeof r !== 'object' || Array.isArray(r)) return true;
       const rt = String(r.ruleTag || '');
       if (rt.startsWith(RULETAG_PREFIX)) return false;
+      if (importLegacy && looksLikeLegacyForcedRule(r)) return false;
       return true;
     });
   }
@@ -608,15 +614,16 @@ geoip:private"></textarea>
     return i;
   }
 
-  function buildForcedRule(outboundTag, domains, ips, opts) {
+  function buildForcedRule(outboundTag, kind, values, opts) {
+    const field = kind === 'ip' ? 'ip' : 'domain';
+    const cleanValues = normalizeList(Array.isArray(values) ? values.join('\n') : values);
     const r = {
       type: 'field',
       outboundTag: outboundTag,
-      ruleTag: safeRuleTagForOutbound(outboundTag),
+      ruleTag: safeRuleTagForOutbound(outboundTag, field),
     };
     if (opts && opts.inboundOnly) r.inboundTag = ['redirect', 'tproxy'];
-    if (domains && domains.length) r.domain = domains.slice();
-    if (ips && ips.length) r.ip = ips.slice();
+    if (cleanValues.length) r[field] = cleanValues;
     return r;
   }
 
@@ -686,16 +693,29 @@ geoip:private"></textarea>
         const ipLen = (Array.isArray(it.ips) ? it.ips.length : 0);
         return (dLen + ipLen) > 0;
       });
+      const existingForced = extractWizardForcedFromModel(m, importLegacy);
+      const hasExistingForcedRules = Object.keys(existingForced).length > 0;
 
-      if (!tags.length) {
+      if (!tags.length && !hasExistingForcedRules) {
         setStatus('Список принудительных правил пуст. Добавьте домены/IP и повторите.', true);
         return false;
       }
 
-      // Remove previous wizard forced rules first.
-      m.rules = removeExistingWizardForcedRules(m.rules);
+      const knownTags = new Set((FW._state.tags || []).map((t) => String(t || '').trim()).filter(Boolean));
+      if (tags.length && knownTags.size) {
+        const invalidTags = tags.filter((tag) => !knownTags.has(tag));
+        if (invalidTags.length) {
+          setStatus(`outboundTag не найден в outbounds: ${invalidTags.join(', ')}. Обновите список тегов или выберите конкретный outbound.`, true);
+          return false;
+        }
+      }
 
-      // Build new forced rules (one rule per outboundTag)
+      // Remove previous wizard forced rules first. In legacy import mode, old
+      // untagged forced rules are migrated into managed xk_forced_* rules.
+      m.rules = removeExistingWizardForcedRules(m.rules, importLegacy);
+
+      // Build new forced rules. Domain and IP must stay separate: Xray treats
+      // fields inside one RuleObject as AND conditions, not OR conditions.
       tags.sort((a, b) => a.localeCompare(b, 'ru'));
       const inboundOnly = !!($(IDS.inboundOnly) && $(IDS.inboundOnly).checked);
       const newRules = [];
@@ -704,17 +724,14 @@ geoip:private"></textarea>
         const domains = normalizeList((it.domains || []).join('\n'));
         const ips = normalizeList((it.ips || []).join('\n'));
         if (!domains.length && !ips.length) continue;
-        newRules.push(buildForcedRule(tag, domains, ips, { inboundOnly }));
+        if (domains.length) newRules.push(buildForcedRule(tag, 'domain', domains, { inboundOnly }));
+        if (ips.length) newRules.push(buildForcedRule(tag, 'ip', ips, { inboundOnly }));
       }
 
-      const mode = String(($(IDS.priority) && $(IDS.priority).value) || 'after_block');
-      const ins = computeInsertIndex(m.rules, mode);
-      m.rules.splice(ins, 0, ...newRules);
-
-      // If user asked to import legacy rules, refresh UI after apply (but do not delete legacy).
-      // This keeps the wizard from “fighting” the user’s manual rules.
-      if (importLegacy) {
-        // no-op here
+      if (newRules.length) {
+        const mode = String(($(IDS.priority) && $(IDS.priority).value) || 'after_block');
+        const ins = computeInsertIndex(m.rules, mode);
+        m.rules.splice(ins, 0, ...newRules);
       }
 
       try { if (RM && typeof RM.markDirty === 'function') RM.markDirty(true); } catch (e) {}
