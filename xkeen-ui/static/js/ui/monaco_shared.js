@@ -1247,8 +1247,25 @@ import {
         }
         try { ev.stopPropagation(); } catch (e) {}
       });
+      menu.addEventListener('pointerup', (ev) => {
+        const btn = ev.target && ev.target.closest ? ev.target.closest('button[data-action]') : null;
+        if (!btn) return;
+        try {
+          if (typeof ev.button === 'number' && ev.button !== 0) return;
+        } catch (e) {}
+        _handleCustomContextMenuAction(ev);
+      });
       menu.addEventListener('mousedown', (ev) => {
         try { ev.stopPropagation(); } catch (e) {}
+      });
+      menu.addEventListener('mouseup', (ev) => {
+        const btn = ev.target && ev.target.closest ? ev.target.closest('button[data-action]') : null;
+        if (!btn) return;
+        try {
+          if (typeof window.PointerEvent !== 'undefined') return;
+          if (typeof ev.button === 'number' && ev.button !== 0) return;
+        } catch (e) {}
+        _handleCustomContextMenuAction(ev);
       });
       menu.addEventListener('click', (ev) => {
         const btn = ev.target && ev.target.closest ? ev.target.closest('button[data-action]') : null;
