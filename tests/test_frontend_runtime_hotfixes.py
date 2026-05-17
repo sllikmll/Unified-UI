@@ -1390,7 +1390,8 @@ def test_xray_preflight_modal_exposes_explainer_block_and_problem_line_rendering
     assert "errorCode === 'xray preflight failed' ||" in spinner_text
     assert "errorCode === 'routing semantic validation failed';" in spinner_text
     assert "if (!isRoutingValidationFailure) return;" in spinner_text
-    assert "XKeen.routing.retrySaveWithoutPreflight = () => save({ skipPreflight: true });" in routing_text
+    assert "setXkeenRoutingRetryWithoutPreflight," in routing_text
+    assert "setXkeenRoutingRetryWithoutPreflight(() => save({ skipPreflight: true }));" in routing_text
     assert "(skipPreflight ? '&skip_preflight=1' : '')" in routing_text
 
 

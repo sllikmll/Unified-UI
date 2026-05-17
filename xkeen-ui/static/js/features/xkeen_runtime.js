@@ -60,6 +60,17 @@ export function ensureXkeenPagesRoot() {
   }
 }
 
+export function ensureXkeenRoutingRoot() {
+  try {
+    const xk = ensureXkeenRoot();
+    if (!xk) return null;
+    if (!xk.routing || typeof xk.routing !== 'object') xk.routing = {};
+    return xk.routing;
+  } catch (e) {
+    return null;
+  }
+}
+
 export function getXkeenUiApi() {
   try {
     const xk = getWindowXKeen();
@@ -91,6 +102,15 @@ export function getXkeenPagesApi() {
   try {
     const xk = getWindowXKeen();
     return xk ? (xk.pages || null) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export function getXkeenRoutingApi() {
+  try {
+    const xk = getWindowXKeen();
+    return xk ? (xk.routing || null) : null;
   } catch (e) {
     return null;
   }
@@ -151,6 +171,32 @@ export function publishXkeenPageApi(name, api) {
     return pages[key];
   } catch (e) {
     return api || null;
+  }
+}
+
+export function setXkeenRoutingRetryWithoutPreflight(handler) {
+  try {
+    const routing = ensureXkeenRoutingRoot();
+    if (!routing) return false;
+    if (typeof handler === 'function') {
+      routing.retrySaveWithoutPreflight = handler;
+    } else {
+      delete routing.retrySaveWithoutPreflight;
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+export function getXkeenRoutingRetryWithoutPreflight() {
+  try {
+    const routing = getXkeenRoutingApi();
+    return routing && typeof routing.retrySaveWithoutPreflight === 'function'
+      ? routing.retrySaveWithoutPreflight
+      : null;
+  } catch (e) {
+    return null;
   }
 }
 
@@ -998,6 +1044,7 @@ export const xkeenRuntimeApi = Object.freeze({
   getMonacoLoaderApi: getXkeenMonacoLoaderApi,
   getCoreApi: getXkeenCoreApi,
   getPagesApi: getXkeenPagesApi,
+  getRoutingApi: getXkeenRoutingApi,
   getUtilApi: getXkeenUtilApi,
   getPageConfig: getXkeenPageConfig,
   getPageConfigValue: getXkeenPageConfigValue,
@@ -1060,6 +1107,8 @@ export const xkeenRuntimeApi = Object.freeze({
   getTerminalPtyApi: getXkeenTerminalPtyApi,
   getTerminalChromeApi: getXkeenTerminalChromeApi,
   getTerminalCapabilitiesApi: getXkeenTerminalCapabilitiesApi,
+  setRoutingRetryWithoutPreflight: setXkeenRoutingRetryWithoutPreflight,
+  getRoutingRetryWithoutPreflight: getXkeenRoutingRetryWithoutPreflight,
   hasTerminalApi: hasXkeenTerminalApi,
   hasTerminalPtyCapability: hasXkeenTerminalPtyCapability,
   isTerminalPtyConnected: isXkeenTerminalPtyConnected,

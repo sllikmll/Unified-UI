@@ -30,6 +30,7 @@ import {
   getXkeenFilePath,
   getXkeenModalApi,
   isXkeenMipsRuntime,
+  setXkeenRoutingRetryWithoutPreflight,
   toastXkeen,
 } from './xkeen_runtime.js';
 import { stripJsonComments as stripJsonCommentsUtil } from '../util/strip_json_comments.js';
@@ -3445,11 +3446,7 @@ function closeHelp() {
     const opts = options && typeof options === 'object' ? options : {};
     const skipPreflight = !!opts.skipPreflight;
     const statusEl = $(IDS.status);
-    try {
-      window.XKeen = window.XKeen || {};
-      window.XKeen.routing = window.XKeen.routing || {};
-      window.XKeen.routing.retrySaveWithoutPreflight = () => save({ skipPreflight: true });
-    } catch (e) {}
+    try { setXkeenRoutingRetryWithoutPreflight(() => save({ skipPreflight: true })); } catch (e) {}
     const rawText = getEditorText();
     const analysis = getJsoncAnalysis(rawText, { preciseLocation: true });
     if (analysis.ok) {
