@@ -31,6 +31,7 @@ ENV_WHITELIST: Tuple[str, ...] = (
     "XKEEN_GEODAT_UPLOAD_MAX_BYTES",
     "XKEEN_ROUTING_SAVE_MAX_BYTES",
     "XKEEN_CONFIG_EXCHANGE_MAX_BYTES",
+    "XKEEN_MIHOMO_HWID",
     "XKEEN_DAT_ALLOW_HOSTS",
     "XKEEN_DAT_ALLOW_HTTP",
     "XKEEN_DAT_ALLOW_CUSTOM_URLS",
@@ -276,6 +277,8 @@ def _default_effective_value(
         return str(1024 * 1024)
     if k == "XKEEN_CONFIG_EXCHANGE_MAX_BYTES":
         return str(4 * 1024 * 1024)
+    if k == "XKEEN_MIHOMO_HWID":
+        return ""
     if k == "XKEEN_DAT_ALLOW_HOSTS":
         return "github.com,raw.githubusercontent.com,objects.githubusercontent.com,release-assets.githubusercontent.com,codeload.github.com"
     if k == "XKEEN_DAT_ALLOW_HTTP":

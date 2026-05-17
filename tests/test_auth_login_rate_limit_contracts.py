@@ -28,6 +28,23 @@ def test_devtools_frontend_marks_auth_login_limit_keys_as_live_env_settings():
     assert "ENV_NO_RESTART_KEYS.add('XKEEN_AUTH_LOGIN_LOCKOUT_SECONDS')" in env_js
 
 
+def test_devtools_env_exposes_mihomo_hwid_and_searchable_groups():
+    env_py = (ROOT / "xkeen-ui" / "services" / "devtools" / "env.py").read_text(encoding="utf-8")
+    env_js = (ROOT / "xkeen-ui" / "static" / "js" / "features" / "devtools" / "env.js").read_text(encoding="utf-8")
+    template = (ROOT / "xkeen-ui" / "templates" / "devtools.html").read_text(encoding="utf-8")
+
+    assert '"XKEEN_MIHOMO_HWID"' in env_py
+    assert 'if k == "XKEEN_MIHOMO_HWID":' in env_py
+    assert "ENV_HELP.XKEEN_MIHOMO_HWID" in env_js
+    assert "ENV_NO_RESTART_KEYS.add('XKEEN_MIHOMO_HWID')" in env_js
+    assert "title: 'Mihomo и HWID'" in env_js
+    assert "title: 'Файловый менеджер'" in env_js
+    assert "xkeen.devtools.env.expandedGroups.v1" in env_js
+    assert "!_envExpandedGroups.has(group.id)" in env_js
+    assert 'id="dt-env-search"' in template
+    assert 'id="dt-env-search-clear"' in template
+
+
 def test_auth_routes_return_structured_lockout_errors():
     auth_py = (ROOT / "xkeen-ui" / "routes" / "auth.py").read_text(encoding="utf-8")
 

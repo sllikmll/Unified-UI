@@ -206,6 +206,7 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
   ENV_HELP.XKEEN_GEODAT_UPLOAD_MAX_BYTES = 'Максимальный размер загружаемого бинарника xk-geodat через UI, в байтах. По умолчанию 16777216 (16 MiB).';
   ENV_HELP.XKEEN_ROUTING_SAVE_MAX_BYTES = 'Максимальный размер тела для сохранения JSON/JSONC роутинга Xray, в байтах. По умолчанию 1048576.';
   ENV_HELP.XKEEN_CONFIG_EXCHANGE_MAX_BYTES = 'Максимальный размер входящего тела для config exchange import/export API, в байтах. По умолчанию 4194304.';
+  ENV_HELP.XKEEN_MIHOMO_HWID = 'HWID для premium/HWID-подписок Mihomo. Вставьте сюда HWID, который выдал провайдер, если подписка должна быть привязана строго к роутеру. Применяется при следующей проверке/генерации HWID-подписки без Restart UI.';
   ENV_HELP.XKEEN_DAT_ALLOW_HOSTS = 'Доверенные хосты для обновления DAT по URL. Формат: через запятую. По умолчанию: GitHub/release/raw хосты.';
   ENV_HELP.XKEEN_DAT_ALLOW_HTTP = 'Разрешить plain HTTP для DAT update. По умолчанию 0 (только HTTPS).';
   ENV_HELP.XKEEN_DAT_ALLOW_CUSTOM_URLS = 'Разрешить DAT update с произвольных public URL вне allow-list. По умолчанию 0. Включайте только осознанно.';
@@ -340,6 +341,7 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
   ENV_NO_RESTART_KEYS.add('XKEEN_GEODAT_ALLOW_HTTP');
   ENV_NO_RESTART_KEYS.add('XKEEN_GEODAT_ALLOW_CUSTOM_URLS');
   ENV_NO_RESTART_KEYS.add('XKEEN_GEODAT_ALLOW_PRIVATE_HOSTS');
+  ENV_NO_RESTART_KEYS.add('XKEEN_MIHOMO_HWID');
   ENV_RESTART_KEYS.delete('XKEEN_ALLOW_SHELL');
   ENV_RESTART_KEYS.delete('XKEEN_AUTH_LOGIN_WINDOW_SECONDS');
   ENV_RESTART_KEYS.delete('XKEEN_AUTH_LOGIN_MAX_ATTEMPTS');
@@ -359,9 +361,13 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
   ENV_RESTART_KEYS.delete('XKEEN_GEODAT_ALLOW_HTTP');
   ENV_RESTART_KEYS.delete('XKEEN_GEODAT_ALLOW_CUSTOM_URLS');
   ENV_RESTART_KEYS.delete('XKEEN_GEODAT_ALLOW_PRIVATE_HOSTS');
+  ENV_RESTART_KEYS.delete('XKEEN_MIHOMO_HWID');
   ENV_RESTART_KEYS.add('XKEEN_INIT_SCRIPT');
 
   let _envSnapshot = { items: [], envFile: '' };
+  let _envFilter = '';
+  const ENV_GROUP_EXPANDED_STORAGE_KEY = 'xkeen.devtools.env.expandedGroups.v1';
+  let _envExpandedGroups = new Set();
 
   function _envRestartHint(key) {
     const k = String(key || '');
@@ -394,6 +400,211 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
     // Support both Unix and Windows separators.
     const parts = s.split(/[/\\]+/);
     return parts[parts.length - 1] || s;
+  }
+
+  const ENV_GROUPS = [
+    {
+      id: 'core',
+      title: 'UI и безопасность',
+      desc: 'Порт, сессии, логин и общие лимиты запросов.',
+      keys: [
+        'XKEEN_UI_STATE_DIR',
+        'XKEEN_UI_ENV_FILE',
+        'XKEEN_UI_SECRET_KEY',
+        'XKEEN_UI_PORT',
+        'XKEEN_UI_MAX_CONTENT_LENGTH',
+        'XKEEN_JSON_BODY_MAX_BYTES',
+        'XKEEN_JSON_HEAVY_MAX_BYTES',
+        'XKEEN_ROUTING_SAVE_MAX_BYTES',
+        'XKEEN_CONFIG_EXCHANGE_MAX_BYTES',
+      ],
+      prefixes: ['XKEEN_AUTH_LOGIN_'],
+    },
+    {
+      id: 'mihomo',
+      title: 'Mihomo и HWID',
+      desc: 'Лимиты Mihomo API и HWID для premium/HWID-подписок.',
+      keys: ['XKEEN_MIHOMO_JSON_MAX_BYTES', 'XKEEN_MIHOMO_HWID'],
+      prefixes: [],
+    },
+    {
+      id: 'dat',
+      title: 'DAT / GeoIP',
+      desc: 'Ограничения и allow-list для загрузки geoip/geosite/DAT.',
+      keys: ['XKEEN_GEODAT_UPLOAD_MAX_BYTES'],
+      prefixes: ['XKEEN_DAT_', 'XKEEN_GEODAT_'],
+    },
+    {
+      id: 'updates',
+      title: 'Обновления UI',
+      desc: 'GitHub-репозиторий, канал, ветка, таймауты и проверки скачивания.',
+      keys: [],
+      prefixes: ['XKEEN_UI_UPDATE_'],
+    },
+    {
+      id: 'visibility',
+      title: 'Видимость разделов',
+      desc: 'Whitelist блоков панели и DevTools.',
+      keys: ['XKEEN_UI_PANEL_SECTIONS_WHITELIST', 'XKEEN_UI_DEVTOOLS_SECTIONS_WHITELIST'],
+      prefixes: [],
+    },
+    {
+      id: 'logs',
+      title: 'Логи',
+      desc: 'Каталоги, уровни логирования, ротация и смещение времени.',
+      keys: ['XKEEN_RESTART_LOG_FILE', 'XKEEN_XRAY_LOG_TZ_OFFSET'],
+      prefixes: ['XKEEN_LOG_'],
+    },
+    {
+      id: 'github',
+      title: 'GitHub и config-server',
+      desc: 'Импорт конфигов из GitHub и внешний сервер конфигураций.',
+      keys: ['XKEEN_CONFIG_SERVER_BASE'],
+      prefixes: ['XKEEN_GITHUB_'],
+    },
+    {
+      id: 'terminal',
+      title: 'Терминал',
+      desc: 'PTY-буфер, TTL сессий и доступ к shell-командам.',
+      keys: ['XKEEN_ALLOW_SHELL'],
+      prefixes: ['XKEEN_PTY_'],
+    },
+    {
+      id: 'files',
+      title: 'Файловый менеджер',
+      desc: 'RemoteFM, локальные корни, защита /tmp/mnt и корзина.',
+      keys: ['XKEEN_LOCALFM_ROOTS', 'XKEEN_PROTECT_MNT_LABELS', 'XKEEN_PROTECTED_MNT_ROOT'],
+      prefixes: ['XKEEN_REMOTEFM_', 'XKEEN_TRASH_'],
+    },
+    {
+      id: 'fileops',
+      title: 'FileOps и ZIP',
+      desc: 'Копирование, перемещение, спул и лимиты ZIP-архивов.',
+      keys: [],
+      prefixes: ['XKEEN_FILEOPS_', 'XKEEN_MAX_ZIP_'],
+    },
+    {
+      id: 'xray',
+      title: 'Xray и списки XKeen',
+      desc: 'Пути фрагментов Xray и файлы списков портов/IP.',
+      keys: ['XKEEN_CONFIG_FILE'],
+      prefixes: ['XKEEN_XRAY_', 'XKEEN_PORT_', 'XKEEN_IP_'],
+    },
+    {
+      id: 'other',
+      title: 'Прочее',
+      desc: 'Редкие служебные переменные.',
+      keys: [],
+      prefixes: [],
+    },
+  ];
+
+  const ENV_GROUP_BY_ID = ENV_GROUPS.reduce((acc, group) => {
+    acc[group.id] = group;
+    return acc;
+  }, {});
+
+  function _loadEnvExpandedGroups() {
+    try {
+      const raw = window.localStorage ? window.localStorage.getItem(ENV_GROUP_EXPANDED_STORAGE_KEY) : '';
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw);
+      const valid = new Set(ENV_GROUPS.map((group) => String(group.id || '')).filter(Boolean));
+      return new Set((Array.isArray(arr) ? arr : []).map((id) => String(id || '')).filter((id) => valid.has(id)));
+    } catch (e) {
+      return new Set();
+    }
+  }
+
+  function _saveEnvExpandedGroups() {
+    try {
+      if (!window.localStorage) return;
+      window.localStorage.setItem(ENV_GROUP_EXPANDED_STORAGE_KEY, JSON.stringify(Array.from(_envExpandedGroups)));
+    } catch (e) {}
+  }
+
+  _envExpandedGroups = _loadEnvExpandedGroups();
+
+  function _envGroupForKey(key) {
+    const k = String(key || '');
+    for (const group of ENV_GROUPS) {
+      if (group.id === 'other') continue;
+      if (Array.isArray(group.keys) && group.keys.includes(k)) return group;
+      if (Array.isArray(group.prefixes) && group.prefixes.some((p) => k.startsWith(String(p || '')))) return group;
+    }
+    return ENV_GROUP_BY_ID.other || ENV_GROUPS[ENV_GROUPS.length - 1];
+  }
+
+  function _normalSearchText(s) {
+    return String(s == null ? '' : s).toLowerCase();
+  }
+
+  function _envItemMatchesFilter(item, group, query) {
+    const q = _normalSearchText(query).trim();
+    if (!q) return true;
+    const key = String(item && item.key ? item.key : '');
+    const help = ENV_HELP[key] || '';
+    const haystack = _normalSearchText([
+      key,
+      group && group.title,
+      group && group.desc,
+      help,
+      item && item.current,
+      item && item.configured,
+      item && item.effective,
+    ].join(' '));
+    return q.split(/\s+/).filter(Boolean).every((part) => haystack.includes(part));
+  }
+
+  function _createEnvGroupRow(group, visibleCount, totalCount, hasSearch) {
+    const tr = document.createElement('tr');
+    tr.className = 'dt-env-group-row';
+    tr.dataset.group = group.id;
+
+    const td = document.createElement('td');
+    td.colSpan = 4;
+
+    const collapsed = !hasSearch && !_envExpandedGroups.has(group.id);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'dt-env-group-toggle';
+    btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    btn.title = collapsed ? 'Развернуть группу ENV' : 'Свернуть группу ENV';
+
+    const icon = document.createElement('span');
+    icon.className = 'dt-env-group-icon';
+    icon.textContent = collapsed ? '+' : '-';
+
+    const text = document.createElement('span');
+    text.className = 'dt-env-group-text';
+
+    const title = document.createElement('strong');
+    title.textContent = group.title;
+
+    const desc = document.createElement('span');
+    desc.className = 'dt-env-group-desc';
+    desc.textContent = group.desc || '';
+
+    text.appendChild(title);
+    text.appendChild(desc);
+
+    const count = document.createElement('span');
+    count.className = 'dt-env-group-count';
+    count.textContent = hasSearch ? (String(visibleCount) + '/' + String(totalCount)) : (String(totalCount) + ' шт.');
+
+    btn.appendChild(icon);
+    btn.appendChild(text);
+    btn.appendChild(count);
+    btn.addEventListener('click', () => {
+      if (_envExpandedGroups.has(group.id)) _envExpandedGroups.delete(group.id);
+      else _envExpandedGroups.add(group.id);
+      _saveEnvExpandedGroups();
+      renderEnv((_envSnapshot && _envSnapshot.items) || [], (_envSnapshot && _envSnapshot.envFile) || '');
+    });
+
+    td.appendChild(btn);
+    tr.appendChild(td);
+    return tr;
   }
 
   function _buildEnvHelpHtml() {
@@ -525,9 +736,132 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
     });
   }
 
+  function _wireEnvSearch() {
+    const input = byId('dt-env-search');
+    const clear = byId('dt-env-search-clear');
+    if (!input) return;
+
+    const apply = () => {
+      _envFilter = String(input.value || '');
+      renderEnv((_envSnapshot && _envSnapshot.items) || [], (_envSnapshot && _envSnapshot.envFile) || '');
+      if (clear) {
+        clear.classList.toggle('is-visible', _envFilter.trim() !== '');
+        clear.disabled = _envFilter.trim() === '';
+      }
+    };
+
+    input.addEventListener('input', apply);
+    if (clear) {
+      clear.disabled = true;
+      clear.addEventListener('click', () => {
+        input.value = '';
+        input.focus();
+        apply();
+      });
+    }
+  }
 
 
 
+
+
+  function _appendEnvItemRow(tbody, it, group) {
+    const tr = document.createElement('tr');
+    const key = String(it.key || '');
+    const cur = (it.current === null || typeof it.current === 'undefined') ? '' : String(it.current);
+    const conf = (it.configured === null || typeof it.configured === 'undefined') ? '' : String(it.configured);
+    const eff = (it.effective === null || typeof it.effective === 'undefined') ? '' : String(it.effective);
+    const isSensitive = !!it.is_sensitive;
+    const isReadonly = !!it.readonly;
+
+    tr.className = 'dt-env-row';
+    if (group && group.id) tr.dataset.group = group.id;
+
+    // Prefer configured value (env-file). Otherwise fall back to effective (incl. defaults), then current.
+    const valuePrefill = conf !== '' ? conf : (eff !== '' ? eff : cur);
+
+    const help = ENV_HELP[key] || ('Переменная окружения: ' + key);
+
+    const tdKey = document.createElement('td');
+    tdKey.textContent = key;
+    tdKey.title = help;
+    tdKey.style.whiteSpace = 'nowrap';
+
+    const tdCur = document.createElement('td');
+    // Show effective value (what UI will actually use). If empty, fall back to current.
+    tdCur.textContent = eff !== '' ? eff : cur;
+    tdCur.title = tdCur.textContent || '';
+    tdCur.style.maxWidth = '220px';
+    tdCur.style.overflow = 'hidden';
+    tdCur.style.textOverflow = 'ellipsis';
+    tdCur.style.minWidth = '220px';
+
+    const tdVal = document.createElement('td');
+    tdVal.style.minWidth = '260px';
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.className = 'dt-env-input';
+    inp.value = isSensitive ? '' : valuePrefill;
+    inp.disabled = !!isReadonly;
+    inp.placeholder = isReadonly ? '(read-only)' : (isSensitive ? '(секрет — вводите новое значение)' : '');
+    inp.title = isReadonly ? (help + ' (read-only)') : (isSensitive ? (help + ' Значение не отображается: вводите новое и нажимайте Save.') : help);
+    inp.style.width = '100%';
+    inp.dataset.key = key;
+    tdVal.appendChild(inp);
+
+    const tdAct = document.createElement('td');
+    tdAct.style.whiteSpace = 'nowrap';
+    tdAct.style.minWidth = '140px';
+
+    const btnSave = document.createElement('button');
+    btnSave.type = 'button';
+    btnSave.className = 'btn-secondary';
+    btnSave.textContent = 'Save';
+    btnSave.title = 'Сохранить значение в env‑файл (devtools.env) и применить в текущем процессе. Для части настроек нужен Restart UI.';
+    if (isReadonly) {
+      btnSave.disabled = true;
+      btnSave.title = 'Read-only';
+    }
+    btnSave.addEventListener('click', async () => {
+      const v = String(inp.value || '');
+      try {
+        const data = await postJSON('/api/devtools/env', { updates: { [key]: v } });
+        toast('Saved: ' + key);
+        renderEnv(data.items || [], data.env_file || '');
+      } catch (e) {
+        toast('Save failed: ' + key + ' — ' + (e && e.message ? e.message : String(e)), true);
+      }
+    });
+
+    const btnUnset = document.createElement('button');
+    btnUnset.type = 'button';
+    btnUnset.className = 'btn-danger';
+    btnUnset.textContent = 'Unset';
+    btnUnset.title = 'Удалить переменную из env‑файла (devtools.env) и из окружения процесса. Для части настроек нужен Restart UI.';
+    btnUnset.style.marginLeft = '6px';
+    if (isReadonly) {
+      btnUnset.disabled = true;
+      btnUnset.title = 'Read-only';
+    }
+    btnUnset.addEventListener('click', async () => {
+      try {
+        const data = await postJSON('/api/devtools/env', { updates: { [key]: null } });
+        toast('Unset: ' + key);
+        renderEnv(data.items || [], data.env_file || '');
+      } catch (e) {
+        toast('Unset failed: ' + key + ' — ' + (e && e.message ? e.message : String(e)), true);
+      }
+    });
+
+    tdAct.appendChild(btnSave);
+    tdAct.appendChild(btnUnset);
+
+    tr.appendChild(tdKey);
+    tr.appendChild(tdCur);
+    tr.appendChild(tdVal);
+    tr.appendChild(tdAct);
+    tbody.appendChild(tr);
+  }
 
   function renderEnv(items, envFile) {
     const tbody = byId('dt-env-tbody');
@@ -551,98 +885,36 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
     // Also sync quick logging controls
     syncLoggingControls(items);
 
+    const query = _envFilter || '';
+    const hasSearch = _normalSearchText(query).trim() !== '';
+    const groups = ENV_GROUPS.map((group) => ({ group, total: 0, rows: [] }));
+    const groupBuckets = groups.reduce((acc, bucket) => {
+      acc[bucket.group.id] = bucket;
+      return acc;
+    }, {});
+
     for (const it of items) {
-      const tr = document.createElement('tr');
-      const key = String(it.key || '');
-      const cur = (it.current === null || typeof it.current === 'undefined') ? '' : String(it.current);
-      const conf = (it.configured === null || typeof it.configured === 'undefined') ? '' : String(it.configured);
-      const eff = (it.effective === null || typeof it.effective === 'undefined') ? '' : String(it.effective);
-      const isSensitive = !!it.is_sensitive;
-      const isReadonly = !!it.readonly;
+      const group = _envGroupForKey(it && it.key);
+      const bucket = groupBuckets[group.id] || groupBuckets.other;
+      bucket.total += 1;
+      if (_envItemMatchesFilter(it, group, query)) bucket.rows.push(it);
+    }
 
-      // Prefer configured value (env-file). Otherwise fall back to effective (incl. defaults), then current.
-      const valuePrefill = conf !== '' ? conf : (eff !== '' ? eff : cur);
+    const visibleTotal = groups.reduce((sum, bucket) => sum + bucket.rows.length, 0);
+    if (!visibleTotal) {
+      renderEnvTableMessage(hasSearch ? ('Ничего не найдено: ' + query) : '(empty)');
+      return;
+    }
 
-      const help = ENV_HELP[key] || ('Переменная окружения: ' + key);
-
-      const tdKey = document.createElement('td');
-      tdKey.textContent = key;
-      tdKey.title = help;
-      tdKey.style.whiteSpace = 'nowrap';
-
-      const tdCur = document.createElement('td');
-      // Show effective value (what UI will actually use). If empty, fall back to current.
-      tdCur.textContent = eff !== '' ? eff : cur;
-      tdCur.style.maxWidth = '220px';
-      tdCur.style.overflow = 'hidden';
-      tdCur.style.textOverflow = 'ellipsis';
-      tdCur.style.minWidth = '220px';
-
-      const tdVal = document.createElement('td');
-      tdVal.style.minWidth = '260px';
-      const inp = document.createElement('input');
-      inp.type = 'text';
-      inp.className = 'dt-env-input';
-      inp.value = isSensitive ? '' : valuePrefill;
-      inp.disabled = !!isReadonly;
-      inp.placeholder = isReadonly ? '(read-only)' : (isSensitive ? '(секрет — вводите новое значение)' : '');
-      inp.title = isReadonly ? (help + ' (read-only)') : (isSensitive ? (help + ' Значение не отображается: вводите новое и нажимайте Save.') : help);
-      inp.style.width = '100%';
-      inp.dataset.key = key;
-      tdVal.appendChild(inp);
-
-      const tdAct = document.createElement('td');
-      tdAct.style.whiteSpace = 'nowrap';
-      tdAct.style.minWidth = '140px';
-
-      const btnSave = document.createElement('button');
-      btnSave.type = 'button';
-      btnSave.className = 'btn-secondary';
-      btnSave.textContent = 'Save';
-      btnSave.title = 'Сохранить значение в env‑файл (devtools.env) и применить в текущем процессе. Для части настроек нужен Restart UI.';
-      if (isReadonly) {
-        btnSave.disabled = true;
-        btnSave.title = 'Read-only';
+    for (const bucket of groups) {
+      if (!bucket.rows.length) continue;
+      const group = bucket.group;
+      const collapsed = !hasSearch && !_envExpandedGroups.has(group.id);
+      tbody.appendChild(_createEnvGroupRow(group, bucket.rows.length, bucket.total, hasSearch));
+      if (collapsed) continue;
+      for (const it of bucket.rows) {
+        _appendEnvItemRow(tbody, it, group);
       }
-      btnSave.addEventListener('click', async () => {
-        const v = String(inp.value || '');
-        try {
-          const data = await postJSON('/api/devtools/env', { updates: { [key]: v } });
-          toast('Saved: ' + key);
-          renderEnv(data.items || [], data.env_file || '');
-        } catch (e) {
-          toast('Save failed: ' + key + ' — ' + (e && e.message ? e.message : String(e)), true);
-        }
-      });
-
-      const btnUnset = document.createElement('button');
-      btnUnset.type = 'button';
-      btnUnset.className = 'btn-danger';
-      btnUnset.textContent = 'Unset';
-      btnUnset.title = 'Удалить переменную из env‑файла (devtools.env) и из окружения процесса. Для части настроек нужен Restart UI.';
-      btnUnset.style.marginLeft = '6px';
-      if (isReadonly) {
-        btnUnset.disabled = true;
-        btnUnset.title = 'Read-only';
-      }
-      btnUnset.addEventListener('click', async () => {
-        try {
-          const data = await postJSON('/api/devtools/env', { updates: { [key]: null } });
-          toast('Unset: ' + key);
-          renderEnv(data.items || [], data.env_file || '');
-        } catch (e) {
-          toast('Unset failed: ' + key + ' — ' + (e && e.message ? e.message : String(e)), true);
-        }
-      });
-
-      tdAct.appendChild(btnSave);
-      tdAct.appendChild(btnUnset);
-
-      tr.appendChild(tdKey);
-      tr.appendChild(tdCur);
-      tr.appendChild(tdVal);
-      tr.appendChild(tdAct);
-      tbody.appendChild(tr);
     }
   }
 
@@ -707,6 +979,7 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
 
     // ENV help
     try { _wireEnvHelp(); } catch (e) {}
+    try { _wireEnvSearch(); } catch (e) {}
 
     // Initial load
     loadEnv();

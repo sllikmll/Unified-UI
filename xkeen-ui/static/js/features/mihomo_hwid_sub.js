@@ -863,7 +863,7 @@ let mihomoHwidSubModuleApi = null;
         const hwid = String((headers && headers['x-hwid']) || '').trim();
         const hwidWarning = dev && dev.hwid_warning ? String(dev.hwid_warning) : '';
         if (!hwid) {
-          tips.push('HWID не определён: provider будет без x-hwid. Для HWID-подписки задай XKEEN_MIHOMO_HWID или проверь MAC интерфейса роутера.');
+          tips.push('HWID не определён: provider будет без x-hwid. Если провайдер выдал HWID, открой DevTools → ENV, найди через поиск HWID, заполни XKEEN_MIHOMO_HWID и снова нажми «Проверить».');
         } else if (hwidWarning) {
           tips.push(hwidWarning);
         }

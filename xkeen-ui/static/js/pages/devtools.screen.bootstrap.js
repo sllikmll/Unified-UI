@@ -20,7 +20,7 @@ import '../util/ansi.js';
 import '../features/devtools/shared.js?v=20260109e';
 import '../features/devtools/service.js?v=20260109e';
 import '../features/devtools/logs.js?v=20260109e';
-import '../features/devtools/env.js?v=20260109e';
+import '../features/devtools/env.js?v=20260517a';
 import '../features/devtools/update.js?v=20260220a';
 import '../features/devtools/terminal_theme.js?v=20260109e';
 import { bootDevtoolsPage } from './devtools.init.js';

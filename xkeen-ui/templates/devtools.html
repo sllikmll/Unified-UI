@@ -33,7 +33,7 @@
 
   {% include '_top_level_host_theme_bootstrap.html' %}
 <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260325c') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='devtools.css', v='20260404a') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='devtools.css', v='20260517a') }}">
   <link rel="stylesheet" id="xk-terminal-theme-link" href="{{ url_for('terminal_theme_css', v=terminal_theme_v) }}">
   {# Global Custom CSS (DevTools) — last in order so it can override everything. #}
 </head>
@@ -607,9 +607,23 @@
         <!-- Right column: ENV whitelist editor -->
         <div class="layout-main dt-tools-right">
           <section class="card dt-main-card" id="dt-env-card" data-xk-section="env dt-env-card">
-            <div style="display:flex; justify-content: space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+            <div class="dt-env-head">
               <h2 style="margin-top:0;">ENV (whitelist)</h2>
-              <button type="button" id="dt-env-help-btn" class="btn-secondary" title="Открыть справку по ENV (whitelist).">Справка</button>
+              <div class="dt-env-head-actions">
+                <div class="dt-env-search-wrap">
+                  <input
+                    id="dt-env-search"
+                    type="search"
+                    class="dt-env-search"
+                    placeholder="Поиск: hwid, file, update"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-label="Поиск по ENV whitelist"
+                  />
+                  <button type="button" id="dt-env-search-clear" class="btn-secondary dt-env-search-clear" title="Очистить поиск">×</button>
+                </div>
+                <button type="button" id="dt-env-help-btn" class="btn-secondary" title="Открыть справку по ENV (whitelist).">Справка</button>
+              </div>
             </div>
             <div class="small" id="dt-env-file" style="margin-bottom:10px; opacity:0.9;"></div>
             <div class="small" style="margin-bottom:10px; opacity:0.9;">
