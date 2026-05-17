@@ -35,6 +35,7 @@ import {
     customContextMenuCtx: null,
     customContextMenuCleanupByEditor: typeof WeakMap !== 'undefined' ? new WeakMap() : null,
     customContextMenuClipboardShadow: '',
+    customContextMenuClipboardShadowReady: false,
     yamlAssistByModel: typeof WeakMap !== 'undefined' ? new WeakMap() : null,
     snippetProvidersByModel: typeof WeakMap !== 'undefined' ? new WeakMap() : null,
     quickFixProvidersByModel: typeof WeakMap !== 'undefined' ? new WeakMap() : null,
@@ -1241,7 +1242,7 @@ import {
       menu.addEventListener('pointerdown', (ev) => {
         const btn = ev.target && ev.target.closest ? ev.target.closest('button[data-action]') : null;
         if (btn) {
-          _handleCustomContextMenuAction(ev);
+          try { ev.stopPropagation(); } catch (e) {}
           return;
         }
         try { ev.stopPropagation(); } catch (e) {}
@@ -1252,8 +1253,7 @@ import {
       menu.addEventListener('click', (ev) => {
         const btn = ev.target && ev.target.closest ? ev.target.closest('button[data-action]') : null;
         if (!btn) return;
-        try { ev.preventDefault(); } catch (e) {}
-        try { ev.stopPropagation(); } catch (e) {}
+        _handleCustomContextMenuAction(ev);
       });
       menu.addEventListener('contextmenu', (ev) => {
         try { ev.preventDefault(); } catch (e) {}
@@ -1369,6 +1369,8 @@ import {
   async function _writeCustomContextMenuClipboardText(text) {
     const value = String(text ?? '');
     _state.customContextMenuClipboardShadow = value;
+    _state.customContextMenuClipboardShadowReady = true;
+    try { window.__xkLastClipboardText = value; } catch (e) {}
     try {
       if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
         await navigator.clipboard.writeText(value);
@@ -1402,11 +1404,27 @@ import {
         const value = await navigator.clipboard.readText();
         if (typeof value === 'string') {
           _state.customContextMenuClipboardShadow = value;
+          _state.customContextMenuClipboardShadowReady = true;
+          try { window.__xkLastClipboardText = value; } catch (e) {}
           return value;
         }
       }
     } catch (e) {}
-    return String(_state.customContextMenuClipboardShadow || '');
+    try {
+      if (typeof window.__xkLastClipboardText === 'string') {
+        _state.customContextMenuClipboardShadow = window.__xkLastClipboardText;
+        _state.customContextMenuClipboardShadowReady = true;
+        return window.__xkLastClipboardText;
+      }
+    } catch (e) {}
+    return _state.customContextMenuClipboardShadowReady ? String(_state.customContextMenuClipboardShadow || '') : null;
+  }
+
+  function _rememberCustomContextMenuClipboardText(text) {
+    if (typeof text !== 'string') return;
+    _state.customContextMenuClipboardShadow = text;
+    _state.customContextMenuClipboardShadowReady = true;
+    try { window.__xkLastClipboardText = text; } catch (e) {}
   }
 
   async function runCustomContextMenuAction(editor, action, cfg) {
@@ -1561,8 +1579,25 @@ import {
     const onKeyDown = (ev) => {
       if (ev && (ev.key === 'Escape' || ev.key === 'Esc')) hide();
     };
+    const onCopyOrCut = () => {
+      try {
+        const value = _getCustomContextMenuSelectionText(editor);
+        if (value) _rememberCustomContextMenuClipboardText(value);
+      } catch (e) {}
+    };
+    const onPaste = (ev) => {
+      try {
+        const data = ev && ev.clipboardData;
+        if (!data || typeof data.getData !== 'function') return;
+        const value = data.getData('text/plain') || data.getData('text');
+        if (typeof value === 'string') _rememberCustomContextMenuClipboardText(value);
+      } catch (e) {}
+    };
     const cleanup = () => {
       try { host.removeEventListener('contextmenu', onContextMenu, true); } catch (e) {}
+      try { host.removeEventListener('copy', onCopyOrCut, true); } catch (e) {}
+      try { host.removeEventListener('cut', onCopyOrCut, true); } catch (e) {}
+      try { host.removeEventListener('paste', onPaste, true); } catch (e) {}
       try { document.removeEventListener('mousedown', onDocumentMouseDown, true); } catch (e) {}
       try { document.removeEventListener('scroll', hide, true); } catch (e) {}
       try { window.removeEventListener('resize', hide, true); } catch (e) {}
@@ -1571,6 +1606,9 @@ import {
     };
 
     host.addEventListener('contextmenu', onContextMenu, true);
+    host.addEventListener('copy', onCopyOrCut, true);
+    host.addEventListener('cut', onCopyOrCut, true);
+    host.addEventListener('paste', onPaste, true);
     document.addEventListener('mousedown', onDocumentMouseDown, true);
     document.addEventListener('scroll', hide, true);
     window.addEventListener('resize', hide, true);

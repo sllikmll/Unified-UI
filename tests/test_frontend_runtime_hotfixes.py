@@ -1495,6 +1495,19 @@ def test_routing_monaco_custom_menu_includes_symbol_occurrence_and_palette_actio
     assert '.xk-routing-monaco-menu-label {' in styles
 
 
+def test_monaco_custom_menu_runs_clipboard_actions_from_click_not_pointerdown():
+    monaco_shared = Path('xkeen-ui/static/js/ui/monaco_shared.js').read_text(encoding='utf-8')
+
+    pointer_start = monaco_shared.index("menu.addEventListener('pointerdown'")
+    click_start = monaco_shared.index("menu.addEventListener('click'", pointer_start)
+    context_start = monaco_shared.index("menu.addEventListener('contextmenu'", click_start)
+
+    assert '_handleCustomContextMenuAction(ev);' not in monaco_shared[pointer_start:click_start]
+    assert '_handleCustomContextMenuAction(ev);' in monaco_shared[click_start:context_start]
+    assert 'customContextMenuClipboardShadowReady' in monaco_shared
+    assert "host.addEventListener('paste', onPaste, true);" in monaco_shared
+
+
 def test_mihomo_template_load_button_uses_dirty_guard_while_select_path_skips_duplicate_prompt():
     text = Path('xkeen-ui/static/js/features/mihomo_panel.js').read_text(encoding='utf-8')
 
