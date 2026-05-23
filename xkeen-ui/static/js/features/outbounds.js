@@ -4065,7 +4065,7 @@ let outboundsModuleApi = null;
       if (!autoRuleEnabled) {
         return 'Режим «Применение» влияет только на служебный pool. Включи «Служебный пул», чтобы менять это поведение.';
       }
-      return 'Безопасно: leastPing-balancer и fallback синхронизируются, а явные правила на vless-reality остаются. Жёстко: auto-правила на vless-reality переезжают в balancerTag пула. Только подписка: служебный pool работает без vless-reality, а совместимые auto-правила переводятся на подписочный balancer.';
+      return 'Безопасно: leastPing-balancer и fallback синхронизируются, а явные правила на vless-reality остаются. Жёстко: auto-правила на vless-reality переезжают в balancerTag пула. Только подписка: служебный pool работает только через generated nodes; одиночный vless-reality/proxy в 04_outbounds.json не требуется.';
     }
 
     function subsRoutingModeValue(value) {
@@ -4150,7 +4150,7 @@ let outboundsModuleApi = null;
         if (routingMode === 'migrate-vless-rules') {
           items.push('Применение: совместимые auto-правила на vless-reality будут переведены на balancerTag служебного pool.');
         } else if (routingMode === SUB_ROUTING_MODE_SUBSCRIPTION_ONLY) {
-          items.push('Применение: только подписка. vless-reality не попадёт в служебный pool и observatory, а совместимые auto-правила перейдут на подписочный balancer.');
+          items.push('Применение: только подписка. Служебный pool будет вести трафик только через generated nodes; одиночный vless-reality/proxy в 04_outbounds.json не нужен.');
         }
       }
 
@@ -4906,7 +4906,7 @@ let outboundsModuleApi = null;
               <div class="xk-sub-brief">
                 <div class="xk-sub-brief-main">
                   <div class="xk-sub-brief-title">LeastPing и generated fragments</div>
-                  <div class="xk-sub-brief-text">Подписка создаёт отдельный <code>04_outbounds.&lt;tag&gt;.json</code>, использует <code>Tag prefix</code> как prefix для <code>selector</code> и <code>subjectSelector</code>: Xray сопоставляет его по началу тега, поэтому <code>sub</code> найдёт generated outbounds вида <code>sub--node</code>. При включённом «Пинг» этот prefix добавляется в <code>07_observatory.json</code>. Режим <b>Применение</b> выбирает, оставить ли одиночный <code>vless-reality</code> рядом с подпиской или вести служебный pool только через generated nodes.</div>
+                  <div class="xk-sub-brief-text">Подписка создаёт отдельный <code>04_outbounds.&lt;tag&gt;.json</code>, использует <code>Tag prefix</code> как prefix для <code>selector</code> и <code>subjectSelector</code>: Xray сопоставляет его по началу тега, поэтому <code>sub</code> найдёт generated outbounds вида <code>sub--node</code>. При включённом «Пинг» этот prefix добавляется в <code>07_observatory.json</code>. Режим <b>Применение</b> выбирает, оставить ли одиночный <code>vless-reality</code> рядом с подпиской или вести служебный pool только через generated nodes; в режиме «Только подписка» одиночный outbound в <code>04_outbounds.json</code> не требуется.</div>
                 </div>
                 <div class="xk-sub-update-note">
                   <div class="xk-sub-update-title">Автообновление</div>
@@ -4982,9 +4982,9 @@ let outboundsModuleApi = null;
                         <input id="outbounds-subscriptions-routing-auto-rule" type="checkbox" checked title="Общий leastPing pool" data-tooltip="Добавлять tag prefix этой подписки в общий auto-managed leastPing pool.">
                         <span>Общий pool</span>
                       </label>
-                      <label class="xk-sub-routing-mode" for="outbounds-subscriptions-routing-mode" data-tooltip="Как панель должна подвязывать подписку к маршрутизации. Безопасно сохраняет vless-reality рядом с подпиской. Жёстко переводит совместимые auto-правила на общий balancerTag пула. Только подписка исключает vless-reality из служебного pool и observatory.">
+                      <label class="xk-sub-routing-mode" for="outbounds-subscriptions-routing-mode" data-tooltip="Как панель должна подвязывать подписку к маршрутизации. Безопасно сохраняет vless-reality рядом с подпиской. Жёстко переводит совместимые auto-правила на общий balancerTag пула. Только подписка ведёт служебный pool только через generated nodes и не требует одиночный outbound в 04_outbounds.json.">
                         <span class="xk-sub-inline-label">Применение</span>
-                        <select id="outbounds-subscriptions-routing-mode" class="xray-log-filter" title="Режим маршрутизации подписки" data-tooltip="Безопасно: leastPing-balancer и fallback синхронизируются, а vless-reality остаётся. Жёстко: auto-правила на vless-reality переезжают в balancerTag пула. Только подписка: служебный pool и observatory работают без vless-reality.">
+                        <select id="outbounds-subscriptions-routing-mode" class="xray-log-filter" title="Режим маршрутизации подписки" data-tooltip="Безопасно: leastPing-balancer и fallback синхронизируются, а vless-reality остаётся. Жёстко: auto-правила на vless-reality переезжают в balancerTag пула. Только подписка: служебный pool работает только через generated nodes; одиночный outbound в 04_outbounds.json не нужен.">
                           <option value="safe-fallback">Безопасно</option>
                           <option value="migrate-vless-rules">Жёстко · pool</option>
                           <option value="subscription-only">Только подписка</option>

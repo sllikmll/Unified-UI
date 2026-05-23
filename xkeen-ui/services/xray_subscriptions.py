@@ -311,6 +311,41 @@ def _derive_selector_terms_from_tags(tags: Any) -> List[str]:
     return values
 
 
+def _subscription_observatory_enabled(item: Any) -> bool:
+    if not isinstance(item, dict):
+        return False
+    return bool(item.get("ping_enabled", item.get("pingEnabled", True)))
+
+
+def _subscription_auto_rule_enabled(item: Any) -> bool:
+    if not isinstance(item, dict):
+        return True
+    return _read_bool_value(
+        item,
+        LAST_RUNTIME_AUTO_RULE_KEYS,
+        _read_bool_value(item, ROUTING_AUTO_RULE_KEYS, True),
+    )
+
+
+def _subscription_runtime_balancer_tags(item: Any) -> List[str]:
+    if not isinstance(item, dict):
+        return []
+    tags = _read_string_list_value(item, LAST_RUNTIME_BALANCER_TAGS_KEYS)
+    if tags:
+        return tags
+    return _read_string_list_value(item, ROUTING_BALANCER_TAGS_KEYS)
+
+
+def _subscription_runtime_targets_requested(item: Any) -> bool:
+    if not isinstance(item, dict):
+        return False
+    return bool(
+        _subscription_observatory_enabled(item)
+        or _subscription_auto_rule_enabled(item)
+        or _subscription_runtime_balancer_tags(item)
+    )
+
+
 def _ensure_runtime_snapshot_defaults(item: Any) -> Dict[str, Any]:
     data = dict(item) if isinstance(item, dict) else {}
     last_tags = _clean_string_list(data.get("last_tags"))
@@ -330,7 +365,7 @@ def _ensure_runtime_snapshot_defaults(item: Any) -> Dict[str, Any]:
     if not _has_any_key(data, LAST_RUNTIME_ROUTING_MODE_KEYS):
         data["last_routing_mode"] = _clean_routing_mode(data.get("routing_mode"))
     if not _has_any_key(data, LAST_RUNTIME_ACTIVE_KEYS):
-        data["last_runtime_active"] = bool(data.get("ping_enabled", True))
+        data["last_runtime_active"] = _subscription_runtime_targets_requested(data)
     return data
 
 
@@ -616,6 +651,10 @@ def _normalize_state(obj: Any) -> Dict[str, Any]:
         transport_filter = _stored_filter_value(item, TRANSPORT_FILTER_KEYS)
         excluded_node_keys = _read_string_list_value(item, EXCLUDED_NODE_KEYS_KEYS)
         last_warnings = _read_string_list_value(item, LAST_WARNINGS_KEYS)
+        ping_enabled = bool(item.get("ping_enabled", item.get("pingEnabled", True)))
+        routing_balancer_tags = _read_string_list_value(item, ROUTING_BALANCER_TAGS_KEYS)
+        routing_auto_rule = _read_bool_value(item, ROUTING_AUTO_RULE_KEYS, True)
+        runtime_active_default = bool(ping_enabled or routing_auto_rule or routing_balancer_tags)
         last_nodes = _normalize_last_nodes(
             item.get("last_nodes") if "last_nodes" in item else item.get("lastNodes")
         )
@@ -658,10 +697,10 @@ def _normalize_state(obj: Any) -> Dict[str, Any]:
                 "transport_filter": transport_filter,
                 "excluded_node_keys": excluded_node_keys,
                 "enabled": bool(item.get("enabled", True)),
-                "ping_enabled": bool(item.get("ping_enabled", item.get("pingEnabled", True))),
+                "ping_enabled": ping_enabled,
                 "routing_mode": _clean_routing_mode(item.get("routing_mode", item.get("routingMode"))),
-                "routing_balancer_tags": _read_string_list_value(item, ROUTING_BALANCER_TAGS_KEYS),
-                "routing_auto_rule": _read_bool_value(item, ROUTING_AUTO_RULE_KEYS, True),
+                "routing_balancer_tags": routing_balancer_tags,
+                "routing_auto_rule": routing_auto_rule,
                 "interval_hours": interval,
                 "output_file": output_file,
                 "last_warnings": last_warnings,
@@ -677,7 +716,7 @@ def _normalize_state(obj: Any) -> Dict[str, Any]:
                 "last_routing_mode": _clean_routing_mode(
                     item.get("last_routing_mode", item.get("lastRoutingMode", item.get("routing_mode")))
                 ),
-                "last_runtime_active": _read_bool_value(item, LAST_RUNTIME_ACTIVE_KEYS, bool(item.get("ping_enabled", True))),
+                "last_runtime_active": _read_bool_value(item, LAST_RUNTIME_ACTIVE_KEYS, runtime_active_default),
             }
         )
         clean_subs.append(_ensure_runtime_snapshot_defaults(clean))
@@ -2939,10 +2978,12 @@ def _subscription_runtime_selector_terms(item: Any) -> List[str]:
 def _subscription_runtime_active(item: Any) -> bool:
     if not isinstance(item, dict):
         return False
+    terms = _subscription_runtime_selector_terms(item)
+    if not terms:
+        return False
     if _read_bool_value(item, LAST_RUNTIME_ACTIVE_KEYS, False):
-        return bool(_subscription_runtime_selector_terms(item))
-    raw = item.get("last_tags")
-    return bool(item.get("ping_enabled", True)) and isinstance(raw, list) and any(str(tag or "").strip() for tag in raw)
+        return True
+    return _subscription_runtime_targets_requested(item)
 
 
 def _build_runtime_sync_plan(state: Any) -> Dict[str, Any]:
@@ -2961,12 +3002,13 @@ def _build_runtime_sync_plan(state: Any) -> Dict[str, Any]:
         terms = _subscription_runtime_selector_terms(item)
         if not terms:
             continue
-        for term in terms:
-            if term not in seen_observatory:
-                seen_observatory.add(term)
-                observatory_terms.append(term)
+        if _subscription_observatory_enabled(item):
+            for term in terms:
+                if term not in seen_observatory:
+                    seen_observatory.add(term)
+                    observatory_terms.append(term)
 
-        if _read_bool_value(item, LAST_RUNTIME_AUTO_RULE_KEYS, True):
+        if _subscription_auto_rule_enabled(item):
             for term in terms:
                 if term not in seen_auto:
                     seen_auto.add(term)
@@ -2977,7 +3019,7 @@ def _build_runtime_sync_plan(state: Any) -> Dict[str, Any]:
             elif mode == ROUTING_MODE_STRICT:
                 strict_enabled = True
 
-        for balancer_tag in _read_string_list_value(item, LAST_RUNTIME_BALANCER_TAGS_KEYS):
+        for balancer_tag in _subscription_runtime_balancer_tags(item):
             bucket = manual_balancers.setdefault(balancer_tag, [])
             seen_bucket = set(bucket)
             for term in terms:
@@ -3006,7 +3048,7 @@ def _collect_runtime_subscription_tags(state: Any) -> List[str]:
     for item in state.get("subscriptions") if isinstance(state, dict) else []:
         if not isinstance(item, dict):
             continue
-        if item.get("ping_enabled", True) is False:
+        if not _subscription_runtime_targets_requested(item):
             continue
         raw = item.get("last_tags")
         if not isinstance(raw, list):
@@ -3025,7 +3067,7 @@ def _effective_runtime_routing_mode_from_state(state: Any) -> str:
     for item in state.get("subscriptions") if isinstance(state, dict) else []:
         if not isinstance(item, dict):
             continue
-        if item.get("ping_enabled", True) is False:
+        if not _subscription_auto_rule_enabled(item):
             continue
         raw_tags = item.get("last_tags")
         if not isinstance(raw_tags, list):
@@ -3918,6 +3960,14 @@ def refresh_subscription(
 
         warnings = _subscription_result_warnings(preview_nodes)
         sub.pop("last_error_retry_seconds", None)
+        runtime_balancer_tags = _read_string_list_value(sub, ROUTING_BALANCER_TAGS_KEYS)
+        runtime_auto_rule = _read_bool_value(sub, ROUTING_AUTO_RULE_KEYS, True)
+        runtime_active = bool(tags) and bool(
+            sub.get("ping_enabled", True)
+            or runtime_auto_rule
+            or runtime_balancer_tags
+        )
+        runtime_selector_terms = _derive_selector_terms_from_tags(tags) if runtime_active else []
 
         sub.update(
             {
@@ -3931,11 +3981,11 @@ def refresh_subscription(
                 "last_nodes": preview_nodes,
                 "node_latency": node_latency,
                 "last_tags": tags,
-                "last_selector_terms": _derive_selector_terms_from_tags(tags) if bool(sub.get("ping_enabled", True)) and tags else [],
-                "last_routing_balancer_tags": _read_string_list_value(sub, ROUTING_BALANCER_TAGS_KEYS),
-                "last_routing_auto_rule": _read_bool_value(sub, ROUTING_AUTO_RULE_KEYS, True),
+                "last_selector_terms": runtime_selector_terms,
+                "last_routing_balancer_tags": runtime_balancer_tags,
+                "last_routing_auto_rule": runtime_auto_rule,
                 "last_routing_mode": _clean_routing_mode(sub.get("routing_mode")),
-                "last_runtime_active": bool(sub.get("ping_enabled", True)) and bool(tags),
+                "last_runtime_active": runtime_active,
                 "last_hash": _subscription_output_hash(output_obj),
                 "last_generated_outbounds": generated_baselines,
                 "last_errors": errors,

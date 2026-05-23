@@ -199,7 +199,7 @@ def test_xray_subscription_modal_exposes_transport_preview_and_manual_exclusions
     assert "transport_filter: String(($(SUB_IDS.transportFilter) && $(SUB_IDS.transportFilter).value) || '').trim()," in outbounds_src
     assert "routing_mode: String(($(SUB_IDS.routingMode) && $(SUB_IDS.routingMode).value) || 'safe-fallback').trim() || 'safe-fallback'," in outbounds_src
     assert "routing_auto_rule: !!state.routing_auto_rule," in outbounds_src
-    assert "Только подписка: служебный pool и observatory работают без vless-reality." in outbounds_src
+    assert "Только подписка: служебный pool работает только через generated nodes; одиночный outbound в 04_outbounds.json не нужен." in outbounds_src
     assert "routing_balancer_tags: state.routing_balancer_tags.slice()," in outbounds_src
     assert "excluded_node_keys: state.excluded_node_keys.slice()," in outbounds_src
     assert "function subsRenderNodeList() {" in outbounds_src
