@@ -14,6 +14,7 @@ MIHOMO_JSON_MAX_BYTES_ENV = "XKEEN_MIHOMO_JSON_MAX_BYTES"
 GEODAT_UPLOAD_MAX_BYTES_ENV = "XKEEN_GEODAT_UPLOAD_MAX_BYTES"
 ROUTING_SAVE_MAX_BYTES_ENV = "XKEEN_ROUTING_SAVE_MAX_BYTES"
 CONFIG_EXCHANGE_MAX_BYTES_ENV = "XKEEN_CONFIG_EXCHANGE_MAX_BYTES"
+REMOTEFM_MAX_UPLOAD_MB_ENV = "XKEEN_REMOTEFM_MAX_UPLOAD_MB"
 
 DEFAULT_UI_MAX_CONTENT_LENGTH = 16 * 1024 * 1024
 DEFAULT_JSON_BODY_MAX_BYTES = 64 * 1024
@@ -23,6 +24,8 @@ DEFAULT_GEODAT_UPLOAD_MAX_BYTES = 16 * 1024 * 1024
 DEFAULT_ROUTING_SAVE_MAX_BYTES = 1024 * 1024
 DEFAULT_CONFIG_EXCHANGE_MAX_BYTES = 4 * 1024 * 1024
 DEFAULT_FS_WRITE_MAX_BYTES = 2 * 1024 * 1024
+DEFAULT_REMOTEFM_MAX_UPLOAD_MB = 200
+UPLOAD_FORM_OVERHEAD_BYTES = 2 * 1024 * 1024
 
 
 class PayloadTooLargeError(ValueError):
@@ -127,6 +130,28 @@ def get_config_exchange_max_bytes(env: Optional[Mapping[str, Any]] = None) -> in
     )
 
 
+def get_filemanager_upload_max_bytes(env: Optional[Mapping[str, Any]] = None) -> int:
+    max_mb = _env_int(
+        env,
+        REMOTEFM_MAX_UPLOAD_MB_ENV,
+        DEFAULT_REMOTEFM_MAX_UPLOAD_MB,
+        minimum=1,
+        maximum=4096,
+    )
+    return int(max_mb) * 1024 * 1024
+
+
+def _is_filemanager_upload_path(path: str) -> bool:
+    p = str(path or "").split("?", 1)[0].strip()
+    if p == "/api/fs/upload":
+        return True
+    return p.startswith("/api/remotefs/sessions/") and p.endswith("/upload")
+
+
+def _filemanager_upload_request_max_bytes(env: Optional[Mapping[str, Any]] = None) -> int:
+    return int(get_filemanager_upload_max_bytes(env)) + int(UPLOAD_FORM_OVERHEAD_BYTES)
+
+
 def _check_known_content_length(content_length: Any, *, max_bytes: int) -> None:
     try:
         if content_length is None:
@@ -222,6 +247,8 @@ def install_request_size_guards(app, *, env: Optional[Mapping[str, Any]] = None)
 
     The guard has two layers:
       - explicit Flask ``MAX_CONTENT_LENGTH`` ceiling for all request bodies;
+        file-manager uploads get a larger per-request ceiling because the
+        upload endpoints stream and enforce ``XKEEN_REMOTEFM_MAX_UPLOAD_MB``;
       - per-route JSON body ceilings applied before route handlers run.
     """
 
@@ -237,9 +264,16 @@ def install_request_size_guards(app, *, env: Optional[Mapping[str, Any]] = None)
     def _too_large_response(max_bytes: int):
         return jsonify({"ok": False, "error": "payload too large", "max_bytes": int(max_bytes)}), 413
 
+    def _upload_too_large_response(max_bytes: int):
+        mb = max(1, (int(max_bytes) + (1024 * 1024) - 1) // (1024 * 1024))
+        return jsonify({"ok": False, "error": "upload_too_large", "max_bytes": int(max_bytes), "max_mb": int(mb)}), 413
+
     @app.errorhandler(RequestEntityTooLarge)
     def _handle_request_entity_too_large(_exc):
-        if str(getattr(request, "path", "") or "").startswith("/api/"):
+        path = str(getattr(request, "path", "") or "")
+        if _is_filemanager_upload_path(path):
+            return _upload_too_large_response(get_filemanager_upload_max_bytes(env))
+        if path.startswith("/api/"):
             limit = app.config.get("MAX_CONTENT_LENGTH") or max_content_length
             return _too_large_response(int(limit))
         return _exc
@@ -256,6 +290,13 @@ def install_request_size_guards(app, *, env: Optional[Mapping[str, Any]] = None)
 
         method = str(getattr(request, "method", "") or "").upper()
         if method not in ("POST", "PUT", "PATCH", "DELETE"):
+            return None
+
+        if _is_filemanager_upload_path(path):
+            try:
+                request.max_content_length = _filemanager_upload_request_max_bytes(env)
+            except Exception:
+                pass
             return None
 
         try:

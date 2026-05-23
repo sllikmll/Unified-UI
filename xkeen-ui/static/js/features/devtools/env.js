@@ -199,7 +199,7 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
   ENV_HELP.XKEEN_AUTH_LOGIN_WINDOW_SECONDS = 'Окно учёта неудачных логинов в секундах. По умолчанию 300.';
   ENV_HELP.XKEEN_AUTH_LOGIN_MAX_ATTEMPTS = 'Максимум неудачных попыток входа с одного адреса в пределах окна. По умолчанию 5. Значение 0 отключает lockout.';
   ENV_HELP.XKEEN_AUTH_LOGIN_LOCKOUT_SECONDS = 'На сколько секунд блокировать новые попытки входа после исчерпания лимита. По умолчанию 900. Значение 0 отключает lockout.';
-  ENV_HELP.XKEEN_UI_MAX_CONTENT_LENGTH = 'Явный app-wide ceiling для любого HTTP request body в UI, в байтах. По умолчанию 16777216 (16 MiB).';
+  ENV_HELP.XKEEN_UI_MAX_CONTENT_LENGTH = 'Явный app-wide ceiling для обычных HTTP request body в UI, в байтах. По умолчанию 16777216 (16 MiB). Загрузки файлового менеджера используют отдельный лимит XKEEN_REMOTEFM_MAX_UPLOAD_MB.';
   ENV_HELP.XKEEN_JSON_BODY_MAX_BYTES = 'Лимит обычных JSON API-запросов, в байтах. По умолчанию 65536 (64 KiB).';
   ENV_HELP.XKEEN_JSON_HEAVY_MAX_BYTES = 'Лимит для “тяжёлых” JSON API (Xray config editor, JSON formatter, xkeen lists), в байтах. По умолчанию 1048576 (1 MiB).';
   ENV_HELP.XKEEN_MIHOMO_JSON_MAX_BYTES = 'Лимит JSON-тела для Mihomo API, в байтах. По умолчанию 4194304 (4 MiB).';

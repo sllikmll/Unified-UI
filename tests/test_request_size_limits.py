@@ -324,6 +324,69 @@ def test_heavy_json_guard_allows_payloads_larger_than_small_default(monkeypatch)
     assert payload["engine"] in ("json", "xkeen_jsonc")
 
 
+def test_file_manager_upload_uses_upload_limit_instead_of_global_request_ceiling(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("XKEEN_UI_MAX_CONTENT_LENGTH", "1024")
+    monkeypatch.setenv("XKEEN_REMOTEFM_MAX_UPLOAD_MB", "1")
+    monkeypatch.setenv("XKEEN_LOCALFM_ROOTS", str(tmp_path))
+
+    request_limits = _reload("services.request_limits")
+    fs_blueprint = _reload("routes.fs.blueprint")
+
+    upload_dir = tmp_path / "uploads"
+    tmp_dir = tmp_path / "tmp"
+    upload_dir.mkdir()
+    tmp_dir.mkdir()
+
+    app = Flask("file-manager-upload-global-limit-test")
+    request_limits.install_request_size_guards(app)
+    app.register_blueprint(fs_blueprint.create_fs_blueprint(tmp_dir=str(tmp_dir), max_upload_mb=1))
+    client = app.test_client()
+
+    response = client.post(
+        f"/api/fs/upload?target=local&path={upload_dir / 'router.bin'}",
+        data={"file": (io.BytesIO(b"x" * 2048), "router.bin")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["ok"] is True
+    assert payload["bytes"] == 2048
+    assert (upload_dir / "router.bin").read_bytes() == b"x" * 2048
+
+
+def test_file_manager_upload_still_rejects_files_above_upload_limit(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("XKEEN_UI_MAX_CONTENT_LENGTH", "1024")
+    monkeypatch.setenv("XKEEN_REMOTEFM_MAX_UPLOAD_MB", "1")
+    monkeypatch.setenv("XKEEN_LOCALFM_ROOTS", str(tmp_path))
+
+    request_limits = _reload("services.request_limits")
+    fs_blueprint = _reload("routes.fs.blueprint")
+
+    upload_dir = tmp_path / "uploads"
+    tmp_dir = tmp_path / "tmp"
+    upload_dir.mkdir()
+    tmp_dir.mkdir()
+
+    app = Flask("file-manager-upload-route-limit-test")
+    request_limits.install_request_size_guards(app)
+    app.register_blueprint(fs_blueprint.create_fs_blueprint(tmp_dir=str(tmp_dir), max_upload_mb=1))
+    client = app.test_client()
+
+    response = client.post(
+        f"/api/fs/upload?target=local&path={upload_dir / 'too-large.bin'}",
+        data={"file": (io.BytesIO(b"x" * ((1024 * 1024) + 1)), "too-large.bin")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 413
+    payload = response.get_json()
+    assert payload["ok"] is False
+    assert payload["error"] == "upload_too_large"
+    assert payload["max_mb"] == 1
+    assert not (upload_dir / "too-large.bin").exists()
+
+
 def test_geodat_install_rejects_oversized_uploaded_binary_before_script(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("XKEEN_GEODAT_UPLOAD_MAX_BYTES", str(64 * 1024))
     geodat = _load_routing_module("geodat")

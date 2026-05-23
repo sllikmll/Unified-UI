@@ -48,4 +48,6 @@ def test_routing_and_config_exchange_use_streaming_request_limit_helpers():
     assert "read_request_json_limited" in exchange_py
     assert '_api_error("payload too large", 413, ok=False, max_bytes=max_bytes)' in exchange_py
     assert "classify_json_request_max_bytes" in limits_py
+    assert "get_filemanager_upload_max_bytes" in limits_py
+    assert "_is_filemanager_upload_path" in limits_py
     assert "install_request_size_guards" in limits_py
