@@ -95,6 +95,7 @@ def test_outbounds_card_exposes_current_proxy_nodes_and_ping_controls():
     assert "const renderedNodes = nodes" in outbounds_src
     assert "if (a.active !== b.active) return a.active ? -1 : 1;" in outbounds_src
     assert "el.classList.add('hidden');" in outbounds_src
+    assert "statusEl.style.display = 'none';" in outbounds_src
     assert "summaryEl.innerHTML = '';" in outbounds_src
     assert "summaryEl.classList.add('hidden');" in outbounds_src
     assert "const stateLabel = isSubscription ? '\\u0432\\u043a\\u043b\\u044e\\u0447\\u0451\\u043d' : (tag || 'proxy');" in outbounds_src
@@ -122,6 +123,10 @@ def test_outbounds_card_exposes_current_proxy_nodes_and_ping_controls():
     assert ".xk-outbounds-node-list" in styles_src
     assert ".xk-outbounds-node-panel {\n  flex: 1 1 auto;" in styles_src
     assert ".xk-outbounds-node-panel {\n  flex: 1 1 auto;\n  margin: 10px 0 12px;\n  overflow: hidden;" in styles_src
+    assert ".xk-outbounds-node-panel .xk-sub-nodes-head-actions" in styles_src
+    assert "flex: 0 0 auto;" in styles_src
+    assert ".xk-outbounds-node-panel .xk-outbounds-active-status" in styles_src
+    assert "display: none !important;" in styles_src
     assert ".xk-outbounds-node-list {\n  grid-template-columns: 1fr;\n  gap: 8px;\n  min-height: 0;\n  max-height: min(36vh, 320px);\n  overflow: auto;" in styles_src
     assert "#outbounds-body.xk-outbounds-subscription-fragment .xk-outbounds-node-item {" in styles_src
     assert "-webkit-line-clamp: 2;" in styles_src

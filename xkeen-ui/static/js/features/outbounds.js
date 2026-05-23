@@ -547,7 +547,9 @@ let outboundsModuleApi = null;
       const enabled = outboundsActiveDisplayEnabled(settingsSnapshot);
       const statusEl = $(OUTBOUND_NODE_IDS.activeStatus);
       if (statusEl) {
-        statusEl.classList.toggle('hidden', !enabled);
+        statusEl.hidden = true;
+        statusEl.style.display = 'none';
+        statusEl.classList.add('hidden');
         if (!enabled) {
           statusEl.textContent = '';
           statusEl.classList.remove('is-active');
@@ -701,6 +703,8 @@ let outboundsModuleApi = null;
       if (!el) return;
       if (!outboundsActiveDisplayEnabled()) {
         el.textContent = '';
+        el.hidden = true;
+        el.style.display = 'none';
         el.classList.add('hidden');
         el.classList.remove('is-active');
         el.classList.add('is-unknown');
@@ -709,6 +713,8 @@ let outboundsModuleApi = null;
       const runtime = _outboundsActiveRuntime && typeof _outboundsActiveRuntime === 'object' ? _outboundsActiveRuntime : {};
       const hasActive = !!(runtime.active && typeof runtime.active === 'object');
       el.textContent = outboundsActiveRuntimeText();
+      el.hidden = true;
+      el.style.display = 'none';
       el.classList.add('hidden');
       el.classList.toggle('is-active', hasActive);
       el.classList.toggle('is-unknown', !hasActive);

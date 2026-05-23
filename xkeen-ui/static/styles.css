@@ -9581,6 +9581,19 @@ html[data-theme="light"] .xk-sub-draft-badge {
   overflow: hidden;
 }
 
+.xk-outbounds-node-panel .xk-sub-panelhead > :first-child {
+  min-width: 0;
+}
+
+.xk-outbounds-node-panel .xk-sub-nodes-head-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.xk-outbounds-node-panel .xk-outbounds-active-status {
+  display: none !important;
+}
+
 .xk-outbounds-node-list {
   grid-template-columns: 1fr;
   gap: 8px;
