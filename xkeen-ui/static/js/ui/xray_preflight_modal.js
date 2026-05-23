@@ -609,16 +609,12 @@
       pushExplanationItem(items, seen, 'Что исправить', hint, 'action');
     }
 
-    if (diagnosis.primaryLine && !isSameMessage(diagnosis.primaryLine, diagnosis.rootCause) && !isSameMessage(diagnosis.primaryLine, diagnosis.actionText)) {
-      pushExplanationItem(items, seen, 'Красная строка из лога', diagnosis.primaryLine, 'problem');
-    }
-
     if (!items.length && diagnostics.length) {
       const fallback = prettifyDiagnosticText(diagnostics[0].text);
       pushExplanationItem(items, seen, 'Красная строка из лога', fallback, diagnostics[0].kind === 'problem' ? 'problem' : 'warning');
     }
 
-    return items.slice(0, 4);
+    return items.slice(0, 3);
   }
 
   function renderExplanationItems(container, items) {
@@ -817,6 +813,31 @@
     el.style.display = isVisible ? '' : 'none';
   }
 
+  function isLowValueStderr(stderr, cmd, stdout) {
+    const source = normText(stderr);
+    if (!source) return true;
+    const diagnosticLines = collectDiagnosticLines(source);
+    if (diagnosticLines.length) return false;
+
+    const cmdText = normalizeForCompare(cmd);
+    const stdoutText = normalizeForCompare(stdout);
+    const meaningful = source
+      .split('\n')
+      .map((line) => stripLogPrefix(line))
+      .filter((line) => line && !isNoiseLine(line));
+
+    if (!meaningful.length) return true;
+    return meaningful.every((line) => {
+      const normalized = normalizeForCompare(line);
+      return normalized &&
+        (
+          normalized.indexOf('using confdir from arg') !== -1 ||
+          (cmdText && (cmdText.indexOf(normalized) !== -1 || normalized.indexOf(cmdText) !== -1)) ||
+          (stdoutText && stdoutText.indexOf(normalized) !== -1)
+        );
+    });
+  }
+
   function shouldShowHint(hint, summary, description, defaultSummary) {
     return !!hint &&
       !isSameMessage(hint, summary) &&
@@ -881,7 +902,7 @@
       '          <div class="xk-preflight-block-title">Что означает код</div>' +
       '          <div data-xk-preflight-code-help></div>' +
       '        </div>' +
-      '        <div class="xk-preflight-block">' +
+      '        <div class="xk-preflight-block xk-preflight-block--cmd" style="display:none;">' +
       '          <div class="xk-preflight-block-title">Команда</div>' +
       '          <pre data-xk-preflight-cmd class="xk-preflight-codebox"></pre>' +
       '        </div>' +
@@ -891,7 +912,7 @@
       '        </div>' +
       '      </section>' +
       '      <section class="xk-preflight-panel">' +
-      '        <div class="xk-preflight-block xk-preflight-block--stderr">' +
+      '        <div class="xk-preflight-block xk-preflight-block--stderr" data-xk-preflight-stderr-wrap style="display:none;">' +
       '          <div class="xk-preflight-block-title">stderr</div>' +
       '          <pre data-xk-preflight-stderr class="xk-preflight-terminal xk-preflight-terminal--stderr"></pre>' +
       '        </div>' +
@@ -1092,6 +1113,7 @@
       cmd: modal.querySelector('[data-xk-preflight-cmd]'),
       explainerWrap: modal.querySelector('[data-xk-preflight-explainer-wrap]'),
       explainer: modal.querySelector('[data-xk-preflight-explainer]'),
+      stderrWrap: modal.querySelector('[data-xk-preflight-stderr-wrap]'),
       stderr: modal.querySelector('[data-xk-preflight-stderr]'),
       stdoutWrap: modal.querySelector('[data-xk-preflight-stdout-wrap]'),
       stdout: modal.querySelector('[data-xk-preflight-stdout]'),
@@ -1155,6 +1177,7 @@
     const showSummary = !!summary && !isSameMessage(summary, ui.description);
     const showTimeout = !!timeout;
     const showStdout = !!stdout && !isSameMessage(stdout, stderr);
+    const showStderr = !!stderr && (!showStdout || !isLowValueStderr(stderr, cmd, stdout));
     const explanationItems = buildExplanationItems(payload, {
       summary,
       hint,
@@ -1225,6 +1248,7 @@
       renderTerminalOutput(els.stdout, stdout, 'stdout пуст');
       setEmptyTerminalState(els.stdout, !stdout);
     }
+    setVisible(els.stderrWrap, showStderr);
     setVisible(els.stdoutWrap, showStdout);
 
     const copyParts = [
