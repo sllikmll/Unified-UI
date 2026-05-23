@@ -166,6 +166,8 @@ console.log(JSON.stringify({
 def test_routing_scenario_switcher_is_wired_into_panel():
     template = (ROOT / "xkeen-ui/templates/panel.html").read_text(encoding="utf-8")
     routing_src = (ROOT / "xkeen-ui/static/js/features/routing.js").read_text(encoding="utf-8")
+    settings_src = (ROOT / "xkeen-ui/static/js/ui/settings.js").read_text(encoding="utf-8")
+    settings_panel_src = (ROOT / "xkeen-ui/static/js/ui/settings_panel.js").read_text(encoding="utf-8")
     styles = (ROOT / "xkeen-ui/static/styles.css").read_text(encoding="utf-8")
 
     assert 'id="routing-scenario-normal"' in template
@@ -190,6 +192,10 @@ def test_routing_scenario_switcher_is_wired_into_panel():
     assert "xk.routing.scenario.open.v1" in routing_src
     assert "ROUTING_SCENARIO_MOBILE_BALANCER_TAG" in routing_src
     assert "xkeen:routing-editor-content" in routing_src
+    assert "function applyRoutingScenarioCardSetting(settingsSnapshot)" in routing_src
+    assert "routing.showScenarioCard" in settings_panel_src
+    assert "Показывать карточку «Сценарий маршрутизации»" in settings_panel_src
+    assert "showScenarioCard: true" in settings_src
 
     assert "body.panel-page .routing-side-card--scenario" in styles
     assert "body.panel-page .routing-side-card--scenario .commands-header h2" in styles

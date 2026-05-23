@@ -90,6 +90,9 @@ DEFAULTS: Dict[str, Any] = {
         # Show runtime-selected outbound in the 04_outbounds proxy card.
         # Default OFF: it depends on Xray logs and adds polling while the card is open.
         "showActiveOutbound": False,
+        # Show the routing scenario helper card.
+        # Default ON to preserve the existing panel layout.
+        "showScenarioCard": True,
     },
 }
 
@@ -159,6 +162,7 @@ def _canonical_empty() -> Dict[str, Any]:
             "guiEnabled": bool(DEFAULTS["routing"]["guiEnabled"]),
             "autoApply": bool(DEFAULTS["routing"]["autoApply"]),
             "showActiveOutbound": bool(DEFAULTS["routing"]["showActiveOutbound"]),
+            "showScenarioCard": bool(DEFAULTS["routing"]["showScenarioCard"]),
         },
     }
 
@@ -446,8 +450,16 @@ def _sanitize_full(raw: Any) -> Tuple[Dict[str, Any], SettingsReport]:
                 rep.warnings.append({"path": "routing.showActiveOutbound", "warning": "invalid type; ignored"})
                 rep.changed = True
 
+        show_scenario_card = routing_raw.get("showScenarioCard")
+        if show_scenario_card is not None:
+            if _is_bool(show_scenario_card):
+                out["routing"]["showScenarioCard"] = bool(show_scenario_card)
+            else:
+                rep.warnings.append({"path": "routing.showScenarioCard", "warning": "invalid type; ignored"})
+                rep.changed = True
+
         for k in routing_raw.keys():
-            if k not in ("guiEnabled", "autoApply", "showActiveOutbound"):
+            if k not in ("guiEnabled", "autoApply", "showActiveOutbound", "showScenarioCard"):
                 rep.warnings.append({"path": f"routing.{k}", "warning": "unknown key dropped"})
                 rep.changed = True
 
@@ -649,8 +661,15 @@ def _sanitize_patch(patch: Any) -> Tuple[Dict[str, Any], SettingsReport]:
                 else:
                     rep.errors.append({"path": "routing.showActiveOutbound", "error": "must be boolean"})
 
+            if "showScenarioCard" in routing_patch:
+                v = routing_patch.get("showScenarioCard")
+                if _is_bool(v):
+                    p["showScenarioCard"] = bool(v)
+                else:
+                    rep.errors.append({"path": "routing.showScenarioCard", "error": "must be boolean"})
+
             for k in routing_patch.keys():
-                if k not in ("guiEnabled", "autoApply", "showActiveOutbound"):
+                if k not in ("guiEnabled", "autoApply", "showActiveOutbound", "showScenarioCard"):
                     rep.warnings.append({"path": f"routing.{k}", "warning": "unknown key dropped"})
 
             if p:

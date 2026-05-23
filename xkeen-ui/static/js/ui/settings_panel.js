@@ -800,6 +800,13 @@ import { getFeatureApi } from '../features/feature_access.js';
           'Автоприменение маршрутизации сохранено.'
         ),
         createServerSwitch(
+          'routing-show-scenario-card',
+          'routing.showScenarioCard',
+          'Показывать карточку «Сценарий маршрутизации»',
+          'Позволяет скрыть боковую карточку выбора сценария маршрутизации, если она не нужна в ежедневной работе.',
+          'Видимость карточки сценария сохранена.'
+        ),
+        createServerSwitch(
           'routing-show-active-outbound',
           'routing.showActiveOutbound',
           'Показывать активный сервер в Прокси',

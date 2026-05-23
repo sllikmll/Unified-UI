@@ -42,6 +42,7 @@
       guiEnabled: false,
       autoApply: false,
       showActiveOutbound: false,
+      showScenarioCard: true,
     },
   };
 

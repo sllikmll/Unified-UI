@@ -4211,6 +4211,58 @@ function closeHelp() {
     if (btn.dataset) btn.dataset.xkeenWired = '1';
   }
 
+  function routingScenarioCardVisible(settingsSnapshot) {
+    try {
+      let snapshot = settingsSnapshot;
+      if (!snapshot) {
+        const settingsApi = getUiSettingsApi();
+        snapshot = settingsApi && typeof settingsApi.get === 'function' ? settingsApi.get() : null;
+      }
+      return !(snapshot && snapshot.routing && snapshot.routing.showScenarioCard === false);
+    } catch (e) {}
+    return true;
+  }
+
+  function applyRoutingScenarioCardSetting(settingsSnapshot) {
+    const visible = routingScenarioCardVisible(settingsSnapshot);
+    try {
+      const card = document.querySelector('.routing-side-card--scenario');
+      if (card) {
+        card.hidden = !visible;
+        card.style.display = visible ? '' : 'none';
+        card.setAttribute('aria-hidden', visible ? 'false' : 'true');
+      }
+    } catch (e) {}
+    if (!visible) {
+      try { setRoutingScenarioStatus('', ''); } catch (e2) {}
+    }
+    return visible;
+  }
+
+  function ensureRoutingScenarioSettingsLoaded() {
+    try {
+      const settingsApi = getUiSettingsApi();
+      if (!settingsApi) {
+        applyRoutingScenarioCardSetting(null);
+        return Promise.resolve(null);
+      }
+      if (typeof settingsApi.get === 'function') {
+        applyRoutingScenarioCardSetting(settingsApi.get());
+      }
+      if (typeof settingsApi.fetchOnce !== 'function') return Promise.resolve(null);
+      return settingsApi.fetchOnce()
+        .then((snapshot) => {
+          const visible = applyRoutingScenarioCardSetting(snapshot);
+          if (visible) {
+            try { syncRoutingScenarioUiFromEditor('settings'); } catch (e) {}
+          }
+          return snapshot;
+        })
+        .catch(() => null);
+    } catch (e) {}
+    return Promise.resolve(null);
+  }
+
   function setRoutingScenarioCardOpen(open) {
     const header = $(IDS.scenarioHeader);
     const body = $(IDS.scenarioBody);
@@ -4367,6 +4419,7 @@ function closeHelp() {
   }
 
   function syncRoutingScenarioUiFromEditor(reason) {
+    if (!routingScenarioCardVisible()) return;
     const normal = $(IDS.scenarioNormal);
     const mobile = $(IDS.scenarioMobile);
     const badge = $(IDS.scenarioBadge);
@@ -4483,6 +4536,7 @@ function closeHelp() {
   }
 
   function wireRoutingScenarioSwitcher() {
+    const scenarioVisible = applyRoutingScenarioCardSetting();
     wireRoutingScenarioCollapse();
     if (_routingScenarioWired) return;
     const applyBtn = $(IDS.scenarioApply);
@@ -4517,7 +4571,8 @@ function closeHelp() {
     } catch (e) {}
 
     _routingScenarioWired = true;
-    syncRoutingScenarioUiFromEditor('wire');
+    if (scenarioVisible) syncRoutingScenarioUiFromEditor('wire');
+    void ensureRoutingScenarioSettingsLoaded();
   }
 
   function wireUI() {
@@ -5136,7 +5191,9 @@ function closeHelp() {
     try {
       const settingsApi = getUiSettingsApi();
       if (!settingsApi || typeof settingsApi.subscribe !== 'function') return;
-      settingsApi.subscribe(() => {
+      settingsApi.subscribe((snapshot) => {
+        let scenarioVisible = true;
+        try { scenarioVisible = applyRoutingScenarioCardSetting(snapshot); } catch (e0) {}
         try { syncRoutingToolbarUi(_engine); } catch (e) {}
         try { applyRoutingSemanticValidationState(); } catch (e2) {}
         try {
@@ -5144,6 +5201,9 @@ function closeHelp() {
           Promise.resolve(active).catch(() => null);
         } catch (e3) {}
         try { validate(); } catch (e4) {}
+        if (scenarioVisible) {
+          try { syncRoutingScenarioUiFromEditor('settings'); } catch (e5) {}
+        }
       });
     } catch (e) {}
   }
@@ -5900,6 +5960,7 @@ function closeHelp() {
       } catch (e) {}
       try { relayoutMonaco(reason || 'show'); } catch (e) {}
     }
+    try { applyRoutingScenarioCardSetting(); } catch (e) {}
     try { updateEditorMetaStatus(); } catch (e) {}
     try {
       const routingCardsApi = getRoutingCardsFeatureApi();
