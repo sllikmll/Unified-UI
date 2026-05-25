@@ -525,7 +525,7 @@ import { getRoutingCardsNamespace } from '../../routing_cards_namespace.js';
           if (typeof onChanged === 'function') onChanged();
           rerenderRuleForm('');
         });
-        keyWrap.appendChild(removeBtn);
+        fieldEl.appendChild(removeBtn);
       }
       return fieldEl;
     }

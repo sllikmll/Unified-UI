@@ -18815,9 +18815,20 @@ html[data-theme="light"] .xk-mihomo-menu-panel .terminal-tool-btn:hover{
   align-items: start;
 }
 
+.routing-rule-field-optional {
+  grid-template-columns: minmax(90px, 130px) minmax(0, 1fr) 24px;
+}
+
 .routing-rule-field-optional .routing-rule-key {
   align-items: center;
   column-gap: 7px;
+}
+
+.routing-rule-field-optional .routing-rule-remove-field {
+  grid-column: 3;
+  justify-self: end;
+  align-self: center;
+  margin-inline-start: 0;
 }
 
 .routing-rule-field[data-field-key] {
@@ -18956,6 +18967,11 @@ html[data-theme="light"] .xk-mihomo-menu-panel .terminal-tool-btn:hover{
   text-transform: none;
   user-select: none;
   touch-action: manipulation;
+}
+
+.routing-help-tip {
+  position: relative;
+  z-index: 2;
 }
 
 .routing-help-btn {

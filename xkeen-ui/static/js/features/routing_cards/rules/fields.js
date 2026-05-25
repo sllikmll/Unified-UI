@@ -185,17 +185,25 @@ import { getRoutingCardsNamespace } from '../../routing_cards_namespace.js';
       tip.setAttribute('data-tooltip', tooltip);
       tip.title = tooltip;
       tip.textContent = '?';
+      ['pointerdown', 'mousedown', 'mouseup', 'click', 'dblclick', 'touchstart'].forEach((eventName) => {
+        tip.addEventListener(eventName, (ev) => {
+          ev.preventDefault();
+          if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+          else ev.stopPropagation();
+        });
+      });
       wrap.appendChild(tip);
     }
     return wrap;
   }
 
   function buildField(labelText, inputEl, docKey) {
-    const label = document.createElement('label');
-    label.className = 'routing-rule-field';
-    label.appendChild(buildKeyLabel(labelText, docKey));
-    label.appendChild(inputEl);
-    return label;
+    const tag = inputEl && inputEl.matches && inputEl.matches('input, textarea, select') ? 'label' : 'div';
+    const field = document.createElement(tag);
+    field.className = 'routing-rule-field';
+    field.appendChild(buildKeyLabel(labelText, docKey));
+    field.appendChild(inputEl);
+    return field;
   }
 
   function createChipInput(values, opts) {

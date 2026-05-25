@@ -1810,6 +1810,10 @@ def test_routing_field_help_clicks_do_not_leak_to_adjacent_remove_buttons():
     assert "tip.className = 'routing-help-tip';" in fields
     assert "tip.setAttribute('data-tooltip-only', '1');" in fields
     assert "tip.setAttribute('data-tooltip', tooltip);" in fields
+    assert "['pointerdown', 'mousedown', 'mouseup', 'click', 'dblclick', 'touchstart'].forEach" in fields
+    assert "if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();" in fields
+    assert "inputEl.matches('input, textarea, select')" in fields
+    assert "document.createElement(tag);" in fields
     assert "routing_cards/help_docs.js" in bundle
     assert bundle.index("routing_cards/help_docs.js") < bundle.index("routing_cards/rules/fields.js")
     assert "btn.setAttribute('role', 'button');" not in fields
@@ -1817,8 +1821,17 @@ def test_routing_field_help_clicks_do_not_leak_to_adjacent_remove_buttons():
     assert "helpBtn.matches('[data-tooltip-only=\"1\"], .routing-help-tip')" in shell
     assert "if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();" in modal
     assert "if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();" in render
+    assert "fieldEl.appendChild(removeBtn);" in render
+    assert "keyWrap.appendChild(removeBtn);" not in render
     assert '.routing-rule-field-optional .routing-rule-key {' in styles
     assert 'column-gap: 7px;' in styles
+    assert '.routing-rule-field-optional {\n  grid-template-columns: minmax(90px, 130px) minmax(0, 1fr) 24px;\n}' in styles
+    assert '.routing-rule-field-optional .routing-rule-remove-field {' in styles
+    assert 'grid-column: 3;' in styles
+    assert 'justify-self: end;' in styles
+    assert 'align-self: center;' in styles
+    assert 'margin-inline-start: 0;' in styles
+    assert '.routing-help-tip {\n  position: relative;\n  z-index: 2;\n}' in styles
     assert 'flex: 0 0 18px;' in styles
     assert 'flex: 0 0 20px;' in styles
     assert '.routing-help-tip' in styles
