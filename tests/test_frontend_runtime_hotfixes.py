@@ -1592,6 +1592,25 @@ def test_panel_mobile_second_wave_compacts_file_manager_and_modal_shells():
     assert 'body.panel-page #ui-settings-modal .xk-ui-settings-nav-btn {' in styles
 
 
+def test_file_manager_active_panel_highlight_stays_subtle():
+    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+
+    active_block = styles.split('.fm-panel-active{', 1)[1].split('}\n\n.fm-panel-bar{', 1)[0]
+    active_bar_block = styles.split('.fm-panel-active .fm-panel-bar{', 1)[1].split('}\n/*', 1)[0]
+    light_active_block = styles.split('html[data-theme="light"] .fm-panel-active{', 1)[1].split('}\nhtml[data-theme="light"] .fm-panel-bar{', 1)[0]
+
+    assert 'var(--accent, #60a5fa) 34%' in active_block
+    assert '0 0 0 1px' in active_block
+    assert 'var(--accent, #60a5fa) 24%' in active_block
+    assert 'var(--accent, #60a5fa) 7%' in active_block
+    assert '0 0 0 2px' not in active_block
+    assert 'var(--accent, #60a5fa) 82%' not in active_block
+    assert 'rgba(96,165,250,0.075)' in active_bar_block
+    assert 'var(--accent, #2563eb) 30%' in light_active_block
+    assert '0 0 0 1px' in light_active_block
+    assert 'var(--accent, #2563eb) 14%' in light_active_block
+
+
 def test_panel_mobile_third_wave_switches_file_manager_to_touch_first_rows_and_stacks_editor_toolbars():
     styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
 
