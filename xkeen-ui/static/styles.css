@@ -5438,6 +5438,17 @@ html:not([data-theme="light"]) .log-card.xk-restart-log-card .log-block {
     0 12px 30px rgba(0,0,0,0.24);
 }
 
+html:not([data-theme="light"]) #view-xray-logs .xray-log-block {
+  background:
+    linear-gradient(180deg, rgba(2,6,23,0.32), rgba(1,4,9,0.78)),
+    #010409;
+  border-color: color-mix(in srgb, var(--accent, #60a5fa) 34%, rgba(30,41,59,0.82));
+  box-shadow:
+    inset 0 1px 0 rgba(148,163,184,0.08),
+    inset 0 0 0 1px rgba(2,6,23,0.78),
+    0 12px 30px rgba(0,0,0,0.24);
+}
+
 .log-card .log-block::-webkit-scrollbar {
   width: 10px;
   height: 10px;
