@@ -884,6 +884,8 @@ def test_phase2_semantic_validation_runtime_is_wired_into_mihomo_and_xray_editor
     assert 'function refreshRoutingSemanticContext(opts) {' in routing_runtime
     assert 'function buildRoutingSemanticMarkers(text, diagnostics) {' in routing_runtime
     assert "editor.setOption('semanticValidation', getRoutingSemanticValidationConfig());" in routing_runtime
+    assert "_monaco.setSemanticValidation(semanticValidation);" in routing_runtime
+    assert "semanticValidation: getRoutingSemanticValidationConfig()," in routing_runtime
     assert 'const semanticDiagnostics = getRoutingSemanticDiagnostics(obj);' in routing_runtime
 
 

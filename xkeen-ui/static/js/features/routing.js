@@ -1020,6 +1020,11 @@ import { createXrayQuickFixProvider } from '../ui/schema_quickfixes.js';
       }
     } catch (e) {}
     try {
+      if (_monaco && typeof _monaco.setSemanticValidation === 'function') {
+        _monaco.setSemanticValidation(semanticValidation);
+      }
+    } catch (e) {}
+    try {
       if (_engine === 'monaco' && _monaco) {
         runMonacoDiagnostics();
       }
@@ -1149,6 +1154,7 @@ import { createXrayQuickFixProvider } from '../ui/schema_quickfixes.js';
         text: typeof text === 'string' ? text : readCurrentEditorText(),
         feature: 'routing',
         quickFixProvider: getRoutingQuickFixProvider(),
+        semanticValidation: getRoutingSemanticValidationConfig(),
       });
       try { ensureRoutingSemanticContextFresh(); } catch (e2) {}
       updateRoutingSchemaBadge(result);
