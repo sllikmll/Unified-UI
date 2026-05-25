@@ -171,15 +171,21 @@ import { getRoutingCardsNamespace } from '../../routing_cards_namespace.js';
     text.textContent = labelText;
     wrap.appendChild(text);
     if (docKey) {
-      const btn = document.createElement('span');
-      btn.className = 'routing-help-btn';
-      btn.dataset.doc = docKey;
-      btn.setAttribute('role', 'button');
-      btn.setAttribute('tabindex', '0');
-      btn.setAttribute('aria-label', 'Описание: ' + labelText);
-      btn.title = 'Описание: ' + labelText;
-      btn.textContent = '?';
-      wrap.appendChild(btn);
+      const tip = document.createElement('span');
+      tip.className = 'routing-help-tip';
+      tip.dataset.doc = docKey;
+      tip.setAttribute('data-tooltip-only', '1');
+      tip.setAttribute('aria-label', 'Описание: ' + labelText);
+      const docs = (RC && RC.ROUTING_FIELD_DOCS) || {};
+      const doc = docs && docs[docKey] ? docs[docKey] : null;
+      const parts = [];
+      if (doc && doc.desc) parts.push(String(doc.desc));
+      if (doc && doc.note) parts.push(String(doc.note));
+      const tooltip = parts.length ? parts.join(' ') : ('Описание: ' + labelText);
+      tip.setAttribute('data-tooltip', tooltip);
+      tip.title = tooltip;
+      tip.textContent = '?';
+      wrap.appendChild(tip);
     }
     return wrap;
   }

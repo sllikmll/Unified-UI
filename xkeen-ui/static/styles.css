@@ -18937,7 +18937,8 @@ html[data-theme="light"] .xk-mihomo-menu-panel .terminal-tool-btn:hover{
 
 
 
-.routing-help-btn {
+.routing-help-btn,
+.routing-help-tip {
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
@@ -18948,7 +18949,7 @@ html[data-theme="light"] .xk-mihomo-menu-panel .terminal-tool-btn:hover{
   font-size: calc(11px * var(--xk-font-scale));
   line-height: 1;
   padding: 0;
-  cursor: pointer;
+  cursor: help;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -18957,7 +18958,12 @@ html[data-theme="light"] .xk-mihomo-menu-panel .terminal-tool-btn:hover{
   touch-action: manipulation;
 }
 
-.routing-help-btn:hover {
+.routing-help-btn {
+  cursor: pointer;
+}
+
+.routing-help-btn:hover,
+.routing-help-tip:hover {
   border-color: #3b82f6;
   color: #e0f2fe;
 }
@@ -18980,13 +18986,15 @@ html[data-theme="light"] .xk-mihomo-menu-panel .terminal-tool-btn:hover{
   opacity: 0.75;
 }
 
-html[data-theme="light"] .routing-help-btn {
+html[data-theme="light"] .routing-help-btn,
+html[data-theme="light"] .routing-help-tip {
   background: rgba(255, 255, 255, 0.9);
   border-color: #cbd5e1;
   color: #334155;
 }
 
-html[data-theme="light"] .routing-help-btn:hover {
+html[data-theme="light"] .routing-help-btn:hover,
+html[data-theme="light"] .routing-help-tip:hover {
   border-color: #2563eb;
   color: #0f172a;
 }

@@ -1799,16 +1799,29 @@ def test_quick_balancer_wizard_normalizes_default_rule_and_reports_observatory_n
 
 def test_routing_field_help_clicks_do_not_leak_to_adjacent_remove_buttons():
     modal = Path('xkeen-ui/static/js/features/routing_cards/help_modal.js').read_text(encoding='utf-8')
+    fields = Path('xkeen-ui/static/js/features/routing_cards/rules/fields.js').read_text(encoding='utf-8')
     render = Path('xkeen-ui/static/js/features/routing_cards/rules/render.js').read_text(encoding='utf-8')
+    shell = Path('xkeen-ui/static/js/features/routing_cards.js').read_text(encoding='utf-8')
+    bundle = Path('xkeen-ui/static/js/pages/panel.routing.bundle.js').read_text(encoding='utf-8')
     styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
 
     assert "raw.closest('.routing-help-btn')" in modal
+    assert "btn.matches('[data-tooltip-only=\"1\"], .routing-help-tip')" in modal
+    assert "tip.className = 'routing-help-tip';" in fields
+    assert "tip.setAttribute('data-tooltip-only', '1');" in fields
+    assert "tip.setAttribute('data-tooltip', tooltip);" in fields
+    assert "routing_cards/help_docs.js" in bundle
+    assert bundle.index("routing_cards/help_docs.js") < bundle.index("routing_cards/rules/fields.js")
+    assert "btn.setAttribute('role', 'button');" not in fields
+    assert "btn.setAttribute('tabindex', '0');" not in fields
+    assert "helpBtn.matches('[data-tooltip-only=\"1\"], .routing-help-tip')" in shell
     assert "if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();" in modal
     assert "if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();" in render
     assert '.routing-rule-field-optional .routing-rule-key {' in styles
     assert 'column-gap: 7px;' in styles
     assert 'flex: 0 0 18px;' in styles
     assert 'flex: 0 0 20px;' in styles
+    assert '.routing-help-tip' in styles
 
 
 def test_codemirror_lint_tooltips_are_scrollable_and_width_limited_inside_editor():

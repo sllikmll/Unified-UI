@@ -261,6 +261,7 @@ let routingCardsModuleApi = null;
       if (!raw) return;
 
       const helpBtn = raw.closest('.routing-help-btn');
+      if (helpBtn && helpBtn.matches && helpBtn.matches('[data-tooltip-only="1"], .routing-help-tip')) return;
       if (helpBtn && !_isLazyHelperReady('fieldHelp')) {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -291,6 +292,7 @@ let routingCardsModuleApi = null;
       if (e.key !== 'Enter' && e.key !== ' ') return;
 
       const helpBtn = raw.closest('.routing-help-btn');
+      if (helpBtn && helpBtn.matches && helpBtn.matches('[data-tooltip-only="1"], .routing-help-tip')) return;
       if (!helpBtn || _isLazyHelperReady('fieldHelp')) return;
 
       e.preventDefault();

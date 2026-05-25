@@ -156,7 +156,9 @@ import { getRoutingCardsNamespace } from '../routing_cards_namespace.js';
     if (_routingHelpWired) return;
     function getHelpButtonTarget(e) {
       const raw = e && e.target && typeof e.target.closest === 'function' ? e.target : null;
-      return raw ? raw.closest('.routing-help-btn') : null;
+      const btn = raw ? raw.closest('.routing-help-btn') : null;
+      if (btn && btn.matches && btn.matches('[data-tooltip-only="1"], .routing-help-tip')) return null;
+      return btn;
     }
     function stopHelpEvent(e) {
       e.preventDefault();

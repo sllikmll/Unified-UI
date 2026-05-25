@@ -15,6 +15,7 @@ import '../features/routing_cards/rules/model.js?v=20260329b-stage55';
 import '../features/routing_cards/rules/detect.js?v=20260304j';
 import '../features/routing_cards/rules/json_modal.js?v=20260304h4';
 import '../features/routing_cards/rules/apply.js?v=20260329b-stage55';
+import '../features/routing_cards/help_docs.js?v=20260304d';
 import '../features/routing_cards/rules/fields.js?v=20260308-stage1';
 import '../features/routing_cards/rules/dnd_pointer.js?v=20260308-stage3';
 import '../features/routing_cards/rules/render.js?v=20260317a';
