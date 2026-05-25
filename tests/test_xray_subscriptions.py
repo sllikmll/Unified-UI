@@ -2559,6 +2559,20 @@ def test_delete_subscription_rebuilds_runtime_from_baseline_for_remaining_subscr
     assert first["ok"] is True
     assert second["ok"] is True
 
+    backup_dir = xray_dir / "backups"
+    backup_dir.mkdir()
+    for name in (
+        "04_outbounds.alpha.json",
+        "04_outbounds.alpha.jsonc",
+        "05_routing.json",
+        "05_routing.jsonc",
+        "07_observatory.json",
+        "07_observatory.jsonc",
+    ):
+        (backup_dir / name).write_text("stale subscription snapshot\n", encoding="utf-8")
+    history_backup = backup_dir / "05_routing-20260525-120000.json"
+    history_backup.write_text("history backup must stay\n", encoding="utf-8")
+
     result = subs.delete_subscription(
         str(ui_state_dir),
         "alpha",
@@ -2573,6 +2587,16 @@ def test_delete_subscription_rebuilds_runtime_from_baseline_for_remaining_subscr
     assert result["observatory_changed"] is True
     assert not (xray_dir / "04_outbounds.alpha.json").exists()
     assert not (jsonc_dir / "04_outbounds.alpha.jsonc").exists()
+    assert set(result["snapshots_removed"]) == {
+        "04_outbounds.alpha.json",
+        "04_outbounds.alpha.jsonc",
+        "05_routing.json",
+        "05_routing.jsonc",
+        "07_observatory.json",
+        "07_observatory.jsonc",
+    }
+    assert not any((backup_dir / name).exists() for name in result["snapshots_removed"])
+    assert history_backup.exists()
 
     observatory = json.loads((xray_dir / "07_observatory.json").read_text(encoding="utf-8"))
     assert observatory["observatory"]["subjectSelector"] == ["beta"]

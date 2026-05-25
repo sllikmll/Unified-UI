@@ -895,15 +895,18 @@ def delete_subscription(
         _write_state(ui_state_dir, remaining_state)
 
     output_removed = False
+    snapshot_cleanup_paths: List[str] = []
     if remove_file and removed:
         output_path = _subscription_output_path(xray_configs_dir, removed)
         output_removed = bool(_remove_file_if_exists(output_path, snapshot=snapshot) or output_removed)
+        snapshot_cleanup_paths.append(output_path)
         try:
             raw_path = jsonc_path_for(output_path)
         except Exception:
             raw_path = ""
         if raw_path:
             output_removed = bool(_remove_file_if_exists(raw_path, snapshot=snapshot) or output_removed)
+            snapshot_cleanup_paths.append(raw_path)
 
     observatory_changed = False
     routing_changed = False
@@ -923,6 +926,28 @@ def delete_subscription(
     if not rebuild_stats.get("has_runtime_targets"):
         _clear_subscription_managed_baselines(ui_state_dir)
 
+    if observatory_changed:
+        observatory_path = _config_fragment_path(xray_configs_dir, "07_observatory.json")
+        snapshot_cleanup_paths.append(observatory_path)
+        try:
+            observatory_jsonc_path = jsonc_path_for(observatory_path)
+        except Exception:
+            observatory_jsonc_path = ""
+        if observatory_jsonc_path:
+            snapshot_cleanup_paths.append(observatory_jsonc_path)
+    if routing_changed:
+        routing_file = str(routing_sync.get("routing_file") or ROUTING_FILE)
+        routing_path = _config_fragment_path(xray_configs_dir, routing_file)
+        snapshot_cleanup_paths.append(routing_path)
+        try:
+            routing_jsonc_path = jsonc_path_for(routing_path)
+        except Exception:
+            routing_jsonc_path = ""
+        if routing_jsonc_path:
+            snapshot_cleanup_paths.append(routing_jsonc_path)
+
+    snapshots_removed = _remove_config_snapshots_for_paths(xray_configs_dir, snapshot_cleanup_paths)
+
     restarted = False
     if restart_xkeen and (output_removed or observatory_changed or routing_changed):
         try:
@@ -941,6 +966,7 @@ def delete_subscription(
         "routing_balancer_tag": str(routing_sync.get("balancer_tag") or ""),
         "routing_manual_balancer_tags": list(routing_sync.get("manual_balancer_tags") or []),
         "baseline_restored": restored_baseline,
+        "snapshots_removed": snapshots_removed,
         "restarted": restarted,
     }
 
@@ -1954,6 +1980,44 @@ def _remove_file_if_exists(path: str, *, snapshot: SnapshotCallback | None = Non
         return True
     except Exception:
         return False
+
+
+def _remove_config_snapshot_for_path(xray_configs_dir: str, path: str) -> bool:
+    """Remove the rollback snapshot for a config path from configs/backups."""
+    try:
+        basename = os.path.basename(str(path or ""))
+    except Exception:
+        basename = ""
+    if not basename or "/" in basename or "\\" in basename:
+        return False
+    backup_dir = os.path.join(str(xray_configs_dir or ""), "backups")
+    try:
+        backup_dir_real = os.path.realpath(backup_dir)
+        candidate = os.path.realpath(os.path.join(backup_dir_real, basename))
+        if candidate == backup_dir_real or not candidate.startswith(backup_dir_real + os.sep):
+            return False
+        if not os.path.isfile(candidate):
+            return False
+        os.remove(candidate)
+        return True
+    except Exception:
+        return False
+
+
+def _remove_config_snapshots_for_paths(xray_configs_dir: str, paths: Iterable[str]) -> List[str]:
+    removed: List[str] = []
+    seen: set[str] = set()
+    for path in paths:
+        try:
+            basename = os.path.basename(str(path or ""))
+        except Exception:
+            basename = ""
+        if not basename or basename in seen:
+            continue
+        seen.add(basename)
+        if _remove_config_snapshot_for_path(xray_configs_dir, path):
+            removed.append(basename)
+    return removed
 
 
 def _capture_managed_file_baseline(state: Dict[str, Any], *, key: str, path: str) -> bool:
