@@ -120,6 +120,20 @@ AUTO_BALANCER_ALT_TAG = "xk-subscriptions-proxy"
 AUTO_BALANCER_FALLBACK_TAG = "direct"
 AUTO_BALANCER_PRESERVE_TAGS = ("vless-reality",)
 AUTO_MIGRATED_RULE_TAG_PREFIX = "xk_auto_vless_pool_"
+ROUTING_SCENARIO_RULE_PREFIX = "xk_scenario_mobile_whitelist_"
+ROUTING_SCENARIO_MAIN_BALANCER_TAG = "balancer_main"
+ROUTING_SCENARIO_RESERVE_BALANCER_TAG = "balancer_reserv"
+ROUTING_SCENARIO_WHITE_LIST_BALANCER_TAG = "balancer_white_list"
+ROUTING_SCENARIO_MAIN_SELECTOR = "my_proxy"
+ROUTING_SCENARIO_RESERVE_SELECTOR = "reserve_proxy"
+ROUTING_SCENARIO_WHITE_LIST_SELECTOR = "white_list"
+ROUTING_SCENARIO_LOOPBACK_TO_RESERVE = "loopback_to_reserv"
+ROUTING_SCENARIO_LOOPBACK_TO_WHITE = "loopback_to_white"
+ROUTING_SCENARIO_SELECTOR_TERMS = (
+    ROUTING_SCENARIO_MAIN_SELECTOR,
+    ROUTING_SCENARIO_RESERVE_SELECTOR,
+    ROUTING_SCENARIO_WHITE_LIST_SELECTOR,
+)
 ROUTING_MODE_SAFE = "safe-fallback"
 ROUTING_MODE_STRICT = "migrate-vless-rules"
 ROUTING_MODE_SUBSCRIPTION_ONLY = "subscription-only"
@@ -2696,6 +2710,66 @@ def _balancer_strategy_type(balancer: Any) -> str:
     return str(strategy.get("type") or "").strip().lower()
 
 
+def _balancer_selector_contains(balancer: Any, selector: str) -> bool:
+    if not isinstance(balancer, dict):
+        return False
+    raw = balancer.get("selector")
+    return str(selector or "").strip() in _clean_tags_list(raw if isinstance(raw, list) else [])
+
+
+def _routing_has_mobile_whitelist_scenario(routing: Dict[str, Any]) -> bool:
+    if not isinstance(routing, dict):
+        return False
+    rules = routing.get("rules")
+    if isinstance(rules, list):
+        for rule in rules:
+            if not isinstance(rule, dict):
+                continue
+            rule_tag = str(rule.get("ruleTag") or "").strip()
+            if rule_tag.startswith(ROUTING_SCENARIO_RULE_PREFIX):
+                return True
+
+    balancers = routing.get("balancers")
+    if not isinstance(balancers, list):
+        return False
+    main = _find_balancer_by_tag(balancers, ROUTING_SCENARIO_MAIN_BALANCER_TAG)
+    reserve = _find_balancer_by_tag(balancers, ROUTING_SCENARIO_RESERVE_BALANCER_TAG)
+    white_list = _find_balancer_by_tag(balancers, ROUTING_SCENARIO_WHITE_LIST_BALANCER_TAG)
+    return bool(
+        main
+        and reserve
+        and white_list
+        and _balancer_strategy_type(main) == "leastping"
+        and _balancer_strategy_type(reserve) == "leastping"
+        and _balancer_strategy_type(white_list) == "leastping"
+        and _balancer_selector_contains(main, ROUTING_SCENARIO_MAIN_SELECTOR)
+        and _balancer_selector_contains(reserve, ROUTING_SCENARIO_RESERVE_SELECTOR)
+        and _balancer_selector_contains(white_list, ROUTING_SCENARIO_WHITE_LIST_SELECTOR)
+        and str(main.get("fallbackTag") or "").strip() == ROUTING_SCENARIO_LOOPBACK_TO_RESERVE
+        and str(reserve.get("fallbackTag") or "").strip() == ROUTING_SCENARIO_LOOPBACK_TO_WHITE
+    )
+
+
+def _selector_term_matches_scenario_selector(term: str, selector: str) -> bool:
+    value = str(term or "").strip()
+    token = str(selector or "").strip()
+    return bool(value and token and (value == token or value.startswith(token)))
+
+
+def _scenario_owned_auto_terms(routing: Dict[str, Any], terms: Iterable[Any]) -> List[str]:
+    clean_terms = _clean_tags_list(terms)
+    if not clean_terms or not _routing_has_mobile_whitelist_scenario(routing):
+        return []
+    return [
+        term
+        for term in clean_terms
+        if any(
+            _selector_term_matches_scenario_selector(term, selector)
+            for selector in ROUTING_SCENARIO_SELECTOR_TERMS
+        )
+    ]
+
+
 def _find_least_ping_balancer(routing: Dict[str, Any]) -> Dict[str, Any] | None:
     balancers = routing.get("balancers") if isinstance(routing, dict) else []
     if not isinstance(balancers, list):
@@ -3499,6 +3573,17 @@ def sync_subscription_runtime_plan_delta(
     next_manual_targets = _normalize_runtime_manual_balancers(nxt)
     next_has_runtime_targets = bool(nxt.get("has_runtime_targets"))
     preserved_tags = _preserved_balancer_tags(xray_configs_dir)
+
+    routing_path = _config_fragment_path(xray_configs_dir, ROUTING_FILE)
+    cfg, routing, normalized_model = _ensure_routing_model(_read_json_file(routing_path, {}))
+    changed = bool(normalized_model)
+
+    scenario_skipped_auto_terms = _scenario_owned_auto_terms(routing, next_auto_terms)
+    if scenario_skipped_auto_terms:
+        skipped = set(scenario_skipped_auto_terms)
+        next_auto_terms = [term for term in next_auto_terms if term not in skipped]
+        next_has_runtime_targets = bool(next_observatory_terms or next_auto_terms or next_manual_targets)
+
     next_subscription_only = bool(nxt.get("subscription_only")) and bool(next_auto_terms)
     subscription_only_excluded_tags = _subscription_only_excluded_runtime_tags(xray_configs_dir) if next_subscription_only else []
     observatory_remove_tags = [tag for tag in prev_observatory_terms if tag not in set(next_observatory_terms)]
@@ -3513,9 +3598,6 @@ def sync_subscription_runtime_plan_delta(
         snapshot=snapshot,
     )
 
-    routing_path = _config_fragment_path(xray_configs_dir, ROUTING_FILE)
-    cfg, routing, normalized_model = _ensure_routing_model(_read_json_file(routing_path, {}))
-    changed = bool(normalized_model)
     selector: List[str] = []
     balancer_tag = _choose_auto_balancer_tag(routing)
     applied_manual_tags: List[str] = []
@@ -3524,9 +3606,15 @@ def sync_subscription_runtime_plan_delta(
     current_selector = _clean_tags_list(
         balancer.get("selector") if isinstance(balancer, dict) and isinstance(balancer.get("selector"), list) else []
     )
+    scenario_owned_selector_terms = _scenario_owned_auto_terms(routing, current_selector)
 
     if next_auto_terms:
-        remove_terms = prev_auto_terms + (subscription_only_excluded_tags if next_subscription_only else [])
+        remove_terms = (
+            prev_auto_terms
+            + scenario_skipped_auto_terms
+            + scenario_owned_selector_terms
+            + (subscription_only_excluded_tags if next_subscription_only else [])
+        )
         selector = _subtract_selector_terms(current_selector, remove_terms)
         selector = _merge_selector_terms(selector, next_auto_terms)
         if not next_subscription_only:
@@ -3543,7 +3631,10 @@ def sync_subscription_runtime_plan_delta(
     else:
         changed = bool(_remove_auto_balancer_rule(routing) or changed)
         if isinstance(balancer, dict):
-            selector = _subtract_selector_terms(current_selector, prev_auto_terms)
+            selector = _subtract_selector_terms(
+                current_selector,
+                prev_auto_terms + scenario_skipped_auto_terms + scenario_owned_selector_terms,
+            )
             non_preserved_selector = [tag for tag in selector if tag not in preserved_tags]
             if non_preserved_selector:
                 before_balancer = copy.deepcopy(balancer)
@@ -3613,6 +3704,7 @@ def sync_subscription_runtime_plan_delta(
             "reverted_rules": int(migrate_stats.get("reverted") or 0),
             "skipped_rules": int(migrate_stats.get("skipped") or 0),
             "manual_balancer_tags": applied_manual_tags,
+            "scenario_skipped_auto_terms": scenario_skipped_auto_terms,
         },
         "has_runtime_targets": next_has_runtime_targets,
     }

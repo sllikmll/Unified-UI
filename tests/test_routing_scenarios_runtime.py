@@ -88,6 +88,142 @@ console.log(JSON.stringify({
     assert payload["thirdBalancer"]["selector"] == ["white_list"]
 
 
+def test_mobile_whitelist_scenario_rewrites_legacy_untagged_shape_without_duplicates():
+    payload = _run_node_json(
+        r"""
+import {
+  ROUTING_SCENARIO_MOBILE_WHITELIST,
+  ROUTING_SCENARIO_NORMAL,
+  applyRoutingScenarioText,
+  detectRoutingScenarioFromText,
+} from './xkeen-ui/static/js/ui/routing_scenarios.js';
+
+const legacy = JSON.stringify({
+  routing: {
+    domainStrategy: 'IPIfNonMatch',
+    rules: [
+      {
+        type: 'field',
+        inboundTag: ['redirect', 'tproxy', 'socks-in', 'from_balancer_main', 'from_balancer_reserv'],
+        outboundTag: 'direct',
+        ip: ['127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '169.254.0.0/16', 'fc00::/7', 'fe80::/10'],
+      },
+      {
+        type: 'field',
+        inboundTag: ['redirect', 'tproxy', 'socks-in'],
+        outboundTag: 'block',
+        network: 'udp',
+        port: '135,137-139',
+      },
+      {
+        type: 'field',
+        inboundTag: ['redirect', 'tproxy', 'socks-in'],
+        outboundTag: 'block',
+        network: 'udp',
+        port: '443,8443',
+        ip: ['ext:geoip_zkeenip.dat:!ru'],
+      },
+      {
+        type: 'field',
+        inboundTag: ['redirect', 'tproxy', 'socks-in'],
+        outboundTag: 'block',
+        domain: ['ext:geosite_v2fly.dat:category-ads-all'],
+      },
+      {
+        type: 'field',
+        inboundTag: ['redirect', 'tproxy', 'socks-in', 'from_balancer_main', 'from_balancer_reserv'],
+        outboundTag: 'direct',
+        ip: ['ext:geoip_v2fly.dat:RU-WHITELIST'],
+      },
+      {
+        type: 'field',
+        inboundTag: ['redirect', 'tproxy', 'socks-in', 'from_balancer_main', 'from_balancer_reserv'],
+        outboundTag: 'direct',
+        domain: ['ext:geosite_v2fly.dat:category-ru', 'regexp:.*\\.ru$', 'regexp:.*\\.xn--p1ai$'],
+      },
+      {
+        type: 'field',
+        inboundTag: ['redirect', 'tproxy', 'socks-in', 'from_balancer_main', 'from_balancer_reserv'],
+        outboundTag: 'direct',
+        protocol: ['bittorrent'],
+      },
+      {
+        type: 'field',
+        inboundTag: ['redirect', 'tproxy', 'socks-in'],
+        balancerTag: 'balancer_main',
+        domain: ['ext:geosite_v2fly.dat:rutracker'],
+      },
+      {
+        type: 'field',
+        inboundTag: ['redirect', 'tproxy', 'socks-in'],
+        balancerTag: 'balancer_main',
+        ip: ['ext:geoip_v2fly.dat:cloudflare'],
+      },
+      {
+        type: 'field',
+        inboundTag: ['redirect', 'tproxy', 'socks-in'],
+        outboundTag: 'direct',
+        network: 'tcp,udp',
+      },
+      {
+        type: 'field',
+        inboundTag: ['from_balancer_main'],
+        balancerTag: 'balancer_reserv',
+        network: 'tcp,udp',
+      },
+      {
+        type: 'field',
+        inboundTag: ['from_balancer_reserv'],
+        balancerTag: 'balancer_white_list',
+        network: 'tcp,udp',
+      },
+      {
+        type: 'field',
+        ruleTag: 'manual_keep',
+        outboundTag: 'direct',
+        domain: ['domain:example.org'],
+      },
+    ],
+    balancers: [
+      { tag: 'balancer_main', selector: ['my_proxy'], strategy: { type: 'leastPing' }, fallbackTag: 'loopback_to_reserv' },
+      { tag: 'balancer_reserv', selector: ['reserve_proxy'], strategy: { type: 'leastPing' }, fallbackTag: 'loopback_to_white' },
+      { tag: 'balancer_white_list', selector: ['white_list'], strategy: { type: 'leastPing' } },
+    ],
+  },
+}, null, 2);
+
+const mobile = applyRoutingScenarioText(legacy, ROUTING_SCENARIO_MOBILE_WHITELIST);
+const parsed = JSON.parse(mobile.text);
+const normal = applyRoutingScenarioText(mobile.text, ROUTING_SCENARIO_NORMAL);
+const normalParsed = JSON.parse(normal.text);
+console.log(JSON.stringify({
+  detected: detectRoutingScenarioFromText(legacy),
+  ruleCount: parsed.routing.rules.length,
+  managedRuleCount: parsed.routing.rules.filter((rule) => String(rule.ruleTag || '').startsWith('xk_scenario_mobile_whitelist_')).length,
+  manualRules: parsed.routing.rules.filter((rule) => rule.ruleTag === 'manual_keep').length,
+  directPrivateInbound: parsed.routing.rules.find((rule) => rule.ruleTag === 'xk_scenario_mobile_whitelist_direct_private').inboundTag,
+  directRuInbound: parsed.routing.rules.find((rule) => rule.ruleTag === 'xk_scenario_mobile_whitelist_direct_ru_domains').inboundTag,
+  directRuDomain: parsed.routing.rules.find((rule) => rule.ruleTag === 'xk_scenario_mobile_whitelist_direct_ru_domains').domain,
+  normalRules: normalParsed.routing.rules,
+  normalBalancers: normalParsed.routing.balancers || [],
+}));
+"""
+    )
+
+    assert payload["detected"] == "mobile-whitelist"
+    assert payload["ruleCount"] == 13
+    assert payload["managedRuleCount"] == 12
+    assert payload["manualRules"] == 1
+    assert payload["directPrivateInbound"] == ["redirect", "tproxy", "socks-in", "from_balancer_main", "from_balancer_reserv"]
+    assert payload["directRuInbound"] == ["redirect", "tproxy", "socks-in", "from_balancer_main", "from_balancer_reserv"]
+    assert "ext:geosite_v2fly.dat:mailru-group" in payload["directRuDomain"]
+    assert "ext:geosite_v2fly.dat:rutube" in payload["directRuDomain"]
+    assert "domain:max.ru" in payload["directRuDomain"]
+    assert "domain:oneme.ru" in payload["directRuDomain"]
+    assert [rule["ruleTag"] for rule in payload["normalRules"]] == ["manual_keep"]
+    assert payload["normalBalancers"] == []
+
+
 def test_mobile_whitelist_preflight_reports_pool_and_subscription_risks():
     payload = _run_node_json(
         """

@@ -1034,6 +1034,137 @@ def test_refresh_subscription_auto_syncs_routing_and_keeps_vless_reality(tmp_pat
     assert rules[2]["outboundTag"] == "direct"
 
 
+def test_refresh_subscription_does_not_replace_mobile_whitelist_scenario_with_auto_pool(tmp_path: Path, monkeypatch):
+    from services import xray_subscriptions as subs
+
+    ui_state_dir = tmp_path / "state"
+    xray_dir = tmp_path / "xray" / "configs"
+    jsonc_dir = tmp_path / "jsonc"
+    ui_state_dir.mkdir()
+    xray_dir.mkdir(parents=True)
+    jsonc_dir.mkdir()
+
+    monkeypatch.setattr(subs, "jsonc_path_for", lambda path: str(jsonc_dir / (Path(path).name + "c")))
+    monkeypatch.setattr(subs, "ensure_xray_jsonc_dir", lambda: None)
+    monkeypatch.setattr(
+        subs,
+        "fetch_subscription_body",
+        lambda _url: (_vless_transport("WS Germany", "ws", host="ws.example.com"), {}),
+    )
+
+    (xray_dir / "04_outbounds.json").write_text(
+        json.dumps(
+            {
+                "outbounds": [
+                    {"tag": "direct", "protocol": "freedom"},
+                    {"tag": "block", "protocol": "blackhole"},
+                ]
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (xray_dir / "05_routing.json").write_text(
+        json.dumps(
+            {
+                "routing": {
+                    "domainStrategy": "IPIfNonMatch",
+                    "balancers": [
+                        {
+                            "tag": "balancer_main",
+                            "selector": ["my_proxy"],
+                            "strategy": {"type": "leastPing"},
+                            "fallbackTag": "loopback_to_reserv",
+                        },
+                        {
+                            "tag": "balancer_reserv",
+                            "selector": ["reserve_proxy"],
+                            "strategy": {"type": "leastPing"},
+                            "fallbackTag": "loopback_to_white",
+                        },
+                        {
+                            "tag": "balancer_white_list",
+                            "selector": ["white_list"],
+                            "strategy": {"type": "leastPing"},
+                        },
+                        {
+                            "tag": "proxy",
+                            "selector": ["white_list", "reserve_proxy"],
+                            "strategy": {"type": "leastPing"},
+                            "fallbackTag": "direct",
+                        },
+                    ],
+                    "rules": [
+                        {
+                            "type": "field",
+                            "ruleTag": "xk_scenario_mobile_whitelist_direct_private",
+                            "inboundTag": ["redirect", "tproxy", "socks-in"],
+                            "outboundTag": "direct",
+                            "ip": ["127.0.0.0/8"],
+                        },
+                        {
+                            "type": "field",
+                            "balancerTag": "proxy",
+                            "inboundTag": ["redirect", "tproxy"],
+                            "ruleTag": "xk_auto_leastPing",
+                        },
+                    ],
+                }
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    subs.upsert_subscription(
+        str(ui_state_dir),
+        {
+            "id": "white-list",
+            "tag": "white_list",
+            "url": "https://example.com/sub",
+            "enabled": True,
+            "ping_enabled": True,
+            "routing_auto_rule": True,
+        },
+    )
+
+    result = subs.refresh_subscription(
+        str(ui_state_dir),
+        "white-list",
+        xray_configs_dir=str(xray_dir),
+        snapshot=lambda _path: None,
+        restart_xkeen=None,
+        restart=False,
+    )
+
+    assert result["ok"] is True
+    assert result["routing_changed"] is True
+    assert result["routing_balancer_tag"] == ""
+    assert result["routing_selector_count"] == 0
+
+    generated = json.loads((xray_dir / "04_outbounds.white-list.json").read_text(encoding="utf-8"))
+    assert [item["tag"] for item in generated["outbounds"]] == ["white_list--WS_Germany"]
+
+    observatory = json.loads((xray_dir / "07_observatory.json").read_text(encoding="utf-8"))
+    assert observatory["observatory"]["subjectSelector"] == ["white_list"]
+
+    routing = json.loads((xray_dir / "05_routing.json").read_text(encoding="utf-8"))
+    balancers = {item["tag"]: item for item in routing["routing"]["balancers"]}
+    assert "proxy" not in balancers
+    assert balancers["balancer_main"]["selector"] == ["my_proxy"]
+    assert balancers["balancer_reserv"]["selector"] == ["reserve_proxy"]
+    assert balancers["balancer_white_list"]["selector"] == ["white_list"]
+    assert all(rule.get("ruleTag") != "xk_auto_leastPing" for rule in routing["routing"]["rules"])
+    assert any(
+        str(rule.get("ruleTag") or "").startswith("xk_scenario_mobile_whitelist_")
+        for rule in routing["routing"]["rules"]
+    )
+
+
 def test_refresh_subscription_only_mode_excludes_vless_reality_from_runtime_pool(tmp_path: Path, monkeypatch):
     from services import xray_subscriptions as subs
 

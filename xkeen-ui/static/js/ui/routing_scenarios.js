@@ -17,6 +17,8 @@ export const ROUTING_SCENARIO_FROM_MAIN = 'from_balancer_main';
 export const ROUTING_SCENARIO_FROM_RESERVE = 'from_balancer_reserv';
 
 const DIRECT_INBOUNDS = Object.freeze(['redirect', 'tproxy', 'socks-in']);
+const FALLBACK_INBOUNDS = Object.freeze([ROUTING_SCENARIO_FROM_MAIN, ROUTING_SCENARIO_FROM_RESERVE]);
+const DIRECT_AND_FALLBACK_INBOUNDS = Object.freeze(DIRECT_INBOUNDS.concat(FALLBACK_INBOUNDS));
 const RESERVED_CIDRS = Object.freeze([
   '127.0.0.0/8',
   '10.0.0.0/8',
@@ -35,6 +37,11 @@ const RU_SERVICE_DOMAINS = Object.freeze([
   'ext:geosite_v2fly.dat:category-gov-ru',
   'ext:geosite_v2fly.dat:ozon',
   'ext:geosite_v2fly.dat:wildberries',
+  'ext:geosite_v2fly.dat:mailru-group',
+  'ext:geosite_v2fly.dat:rutube',
+  'domain:max.ru',
+  'domain:calls.okcdn.ru',
+  'domain:oneme.ru',
   'domain:ozon.ru',
   'domain:wildberries.ru',
   'domain:wb.ru',
@@ -113,6 +120,25 @@ function cleanScenarioStringList(value) {
   return out;
 }
 
+function scenarioListHas(value, expected) {
+  const list = cleanScenarioStringList(value);
+  return expected.every((item) => list.includes(item));
+}
+
+function scenarioListEquals(value, expected) {
+  const list = cleanScenarioStringList(value);
+  return list.length === expected.length && expected.every((item) => list.includes(item));
+}
+
+function scenarioNetworkEquals(value, expected) {
+  const normalize = (item) => cleanScenarioString(item).replace(/\s+/g, '').toLowerCase();
+  return normalize(value) === normalize(expected);
+}
+
+function scenarioStringEquals(value, expected) {
+  return cleanScenarioString(value) === expected;
+}
+
 function readScenarioListField(item, keys) {
   if (!isPlainObject(item)) return [];
   for (let index = 0; index < keys.length; index += 1) {
@@ -178,6 +204,92 @@ function isManagedScenarioRule(rule) {
   return managedRuleTag(rule).startsWith(ROUTING_SCENARIO_RULE_PREFIX);
 }
 
+function isLegacyScenarioRule(rule) {
+  if (!isPlainObject(rule) || managedRuleTag(rule)) return false;
+  if (cleanScenarioString(rule.type || 'field') !== 'field') return false;
+
+  if (
+    scenarioStringEquals(rule.outboundTag, 'direct')
+    && scenarioListEquals(rule.inboundTag, DIRECT_AND_FALLBACK_INBOUNDS)
+    && scenarioListHas(rule.ip, RESERVED_CIDRS)
+  ) return true;
+
+  if (
+    scenarioStringEquals(rule.outboundTag, 'block')
+    && scenarioListEquals(rule.inboundTag, DIRECT_INBOUNDS)
+    && scenarioNetworkEquals(rule.network, 'udp')
+    && scenarioNetworkEquals(rule.port, '135,137-139')
+  ) return true;
+
+  if (
+    scenarioStringEquals(rule.outboundTag, 'block')
+    && scenarioListEquals(rule.inboundTag, DIRECT_INBOUNDS)
+    && scenarioNetworkEquals(rule.network, 'udp')
+    && scenarioNetworkEquals(rule.port, '443,8443')
+    && scenarioListHas(rule.ip, ['ext:geoip_zkeenip.dat:!ru'])
+  ) return true;
+
+  if (
+    scenarioStringEquals(rule.outboundTag, 'block')
+    && scenarioListEquals(rule.inboundTag, DIRECT_INBOUNDS)
+    && scenarioListHas(rule.domain, ['ext:geosite_v2fly.dat:category-ads-all'])
+  ) return true;
+
+  if (
+    scenarioStringEquals(rule.outboundTag, 'direct')
+    && scenarioListEquals(rule.inboundTag, DIRECT_AND_FALLBACK_INBOUNDS)
+    && scenarioListHas(rule.ip, RU_IPCIDR)
+  ) return true;
+
+  if (
+    scenarioStringEquals(rule.outboundTag, 'direct')
+    && scenarioListEquals(rule.inboundTag, DIRECT_AND_FALLBACK_INBOUNDS)
+    && scenarioListHas(rule.domain, ['regexp:.*\\.ru$', 'regexp:.*\\.xn--p1ai$'])
+  ) return true;
+
+  if (
+    scenarioStringEquals(rule.outboundTag, 'direct')
+    && scenarioListEquals(rule.inboundTag, DIRECT_AND_FALLBACK_INBOUNDS)
+    && scenarioListHas(rule.protocol, ['bittorrent'])
+  ) return true;
+
+  if (
+    scenarioStringEquals(rule.balancerTag, ROUTING_SCENARIO_MAIN_BALANCER_TAG)
+    && scenarioListEquals(rule.inboundTag, DIRECT_INBOUNDS)
+    && scenarioListHas(rule.domain, ['ext:geosite_v2fly.dat:rutracker'])
+  ) return true;
+
+  if (
+    scenarioStringEquals(rule.balancerTag, ROUTING_SCENARIO_MAIN_BALANCER_TAG)
+    && scenarioListEquals(rule.inboundTag, DIRECT_INBOUNDS)
+    && scenarioListHas(rule.ip, ['ext:geoip_v2fly.dat:cloudflare'])
+  ) return true;
+
+  if (
+    scenarioStringEquals(rule.outboundTag, 'direct')
+    && scenarioListEquals(rule.inboundTag, DIRECT_INBOUNDS)
+    && scenarioNetworkEquals(rule.network, 'tcp,udp')
+  ) return true;
+
+  if (
+    scenarioStringEquals(rule.balancerTag, ROUTING_SCENARIO_RESERVE_BALANCER_TAG)
+    && scenarioListEquals(rule.inboundTag, [ROUTING_SCENARIO_FROM_MAIN])
+    && scenarioNetworkEquals(rule.network, 'tcp,udp')
+  ) return true;
+
+  if (
+    scenarioStringEquals(rule.balancerTag, ROUTING_SCENARIO_WHITE_LIST_BALANCER_TAG)
+    && scenarioListEquals(rule.inboundTag, [ROUTING_SCENARIO_FROM_RESERVE])
+    && scenarioNetworkEquals(rule.network, 'tcp,udp')
+  ) return true;
+
+  return false;
+}
+
+function isScenarioRule(rule) {
+  return isManagedScenarioRule(rule) || isLegacyScenarioRule(rule);
+}
+
 function isManagedScenarioBalancer(item) {
   if (!isPlainObject(item)) return false;
   const tag = String(item.tag || '').trim();
@@ -214,7 +326,7 @@ function mobileRules() {
     {
       type: 'field',
       ruleTag: `${ROUTING_SCENARIO_RULE_PREFIX}direct_private`,
-      inboundTag: Array.from(DIRECT_INBOUNDS),
+      inboundTag: Array.from(DIRECT_AND_FALLBACK_INBOUNDS),
       outboundTag: 'direct',
       ip: Array.from(RESERVED_CIDRS),
     },
@@ -245,21 +357,21 @@ function mobileRules() {
     {
       type: 'field',
       ruleTag: `${ROUTING_SCENARIO_RULE_PREFIX}direct_bittorrent`,
-      inboundTag: Array.from(DIRECT_INBOUNDS),
+      inboundTag: Array.from(DIRECT_AND_FALLBACK_INBOUNDS),
       outboundTag: 'direct',
       protocol: ['bittorrent'],
     },
     {
       type: 'field',
       ruleTag: `${ROUTING_SCENARIO_RULE_PREFIX}direct_ru_domains`,
-      inboundTag: Array.from(DIRECT_INBOUNDS),
+      inboundTag: Array.from(DIRECT_AND_FALLBACK_INBOUNDS),
       outboundTag: 'direct',
       domain: Array.from(RU_SERVICE_DOMAINS),
     },
     {
       type: 'field',
       ruleTag: `${ROUTING_SCENARIO_RULE_PREFIX}direct_ru_ip`,
-      inboundTag: Array.from(DIRECT_INBOUNDS),
+      inboundTag: Array.from(DIRECT_AND_FALLBACK_INBOUNDS),
       outboundTag: 'direct',
       ip: Array.from(RU_IPCIDR),
     },
@@ -341,7 +453,7 @@ export function detectRoutingScenarioFromObject(config) {
     const routing = target.routing;
     const rules = Array.isArray(routing.rules) ? routing.rules : [];
     const balancers = Array.isArray(routing.balancers) ? routing.balancers : [];
-    if (rules.some(isManagedScenarioRule) || balancers.some(isManagedScenarioBalancer)) {
+    if (rules.some(isScenarioRule) || balancers.some(isManagedScenarioBalancer)) {
       return ROUTING_SCENARIO_MOBILE_WHITELIST;
     }
   } catch (e) {
@@ -366,7 +478,7 @@ export function applyRoutingScenarioToObject(config, mode) {
   const currentRules = Array.isArray(routing.rules) ? routing.rules : [];
   const currentBalancers = Array.isArray(routing.balancers) ? routing.balancers : [];
 
-  const userRules = currentRules.filter((rule) => !isManagedScenarioRule(rule));
+  const userRules = currentRules.filter((rule) => !isScenarioRule(rule));
   const userBalancers = currentBalancers.filter((item) => !isManagedScenarioBalancer(item));
 
   if (nextMode === ROUTING_SCENARIO_MOBILE_WHITELIST) {
