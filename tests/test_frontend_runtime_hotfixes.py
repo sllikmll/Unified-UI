@@ -1679,6 +1679,17 @@ def test_editor_fullscreen_toolbars_are_pinned_above_fullscreen_editors():
         assert 'xkeenPortalEditorToolbarForFullscreen' in Path(path).read_text(encoding='utf-8')
 
 
+def test_mihomo_fullscreen_toolbar_dedupes_fallback_button():
+    for path in (
+        'xkeen-ui/static/js/features/mihomo_panel.js',
+        'xkeen-ui/static/js/features/mihomo_generator.js',
+    ):
+        src = Path(path).read_text(encoding='utf-8')
+        assert "if (hasFs) {" in src
+        assert "if (id === 'fs_any') btn.remove();" in src
+        assert "items.some((it) => it && (it.id === 'fs' || it.id === 'fs_any'))" in src
+
+
 def test_routing_template_modals_stretch_preview_and_edit_editors_with_modal_resize():
     styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
     script = Path('xkeen-ui/static/js/features/routing_templates.js').read_text(encoding='utf-8')

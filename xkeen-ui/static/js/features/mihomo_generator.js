@@ -456,6 +456,15 @@ function syncToolbarForEngine(engine) {
       } catch (e) {}
     });
 
+    if (hasFs) {
+      (btns || []).forEach((btn) => {
+        try {
+          const id = (btn.dataset && btn.dataset.actionId) ? String(btn.dataset.actionId) : '';
+          if (id === 'fs_any') btn.remove();
+        } catch (e) {}
+      });
+    }
+
     (btns || []).forEach((btn) => {
       const id = (btn.dataset && btn.dataset.actionId) ? String(btn.dataset.actionId) : '';
       const isFs = (id === 'fs');
@@ -794,9 +803,9 @@ function initEngineToggle() {
               return it;
             });
 
-            // Fallback fullscreen button for Monaco even when CM fullscreen addon isn't loaded.
+            // Fallback fullscreen button for Monaco only when the shared toolbar has no real fs action.
             try {
-              if (icons.fullscreen && !items.some((it) => it && it.id === 'fs_any')) {
+              if (icons.fullscreen && !items.some((it) => it && (it.id === 'fs' || it.id === 'fs_any'))) {
                 items.push({
                   id: 'fs_any',
                   svg: icons.fullscreen,
@@ -1291,7 +1300,7 @@ function initEngineToggle() {
                 return it;
               });
               try {
-                if (icons.fullscreen && !items.some((it) => it && it.id === 'fs_any')) {
+                if (icons.fullscreen && !items.some((it) => it && (it.id === 'fs' || it.id === 'fs_any'))) {
                   items.push({
                     id: 'fs_any',
                     svg: icons.fullscreen,
