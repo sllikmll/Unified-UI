@@ -21,6 +21,7 @@ import json
 import os
 import re
 from typing import Any, Callable, Dict
+from urllib.parse import unquote, urlparse
 
 from flask import Blueprint, jsonify, request
 
@@ -48,7 +49,6 @@ from services.xray_inbounds import (
     merge_inbounds_preset,
 )
 from services.xray_outbounds import (
-    LEGACY_VLESS_TAG,
     PROXY_OUTBOUND_TAG,
     apply_sockopt_mark_profile,
     build_outbounds_config_from_link,
@@ -270,10 +270,10 @@ def create_xray_configs_blueprint(
         "dns_out",
         "dnsout",
     }
-    _SINGLE_LINK_PREFERRED_PROXY_TAGS = (LEGACY_VLESS_TAG, PROXY_OUTBOUND_TAG)
     _SINGLE_LINK_SERVICE_OUTBOUND_PROTOCOLS = {"freedom", "blackhole", "dns"}
+    _SINGLE_LINK_TAG_MAX_LEN = 64
 
-    def _single_link_tags_from_existing_outbounds(cfg: Any) -> list[str]:
+    def _outbound_tags_from_config(cfg: Any, *, proxy_only: bool = False) -> list[str]:
         raw = cfg.get("outbounds") if isinstance(cfg, dict) else cfg if isinstance(cfg, list) else []
         if not isinstance(raw, list):
             return []
@@ -284,10 +284,82 @@ def create_xray_configs_blueprint(
                 continue
             tag = str(outbound.get("tag") or "").strip()
             protocol = str(outbound.get("protocol") or "").strip().lower()
-            if not tag or tag in seen or protocol in _SINGLE_LINK_SERVICE_OUTBOUND_PROTOCOLS:
+            if not tag or tag in seen:
+                continue
+            if proxy_only and protocol in _SINGLE_LINK_SERVICE_OUTBOUND_PROTOCOLS:
                 continue
             seen.add(tag)
             tags.append(tag)
+        return tags
+
+    def _single_link_tags_from_existing_outbounds(cfg: Any) -> list[str]:
+        return _outbound_tags_from_config(cfg, proxy_only=True)
+
+    def _clean_single_link_tag(value: Any, fallback: str) -> str:
+        raw = str(value or "").strip()
+        if not raw:
+            raw = fallback
+        raw = re.sub(r"\s+", "_", raw)
+        raw = re.sub(r"[^A-Za-z0-9_.:-]+", "_", raw)
+        raw = raw.strip("_.:-")
+        if not raw:
+            raw = fallback or PROXY_OUTBOUND_TAG
+        if raw.lower() in _ROUTING_SERVICE_OUTBOUND_TAGS:
+            raw = raw + "_proxy"
+        return raw[:_SINGLE_LINK_TAG_MAX_LEN].strip("_.:-") or PROXY_OUTBOUND_TAG
+
+    def _single_link_base_tag_from_url(url: str) -> str:
+        try:
+            parsed = urlparse(str(url or "").strip())
+        except Exception:
+            parsed = None
+        fragment = ""
+        scheme = ""
+        if parsed is not None:
+            fragment = unquote(str(parsed.fragment or "").strip())
+            scheme = str(parsed.scheme or "").strip().lower()
+        fallback = {
+            "hysteria": "hy2",
+            "hysteria2": "hy2",
+            "shadowsocks": "ss",
+        }.get(scheme, scheme or PROXY_OUTBOUND_TAG)
+        return _clean_single_link_tag(fragment or fallback, fallback or PROXY_OUTBOUND_TAG)
+
+    def _unique_single_link_tag(base: str, used_tags: set[str]) -> str:
+        used = {str(tag or "").strip() for tag in used_tags if str(tag or "").strip()}
+        tag = _clean_single_link_tag(base, PROXY_OUTBOUND_TAG)
+        if tag not in used:
+            return tag
+        root = tag[: max(1, _SINGLE_LINK_TAG_MAX_LEN - 4)].strip("_.:-") or PROXY_OUTBOUND_TAG
+        idx = 2
+        while True:
+            suffix = f"-{idx}"
+            candidate = f"{root[: max(1, _SINGLE_LINK_TAG_MAX_LEN - len(suffix))]}{suffix}".strip("_.:-")
+            if candidate and candidate not in used:
+                return candidate
+            idx += 1
+
+    def _all_outbound_tags_for_single_link(sel_path: str) -> set[str]:
+        tags: set[str] = set()
+        try:
+            for item in list_xray_fragments("outbounds"):
+                name = str(item.get("name") or "").strip() if isinstance(item, dict) else ""
+                if not name:
+                    continue
+                path = resolve_xray_fragment_file(name, kind="outbounds", default_path=OUTBOUNDS_FILE)
+                tags.update(_outbound_tags_from_config(load_json(path, default={}), proxy_only=False))
+        except Exception:
+            pass
+        try:
+            tags.update(_outbound_tags_from_config(load_json(sel_path, default={}), proxy_only=False))
+        except Exception:
+            pass
+        try:
+            routing_cfg = load_json(ROUTING_FILE, default=None)
+        except Exception:
+            routing_cfg = None
+        tags.update(_routing_proxy_outbound_tags(routing_cfg))
+        tags.update(_ROUTING_SERVICE_OUTBOUND_TAGS)
         return tags
 
     def _routing_proxy_outbound_tags(cfg: Any) -> list[str]:
@@ -310,20 +382,13 @@ def create_xray_configs_blueprint(
             tags.append(tag)
         return tags
 
-    def _single_link_outbound_tags_for_current_routing(existing_cfg: Any = None) -> list[str]:
+    def _single_link_outbound_tags_for_save(url: str, sel_path: str, existing_cfg: Any = None) -> list[str]:
         existing_tags = _single_link_tags_from_existing_outbounds(existing_cfg)
         if len(existing_tags) == 1:
             return existing_tags
 
-        try:
-            routing_cfg = load_json(ROUTING_FILE, default=None)
-        except Exception:
-            routing_cfg = None
-        tags = _routing_proxy_outbound_tags(routing_cfg)
-        for preferred in _SINGLE_LINK_PREFERRED_PROXY_TAGS:
-            if preferred in tags:
-                return [preferred]
-        return [PROXY_OUTBOUND_TAG]
+        used_tags = _all_outbound_tags_for_single_link(sel_path)
+        return [_unique_single_link_tag(_single_link_base_tag_from_url(url), used_tags)]
 
     def _outbounds_node_latency_state_path() -> str:
         root = str(ui_state_dir or "").strip()
@@ -876,7 +941,7 @@ def create_xray_configs_blueprint(
                 previous_cfg = load_json(sel_path, default={})
                 cfg = build_outbounds_config_from_link(
                     url,
-                    proxy_tags=_single_link_outbound_tags_for_current_routing(previous_cfg),
+                    proxy_tags=_single_link_outbound_tags_for_save(url, sel_path, previous_cfg),
                 )
                 mark_profile = collect_sockopt_mark_profile(previous_cfg)
                 apply_sockopt_mark_profile(cfg, mark_profile)

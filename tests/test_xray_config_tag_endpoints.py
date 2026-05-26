@@ -64,8 +64,9 @@ def _vless_url() -> str:
     )
 
 
-def _hy2_url() -> str:
-    return "hy2://secret@example.com:443?sni=edge.example.com&pinSHA256=pin-one"
+def _hy2_url(name: str = "") -> str:
+    suffix = f"#{name}" if name else ""
+    return f"hy2://secret@example.com:443?sni=edge.example.com&pinSHA256=pin-one{suffix}"
 
 
 def _make_app() -> Flask:
@@ -490,7 +491,7 @@ def test_xray_outbounds_active_all_searches_across_outbound_fragments(tmp_path, 
     assert payload["active"]["file"] == main_name
 
 
-def test_api_set_outbounds_matches_single_link_tag_to_current_routing_vless_reality(tmp_path, monkeypatch):
+def test_api_set_outbounds_uses_new_single_tag_instead_of_routing_vless_reality(tmp_path, monkeypatch):
     configs_dir = tmp_path / "configs"
     configs_dir.mkdir()
     outbounds_path = configs_dir / "04_outbounds.json"
@@ -528,10 +529,10 @@ def test_api_set_outbounds_matches_single_link_tag_to_current_routing_vless_real
     assert payload["ok"] is True
 
     saved = json.loads(outbounds_path.read_text(encoding="utf-8"))
-    assert [item["tag"] for item in saved["outbounds"]] == ["vless-reality", "direct", "block"]
+    assert [item["tag"] for item in saved["outbounds"]] == ["vless", "direct", "block"]
 
 
-def test_api_set_outbounds_matches_single_link_tag_to_current_routing_proxy(tmp_path, monkeypatch):
+def test_api_set_outbounds_uses_new_single_tag_instead_of_routing_proxy(tmp_path, monkeypatch):
     configs_dir = tmp_path / "configs"
     configs_dir.mkdir()
     outbounds_path = configs_dir / "04_outbounds.json"
@@ -569,7 +570,7 @@ def test_api_set_outbounds_matches_single_link_tag_to_current_routing_proxy(tmp_
     assert payload["ok"] is True
 
     saved = json.loads(outbounds_path.read_text(encoding="utf-8"))
-    assert [item["tag"] for item in saved["outbounds"]] == ["proxy", "direct", "block"]
+    assert [item["tag"] for item in saved["outbounds"]] == ["vless", "direct", "block"]
 
 
 def test_api_set_outbounds_preserves_existing_sockopt_marks_for_generated_link(tmp_path, monkeypatch):
@@ -640,6 +641,7 @@ def test_api_set_outbounds_preserves_existing_sockopt_marks_for_generated_link(t
     assert payload["ok"] is True
 
     saved = json.loads(outbounds_path.read_text(encoding="utf-8"))
+    assert [item["tag"] for item in saved["outbounds"]] == ["vless-reality", "direct", "block"]
     assert saved["outbounds"][0]["streamSettings"]["sockopt"]["mark"] == 255
     assert saved["outbounds"][1]["streamSettings"]["sockopt"]["mark"] == 255
     assert "streamSettings" not in saved["outbounds"][2]
@@ -683,5 +685,51 @@ def test_api_set_outbounds_does_not_clone_single_link_for_multiple_routing_tags(
     assert payload["ok"] is True
 
     saved = json.loads(outbounds_path.read_text(encoding="utf-8"))
-    assert [item["tag"] for item in saved["outbounds"]] == ["proxy", "direct", "block"]
+    assert [item["tag"] for item in saved["outbounds"]] == ["hy2", "direct", "block"]
     assert saved["outbounds"][0]["protocol"] == "hysteria"
+
+
+def test_api_set_outbounds_creates_unique_single_tag_when_pool_fragment_exists(tmp_path, monkeypatch):
+    configs_dir = tmp_path / "configs"
+    configs_dir.mkdir()
+    outbounds_path = configs_dir / "04_outbounds.json"
+    pool_path = configs_dir / "04_outbounds_All.json"
+    routing_path = configs_dir / "05_routing.json"
+    routing_payload = {
+        "routing": {
+            "balancers": [{"tag": "proxy", "selector": ["MyVPN_hy2_NLS"], "fallbackTag": "direct"}],
+            "rules": [{"type": "field", "balancerTag": "proxy", "inboundTag": ["redirect", "tproxy"]}],
+        }
+    }
+    routing_path.write_text(json.dumps(routing_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    pool_payload = {
+        "outbounds": [
+            {"tag": "bydpi_myNAS", "protocol": "vless"},
+            {"tag": "MyVPN_hy2_NLS", "protocol": "hysteria"},
+            {"tag": "direct", "protocol": "freedom"},
+            {"tag": "block", "protocol": "blackhole"},
+        ]
+    }
+    pool_path.write_text(json.dumps(pool_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    monkeypatch.setattr(xray_configs_mod, "ROUTING_FILE", str(routing_path))
+    monkeypatch.setattr(xray_configs_mod, "list_xray_fragments", lambda kind: [{"name": pool_path.name}] if kind == "outbounds" else [])
+    monkeypatch.setattr(
+        xray_configs_mod,
+        "resolve_xray_fragment_file",
+        lambda file_arg, *, kind, default_path: str(configs_dir / (file_arg or Path(default_path).name)),
+    )
+
+    app = _make_app()
+    with app.test_client() as client:
+        response = client.post("/api/outbounds", json={"url": _hy2_url("MyVPN_hy2_NLS"), "restart": False})
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["ok"] is True
+
+    saved = json.loads(outbounds_path.read_text(encoding="utf-8"))
+    assert [item["tag"] for item in saved["outbounds"]] == ["MyVPN_hy2_NLS-2", "direct", "block"]
+    assert saved["outbounds"][0]["protocol"] == "hysteria"
+    assert json.loads(pool_path.read_text(encoding="utf-8")) == pool_payload
+    assert json.loads(routing_path.read_text(encoding="utf-8")) == routing_payload
