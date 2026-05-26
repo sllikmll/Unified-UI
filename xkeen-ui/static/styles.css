@@ -4109,6 +4109,17 @@ html[data-theme="light"] #view-commands .log-card .log-block {
   pointer-events: auto;
 }
 
+.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool {
+  display: none !important;
+}
+
+.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool[data-action-id="fs"],
+.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool[data-action-id="fs_any"],
+.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool[data-action-id="fullscreen"],
+.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool[data-command="fullscreen"] {
+  display: inline-flex !important;
+}
+
 
 .xkeen-cm-tool {
   position: relative;

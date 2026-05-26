@@ -1645,6 +1645,15 @@ def test_editor_fullscreen_toolbars_are_pinned_above_fullscreen_editors():
     assert 'z-index: 2147483000 !important;' in block
     assert 'pointer-events: auto;' in block
 
+    hide_block = styles.split('.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool {', 1)[1].split('\n}', 1)[0]
+    assert 'display: none !important;' in hide_block
+    assert '.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool[data-action-id="fs"],' in styles
+    assert '.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool[data-action-id="fs_any"],' in styles
+    assert '.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool[data-action-id="fullscreen"],' in styles
+    assert '.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool[data-command="fullscreen"] {' in styles
+    show_block = styles.split('.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool[data-command="fullscreen"] {', 1)[1].split('\n}', 1)[0]
+    assert 'display: inline-flex !important;' in show_block
+
     assert 'function portalToolbarForFullscreen(toolbar, active, fallbackParent)' in actions
     assert 'document.body.appendChild(toolbar);' in actions
     assert 'window.xkeenPortalEditorToolbarForFullscreen = portalToolbarForFullscreen;' in actions
