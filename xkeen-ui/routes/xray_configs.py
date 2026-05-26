@@ -48,6 +48,7 @@ from services.xray_inbounds import (
     merge_inbounds_preset,
 )
 from services.xray_outbounds import (
+    LEGACY_VLESS_TAG,
     PROXY_OUTBOUND_TAG,
     apply_sockopt_mark_profile,
     build_outbounds_config_from_link,
@@ -265,7 +266,29 @@ def create_xray_configs_blueprint(
         "xray-api",
         "metrics",
         "loopback",
+        "dns-out",
+        "dns_out",
+        "dnsout",
     }
+    _SINGLE_LINK_PREFERRED_PROXY_TAGS = (LEGACY_VLESS_TAG, PROXY_OUTBOUND_TAG)
+    _SINGLE_LINK_SERVICE_OUTBOUND_PROTOCOLS = {"freedom", "blackhole", "dns"}
+
+    def _single_link_tags_from_existing_outbounds(cfg: Any) -> list[str]:
+        raw = cfg.get("outbounds") if isinstance(cfg, dict) else cfg if isinstance(cfg, list) else []
+        if not isinstance(raw, list):
+            return []
+        tags: list[str] = []
+        seen: set[str] = set()
+        for outbound in raw:
+            if not isinstance(outbound, dict):
+                continue
+            tag = str(outbound.get("tag") or "").strip()
+            protocol = str(outbound.get("protocol") or "").strip().lower()
+            if not tag or tag in seen or protocol in _SINGLE_LINK_SERVICE_OUTBOUND_PROTOCOLS:
+                continue
+            seen.add(tag)
+            tags.append(tag)
+        return tags
 
     def _routing_proxy_outbound_tags(cfg: Any) -> list[str]:
         root = cfg if isinstance(cfg, dict) else {}
@@ -287,13 +310,20 @@ def create_xray_configs_blueprint(
             tags.append(tag)
         return tags
 
-    def _single_link_outbound_tags_for_current_routing() -> list[str]:
+    def _single_link_outbound_tags_for_current_routing(existing_cfg: Any = None) -> list[str]:
+        existing_tags = _single_link_tags_from_existing_outbounds(existing_cfg)
+        if len(existing_tags) == 1:
+            return existing_tags
+
         try:
             routing_cfg = load_json(ROUTING_FILE, default=None)
         except Exception:
             routing_cfg = None
         tags = _routing_proxy_outbound_tags(routing_cfg)
-        return tags or [PROXY_OUTBOUND_TAG]
+        for preferred in _SINGLE_LINK_PREFERRED_PROXY_TAGS:
+            if preferred in tags:
+                return [preferred]
+        return [PROXY_OUTBOUND_TAG]
 
     def _outbounds_node_latency_state_path() -> str:
         root = str(ui_state_dir or "").strip()
@@ -843,11 +873,12 @@ def create_xray_configs_blueprint(
             if not url:
                 return error_response("url is required", 400, ok=False)
             try:
+                previous_cfg = load_json(sel_path, default={})
                 cfg = build_outbounds_config_from_link(
                     url,
-                    proxy_tags=_single_link_outbound_tags_for_current_routing(),
+                    proxy_tags=_single_link_outbound_tags_for_current_routing(previous_cfg),
                 )
-                mark_profile = collect_sockopt_mark_profile(load_json(sel_path, default={}))
+                mark_profile = collect_sockopt_mark_profile(previous_cfg)
                 apply_sockopt_mark_profile(cfg, mark_profile)
             except Exception:
                 return _xray_error(

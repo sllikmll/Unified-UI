@@ -64,6 +64,10 @@ def _vless_url() -> str:
     )
 
 
+def _hy2_url() -> str:
+    return "hy2://secret@example.com:443?sni=edge.example.com&pinSHA256=pin-one"
+
+
 def _make_app() -> Flask:
     app = Flask(__name__)
     app.config["TESTING"] = True
@@ -639,3 +643,45 @@ def test_api_set_outbounds_preserves_existing_sockopt_marks_for_generated_link(t
     assert saved["outbounds"][0]["streamSettings"]["sockopt"]["mark"] == 255
     assert saved["outbounds"][1]["streamSettings"]["sockopt"]["mark"] == 255
     assert "streamSettings" not in saved["outbounds"][2]
+
+
+def test_api_set_outbounds_does_not_clone_single_link_for_multiple_routing_tags(tmp_path, monkeypatch):
+    configs_dir = tmp_path / "configs"
+    configs_dir.mkdir()
+    outbounds_path = configs_dir / "04_outbounds.json"
+    routing_path = configs_dir / "05_routing.json"
+    routing_path.write_text(
+        json.dumps(
+            {
+                "routing": {
+                    "rules": [
+                        {"type": "field", "outboundTag": "dns-out", "domain": ["geosite:category-ads-all"]},
+                        {"type": "field", "outboundTag": "bydpi_myNAS", "network": "tcp,udp"},
+                    ]
+                }
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(xray_configs_mod, "ROUTING_FILE", str(routing_path))
+    monkeypatch.setattr(
+        xray_configs_mod,
+        "resolve_xray_fragment_file",
+        lambda file_arg, *, kind, default_path: str(outbounds_path),
+    )
+
+    app = _make_app()
+    with app.test_client() as client:
+        response = client.post("/api/outbounds", json={"url": _hy2_url(), "restart": False})
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["ok"] is True
+
+    saved = json.loads(outbounds_path.read_text(encoding="utf-8"))
+    assert [item["tag"] for item in saved["outbounds"]] == ["proxy", "direct", "block"]
+    assert saved["outbounds"][0]["protocol"] == "hysteria"
