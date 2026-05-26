@@ -329,7 +329,9 @@
     const raw = rawEditor(target);
     const bar = raw && raw._xkeenToolbarEl ? raw._xkeenToolbarEl : null;
     if (!bar || !bar.classList) return false;
-    try { bar.classList.toggle('is-fullscreen', isFullscreen(raw)); } catch (e) {}
+    const active = isFullscreen(raw);
+    try { bar.classList.toggle('is-fullscreen', active); } catch (e) {}
+    try { portalToolbarForFullscreen(bar, active); } catch (e) {}
     return true;
   }
 
@@ -345,6 +347,48 @@
         btn.classList.toggle('is-disabled', !!ro);
       });
     } catch (e) {}
+    return true;
+  }
+
+  function portalToolbarForFullscreen(toolbar, active, fallbackParent) {
+    if (!toolbar || !toolbar.nodeType || !document || !document.body) return false;
+    const st = toolbar.__xkeenFullscreenPortal || (toolbar.__xkeenFullscreenPortal = {
+      active: false,
+      parent: null,
+      next: null,
+    });
+    const next = !!active;
+
+    if (next) {
+      if (st.active) return true;
+      st.parent = toolbar.parentNode || null;
+      st.next = toolbar.nextSibling || null;
+      try {
+        document.body.appendChild(toolbar);
+        st.active = true;
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    if (!st.active) return false;
+
+    const savedParent = st.parent && document.body.contains(st.parent) ? st.parent : null;
+    const fallback = fallbackParent && document.body.contains(fallbackParent) ? fallbackParent : null;
+    const parent = savedParent || fallback;
+    try {
+      if (parent) {
+        const before = st.next && st.next.parentNode === parent ? st.next : null;
+        parent.insertBefore(toolbar, before);
+      }
+    } catch (e) {
+      try { if (parent) parent.appendChild(toolbar); } catch (e2) {}
+    }
+
+    st.active = false;
+    st.parent = null;
+    st.next = null;
     return true;
   }
 
@@ -646,6 +690,7 @@
     detachToolbar,
     syncToolbarFullscreen,
     syncToolbarReadonly,
+    portalToolbarForFullscreen,
     isFullscreen,
     setFullscreen,
     toggleFullscreen,
@@ -656,4 +701,5 @@
   };
 
   XKeen.ui.editorActions = api;
+  window.xkeenPortalEditorToolbarForFullscreen = portalToolbarForFullscreen;
 })();

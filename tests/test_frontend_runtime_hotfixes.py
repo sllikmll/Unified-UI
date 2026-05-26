@@ -1633,6 +1633,43 @@ def test_panel_mobile_third_wave_switches_file_manager_to_touch_first_rows_and_s
     assert 'body.panel-page .fm-footer-actions {' in styles
 
 
+def test_editor_fullscreen_toolbars_are_pinned_above_fullscreen_editors():
+    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    actions = Path('xkeen-ui/static/js/ui/editor_actions.js').read_text(encoding='utf-8')
+    routing = Path('xkeen-ui/static/js/features/routing.js').read_text(encoding='utf-8')
+
+    block = styles.split('.xkeen-cm-toolbar.is-fullscreen {', 1)[1].split('\n}', 1)[0]
+    assert 'position: fixed !important;' in block
+    assert 'top: 10px !important;' in block
+    assert 'right: 10px !important;' in block
+    assert 'z-index: 2147483000 !important;' in block
+    assert 'pointer-events: auto;' in block
+
+    assert 'function portalToolbarForFullscreen(toolbar, active, fallbackParent)' in actions
+    assert 'document.body.appendChild(toolbar);' in actions
+    assert 'window.xkeenPortalEditorToolbarForFullscreen = portalToolbarForFullscreen;' in actions
+    assert 'portalToolbarForFullscreen(bar, active);' in actions
+
+    assert "&& !(bar.__xkeenFullscreenPortal && bar.__xkeenFullscreenPortal.active)" in routing
+    sync_body = routing.split('function _syncToolbarFsClass(isFs) {', 1)[1].split('\n  function isMonacoFullscreen', 1)[0]
+    assert "const cmToolbarFullscreen = !!isFs && _engine !== 'monaco';" in sync_body
+    assert "_cm._xkeenToolbarEl.classList.toggle('is-fullscreen', cmToolbarFullscreen);" in sync_body
+    assert "if (!_routingMonacoToolbarEl && _engine === 'monaco') ensureRoutingMonacoToolbar();" in sync_body
+    assert "const monacoToolbarFullscreen = !!isFs && _engine === 'monaco';" in sync_body
+    assert 'window.xkeenPortalEditorToolbarForFullscreen(' in sync_body
+    assert "document.getElementById('routing-toolbar-host')" in sync_body
+    assert "_routingMonacoToolbarEl.classList.toggle('is-fullscreen', monacoToolbarFullscreen);" in sync_body
+    assert "if (monacoToolbarFullscreen) _routingMonacoToolbarEl.style.display = '';" in sync_body
+
+    for path in (
+        'xkeen-ui/static/js/ui/codemirror6_boot.js',
+        'xkeen-ui/static/js/features/mihomo_panel.js',
+        'xkeen-ui/static/js/features/mihomo_generator.js',
+        'xkeen-ui/static/js/features/file_manager/editor.js',
+    ):
+        assert 'xkeenPortalEditorToolbarForFullscreen' in Path(path).read_text(encoding='utf-8')
+
+
 def test_routing_template_modals_stretch_preview_and_edit_editors_with_modal_resize():
     styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
     script = Path('xkeen-ui/static/js/features/routing_templates.js').read_text(encoding='utf-8')

@@ -1455,7 +1455,14 @@ function setBridgeFullscreen(bridge, enabled) {
 
   ctx.options.fullScreen = next;
   ctx.emitter.emit('fullscreen', { active: next });
-  try { if (bridge._xkeenToolbarEl) bridge._xkeenToolbarEl.classList.toggle('is-fullscreen', next); } catch (e) {}
+  try {
+    if (bridge._xkeenToolbarEl) {
+      if (typeof window.xkeenPortalEditorToolbarForFullscreen === 'function') {
+        window.xkeenPortalEditorToolbarForFullscreen(bridge._xkeenToolbarEl, next);
+      }
+      bridge._xkeenToolbarEl.classList.toggle('is-fullscreen', next);
+    }
+  } catch (e) {}
   try { bridge.layout(); } catch (e) {}
   return true;
 }

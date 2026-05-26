@@ -5055,7 +5055,9 @@ function closeHelp() {
         _routingMonacoToolbarEl = bar;
       }
 
-      if (!host.contains(bar)) host.appendChild(bar);
+      if (!host.contains(bar) && !(bar.__xkeenFullscreenPortal && bar.__xkeenFullscreenPortal.active)) {
+        host.appendChild(bar);
+      }
       bar.style.display = (_engine === 'monaco') ? '' : 'none';
       return bar;
     } catch (e) {}
@@ -5128,7 +5130,25 @@ function closeHelp() {
   function _syncToolbarFsClass(isFs) {
     try {
       if (_cm && _cm._xkeenToolbarEl) {
-        _cm._xkeenToolbarEl.classList.toggle('is-fullscreen', !!isFs);
+        const cmToolbarFullscreen = !!isFs && _engine !== 'monaco';
+        _cm._xkeenToolbarEl.classList.toggle('is-fullscreen', cmToolbarFullscreen);
+      }
+    } catch (e) {}
+    try {
+      if (!_routingMonacoToolbarEl && _engine === 'monaco') ensureRoutingMonacoToolbar();
+      if (_routingMonacoToolbarEl) {
+        const monacoToolbarFullscreen = !!isFs && _engine === 'monaco';
+        try {
+          if (typeof window.xkeenPortalEditorToolbarForFullscreen === 'function') {
+            window.xkeenPortalEditorToolbarForFullscreen(
+              _routingMonacoToolbarEl,
+              monacoToolbarFullscreen,
+              document.getElementById('routing-toolbar-host'),
+            );
+          }
+        } catch (e2) {}
+        _routingMonacoToolbarEl.classList.toggle('is-fullscreen', monacoToolbarFullscreen);
+        if (monacoToolbarFullscreen) _routingMonacoToolbarEl.style.display = '';
       }
     } catch (e) {}
   }

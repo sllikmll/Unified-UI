@@ -425,7 +425,16 @@ function showMonaco(show) {
 
 function _syncToolbarFsClass(isFs) {
   try {
-    if (editor && editor._xkeenToolbarEl) editor._xkeenToolbarEl.classList.toggle('is-fullscreen', !!isFs);
+    if (editor && editor._xkeenToolbarEl) {
+      if (typeof window.xkeenPortalEditorToolbarForFullscreen === 'function') {
+        window.xkeenPortalEditorToolbarForFullscreen(
+          editor._xkeenToolbarEl,
+          !!isFs,
+          document.getElementById('previewToolbarHost'),
+        );
+      }
+      editor._xkeenToolbarEl.classList.toggle('is-fullscreen', !!isFs);
+    }
   } catch (e) {}
 }
 
@@ -749,7 +758,9 @@ function initEngineToggle() {
           try {
             const host = document.getElementById('previewToolbarHost');
             if (host && editor && editor._xkeenToolbarEl) {
-              host.appendChild(editor._xkeenToolbarEl);
+              if (!(editor._xkeenToolbarEl.__xkeenFullscreenPortal && editor._xkeenToolbarEl.__xkeenFullscreenPortal.active)) {
+                host.appendChild(editor._xkeenToolbarEl);
+              }
             }
           } catch (e) {
             // ignore

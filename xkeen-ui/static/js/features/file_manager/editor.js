@@ -621,12 +621,26 @@ import {
   function _syncToolbarFsClass(isFs) {
     try {
       const cm = STATE.cm;
-      if (cm && cm._xkeenToolbarEl) cm._xkeenToolbarEl.classList.toggle('is-fullscreen', !!isFs);
+      if (cm && cm._xkeenToolbarEl) {
+        if (typeof window.xkeenPortalEditorToolbarForFullscreen === 'function') {
+          window.xkeenPortalEditorToolbarForFullscreen(cm._xkeenToolbarEl, !!isFs);
+        }
+        cm._xkeenToolbarEl.classList.toggle('is-fullscreen', !!isFs);
+      }
     } catch (e) {}
 
     // Header fullscreen button (Monaco mode) must stay visible too.
     try {
-      if (STATE.fsHeaderBar) STATE.fsHeaderBar.classList.toggle('is-fullscreen', !!isFs);
+      if (STATE.fsHeaderBar) {
+        if (typeof window.xkeenPortalEditorToolbarForFullscreen === 'function') {
+          window.xkeenPortalEditorToolbarForFullscreen(
+            STATE.fsHeaderBar,
+            !!isFs,
+            el('fm-editor-engine'),
+          );
+        }
+        STATE.fsHeaderBar.classList.toggle('is-fullscreen', !!isFs);
+      }
     } catch (e) {}
   }
 

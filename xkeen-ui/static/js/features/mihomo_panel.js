@@ -627,7 +627,9 @@ let mihomoPanelModuleApi = null;
       // This keeps the layout tight (no extra vertical gaps) and matches Routing Xray UX.
       const hostSlot = document.getElementById('mihomo-toolbar-host');
       if (hostSlot) {
-        if (!hostSlot.contains(bar)) hostSlot.appendChild(bar);
+        if (!hostSlot.contains(bar) && !(bar.__xkeenFullscreenPortal && bar.__xkeenFullscreenPortal.active)) {
+          hostSlot.appendChild(bar);
+        }
         try { bar.classList.add('xk-toolbar-in-host'); } catch (e) {}
         return;
       }
@@ -652,7 +654,16 @@ let mihomoPanelModuleApi = null;
   function _syncToolbarFsClass(isFs) {
     try {
       const cm = getSharedEditor();
-      if (cm && cm._xkeenToolbarEl) cm._xkeenToolbarEl.classList.toggle('is-fullscreen', !!isFs);
+      if (cm && cm._xkeenToolbarEl) {
+        if (typeof window.xkeenPortalEditorToolbarForFullscreen === 'function') {
+          window.xkeenPortalEditorToolbarForFullscreen(
+            cm._xkeenToolbarEl,
+            !!isFs,
+            document.getElementById('mihomo-toolbar-host'),
+          );
+        }
+        cm._xkeenToolbarEl.classList.toggle('is-fullscreen', !!isFs);
+      }
     } catch (e) {}
   }
 
