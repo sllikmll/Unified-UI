@@ -588,7 +588,10 @@
         </details>
       </div>
 
-      <input id="outbounds-url" type="text" placeholder="vless://... / trojan://... / vmess://... / ss://... / hy2://...">
+      <div class="outbounds-url-row">
+        <input id="outbounds-url" type="text" placeholder="vless://... / trojan://... / vmess://... / ss://... / hy2://...">
+        <button type="button" id="outbounds-entware-mark-btn" class="xk-entware-mark-toggle" aria-label="Entware mark 255" aria-pressed="false" title="Добавлять sockopt.mark=255 для проксирования Entware" data-tooltip="Добавлять sockopt.mark=255 для проксирования Entware.">↯</button>
+      </div>
 
       <!-- Parsed preview + validation (client-side) -->
       <div id="outbounds-parse-box" class="outbounds-parse-box" style="display:none;">
@@ -2708,6 +2711,7 @@ vless://...#mytag"></textarea>
 	              <div class="xk-pool-toolbar">
 	                <button type="button" id="outbounds-pool-add-btn" class="btn-secondary btn-compact xk-pool-action"><span class="xk-btn-inline-glyph" aria-hidden="true">＋</span><span>Добавить в список</span></button>
 	                <button type="button" id="outbounds-pool-clear-btn" class="btn-secondary btn-compact xk-pool-action"><span class="xk-btn-inline-glyph" aria-hidden="true">🧹</span><span>Очистить</span></button>
+	                <button type="button" id="outbounds-pool-entware-mark-btn" class="xk-entware-mark-toggle xk-entware-mark-toggle--pool" aria-label="Entware mark 255" aria-pressed="false" title="Добавлять sockopt.mark=255 для проксирования Entware" data-tooltip="Добавлять sockopt.mark=255 для всех proxy-outbound пула и direct.">↯</button>
 	              </div>
 
 	              <div class="xk-pool-note">

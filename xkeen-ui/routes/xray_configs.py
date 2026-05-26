@@ -55,6 +55,7 @@ from services.xray_outbounds import (
     build_proxy_outbound_from_link,
     build_proxy_url_from_config,
     collect_sockopt_mark_profile,
+    set_sockopt_mark,
 )
 from services.xray_subscriptions import (
     build_xray_outbounds_nodes,
@@ -69,6 +70,15 @@ from services.xray_outbounds_runtime import (
 
 
 from routes.common.errors import error_response, exception_response
+
+
+def _payload_sockopt_mark_255(payload: Any) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    for key in ("sockopt_mark_255", "sockoptMark255", "entware_mark", "entwareMark"):
+        if key in payload:
+            return bool(payload.get(key))
+    return False
 
 
 def create_xray_configs_blueprint(
@@ -1039,6 +1049,8 @@ def create_xray_configs_blueprint(
             cfg = payload.get("config")
             if not isinstance(cfg, dict):
                 return error_response("config must be object", 400, ok=False)
+            if _payload_sockopt_mark_255(payload):
+                set_sockopt_mark(cfg, 255)
         else:
             # Old: build config from URL
             url = (payload.get("url") or "").strip()
@@ -1052,6 +1064,8 @@ def create_xray_configs_blueprint(
                 )
                 mark_profile = collect_sockopt_mark_profile(previous_cfg)
                 apply_sockopt_mark_profile(cfg, mark_profile)
+                if _payload_sockopt_mark_255(payload):
+                    set_sockopt_mark(cfg, 255)
                 _drop_single_link_duplicate_service_outbounds(cfg, sel_path)
             except Exception:
                 return _xray_error(
@@ -1418,6 +1432,9 @@ def create_xray_configs_blueprint(
         else:
             final_obj = dict(base_obj) if isinstance(base_obj, dict) else {}
             final_obj["outbounds"] = merged
+
+        if _payload_sockopt_mark_255(payload):
+            set_sockopt_mark(final_obj, 255)
 
         # Save
         write_raw = bool(payload.get("write_raw", True))

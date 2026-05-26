@@ -647,6 +647,37 @@ def test_api_set_outbounds_preserves_existing_sockopt_marks_for_generated_link(t
     assert "streamSettings" not in saved["outbounds"][2]
 
 
+def test_api_set_outbounds_can_apply_entware_sockopt_mark_for_generated_link(tmp_path, monkeypatch):
+    configs_dir = tmp_path / "configs"
+    configs_dir.mkdir()
+    outbounds_path = configs_dir / "04_outbounds.json"
+    routing_path = configs_dir / "05_routing.json"
+    routing_path.write_text(json.dumps({"routing": {"rules": []}}, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    monkeypatch.setattr(xray_configs_mod, "ROUTING_FILE", str(routing_path))
+    monkeypatch.setattr(
+        xray_configs_mod,
+        "resolve_xray_fragment_file",
+        lambda file_arg, *, kind, default_path: str(outbounds_path),
+    )
+
+    app = _make_app()
+    with app.test_client() as client:
+        response = client.post(
+            "/api/outbounds",
+            json={"url": _vless_url(), "restart": False, "sockopt_mark_255": True},
+        )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["ok"] is True
+
+    saved = json.loads(outbounds_path.read_text(encoding="utf-8"))
+    assert saved["outbounds"][0]["streamSettings"]["sockopt"]["mark"] == 255
+    assert saved["outbounds"][1]["streamSettings"]["sockopt"]["mark"] == 255
+    assert "streamSettings" not in saved["outbounds"][2]
+
+
 def test_api_set_outbounds_does_not_clone_single_link_for_multiple_routing_tags(tmp_path, monkeypatch):
     configs_dir = tmp_path / "configs"
     configs_dir.mkdir()
@@ -740,3 +771,40 @@ def test_api_set_outbounds_creates_unique_single_tag_when_pool_fragment_exists(t
     assert json.loads(pool_path.read_text(encoding="utf-8")) == pool_payload
     assert json.loads(inbounds_path.read_text(encoding="utf-8")) == inbounds_payload
     assert json.loads(routing_path.read_text(encoding="utf-8")) == routing_payload
+
+
+def test_api_xray_outbounds_proxies_can_apply_entware_sockopt_mark(tmp_path, monkeypatch):
+    configs_dir = tmp_path / "configs"
+    jsonc_dir = tmp_path / "jsonc"
+    configs_dir.mkdir()
+    jsonc_dir.mkdir()
+    outbounds_path = configs_dir / "04_outbounds.json"
+
+    monkeypatch.setattr(xray_configs_mod, "ensure_xray_jsonc_dir", lambda: None)
+    monkeypatch.setattr(xray_configs_mod, "jsonc_path_for", lambda path: str(jsonc_dir / (Path(path).name + "c")))
+    monkeypatch.setattr(
+        xray_configs_mod,
+        "resolve_xray_fragment_file",
+        lambda file_arg, *, kind, default_path: str(outbounds_path),
+    )
+
+    app = _make_app()
+    with app.test_client() as client:
+        response = client.post(
+            "/api/xray/outbounds/proxies",
+            json={
+                "entries": [{"tag": "pool-one", "url": _vless_url()}],
+                "restart": False,
+                "sockopt_mark_255": True,
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["ok"] is True
+
+    saved = json.loads(outbounds_path.read_text(encoding="utf-8"))
+    assert [item["tag"] for item in saved["outbounds"]] == ["pool-one", "direct", "block"]
+    assert saved["outbounds"][0]["streamSettings"]["sockopt"]["mark"] == 255
+    assert saved["outbounds"][1]["streamSettings"]["sockopt"]["mark"] == 255
+    assert "streamSettings" not in saved["outbounds"][2]

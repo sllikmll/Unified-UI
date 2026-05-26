@@ -2529,6 +2529,13 @@ button[data-tooltip]:focus-visible::before {
   height: 16px;
 }
 
+.outbounds-url-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  gap: 8px;
+  align-items: center;
+}
+
 #outbounds-url {
   width: 100%;
   box-sizing: border-box;
@@ -2539,6 +2546,42 @@ button[data-tooltip]:focus-visible::before {
   padding: 8px 12px;
   font-size: calc(14px * var(--xk-font-scale));
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.xk-entware-mark-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 34px;
+  min-width: 38px;
+  padding: 0;
+  border-radius: 9999px;
+  border: 1px solid rgba(96, 165, 250, 0.32);
+  background: rgba(15, 23, 42, 0.72);
+  color: #bfdbfe;
+  font-size: calc(16px * var(--xk-font-scale));
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.xk-entware-mark-toggle:hover {
+  border-color: rgba(125, 211, 252, 0.64);
+  background: rgba(30, 41, 59, 0.88);
+  color: #e0f2fe;
+}
+
+.xk-entware-mark-toggle.is-active {
+  border-color: rgba(45, 212, 191, 0.72);
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.78), rgba(37, 99, 235, 0.70));
+  color: #f8fafc;
+  box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.16), 0 8px 18px rgba(14, 165, 233, 0.14);
+}
+
+.xk-entware-mark-toggle--pool,
+.xk-entware-mark-toggle--sub {
+  flex: 0 0 38px;
 }
 
 #outbounds-url:focus {
@@ -2657,6 +2700,7 @@ button[data-tooltip]:focus-visible::before {
 }
 
 #outbounds-body.xk-outbounds-summary-fragment .outbounds-hints,
+#outbounds-body.xk-outbounds-summary-fragment .outbounds-url-row,
 #outbounds-body.xk-outbounds-summary-fragment #outbounds-url,
 #outbounds-body.xk-outbounds-summary-fragment #outbounds-parse-box,
 #outbounds-body.xk-outbounds-summary-fragment #outbounds-normalize-btn,
@@ -14497,6 +14541,24 @@ html[data-theme="light"] #outbounds-url {
   background: #ffffff;
   color: #111827;
   border-color: #d1d5db;
+}
+
+html[data-theme="light"] .xk-entware-mark-toggle {
+  background: #f8fafc;
+  color: #1d4ed8;
+  border-color: rgba(59, 130, 246, 0.28);
+}
+
+html[data-theme="light"] .xk-entware-mark-toggle:hover {
+  background: #eff6ff;
+  border-color: rgba(37, 99, 235, 0.48);
+  color: #1e40af;
+}
+
+html[data-theme="light"] .xk-entware-mark-toggle.is-active {
+  background: linear-gradient(135deg, #0f766e, #2563eb);
+  color: #ffffff;
+  border-color: rgba(13, 148, 136, 0.60);
 }
 
 html[data-theme="light"] .outbounds-parse-box {

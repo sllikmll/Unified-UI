@@ -17,6 +17,7 @@ def test_xray_subscription_form_exposes_regex_filters_and_payload_fields():
     assert "typeFilter: 'outbounds-subscriptions-type-filter'" in outbounds_src
     assert "routingMode: 'outbounds-subscriptions-routing-mode'" in outbounds_src
     assert "routingAutoRule: 'outbounds-subscriptions-routing-auto-rule'" in outbounds_src
+    assert "sockoptMark: 'outbounds-subscriptions-entware-mark-btn'" in outbounds_src
     assert "routingBalancers: 'outbounds-subscriptions-routing-balancers'" in outbounds_src
     assert '<span class="xk-pool-fieldlabel">Имя</span>' in outbounds_src
     assert '<span class="xk-pool-fieldlabel">Тип</span>' in outbounds_src
@@ -38,6 +39,8 @@ def test_xray_subscription_form_exposes_regex_filters_and_payload_fields():
     assert "type_filter: String(($(SUB_IDS.typeFilter) && $(SUB_IDS.typeFilter).value) || '').trim()," in outbounds_src
     assert "routing_mode: String(($(SUB_IDS.routingMode) && $(SUB_IDS.routingMode).value) || 'safe-fallback').trim() || 'safe-fallback'," in outbounds_src
     assert "routing_auto_rule: !!($(SUB_IDS.routingAutoRule) && $(SUB_IDS.routingAutoRule).checked)," in outbounds_src
+    assert "sockopt_mark_255: isEntwareMarkEnabled(SUB_IDS.sockoptMark)," in outbounds_src
+    assert "sockopt_mark_255: !!state.sockopt_mark_255," in outbounds_src
     assert "routing_balancer_tags: subsSelectedBalancerTags()," in outbounds_src
     assert "let _subscriptionRoutingMeta = Object.create(null);" in outbounds_src
     assert "function subsRoutingMetaText(key) {" in outbounds_src
@@ -46,6 +49,21 @@ def test_xray_subscription_form_exposes_regex_filters_and_payload_fields():
     assert "function subsApplySubscriptionCopy(formState) {" in outbounds_src
     assert "function subsFilterSummary(sub) {" in outbounds_src
     assert "data.filtered_out_count" in outbounds_src
+
+
+def test_outbounds_entware_mark_controls_are_wired_to_payloads():
+    template_src = _read("xkeen-ui/templates/panel.html")
+    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
+    styles_src = _read("xkeen-ui/static/styles.css")
+
+    assert 'id="outbounds-entware-mark-btn"' in template_src
+    assert 'id="outbounds-pool-entware-mark-btn"' in template_src
+    assert 'id="outbounds-subscriptions-entware-mark-btn"' in outbounds_src
+    assert "const ENTWARE_MARK_IDS = {" in outbounds_src
+    assert "function wireEntwareMarkButton(id, onChange) {" in outbounds_src
+    assert "sockopt_mark_255: isEntwareMarkEnabled(ENTWARE_MARK_IDS.single)," in outbounds_src
+    assert "sockopt_mark_255: isEntwareMarkEnabled(POOL_IDS.entwareMark)," in outbounds_src
+    assert ".xk-entware-mark-toggle" in styles_src
 
 
 def test_outbounds_proxy_pool_uses_fragment_summary_without_hiding_pool_button():

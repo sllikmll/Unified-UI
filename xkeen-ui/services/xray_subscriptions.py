@@ -34,6 +34,7 @@ from services.xray_outbounds import (
     apply_sockopt_mark_profile,
     build_proxy_outbound_from_link,
     collect_sockopt_mark_profile,
+    set_sockopt_mark,
 )
 from utils.fs import load_text
 
@@ -103,6 +104,7 @@ TRANSPORT_FILTER_KEYS = ("transport_filter", "transportFilter", "transport_regex
 EXCLUDED_NODE_KEYS_KEYS = ("excluded_node_keys", "excludedNodeKeys", "exclude_node_keys", "excludeNodeKeys")
 ROUTING_BALANCER_TAGS_KEYS = ("routing_balancer_tags", "routingBalancerTags")
 ROUTING_AUTO_RULE_KEYS = ("routing_auto_rule", "routingAutoRule")
+SOCKOPT_MARK_255_KEYS = ("sockopt_mark_255", "sockoptMark255", "entware_mark", "entwareMark")
 LAST_NODES_KEYS = ("last_nodes", "lastNodes")
 NODE_LATENCY_KEYS = ("node_latency", "nodeLatency")
 LAST_WARNINGS_KEYS = ("last_warnings", "lastWarnings")
@@ -673,6 +675,7 @@ def _normalize_state(obj: Any) -> Dict[str, Any]:
         ping_enabled = bool(item.get("ping_enabled", item.get("pingEnabled", True)))
         routing_balancer_tags = _read_string_list_value(item, ROUTING_BALANCER_TAGS_KEYS)
         routing_auto_rule = _read_bool_value(item, ROUTING_AUTO_RULE_KEYS, True)
+        sockopt_mark_255 = _read_bool_value(item, SOCKOPT_MARK_255_KEYS, False)
         runtime_active_default = bool(ping_enabled or routing_auto_rule or routing_balancer_tags)
         last_nodes = _normalize_last_nodes(
             item.get("last_nodes") if "last_nodes" in item else item.get("lastNodes")
@@ -694,6 +697,7 @@ def _normalize_state(obj: Any) -> Dict[str, Any]:
             + EXCLUDED_NODE_KEYS_KEYS[1:]
             + ROUTING_BALANCER_TAGS_KEYS[1:]
             + ROUTING_AUTO_RULE_KEYS[1:]
+            + SOCKOPT_MARK_255_KEYS[1:]
             + LAST_WARNINGS_KEYS[1:]
             + LAST_NODES_KEYS[1:]
             + NODE_LATENCY_KEYS[1:]
@@ -720,6 +724,7 @@ def _normalize_state(obj: Any) -> Dict[str, Any]:
                 "routing_mode": _clean_routing_mode(item.get("routing_mode", item.get("routingMode"))),
                 "routing_balancer_tags": routing_balancer_tags,
                 "routing_auto_rule": routing_auto_rule,
+                "sockopt_mark_255": sockopt_mark_255,
                 "interval_hours": interval,
                 "output_file": output_file,
                 "last_warnings": last_warnings,
@@ -823,6 +828,11 @@ def upsert_subscription(ui_state_dir: str, payload: Dict[str, Any]) -> Dict[str,
             ROUTING_AUTO_RULE_KEYS,
             _read_bool_value(base, ROUTING_AUTO_RULE_KEYS, True),
         )
+        sockopt_mark_255 = _read_bool_value(
+            data,
+            SOCKOPT_MARK_255_KEYS,
+            _read_bool_value(base, SOCKOPT_MARK_255_KEYS, False),
+        )
         _compile_regex_filter(name_filter, "фильтра имени")
         _compile_regex_filter(type_filter, "фильтра типа")
         _compile_regex_filter(transport_filter, "фильтра транспорта")
@@ -836,6 +846,7 @@ def upsert_subscription(ui_state_dir: str, payload: Dict[str, Any]) -> Dict[str,
             + EXCLUDED_NODE_KEYS_KEYS[1:]
             + ROUTING_BALANCER_TAGS_KEYS[1:]
             + ROUTING_AUTO_RULE_KEYS[1:]
+            + SOCKOPT_MARK_255_KEYS[1:]
             + LAST_WARNINGS_KEYS[1:]
             + LAST_NODES_KEYS[1:]
             + NODE_LATENCY_KEYS[1:]
@@ -862,6 +873,7 @@ def upsert_subscription(ui_state_dir: str, payload: Dict[str, Any]) -> Dict[str,
                 "routing_mode": routing_mode,
                 "routing_balancer_tags": routing_balancer_tags,
                 "routing_auto_rule": routing_auto_rule,
+                "sockopt_mark_255": sockopt_mark_255,
                 "interval_hours": interval,
                 "output_file": output_file,
                 "node_latency": _prune_node_latency_map(base.get("node_latency"), _normalize_last_nodes(base.get("last_nodes"))),
@@ -4138,10 +4150,15 @@ def refresh_subscription(
                 if not outbounds:
                     raise RuntimeError("no_valid_outbounds")
 
-        mark_profile = _load_outbounds_sockopt_mark_profile(xray_configs_dir)
-        apply_sockopt_mark_profile(outbounds, mark_profile)
+        if bool(sub.get("sockopt_mark_255")):
+            set_sockopt_mark(outbounds, 255)
+        else:
+            mark_profile = _load_outbounds_sockopt_mark_profile(xray_configs_dir)
+            apply_sockopt_mark_profile(outbounds, mark_profile)
         generated_baselines = _subscription_generated_baselines(outbounds, preview_nodes)
         outbounds, manual_edits_preserved = _apply_subscription_manual_overrides(outbounds, preview_nodes, manual_overrides)
+        if bool(sub.get("sockopt_mark_255")):
+            set_sockopt_mark(outbounds, 255)
         tags = [str(ob.get("tag") or "").strip() for ob in outbounds if isinstance(ob, dict) and ob.get("tag")]
         output_obj = {"outbounds": outbounds}
         changed = _write_subscription_output_if_changed(output_path, output_obj, snapshot=snapshot)

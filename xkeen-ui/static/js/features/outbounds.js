@@ -66,8 +66,47 @@ let outboundsModuleApi = null;
       empty: 'outbounds-nodes-empty',
     };
 
+    const ENTWARE_MARK_IDS = {
+      single: 'outbounds-entware-mark-btn',
+      pool: 'outbounds-pool-entware-mark-btn',
+      subscription: 'outbounds-subscriptions-entware-mark-btn',
+    };
+
     function $(id) {
       return document.getElementById(id);
+    }
+
+    function setEntwareMarkButton(id, enabled) {
+      const btn = $(id);
+      if (!btn) return;
+      const on = !!enabled;
+      try { btn.classList.toggle('is-active', on); } catch (e) {}
+      try { btn.setAttribute('aria-pressed', on ? 'true' : 'false'); } catch (e) {}
+    }
+
+    function isEntwareMarkEnabled(id) {
+      const btn = $(id);
+      if (!btn) return false;
+      try {
+        return String(btn.getAttribute('aria-pressed') || '').toLowerCase() === 'true'
+          || btn.classList.contains('is-active');
+      } catch (e) {}
+      return false;
+    }
+
+    function wireEntwareMarkButton(id, onChange) {
+      const btn = $(id);
+      if (!btn) return;
+      if (btn.dataset && btn.dataset.xkEntwareMarkWired === '1') return;
+      btn.addEventListener('click', () => {
+        const next = !isEntwareMarkEnabled(id);
+        setEntwareMarkButton(id, next);
+        try {
+          if (typeof onChange === 'function') onChange(next);
+        } catch (e) {}
+      });
+      if (btn.dataset) btn.dataset.xkEntwareMarkWired = '1';
+      setEntwareMarkButton(id, isEntwareMarkEnabled(id));
     }
 
     function getConfigShellApi() {
@@ -2407,7 +2446,11 @@ let outboundsModuleApi = null;
           const res = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, restart }),
+            body: JSON.stringify({
+              url,
+              restart,
+              sockopt_mark_255: isEntwareMarkEnabled(ENTWARE_MARK_IDS.single),
+            }),
           });
           const data = await res.json().catch(() => ({}));
 
@@ -3477,6 +3520,7 @@ let outboundsModuleApi = null;
       input: 'outbounds-pool-input',
       add: 'outbounds-pool-add-btn',
       clear: 'outbounds-pool-clear-btn',
+      entwareMark: 'outbounds-pool-entware-mark-btn',
       tbody: 'outbounds-pool-tbody',
       save: 'outbounds-pool-save-btn',
       replace: 'outbounds-pool-replace',
@@ -3787,6 +3831,7 @@ let outboundsModuleApi = null;
             restart,
             replace_pool: replacePool,
             write_raw: true,
+            sockopt_mark_255: isEntwareMarkEnabled(POOL_IDS.entwareMark),
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -3865,6 +3910,7 @@ let outboundsModuleApi = null;
       wireButton(POOL_IDS.clear, () => {
         poolResetDraft();
       });
+      wireEntwareMarkButton(POOL_IDS.entwareMark);
 
       wireButton(POOL_IDS.add, () => {
         const input = $(POOL_IDS.input);
@@ -3947,6 +3993,7 @@ let outboundsModuleApi = null;
       transportFilterNote: 'outbounds-subscriptions-transport-filter-note',
       routingMode: 'outbounds-subscriptions-routing-mode',
       routingAutoRule: 'outbounds-subscriptions-routing-auto-rule',
+      sockoptMark: 'outbounds-subscriptions-entware-mark-btn',
       routingBalancers: 'outbounds-subscriptions-routing-balancers',
       routingBalancersNote: 'outbounds-subscriptions-routing-balancers-note',
       excludedKeys: 'outbounds-subscriptions-excluded-keys',
@@ -4448,6 +4495,7 @@ let outboundsModuleApi = null;
         transport_filter: String(($(SUB_IDS.transportFilter) && $(SUB_IDS.transportFilter).value) || '').trim(),
         routing_mode: String(($(SUB_IDS.routingMode) && $(SUB_IDS.routingMode).value) || 'safe-fallback').trim() || 'safe-fallback',
         routing_auto_rule: !!($(SUB_IDS.routingAutoRule) && $(SUB_IDS.routingAutoRule).checked),
+        sockopt_mark_255: isEntwareMarkEnabled(SUB_IDS.sockoptMark),
         routing_balancer_tags: subsSelectedBalancerTags(),
         excluded_node_keys: subsGetExcludedKeysValue().slice().sort(),
         interval_raw: String(($(SUB_IDS.interval) && $(SUB_IDS.interval).value) || '').trim(),
@@ -4495,6 +4543,7 @@ let outboundsModuleApi = null;
         transport_filter: String(state.transport_filter || '').trim(),
         routing_mode: String(state.routing_mode || 'safe-fallback').trim() || 'safe-fallback',
         routing_auto_rule: !!state.routing_auto_rule,
+        sockopt_mark_255: !!state.sockopt_mark_255,
         routing_balancer_tags: subsNormalizeBalancerTags(state.routing_balancer_tags),
         excluded_node_keys: (Array.isArray(state.excluded_node_keys) ? state.excluded_node_keys : []).map((item) => String(item || '').trim()).filter(Boolean).sort(),
         interval_raw: String(state.interval_raw || '').trim(),
@@ -4862,6 +4911,7 @@ let outboundsModuleApi = null;
       try { $(SUB_IDS.ping).checked = baseline ? !!baseline.ping_enabled : true; } catch (e) {}
       try { $(SUB_IDS.routingMode).value = String((baseline && baseline.routing_mode) || 'safe-fallback') || 'safe-fallback'; } catch (e) {}
       try { $(SUB_IDS.routingAutoRule).checked = baseline ? baseline.routing_auto_rule !== false : subsSuggestedAutoRuleDefault(); } catch (e) {}
+      try { setEntwareMarkButton(SUB_IDS.sockoptMark, baseline ? !!baseline.sockopt_mark_255 : false); } catch (e) {}
       try { subsRenderRoutingBalancers(baseline && baseline.routing_balancer_tags); } catch (e) {}
       try { subsSetSelectedBalancerTags(baseline && baseline.routing_balancer_tags); } catch (e) {}
       try { $(SUB_IDS.refreshNow).checked = refreshNow; } catch (e) {}
@@ -4885,6 +4935,7 @@ let outboundsModuleApi = null;
         transport_filter: state.transport_filter,
         routing_mode: state.routing_mode,
         routing_auto_rule: !!state.routing_auto_rule,
+        sockopt_mark_255: !!state.sockopt_mark_255,
         routing_balancer_tags: state.routing_balancer_tags.slice(),
         excluded_node_keys: state.excluded_node_keys.slice(),
         interval_hours: Number(state.interval_raw || SUB_DEFAULT_INTERVAL_HOURS),
@@ -5028,8 +5079,9 @@ let outboundsModuleApi = null;
                       <label class="xk-sub-check" data-tooltip="После сохранения сразу скачать подписку и создать фрагмент."><input id="outbounds-subscriptions-refresh-now" type="checkbox" checked title="Обновить сразу" data-tooltip="Сразу скачать подписку после сохранения."><span>Обновить сразу</span></label>
                       <label class="xk-sub-check xk-sub-auto-rule-check" data-tooltip="Добавлять tag prefix этой подписки в общий auto-managed leastPing pool и держать служебное правило xk_auto_leastPing. Выключи, если подписка должна работать только через выбранные ниже balancer-ы.">
                         <input id="outbounds-subscriptions-routing-auto-rule" type="checkbox" checked title="Общий leastPing pool" data-tooltip="Добавлять tag prefix этой подписки в общий auto-managed leastPing pool.">
-                        <span>Общий pool</span>
+                        <span>Служебный пул</span>
                       </label>
+                      <button type="button" id="outbounds-subscriptions-entware-mark-btn" class="xk-entware-mark-toggle xk-entware-mark-toggle--sub" aria-label="Entware mark 255" aria-pressed="false" title="Добавлять sockopt.mark=255 для проксирования Entware" data-tooltip="Добавлять sockopt.mark=255 во все generated proxy-outbound подписки.">↯</button>
                       <label class="xk-sub-routing-mode" for="outbounds-subscriptions-routing-mode" data-tooltip="Как панель должна подвязывать подписку к маршрутизации. Безопасно сохраняет vless-reality рядом с подпиской. Жёстко переводит совместимые auto-правила на общий balancerTag пула. Только подписка ведёт служебный pool только через generated nodes и не требует одиночный outbound в 04_outbounds.json.">
                         <span class="xk-sub-inline-label">Применение</span>
                         <select id="outbounds-subscriptions-routing-mode" class="xray-log-filter" title="Режим маршрутизации подписки" data-tooltip="Безопасно: leastPing-balancer и fallback синхронизируются, а vless-reality остаётся. Жёстко: auto-правила на vless-reality переезжают в balancerTag пула. Только подписка: служебный pool работает только через generated nodes; одиночный outbound в 04_outbounds.json не нужен.">
@@ -5856,6 +5908,7 @@ let outboundsModuleApi = null;
       try { $(SUB_IDS.ping).checked = true; } catch (e) {}
       try { $(SUB_IDS.routingMode).value = 'safe-fallback'; } catch (e) {}
       try { $(SUB_IDS.routingAutoRule).checked = subsSuggestedAutoRuleDefault(); } catch (e) {}
+      try { setEntwareMarkButton(SUB_IDS.sockoptMark, false); } catch (e) {}
       try { subsRenderRoutingBalancers([]); } catch (e) {}
       try { subsSetSelectedBalancerTags([]); } catch (e) {}
       try { $(SUB_IDS.refreshNow).checked = true; } catch (e) {}
@@ -5890,6 +5943,7 @@ let outboundsModuleApi = null;
       try { $(SUB_IDS.ping).checked = s.ping_enabled !== false; } catch (e) {}
       try { $(SUB_IDS.routingMode).value = String(s.routing_mode || 'safe-fallback') || 'safe-fallback'; } catch (e) {}
       try { $(SUB_IDS.routingAutoRule).checked = s.routing_auto_rule !== false; } catch (e) {}
+      try { setEntwareMarkButton(SUB_IDS.sockoptMark, !!s.sockopt_mark_255); } catch (e) {}
       try { subsRenderRoutingBalancers(s.routing_balancer_tags); } catch (e) {}
       try { subsSetSelectedBalancerTags(s.routing_balancer_tags); } catch (e) {}
       try { $(SUB_IDS.refreshNow).checked = opts.keepRefreshNow === true ? !!($(SUB_IDS.refreshNow) && $(SUB_IDS.refreshNow).checked) : false; } catch (e) {}
@@ -7039,6 +7093,9 @@ let outboundsModuleApi = null;
         _subscriptionShowHidden = !_subscriptionShowHidden;
         try { subsRenderNodeList(); } catch (e) {}
       });
+      wireEntwareMarkButton(SUB_IDS.sockoptMark, () => {
+        try { subsSyncSubscriptionFormState(); } catch (e) {}
+      });
 
       const form = $(SUB_IDS.form);
       if (form) {
@@ -7210,6 +7267,9 @@ let outboundsModuleApi = null;
 
       // Initial load
       wireHints();
+      wireEntwareMarkButton(ENTWARE_MARK_IDS.single, () => {
+        try { syncDirtyState(); } catch (e) {}
+      });
       wireGeneratorModal();
       wirePoolModal();
       wireSubscriptionsModal();

@@ -413,6 +413,50 @@ def test_subscription_refresh_and_delete_preserve_outbounds_sockopt_marks(tmp_pa
     assert restored_base["outbounds"][1]["streamSettings"]["sockopt"]["mark"] == 255
 
 
+def test_subscription_refresh_can_apply_entware_sockopt_mark(tmp_path: Path, monkeypatch):
+    from services import xray_subscriptions as subs
+
+    ui_state_dir = tmp_path / "state"
+    xray_dir = tmp_path / "xray" / "configs"
+    jsonc_dir = tmp_path / "jsonc"
+    ui_state_dir.mkdir()
+    xray_dir.mkdir(parents=True)
+    jsonc_dir.mkdir()
+
+    monkeypatch.setattr(subs, "jsonc_path_for", lambda path: str(jsonc_dir / (Path(path).name + "c")))
+    monkeypatch.setattr(subs, "ensure_xray_jsonc_dir", lambda: None)
+    monkeypatch.setattr(subs, "fetch_subscription_body", lambda _url: (_vless_reality("Alpha"), {}))
+
+    saved = subs.upsert_subscription(
+        str(ui_state_dir),
+        {
+            "id": "entware-sub",
+            "name": "Entware Sub",
+            "tag": "demo",
+            "url": "https://example.com/sub",
+            "enabled": True,
+            "ping_enabled": False,
+            "sockopt_mark_255": True,
+        },
+    )
+
+    assert saved["sockopt_mark_255"] is True
+
+    refreshed = subs.refresh_subscription(
+        str(ui_state_dir),
+        "entware-sub",
+        xray_configs_dir=str(xray_dir),
+        snapshot=lambda _path: None,
+        restart_xkeen=lambda **_kwargs: True,
+        restart=False,
+    )
+
+    assert refreshed["ok"] is True
+    sub_path = xray_dir / "04_outbounds.entware-sub.json"
+    sub_config = json.loads(sub_path.read_text(encoding="utf-8"))
+    assert sub_config["outbounds"][0]["streamSettings"]["sockopt"]["mark"] == 255
+
+
 def test_refresh_subscription_turns_manual_node_deletion_into_saved_exclusion(tmp_path: Path, monkeypatch):
     from services import xray_subscriptions as subs
 

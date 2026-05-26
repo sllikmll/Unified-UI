@@ -30,6 +30,7 @@ PROXY_OUTBOUND_TAG = "proxy"
 # Мы добавляем его как алиас для совместимости.
 LEGACY_VLESS_TAG = "vless-reality"
 SOCKOPT_MARK_EXCLUDED_PROTOCOLS = {"blackhole", "dns"}
+ENTWARE_SOCKOPT_MARK = 255
 _MISSING_SOCKOPT_MARK = object()
 
 
@@ -126,6 +127,34 @@ def apply_sockopt_mark_profile(config: Any, profile: Dict[str, Any]) -> int:
             sockopt = {}
             stream["sockopt"] = sockopt
         sockopt["mark"] = mark
+        changed += 1
+    return changed
+
+
+def set_sockopt_mark(config: Any, mark: Any = ENTWARE_SOCKOPT_MARK, *, overwrite: bool = True) -> int:
+    """Set outbound sockopt.mark for Entware traffic proxying.
+
+    The mark belongs on every outbound that can actually carry traffic; blackhole
+    and dns are intentionally skipped.
+    """
+    changed = 0
+    for outbound in _config_outbounds_list(config):
+        if not _outbound_should_carry_sockopt_mark(outbound):
+            continue
+        current_mark = _outbound_sockopt_mark(outbound)
+        if current_mark is not _MISSING_SOCKOPT_MARK and not overwrite:
+            continue
+        if current_mark is not _MISSING_SOCKOPT_MARK and current_mark == mark:
+            continue
+        stream = outbound.get("streamSettings")
+        if not isinstance(stream, dict):
+            stream = {}
+            outbound["streamSettings"] = stream
+        sockopt = stream.get("sockopt")
+        if not isinstance(sockopt, dict):
+            sockopt = {}
+            stream["sockopt"] = sockopt
+        sockopt["mark"] = _clone_json_value(mark)
         changed += 1
     return changed
 
