@@ -53,6 +53,8 @@ let outboundsModuleApi = null;
       fragmentRefresh: 'outbounds-fragment-refresh-btn',
       fileCode: 'outbounds-file-code',
     };
+    const DEFAULT_SINGLE_OUTBOUNDS_FRAGMENT = '04_outbounds.json';
+    const CREATE_SINGLE_OUTBOUNDS_LABEL = DEFAULT_SINGLE_OUTBOUNDS_FRAGMENT + ' (\u0441\u043e\u0437\u0434\u0430\u0442\u044c \u043e\u0434\u0438\u043d\u043e\u0447\u043d\u044b\u0439)';
 
     const OUTBOUND_NODE_IDS = {
       panel: 'outbounds-nodes-panel',
@@ -144,6 +146,16 @@ let outboundsModuleApi = null;
       if (!value) return '';
       if (/_hys2\.json$/i.test(value)) return value + ' (Hysteria2)';
       return value;
+    }
+
+    function appendFragmentOption(selectEl, value, label, opts) {
+      if (!selectEl || !value) return null;
+      const opt = document.createElement('option');
+      opt.value = String(value);
+      opt.textContent = String(label || decorateFragmentName(value));
+      if (opts && opts.createSingle && opt.dataset) opt.dataset.createSingleOutbounds = '1';
+      selectEl.appendChild(opt);
+      return opt;
     }
 
     function applyActiveFragment(name, dir, items) {
@@ -1151,11 +1163,18 @@ let outboundsModuleApi = null;
       sel.innerHTML = '';
 
       const names = items.map((it) => String(it.name || '')).filter(Boolean);
+      const optionNames = names.slice();
       if (currentDefault && names.indexOf(currentDefault) === -1) {
         const opt = document.createElement('option');
         opt.value = currentDefault;
         opt.textContent = decorateFragmentName(currentDefault) + ' (текущий)';
         sel.appendChild(opt);
+      }
+
+      if (currentDefault && optionNames.indexOf(currentDefault) === -1) optionNames.push(currentDefault);
+      if (optionNames.indexOf(DEFAULT_SINGLE_OUTBOUNDS_FRAGMENT) === -1) {
+        appendFragmentOption(sel, DEFAULT_SINGLE_OUTBOUNDS_FRAGMENT, CREATE_SINGLE_OUTBOUNDS_LABEL, { createSingle: true });
+        optionNames.push(DEFAULT_SINGLE_OUTBOUNDS_FRAGMENT);
       }
 
       items.forEach((it) => {
@@ -1168,7 +1187,7 @@ let outboundsModuleApi = null;
       });
 
       try {
-        const finalChoice = names.indexOf(preferred) !== -1 ? preferred : (currentDefault || (names[0] || ''));
+        const finalChoice = optionNames.indexOf(preferred) !== -1 ? preferred : (currentDefault || (optionNames[0] || ''));
         if (finalChoice) sel.value = finalChoice;
         const dir = data.dir ? String(data.dir).replace(/\/+$/, '') : '';
         applyActiveFragment(sel.value || finalChoice || null, dir, items);
@@ -2396,6 +2415,7 @@ let outboundsModuleApi = null;
             let msg = 'Outbounds сохранены.';
             if (statusEl) statusEl.textContent = msg;
             _savedUrl = url;
+            try { await refreshFragmentsList({ notify: false }); } catch (e) {}
             try { syncDirtyState(false); } catch (e) {}
             publishLifecycleState({
               savedValue: String(_savedUrl || ''),

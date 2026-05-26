@@ -69,6 +69,17 @@ def test_outbounds_proxy_pool_uses_fragment_summary_without_hiding_pool_button()
     assert "#outbounds-body.xk-outbounds-summary-fragment #outbounds-pool-btn" not in styles_src
 
 
+def test_outbounds_fragment_selector_keeps_create_single_option_when_pool_is_active():
+    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
+
+    assert "const DEFAULT_SINGLE_OUTBOUNDS_FRAGMENT = '04_outbounds.json';" in outbounds_src
+    assert "const CREATE_SINGLE_OUTBOUNDS_LABEL = DEFAULT_SINGLE_OUTBOUNDS_FRAGMENT + ' (" in outbounds_src
+    assert "appendFragmentOption(sel, DEFAULT_SINGLE_OUTBOUNDS_FRAGMENT, CREATE_SINGLE_OUTBOUNDS_LABEL" in outbounds_src
+    assert "const optionNames = names.slice();" in outbounds_src
+    assert "const finalChoice = optionNames.indexOf(preferred) !== -1 ? preferred : (currentDefault || (optionNames[0] || ''));" in outbounds_src
+    assert "await refreshFragmentsList({ notify: false });" in outbounds_src
+
+
 def test_outbounds_card_exposes_current_proxy_nodes_and_ping_controls():
     template_src = _read("xkeen-ui/templates/panel.html")
     outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
