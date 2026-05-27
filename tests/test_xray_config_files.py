@@ -89,3 +89,47 @@ def test_jsonc_migration_keeps_unpaired_user_fragments(tmp_path: Path):
         else:
             os.environ["XKEEN_XRAY_JSONC_DIR"] = old_jsonc
         importlib.reload(xcf)
+
+
+def test_jsonc_migration_keeps_extra_outbound_json_fragments(tmp_path: Path):
+    configs_dir = tmp_path / "configs"
+    jsonc_dir = tmp_path / "jsonc"
+    configs_dir.mkdir()
+    jsonc_dir.mkdir()
+
+    extra_json_names = (
+        "04_outbounds.demo-sub.json",
+        "04_outbounds.single.json",
+        "04_outbounds_All.json",
+    )
+    for name in extra_json_names:
+        (configs_dir / name).write_text('{"outbounds":[]}\n', encoding="utf-8")
+    (configs_dir / "04_outbounds_All.jsonc").write_text('// pool sidecar\n{"outbounds":[]}\n', encoding="utf-8")
+
+    old_configs = os.environ.get("XKEEN_XRAY_CONFIGS_DIR")
+    old_jsonc = os.environ.get("XKEEN_XRAY_JSONC_DIR")
+
+    os.environ["XKEEN_XRAY_CONFIGS_DIR"] = str(configs_dir)
+    os.environ["XKEEN_XRAY_JSONC_DIR"] = str(jsonc_dir)
+
+    import services.xray_config_files as xcf
+
+    try:
+        xcf = importlib.reload(xcf)
+        summary = xcf.migrate_jsonc_sidecars_from_configs()
+
+        assert summary["moved"] == 1
+        for name in extra_json_names:
+            assert (configs_dir / name).exists()
+        assert not (configs_dir / "04_outbounds_All.jsonc").exists()
+        assert (jsonc_dir / "04_outbounds_All.jsonc").exists()
+    finally:
+        if old_configs is None:
+            os.environ.pop("XKEEN_XRAY_CONFIGS_DIR", None)
+        else:
+            os.environ["XKEEN_XRAY_CONFIGS_DIR"] = old_configs
+        if old_jsonc is None:
+            os.environ.pop("XKEEN_XRAY_JSONC_DIR", None)
+        else:
+            os.environ["XKEEN_XRAY_JSONC_DIR"] = old_jsonc
+        importlib.reload(xcf)

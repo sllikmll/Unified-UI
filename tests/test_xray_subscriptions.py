@@ -3128,6 +3128,77 @@ def test_delete_subscription_rebuilds_runtime_from_baseline_for_remaining_subscr
     assert "managed_baselines" in state
 
 
+def test_delete_subscription_keeps_unrelated_outbound_fragments(tmp_path: Path, monkeypatch):
+    from services import xray_subscriptions as subs
+
+    ui_state_dir = tmp_path / "state"
+    xray_dir = tmp_path / "xray" / "configs"
+    jsonc_dir = tmp_path / "jsonc"
+    ui_state_dir.mkdir()
+    xray_dir.mkdir(parents=True)
+    jsonc_dir.mkdir()
+
+    monkeypatch.setattr(subs, "jsonc_path_for", lambda path: str(jsonc_dir / (Path(path).name + "c")))
+    monkeypatch.setattr(subs, "ensure_xray_jsonc_dir", lambda: None)
+    monkeypatch.setattr(subs, "fetch_subscription_body", lambda _url: (_vless("Alpha"), {}))
+
+    (xray_dir / "04_outbounds.json").write_text(
+        json.dumps({"outbounds": [{"tag": "direct", "protocol": "freedom"}]}, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    (xray_dir / "05_routing.json").write_text(
+        json.dumps({"routing": {"rules": []}}, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    (xray_dir / "07_observatory.json").write_text(
+        json.dumps({"observatory": {"subjectSelector": []}}, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+    manual_fragments = {
+        "04_outbounds.single.json": {"outbounds": [{"tag": "single-user", "protocol": "vless"}]},
+        "04_outbounds_All.json": {"outbounds": [{"tag": "pool-user", "protocol": "vless"}]},
+        "04_outbounds.other-sub.json": {"outbounds": [{"tag": "other-sub", "protocol": "vless"}]},
+    }
+    for name, payload in manual_fragments.items():
+        (xray_dir / name).write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    subs.upsert_subscription(
+        str(ui_state_dir),
+        {
+            "id": "alpha",
+            "tag": "alpha",
+            "url": "https://example.com/a",
+            "enabled": True,
+            "ping_enabled": False,
+        },
+    )
+    refreshed = subs.refresh_subscription(
+        str(ui_state_dir),
+        "alpha",
+        xray_configs_dir=str(xray_dir),
+        snapshot=lambda _path: None,
+        restart_xkeen=None,
+        restart=False,
+    )
+    assert refreshed["ok"] is True
+    assert (xray_dir / "04_outbounds.alpha.json").exists()
+
+    deleted = subs.delete_subscription(
+        str(ui_state_dir),
+        "alpha",
+        xray_configs_dir=str(xray_dir),
+        snapshot=lambda _path: None,
+        remove_file=True,
+        restart_xkeen=None,
+    )
+
+    assert deleted["output_removed"] is True
+    assert not (xray_dir / "04_outbounds.alpha.json").exists()
+    for name, payload in manual_fragments.items():
+        assert json.loads((xray_dir / name).read_text(encoding="utf-8")) == payload
+
+
 def test_refresh_subscription_preserves_manual_routing_and_observatory_edits_after_activation(tmp_path: Path, monkeypatch):
     from services import xray_subscriptions as subs
 
