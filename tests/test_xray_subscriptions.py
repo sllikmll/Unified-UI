@@ -3455,6 +3455,133 @@ def test_build_subscription_outbounds_applies_transport_filter_and_manual_exclus
     assert stats["filtered_out_count"] == 2
 
 
+def test_refresh_subscription_keeps_curated_manual_selection_closed_to_new_nodes(tmp_path: Path, monkeypatch):
+    from services import xray_subscriptions as subs
+
+    ui_state_dir = tmp_path / "state"
+    xray_dir = tmp_path / "xray" / "configs"
+    jsonc_dir = tmp_path / "jsonc"
+    ui_state_dir.mkdir()
+    xray_dir.mkdir(parents=True)
+    jsonc_dir.mkdir()
+
+    def _node(name: str, host: str) -> dict:
+        return {
+            "remarks": name,
+            "outbounds": [
+                {
+                    "tag": "proxy",
+                    "protocol": "vless",
+                    "settings": {
+                        "vnext": [
+                            {
+                                "address": host,
+                                "port": 443,
+                                "users": [{"id": "user", "encryption": "none"}],
+                            }
+                        ]
+                    },
+                    "streamSettings": {
+                        "network": "xhttp",
+                        "security": "tls",
+                        "xhttpSettings": {"path": "/api/v2/"},
+                    },
+                }
+            ],
+        }
+
+    initial_body = json.dumps(
+        [
+            _node("Anti White A", "10.0.0.1"),
+            _node("Anti White B", "10.0.0.2"),
+            _node("FREE Chat 1", "10.0.1.1"),
+            _node("FREE Chat 2", "10.0.1.2"),
+            _node("FREE Chat 3", "10.0.1.3"),
+        ]
+    )
+    refreshed_body = json.dumps(
+        [
+            _node("Anti White A", "10.0.0.1"),
+            _node("Anti White B", "10.0.0.2"),
+            _node("FREE Chat 1", "10.0.1.1"),
+            _node("FREE Chat 2", "10.0.1.2"),
+            _node("FREE Chat 3", "10.0.1.3"),
+            _node("FREE WhatsApp & Telegram", "10.0.1.4"),
+        ]
+    )
+
+    responses = iter([(initial_body, {}), (initial_body, {}), (refreshed_body, {})])
+    monkeypatch.setattr(subs, "fetch_subscription_body", lambda _url: next(responses))
+    monkeypatch.setattr(subs, "jsonc_path_for", lambda path: str(jsonc_dir / (Path(path).name + "c")))
+    monkeypatch.setattr(subs, "ensure_xray_jsonc_dir", lambda: None)
+
+    preview = subs.preview_subscription(
+        {
+            "url": "https://example.com/json",
+            "tag": "pecan",
+            "transport_filter": "xhttp",
+        }
+    )
+    excluded_keys = [
+        item["key"]
+        for item in preview["nodes"]
+        if not str(item["name"]).startswith("Anti White")
+    ]
+
+    subs.upsert_subscription(
+        str(ui_state_dir),
+        {
+            "id": "pecan",
+            "name": "Pecan curated",
+            "tag": "pecan",
+            "url": "https://example.com/json",
+            "enabled": True,
+            "ping_enabled": False,
+            "transport_filter": "xhttp",
+            "excluded_node_keys": excluded_keys,
+        },
+    )
+
+    first = subs.refresh_subscription(
+        str(ui_state_dir),
+        "pecan",
+        xray_configs_dir=str(xray_dir),
+        snapshot=lambda _path: None,
+        restart_xkeen=lambda **_kwargs: True,
+        restart=False,
+    )
+
+    assert first["ok"] is True
+    assert first["manual_exclusions_added"] == 0
+    assert [item["tag"] for item in json.loads((xray_dir / "04_outbounds.pecan.json").read_text(encoding="utf-8"))["outbounds"]] == [
+        "pecan--Anti_White_A",
+        "pecan--Anti_White_B",
+    ]
+
+    second = subs.refresh_subscription(
+        str(ui_state_dir),
+        "pecan",
+        xray_configs_dir=str(xray_dir),
+        snapshot=lambda _path: None,
+        restart_xkeen=lambda **_kwargs: True,
+        restart=False,
+    )
+
+    assert second["ok"] is True
+    assert second["manual_exclusions_added"] == 1
+    assert second["source_count"] == 6
+    assert second["filtered_out_count"] == 4
+    assert [item["tag"] for item in json.loads((xray_dir / "04_outbounds.pecan.json").read_text(encoding="utf-8"))["outbounds"]] == [
+        "pecan--Anti_White_A",
+        "pecan--Anti_White_B",
+    ]
+
+    saved = subs.load_subscription_state(str(ui_state_dir))["subscriptions"][0]
+    assert len(saved["excluded_node_keys"]) == 4
+    free_node = next(item for item in saved["last_nodes"] if item["name"] == "FREE WhatsApp & Telegram")
+    assert free_node.get("tag") in ("", None)
+
+
 def test_build_subscription_json_outbounds_keeps_distinct_keys_for_same_config_with_different_names():
     from services import xray_subscriptions as subs
 

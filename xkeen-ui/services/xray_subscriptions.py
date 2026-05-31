@@ -1549,6 +1549,58 @@ def _subscription_filter_reasons(
     return reasons
 
 
+def _node_selection_name(node: Any) -> str:
+    if not isinstance(node, dict):
+        return ""
+    return str(node.get("name") or "").strip()
+
+
+def _extend_manual_selection_exclusions_for_new_nodes(
+    sub: Dict[str, Any],
+    excluded_node_keys: List[str],
+    nodes: List[Dict[str, Any]],
+) -> Tuple[List[str], int]:
+    """Keep a heavily curated manual selection from silently widening.
+
+    Manual exclusions can represent two different intentions: hiding a few bad
+    nodes from a broad subscription, or keeping only a small allow-list from a
+    large provider catalog. When the saved state looks like the latter, new
+    provider nodes that pass regex filters should stay excluded until the user
+    explicitly restores them in the modal.
+    """
+    excluded = _clean_string_list(excluded_node_keys)
+    if not excluded:
+        return excluded, 0
+
+    previous_nodes = _normalize_last_nodes(sub.get("last_nodes"))
+    previous_enabled = [node for node in previous_nodes if str(node.get("tag") or "").strip()]
+    if not previous_enabled:
+        return excluded, 0
+
+    if len(excluded) < len(previous_enabled):
+        return excluded, 0
+
+    known_keys = {str(node.get("key") or "").strip() for node in previous_nodes if str(node.get("key") or "").strip()}
+    previous_enabled_names = {_node_selection_name(node) for node in previous_enabled if _node_selection_name(node)}
+    excluded_set = set(excluded)
+    additions: List[str] = []
+
+    for node in _normalize_last_nodes(nodes):
+        key = str(node.get("key") or "").strip()
+        if not key or key in excluded_set or key in known_keys:
+            continue
+        if not str(node.get("tag") or "").strip():
+            continue
+        if _node_selection_name(node) in previous_enabled_names:
+            continue
+        additions.append(key)
+        excluded_set.add(key)
+
+    if not additions:
+        return excluded, 0
+    return _clean_string_list(excluded + additions), len(additions)
+
+
 def _clean_node_name(name: str, fallback: str) -> str:
     out: List[str] = []
     for ch in str(name or ""):
@@ -4081,31 +4133,49 @@ def refresh_subscription(
     try:
         body, headers = fetch_subscription_body(str(sub.get("url") or ""))
         links = parse_subscription_links(body)
-        source_format = "links"
         excluded_node_keys = _read_string_list_value(sub, EXCLUDED_NODE_KEYS_KEYS)
-        if links:
-            outbounds, errors, stats = build_subscription_outbounds(
-                links,
-                tag_prefix=str(sub.get("tag") or sub.get("id") or "sub"),
-                name_filter=str(sub.get("name_filter") or ""),
-                type_filter=str(sub.get("type_filter") or ""),
-                transport_filter=str(sub.get("transport_filter") or ""),
-                excluded_node_keys=excluded_node_keys,
-            )
-        else:
-            source_format = "xray-json"
-            outbounds, errors, stats = build_subscription_json_outbounds(
+
+        def _build_with_exclusions(keys: List[str]):
+            if links:
+                built_outbounds, built_errors, built_stats = build_subscription_outbounds(
+                    links,
+                    tag_prefix=str(sub.get("tag") or sub.get("id") or "sub"),
+                    name_filter=str(sub.get("name_filter") or ""),
+                    type_filter=str(sub.get("type_filter") or ""),
+                    transport_filter=str(sub.get("transport_filter") or ""),
+                    excluded_node_keys=keys,
+                )
+                return "links", built_outbounds, built_errors, built_stats
+            built_outbounds, built_errors, built_stats = build_subscription_json_outbounds(
                 body,
                 tag_prefix=str(sub.get("tag") or sub.get("id") or "sub"),
                 name_filter=str(sub.get("name_filter") or ""),
                 type_filter=str(sub.get("type_filter") or ""),
                 transport_filter=str(sub.get("transport_filter") or ""),
-                excluded_node_keys=excluded_node_keys,
+                excluded_node_keys=keys,
             )
+            return "xray-json", built_outbounds, built_errors, built_stats
+
+        source_format, outbounds, errors, stats = _build_with_exclusions(excluded_node_keys)
         source_count = int(stats.get("source_count") or 0)
         filtered_out_count = int(stats.get("filtered_out_count") or 0)
         preview_nodes = _normalize_last_nodes(stats.get("nodes"))
         node_latency = _prune_node_latency_map(node_latency, preview_nodes)
+        manual_exclusions_added = 0
+        locked_excluded_keys, locked_added = _extend_manual_selection_exclusions_for_new_nodes(
+            sub,
+            excluded_node_keys,
+            preview_nodes,
+        )
+        if locked_added:
+            excluded_node_keys = locked_excluded_keys
+            sub["excluded_node_keys"] = excluded_node_keys
+            manual_exclusions_added += locked_added
+            source_format, outbounds, errors, stats = _build_with_exclusions(excluded_node_keys)
+            source_count = int(stats.get("source_count") or 0)
+            filtered_out_count = int(stats.get("filtered_out_count") or 0)
+            preview_nodes = _normalize_last_nodes(stats.get("nodes"))
+            node_latency = _prune_node_latency_map(node_latency, preview_nodes)
         if not links and not outbounds:
             raise RuntimeError("no_supported_proxies")
         if source_count > 0 and not outbounds and filtered_out_count >= source_count:
@@ -4116,31 +4186,14 @@ def refresh_subscription(
         output_path = _subscription_output_path(xray_configs_dir, sub)
         manual_overrides = _collect_subscription_manual_overrides(sub, output_path, outbounds, preview_nodes)
         manual_deleted_keys = _clean_string_list(manual_overrides.get("deleted_node_keys"))
-        manual_exclusions_added = 0
         if manual_deleted_keys:
             merged_excluded = _clean_string_list(excluded_node_keys + manual_deleted_keys)
-            manual_exclusions_added = max(0, len(merged_excluded) - len(excluded_node_keys))
-            if manual_exclusions_added:
+            deleted_exclusions_added = max(0, len(merged_excluded) - len(excluded_node_keys))
+            if deleted_exclusions_added:
                 excluded_node_keys = merged_excluded
                 sub["excluded_node_keys"] = excluded_node_keys
-                if links:
-                    outbounds, errors, stats = build_subscription_outbounds(
-                        links,
-                        tag_prefix=str(sub.get("tag") or sub.get("id") or "sub"),
-                        name_filter=str(sub.get("name_filter") or ""),
-                        type_filter=str(sub.get("type_filter") or ""),
-                        transport_filter=str(sub.get("transport_filter") or ""),
-                        excluded_node_keys=excluded_node_keys,
-                    )
-                else:
-                    outbounds, errors, stats = build_subscription_json_outbounds(
-                        body,
-                        tag_prefix=str(sub.get("tag") or sub.get("id") or "sub"),
-                        name_filter=str(sub.get("name_filter") or ""),
-                        type_filter=str(sub.get("type_filter") or ""),
-                        transport_filter=str(sub.get("transport_filter") or ""),
-                        excluded_node_keys=excluded_node_keys,
-                    )
+                manual_exclusions_added += deleted_exclusions_added
+                source_format, outbounds, errors, stats = _build_with_exclusions(excluded_node_keys)
                 source_count = int(stats.get("source_count") or 0)
                 filtered_out_count = int(stats.get("filtered_out_count") or 0)
                 preview_nodes = _normalize_last_nodes(stats.get("nodes"))
