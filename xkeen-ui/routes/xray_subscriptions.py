@@ -7,6 +7,7 @@ from typing import Any, Callable
 from flask import Blueprint, jsonify, request
 
 from routes.common.errors import error_response, exception_response
+from services.latency_jobs import create_latency_job, get_latency_job
 from services.xray_subscriptions import (
     delete_subscription,
     get_subscription_routing_meta,
@@ -38,6 +39,26 @@ def create_xray_subscriptions_blueprint(
             return str(raw or "").strip().lower() in {"1", "true", "yes", "on", "y"}
         except Exception:
             return bool(default)
+
+    def _bool_payload(payload: dict[str, Any], name: str, default: bool = False) -> bool:
+        raw = payload.get(name)
+        if raw is None:
+            raw = payload.get(name.replace("_", "-"))
+        if raw is None:
+            raw = request.args.get(name)
+        if raw is None:
+            return bool(default)
+        try:
+            return str(raw or "").strip().lower() in {"1", "true", "yes", "on", "y"}
+        except Exception:
+            return bool(default)
+
+    @bp.get("/api/xray/latency-jobs/<string:job_id>")
+    def api_xray_latency_job_status(job_id: str):
+        job = get_latency_job(job_id)
+        if job is None:
+            return error_response("latency job not found", 404, ok=False)
+        return jsonify(job.to_dict()), 200
 
     @bp.get("/api/xray/subscriptions")
     def api_list_xray_subscriptions():
@@ -207,6 +228,17 @@ def create_xray_subscriptions_blueprint(
             timeout_s = float(timeout_raw) if timeout_raw is not None and str(timeout_raw).strip() != "" else 8.0
         except Exception:
             timeout_s = 8.0
+        if _bool_payload(payload, "async", False) or _bool_payload(payload, "background", False):
+            job = create_latency_job(
+                lambda: probe_subscription_nodes_latency(
+                    ui_state_dir,
+                    sub_id,
+                    node_keys,
+                    xray_configs_dir=xray_configs_dir,
+                    timeout_s=timeout_s,
+                )
+            )
+            return jsonify({"ok": True, "async": True, "job_id": job.id, "status": job.status}), 202
         try:
             result = probe_subscription_nodes_latency(
                 ui_state_dir,

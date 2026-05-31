@@ -26,6 +26,7 @@ from urllib.parse import unquote, urlparse
 from flask import Blueprint, jsonify, request
 
 from services.command_jobs import create_command_job
+from services.latency_jobs import create_latency_job
 from services.io.atomic import _atomic_write_json, _atomic_write_text
 from utils.fs import load_text
 
@@ -1175,6 +1176,20 @@ def create_xray_configs_blueprint(
         except Exception:
             return 8.0
 
+    def _wants_outbounds_async_probe(payload: dict[str, Any]) -> bool:
+        for key in ("async", "background"):
+            raw = payload.get(key)
+            if raw is None:
+                raw = request.args.get(key)
+            if raw is None:
+                continue
+            try:
+                if str(raw or "").strip().lower() in {"1", "true", "yes", "on", "y"}:
+                    return True
+            except Exception:
+                continue
+        return False
+
     @bp.post("/api/xray/outbounds/nodes/ping")
     def api_probe_xray_outbounds_node():
         payload = request.get_json(silent=True) or {}
@@ -1225,13 +1240,37 @@ def create_xray_configs_blueprint(
         selection = _load_outbounds_selection(file_arg)
         nodes = build_xray_outbounds_nodes(selection.get("config"))
         existing_latency = _load_outbounds_node_latency(str(selection.get("path") or ""), nodes)
+        timeout_s = _outbounds_node_timeout(payload)
+        if _wants_outbounds_async_probe(payload):
+            selection_path = str(selection.get("path") or "")
+            config = selection.get("config")
+            config_dir = os.path.dirname(selection_path) or XRAY_CONFIGS_DIR
+
+            def _run_probe_job() -> dict[str, Any]:
+                result = probe_xray_outbounds_nodes_latency(
+                    config,
+                    node_keys,
+                    xray_configs_dir=config_dir,
+                    existing_latency=existing_latency,
+                    timeout_s=timeout_s,
+                )
+                saved_latency = _save_outbounds_node_latency(
+                    selection_path,
+                    nodes,
+                    result.get("node_latency"),
+                )
+                result["node_latency"] = saved_latency
+                return result
+
+            job = create_latency_job(_run_probe_job)
+            return jsonify({"ok": True, "async": True, "job_id": job.id, "status": job.status}), 202
         try:
             result = probe_xray_outbounds_nodes_latency(
                 selection.get("config"),
                 node_keys,
                 xray_configs_dir=os.path.dirname(str(selection.get("path") or "")) or XRAY_CONFIGS_DIR,
                 existing_latency=existing_latency,
-                timeout_s=_outbounds_node_timeout(payload),
+                timeout_s=timeout_s,
             )
         except KeyError:
             return error_response("node not found", 404, ok=False)

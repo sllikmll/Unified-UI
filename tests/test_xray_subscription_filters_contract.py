@@ -270,6 +270,10 @@ def test_xray_subscription_modal_exposes_transport_preview_and_manual_exclusions
     assert "xk-sub-edit" not in outbounds_src
     assert "/nodes/ping" in outbounds_src
     assert "/nodes/ping-bulk" in outbounds_src
+    assert "function waitForLatencyJob(jobId, options) {" in outbounds_src
+    assert "return waitForLatencyJob(jobId, opts);" in outbounds_src
+    assert "body: JSON.stringify(Object.assign({}, payload || {}, { async: true }))" in outbounds_src
+    assert "/api/xray/latency-jobs/" in outbounds_src
     assert "xk-sub-node-ping" in outbounds_src
     assert "xk-sub-node-latency" in outbounds_src
     assert "xk-sub-pingall-spinner" in outbounds_src

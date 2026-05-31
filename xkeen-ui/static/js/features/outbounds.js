@@ -76,6 +76,64 @@ let outboundsModuleApi = null;
       return document.getElementById(id);
     }
 
+    function latencyJobSleep(ms) {
+      return new Promise((resolve) => {
+        try { setTimeout(resolve, Math.max(0, Number(ms) || 0)); } catch (e) { resolve(); }
+      });
+    }
+
+    async function waitForLatencyJob(jobId, options) {
+      const id = String(jobId || '').trim();
+      const opts = (options && typeof options === 'object') ? options : {};
+      const label = String(opts.label || 'проверка задержки');
+      const onPoll = typeof opts.onPoll === 'function' ? opts.onPoll : null;
+      if (!id) throw new Error('latency job_id missing');
+      const started = Date.now();
+      const timeoutMs = Math.max(15000, Number(opts.timeoutMs || 300000));
+      let delayMs = 600;
+      while ((Date.now() - started) < timeoutMs) {
+        const res = await fetch(`/api/xray/latency-jobs/${encodeURIComponent(id)}`, {
+          cache: 'no-store',
+          credentials: 'same-origin',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data) {
+          throw new Error(String((data && (data.error || data.message)) || ('HTTP ' + res.status)));
+        }
+        const status = String(data.status || '').trim().toLowerCase();
+        if (onPoll) {
+          try { onPoll(data); } catch (e) {}
+        }
+        if (status === 'finished') {
+          return (data.result && typeof data.result === 'object') ? data.result : {};
+        }
+        if (status === 'error') {
+          throw new Error(String(data.error || `${label}: background job failed`));
+        }
+        await latencyJobSleep(delayMs);
+        delayMs = Math.min(1600, Math.round(delayMs * 1.25));
+      }
+      throw new Error(`${label}: timeout while waiting for background job`);
+    }
+
+    async function postLatencyProbe(url, payload, options) {
+      const opts = (options && typeof options === 'object') ? options : {};
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({}, payload || {}, { async: true })),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data) {
+        throw new Error(String((data && (data.error || data.message)) || ('HTTP ' + res.status)));
+      }
+      const jobId = String(data.job_id || data.jobId || '').trim();
+      if (jobId) {
+        return waitForLatencyJob(jobId, opts);
+      }
+      return data;
+    }
+
     function setEntwareMarkButton(id, enabled) {
       const btn = $(id);
       if (!btn) return;
@@ -1120,15 +1178,17 @@ let outboundsModuleApi = null;
       if (statusEl) statusEl.textContent = `Проверяю задержку: ${nodes.length} proxy-узлов…`;
 
       try {
-        const res = await fetch(outboundsNodesApiUrl('/ping-bulk'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ node_keys: nodes.map((node) => String(node.key || '')).filter(Boolean) }),
+        const data = await postLatencyProbe(outboundsNodesApiUrl('/ping-bulk'), {
+          node_keys: nodes.map((node) => String(node.key || '')).filter(Boolean),
+        }, {
+          label: 'bulk outbounds latency probe',
+          onPoll: (job) => {
+            const status = String(job && job.status || '').trim();
+            if (statusEl && (status === 'queued' || status === 'running')) {
+              statusEl.textContent = `Проверяю задержку в фоне: ${nodes.length} proxy-узлов…`;
+            }
+          },
         });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data) {
-          throw new Error(String((data && (data.error || data.message)) || ('HTTP ' + res.status)));
-        }
         if (data.node_latency && typeof data.node_latency === 'object') {
           _outboundsNodeLatency = data.node_latency;
         } else if (Array.isArray(data.results)) {
@@ -6444,17 +6504,17 @@ let outboundsModuleApi = null;
       subsSetStatus(`Проверяю задержку: ${targets.length} узлов…`, false);
 
       try {
-        const res = await fetch(`/api/xray/subscriptions/${encodeURIComponent(subId)}/nodes/ping-bulk`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            node_keys: targets.map((node) => String(node && node.key ? node.key : '')).filter(Boolean),
-          }),
+        const data = await postLatencyProbe(`/api/xray/subscriptions/${encodeURIComponent(subId)}/nodes/ping-bulk`, {
+          node_keys: targets.map((node) => String(node && node.key ? node.key : '')).filter(Boolean),
+        }, {
+          label: 'bulk subscription latency probe',
+          onPoll: (job) => {
+            const status = String(job && job.status || '').trim();
+            if (status === 'queued' || status === 'running') {
+              subsSetStatus(`Проверяю задержку в фоне: ${targets.length} узлов…`, false);
+            }
+          },
         });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data) {
-          throw new Error(String((data && (data.error || data.message)) || ('HTTP ' + res.status)));
-        }
 
         const sub2 = _subscriptions.find((item) => String(item && item.id || '') === subId);
         if (sub2 && Array.isArray(data.results)) {
