@@ -400,6 +400,7 @@ def _normalize_last_nodes(value: Any) -> List[Dict[str, Any]]:
         "security",
         "host",
         "port",
+        "sni",
         "detail",
         "source_format",
     }
@@ -1448,12 +1449,23 @@ def _extract_outbound_endpoint(source: Dict[str, Any]) -> Tuple[str, int | str]:
     return host, port
 
 
+def _extract_outbound_sni(stream: Dict[str, Any]) -> str:
+    for settings_key in ("realitySettings", "tlsSettings", "xtlsSettings"):
+        settings = stream.get(settings_key) if isinstance(stream.get(settings_key), dict) else {}
+        value = settings.get("serverName") or settings.get("server_name") or settings.get("sni")
+        text = str(value or "").strip()
+        if text:
+            return text
+    return ""
+
+
 def _json_outbound_node_meta(source: Dict[str, Any], name_hint: str, index: int) -> Dict[str, Any]:
     protocol = str(source.get("protocol") or "").strip().lower()
     stream = source.get("streamSettings") if isinstance(source.get("streamSettings"), dict) else {}
     transport = str(stream.get("network") or _default_transport_for_protocol(protocol) or "").strip().lower()
     security = str(stream.get("security") or _default_security_for_protocol(protocol) or "").strip().lower()
     host, port = _extract_outbound_endpoint(source)
+    sni = _extract_outbound_sni(stream)
     name = str(name_hint or source.get("tag") or host or protocol or f"node{index + 1}").strip() or f"node{index + 1}"
 
     path = ""
@@ -1482,6 +1494,7 @@ def _json_outbound_node_meta(source: Dict[str, Any], name_hint: str, index: int)
             f"path={path}" if path else "",
             f"service={service}" if service else "",
             f"host={host_header}" if host_header and host_header != host else "",
+            f"sni={sni}" if sni and sni not in {host, host_header} else "",
         ]
     )
 
@@ -1506,6 +1519,7 @@ def _json_outbound_node_meta(source: Dict[str, Any], name_hint: str, index: int)
         "security": security,
         "host": host,
         "port": port,
+        "sni": sni,
         "detail": detail,
         "source_format": "xray-json",
     }

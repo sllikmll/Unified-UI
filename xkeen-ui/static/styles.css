@@ -10737,6 +10737,27 @@ html[data-theme="light"] .xk-sub-draft-badge {
   border-radius: 12px;
 }
 
+.xk-pool-tag-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.xk-pool-tag-cell input.xray-log-filter {
+  min-width: 0;
+}
+
+.xk-pool-tag-country-slot {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.xk-pool-tag-country-slot:empty {
+  display: none;
+}
+
 .xk-pool-delete-btn {
   width: 34px;
   height: 34px;

@@ -144,6 +144,11 @@ def test_outbounds_card_exposes_current_proxy_nodes_and_ping_controls():
     assert "function nodeCountryFlagInfo(node) {" in outbounds_src
     assert "function nodeDisplayNameWithCountry(node, fallback) {" in outbounds_src
     assert "'subscription_node_name'," in outbounds_src
+    country_candidates_src = outbounds_src.split("function nodeCountryTextCandidates(node) {", 1)[1].split("];", 1)[0]
+    assert "'sni'," not in country_candidates_src
+    assert "'detail'," not in country_candidates_src
+    assert "function poolCountryNode(ent) {" in outbounds_src
+    assert "xk-pool-tag-country-slot" in outbounds_src
     assert "const COUNTRY_FLAG_SVG = Object.freeze({" in outbounds_src
     assert "xk-sub-node-country-svg" in outbounds_src
     assert "countryFlagBadgeHtml(nodeCountryFlagInfo(node))" in outbounds_src
@@ -163,6 +168,7 @@ def test_outbounds_card_exposes_current_proxy_nodes_and_ping_controls():
     assert ".xk-outbounds-node-panel {\n  flex: 1 1 auto;\n  margin: 10px 0 12px;\n  overflow: hidden;" in styles_src
     assert ".xk-outbounds-node-panel .xk-sub-nodes-head-actions" in styles_src
     assert "flex: 0 0 auto;" in styles_src
+    assert ".xk-pool-tag-cell" in styles_src
     assert ".xk-outbounds-node-panel .xk-outbounds-active-status" in styles_src
     assert "display: none !important;" in styles_src
     assert ".xk-outbounds-node-list {\n  grid-template-columns: 1fr;\n  gap: 8px;\n  min-height: 0;\n  max-height: min(36vh, 320px);\n  overflow: auto;" in styles_src

@@ -1602,7 +1602,6 @@ let outboundsModuleApi = null;
         'name',
         'tag',
         'host',
-        'detail',
       ];
       const out = [];
       const seen = new Set();
@@ -3973,6 +3972,30 @@ let outboundsModuleApi = null;
       return 'p' + String(fallbackIdx || 1);
     }
 
+    function poolCountryNode(ent) {
+      const tag = String((ent && ent.tag) || '').trim();
+      const url = String((ent && ent.url) || '').trim();
+      const node = {
+        tag,
+        name: tag,
+        detail: url,
+      };
+      if (!url) return node;
+      try {
+        const u = new URL(url);
+        node.host = String(u.hostname || '').trim();
+        node.sni = String(
+          u.searchParams.get('sni') ||
+          u.searchParams.get('serverName') ||
+          u.searchParams.get('servername') ||
+          u.searchParams.get('host') ||
+          ''
+        ).trim();
+        if (u.hash) node.remarks = safeDecodeURIComponent(u.hash.slice(1));
+      } catch (e) {}
+      return node;
+    }
+
     function poolEnsureUniqueTag(tag, existingSet) {
       let t = String(tag || '').trim();
       if (!t) t = 'p1';
@@ -4047,13 +4070,6 @@ let outboundsModuleApi = null;
         inTag.value = String(ent.tag || '');
         inTag.className = 'xray-log-filter';
         inTag.style.width = '100%';
-        inTag.addEventListener('change', () => {
-          const v = poolSanitizeTag(inTag.value);
-          _poolEntries[idx].tag = v;
-          inTag.value = v;
-          poolSyncUiState();
-        });
-        tdTag.appendChild(inTag);
 
         const tdUrl = document.createElement('td');
         tdUrl.style.padding = '8px';
@@ -4062,10 +4078,33 @@ let outboundsModuleApi = null;
         inUrl.value = String(ent.url || '');
         inUrl.className = 'xray-log-filter';
         inUrl.style.width = '100%';
-        inUrl.addEventListener('change', () => {
-          _poolEntries[idx].url = String(inUrl.value || '').trim();
+
+        const tagWrap = document.createElement('div');
+        tagWrap.className = 'xk-pool-tag-cell';
+        const countrySlot = document.createElement('span');
+        countrySlot.className = 'xk-pool-tag-country-slot';
+        const refreshCountrySlot = () => {
+          countrySlot.innerHTML = countryFlagBadgeHtml(nodeCountryFlagInfo(poolCountryNode({
+            tag: inTag.value,
+            url: inUrl.value,
+          }))) || '';
+        };
+        inTag.addEventListener('change', () => {
+          const v = poolSanitizeTag(inTag.value);
+          _poolEntries[idx].tag = v;
+          inTag.value = v;
+          refreshCountrySlot();
           poolSyncUiState();
         });
+        inUrl.addEventListener('change', () => {
+          _poolEntries[idx].url = String(inUrl.value || '').trim();
+          refreshCountrySlot();
+          poolSyncUiState();
+        });
+        refreshCountrySlot();
+        tagWrap.appendChild(countrySlot);
+        tagWrap.appendChild(inTag);
+        tdTag.appendChild(tagWrap);
         tdUrl.appendChild(inUrl);
 
         const tdAct = document.createElement('td');

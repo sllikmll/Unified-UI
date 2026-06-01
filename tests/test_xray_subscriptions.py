@@ -4433,6 +4433,22 @@ def test_build_xray_outbounds_nodes_hides_legacy_single_link_alias():
     assert nodes[0]["transport"] == "tcp"
 
 
+def test_build_xray_outbounds_nodes_exposes_sni_metadata():
+    from services import xray_subscriptions as subs
+
+    outbound = _probeable_outbound("vless-reality", host="64.188.68.172")
+    outbound["streamSettings"]["security"] = "reality"
+    outbound["streamSettings"]["realitySettings"] = {"serverName": "bahn.de"}
+    cfg = {"outbounds": [outbound]}
+
+    nodes = subs.build_xray_outbounds_nodes(cfg)
+
+    assert nodes[0]["tag"] == "vless-reality"
+    assert nodes[0]["host"] == "64.188.68.172"
+    assert nodes[0]["sni"] == "bahn.de"
+    assert "sni=bahn.de" in nodes[0]["detail"]
+
+
 def test_probe_xray_outbounds_nodes_latency_uses_pool_outbounds(monkeypatch, tmp_path: Path):
     from services import xray_subscriptions as subs
 
