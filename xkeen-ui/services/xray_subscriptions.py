@@ -2085,6 +2085,10 @@ def _remove_file_if_exists(path: str, *, snapshot: SnapshotCallback | None = Non
         return False
 
 
+def _disabled_config_path(path: str) -> str:
+    return str(path or "") + ".disable"
+
+
 def _remove_config_snapshot_for_path(xray_configs_dir: str, path: str) -> bool:
     """Remove the rollback snapshot for a config path from configs/backups."""
     try:
@@ -2194,6 +2198,7 @@ def _restore_managed_file_baseline(
             )
         else:
             changed = bool(_remove_file_if_exists(jsonc, snapshot=snapshot) or changed)
+    changed = bool(_remove_file_if_exists(_disabled_config_path(path), snapshot=snapshot) or changed)
     return changed
 
 
@@ -3359,6 +3364,10 @@ def _sync_subscription_only_base_outbounds(
     if not os.path.exists(path):
         return {"changed": False, "removed": 0}
 
+    try:
+        original_text = load_text(path, default="")
+    except Exception:
+        original_text = ""
     obj = _read_json_file(path, None)
     if not isinstance(obj, dict) or not isinstance(obj.get("outbounds"), list):
         return {"changed": False, "removed": 0}
@@ -3380,6 +3389,11 @@ def _sync_subscription_only_base_outbounds(
     if not enabled or removed <= 0:
         return {"changed": False, "removed": 0}
 
+    disabled_changed = False
+    disabled_path = _disabled_config_path(path)
+    if original_text:
+        disabled_changed = _write_text_if_changed(disabled_path, original_text, snapshot=snapshot)
+
     next_obj = copy.deepcopy(obj)
     next_obj["outbounds"] = next_outbounds
     main_changed = _write_json_if_changed(path, next_obj, snapshot=snapshot)
@@ -3390,7 +3404,7 @@ def _sync_subscription_only_base_outbounds(
         snapshot=snapshot,
         preserve_existing_comments=True,
     )
-    return {"changed": bool(main_changed or raw_changed), "removed": removed}
+    return {"changed": bool(disabled_changed or main_changed or raw_changed), "removed": removed}
 
 
 def _effective_subscription_routing_mode(ui_state_dir: str) -> str:
@@ -3812,6 +3826,23 @@ def _update_existing_balancer_selector(
     return before != balancer
 
 
+def _replace_existing_balancer_selector(
+    routing: Dict[str, Any],
+    *,
+    balancer_tag: str,
+    selector_terms: Iterable[str],
+) -> bool:
+    balancers = routing.get("balancers")
+    if not isinstance(balancers, list):
+        return False
+    balancer = _find_balancer_by_tag(balancers, balancer_tag)
+    if balancer is None:
+        return False
+    before = copy.deepcopy(balancer)
+    balancer["selector"] = _clean_tags_list(selector_terms)
+    return before != balancer
+
+
 def _remove_balancer_by_tag_if_leastping(
     routing: Dict[str, Any],
     *,
@@ -3904,7 +3935,10 @@ def sync_subscription_runtime_plan_delta(
     )
     scenario_owned_selector_terms = _scenario_owned_auto_terms(routing, current_selector)
 
-    if next_auto_terms:
+    selected_manual_subscription_only = bool(next_subscription_only and next_manual_targets)
+    auto_terms_for_pool = [] if selected_manual_subscription_only else next_auto_terms
+
+    if auto_terms_for_pool:
         remove_terms = (
             prev_auto_terms
             + scenario_skipped_auto_terms
@@ -3912,7 +3946,7 @@ def sync_subscription_runtime_plan_delta(
             + (subscription_only_excluded_tags if next_subscription_only else [])
         )
         selector = [] if next_subscription_only else _subtract_selector_terms(current_selector, remove_terms)
-        selector = _merge_selector_terms(selector, next_auto_terms)
+        selector = _merge_selector_terms(selector, auto_terms_for_pool)
         if not next_subscription_only:
             selector = _merge_selector_terms(selector, preserved_tags)
         changed = bool(
@@ -3949,33 +3983,45 @@ def sync_subscription_runtime_plan_delta(
 
     manual_tags = sorted(set(prev_manual_targets) | set(next_manual_targets))
     for tag in manual_tags:
-        if _replace_existing_balancer_selector_terms(
-            routing,
-            balancer_tag=tag,
-            remove_terms=prev_manual_targets.get(tag) or [],
-            add_terms=next_manual_targets.get(tag) or [],
-        ):
+        if selected_manual_subscription_only and (next_manual_targets.get(tag) or []):
+            manual_changed = _replace_existing_balancer_selector(
+                routing,
+                balancer_tag=tag,
+                selector_terms=next_manual_targets.get(tag) or [],
+            )
+        else:
+            manual_changed = _replace_existing_balancer_selector_terms(
+                routing,
+                balancer_tag=tag,
+                remove_terms=prev_manual_targets.get(tag) or [],
+                add_terms=next_manual_targets.get(tag) or [],
+            )
+        if manual_changed:
             changed = True
         if (next_manual_targets.get(tag) or []) and _find_balancer_by_tag(routing.get("balancers", []), tag) is not None:
             applied_manual_tags.append(tag)
 
     strict_enabled = (
         _routing_mode_migrates_vless(nxt.get("routing_mode"))
-        and any(tag not in AUTO_BALANCER_PRESERVE_TAGS for tag in next_auto_terms)
+        and any(tag not in AUTO_BALANCER_PRESERVE_TAGS for tag in auto_terms_for_pool)
     )
-    effective_mode = _runtime_routing_mode(
-        subscription_only=next_subscription_only,
-        strict=strict_enabled,
-        has_auto_terms=bool(next_auto_terms),
+    effective_mode = (
+        ROUTING_MODE_SUBSCRIPTION_ONLY
+        if next_subscription_only
+        else _runtime_routing_mode(
+            subscription_only=False,
+            strict=strict_enabled,
+            has_auto_terms=bool(auto_terms_for_pool),
+        )
     )
     migrate_stats = _sync_vless_reality_rules_to_balancer(
         routing,
         balancer_tag=balancer_tag,
-        enabled=strict_enabled,
+        enabled=bool(auto_terms_for_pool) and strict_enabled,
     )
     retarget_stats = (
         _subscription_only_retarget_proxy_rules(routing, balancer_tag=balancer_tag)
-        if next_subscription_only
+        if next_subscription_only and not selected_manual_subscription_only
         else {"changed": False, "retargeted": 0}
     )
     prune_stats = (
@@ -3984,7 +4030,7 @@ def sync_subscription_runtime_plan_delta(
             balancer_tag=balancer_tag,
             manual_tags=subscription_only_excluded_tags,
         )
-        if next_subscription_only
+        if next_subscription_only and not selected_manual_subscription_only
         else {"changed": False, "removed": 0}
     )
     outbounds_stats = _sync_subscription_only_base_outbounds(
@@ -4022,7 +4068,7 @@ def sync_subscription_runtime_plan_delta(
         "routing_sync": {
             "changed": bool(routing_changed),
             "selector": selector,
-            "balancer_tag": balancer_tag if next_auto_terms else "",
+            "balancer_tag": balancer_tag if auto_terms_for_pool else "",
             "routing_file": os.path.basename(routing_path),
             "routing_mode": effective_mode,
             "migrated_rules": (
@@ -4079,16 +4125,19 @@ def sync_subscription_routing_plan(
     skipped_rules = 0
     applied_manual_tags: List[str] = []
 
-    if auto_terms:
+    selected_manual_subscription_only = bool(subscription_only and manual_targets)
+    auto_terms_for_pool = [] if selected_manual_subscription_only else auto_terms
+
+    if auto_terms_for_pool:
         balancer_tag = _choose_auto_balancer_tag(routing)
         balancer = _find_balancer_by_tag(routing.get("balancers", []), balancer_tag)
         current_selector = _clean_tags_list(
             balancer.get("selector") if isinstance(balancer, dict) and isinstance(balancer.get("selector"), list) else []
         )
         if subscription_only:
-            selector = _merge_selector_terms([], auto_terms)
+            selector = _merge_selector_terms([], auto_terms_for_pool)
         else:
-            selector = _merge_selector_terms(current_selector, auto_terms)
+            selector = _merge_selector_terms(current_selector, auto_terms_for_pool)
             for tag in _preserved_balancer_tags(xray_configs_dir):
                 if tag not in selector:
                     selector.append(tag)
@@ -4123,14 +4172,30 @@ def sync_subscription_routing_plan(
         skipped_rules = int(migrate_stats.get("skipped") or 0)
     else:
         strict_enabled = False
-    effective_mode = _runtime_routing_mode(
-        subscription_only=subscription_only,
-        strict=strict_enabled,
-        has_auto_terms=bool(auto_terms),
+    effective_mode = (
+        ROUTING_MODE_SUBSCRIPTION_ONLY
+        if subscription_only
+        else _runtime_routing_mode(
+            subscription_only=False,
+            strict=strict_enabled,
+            has_auto_terms=bool(auto_terms_for_pool),
+        )
     )
 
     for tag in sorted(manual_targets):
-        if _update_existing_balancer_selector(routing, balancer_tag=tag, selector_terms=manual_targets.get(tag) or []):
+        if selected_manual_subscription_only:
+            manual_changed = _replace_existing_balancer_selector(
+                routing,
+                balancer_tag=tag,
+                selector_terms=manual_targets.get(tag) or [],
+            )
+        else:
+            manual_changed = _update_existing_balancer_selector(
+                routing,
+                balancer_tag=tag,
+                selector_terms=manual_targets.get(tag) or [],
+            )
+        if manual_changed:
             changed = True
         if _find_balancer_by_tag(routing.get("balancers", []), tag) is not None:
             applied_manual_tags.append(tag)

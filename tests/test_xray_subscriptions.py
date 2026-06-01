@@ -1584,6 +1584,7 @@ def test_refresh_subscription_only_mode_does_not_require_single_outbound(tmp_pat
 
     base_outbounds = json.loads((xray_dir / "04_outbounds.json").read_text(encoding="utf-8"))
     assert [item["tag"] for item in base_outbounds["outbounds"]] == ["direct", "block"]
+    assert not (xray_dir / "04_outbounds.json.disable").exists()
 
     generated = json.loads((xray_dir / "04_outbounds.generated-only.json").read_text(encoding="utf-8"))
     assert [item["tag"] for item in generated["outbounds"]] == ["cdn.pecan.run--WS_Germany"]
@@ -1908,6 +1909,152 @@ def test_refresh_subscription_syncs_selected_manual_balancers_without_auto_pool(
     assert balancers["fast_web_balancer"]["selector"] == ["VPS_", "demo"]
     assert balancers["backup_pool"]["selector"] == ["RESERVE_", "demo"]
     assert all(rule.get("ruleTag") != "xk_auto_leastPing" for rule in routing["routing"]["rules"])
+
+
+def test_subscription_only_uses_selected_manual_balancers_instead_of_auto_pool(tmp_path: Path, monkeypatch):
+    from services import xray_subscriptions as subs
+
+    ui_state_dir = tmp_path / "state"
+    xray_dir = tmp_path / "xray" / "configs"
+    jsonc_dir = tmp_path / "jsonc"
+    ui_state_dir.mkdir()
+    xray_dir.mkdir(parents=True)
+    jsonc_dir.mkdir()
+
+    monkeypatch.setattr(subs, "jsonc_path_for", lambda path: str(jsonc_dir / (Path(path).name + "c")))
+    monkeypatch.setattr(subs, "ensure_xray_jsonc_dir", lambda: None)
+    monkeypatch.setattr(
+        subs,
+        "fetch_subscription_body",
+        lambda _url: (_vless_transport("CH", "tcp", host="ch.example.com"), {}),
+    )
+
+    (xray_dir / "04_outbounds.json").write_text(
+        json.dumps(
+            {
+                "outbounds": [
+                    {"tag": "VPS_legacy_pool", "protocol": "vless"},
+                    {"tag": "direct", "protocol": "freedom"},
+                    {"tag": "block", "protocol": "blackhole"},
+                ]
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (xray_dir / "05_routing.json").write_text(
+        json.dumps(
+            {
+                "routing": {
+                    "balancers": [
+                        {
+                            "tag": "fast_web_balancer",
+                            "selector": ["VPS_"],
+                            "strategy": {"type": "leastPing"},
+                            "fallbackTag": "direct",
+                        },
+                        {
+                            "tag": "heavy_load_balancer",
+                            "selector": ["VPS_"],
+                            "strategy": {"type": "leastLoad"},
+                            "fallbackTag": "direct",
+                        },
+                    ],
+                    "rules": [
+                        {
+                            "type": "field",
+                            "ruleTag": "log_01_messengers_quic_domain",
+                            "domain": ["ext:geosite_v2fly.dat:telegram"],
+                            "balancerTag": "fast_web_balancer",
+                        },
+                        {
+                            "type": "field",
+                            "ruleTag": "log_04_heavy_content_load",
+                            "domain": ["domain:googlevideo.com"],
+                            "balancerTag": "heavy_load_balancer",
+                        },
+                        {
+                            "type": "field",
+                            "ruleTag": "log_05_direct_ru_by_domains",
+                            "domain": ["ext:geosite_v2fly.dat:category-ru"],
+                            "outboundTag": "direct",
+                        },
+                        {
+                            "type": "field",
+                            "ruleTag": "log_07_catch_all_fast_web_balancer",
+                            "network": "tcp,udp",
+                            "balancerTag": "fast_web_balancer",
+                        },
+                    ],
+                }
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (xray_dir / "07_observatory.json").write_text(
+        json.dumps(
+            {"observatory": {"subjectSelector": ["VPS_"], "probeUrl": "https://probe.example.com"}},
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    subs.upsert_subscription(
+        str(ui_state_dir),
+        {
+            "id": "test-sub-ch",
+            "tag": "TEST_SUB_CH",
+            "url": "https://example.com/sub",
+            "enabled": True,
+            "ping_enabled": True,
+            "routing_auto_rule": True,
+            "routing_mode": "subscription-only",
+            "routing_balancer_tags": ["fast_web_balancer", "heavy_load_balancer"],
+        },
+    )
+
+    result = subs.refresh_subscription(
+        str(ui_state_dir),
+        "test-sub-ch",
+        xray_configs_dir=str(xray_dir),
+        snapshot=lambda _path: None,
+        restart_xkeen=None,
+        restart=False,
+    )
+
+    assert result["ok"] is True
+    assert result["routing_mode"] == "subscription-only"
+    assert result["routing_balancer_tag"] == ""
+    assert result["routing_manual_balancer_tags"] == ["fast_web_balancer", "heavy_load_balancer"]
+    assert result["routing_selector_count"] == 0
+    assert result["disabled_manual_outbounds"] == 1
+
+    base_outbounds = json.loads((xray_dir / "04_outbounds.json").read_text(encoding="utf-8"))
+    assert [item["tag"] for item in base_outbounds["outbounds"]] == ["direct", "block"]
+
+    observatory = json.loads((xray_dir / "07_observatory.json").read_text(encoding="utf-8"))
+    assert observatory["observatory"]["subjectSelector"] == ["TEST_SUB_CH"]
+    assert observatory["observatory"]["probeUrl"] == "https://probe.example.com"
+
+    routing = json.loads((xray_dir / "05_routing.json").read_text(encoding="utf-8"))
+    balancers = {item["tag"]: item for item in routing["routing"]["balancers"]}
+    assert "proxy" not in balancers
+    assert balancers["fast_web_balancer"]["selector"] == ["TEST_SUB_CH"]
+    assert balancers["heavy_load_balancer"]["selector"] == ["TEST_SUB_CH"]
+
+    rules = routing["routing"]["rules"]
+    assert all(rule.get("ruleTag") != "xk_auto_leastPing" for rule in rules)
+    assert rules[0]["balancerTag"] == "fast_web_balancer"
+    assert rules[1]["balancerTag"] == "heavy_load_balancer"
+    assert rules[2]["outboundTag"] == "direct"
+    assert rules[3]["balancerTag"] == "fast_web_balancer"
 
 
 def test_get_subscription_routing_meta_reports_shadowing_catch_all_rule(tmp_path: Path):
@@ -2311,6 +2458,8 @@ def test_refresh_subscription_only_mode_replaces_manual_runtime_and_bypasses_sha
 
     base_outbounds = json.loads((xray_dir / "04_outbounds.json").read_text(encoding="utf-8"))
     assert [item["tag"] for item in base_outbounds["outbounds"]] == ["direct", "block"]
+    disabled_outbounds = json.loads((xray_dir / "04_outbounds.json.disable").read_text(encoding="utf-8"))
+    assert [item["tag"] for item in disabled_outbounds["outbounds"]] == ["manual-vless", "direct", "block"]
 
     rules = routing["routing"]["rules"]
     assert [rule.get("ruleTag") for rule in rules] == [
@@ -2340,6 +2489,7 @@ def test_refresh_subscription_only_mode_replaces_manual_runtime_and_bypasses_sha
     assert deleted["outbounds_changed"] is True
     restored_outbounds = json.loads((xray_dir / "04_outbounds.json").read_text(encoding="utf-8"))
     assert [item["tag"] for item in restored_outbounds["outbounds"]] == ["manual-vless", "direct", "block"]
+    assert not (xray_dir / "04_outbounds.json.disable").exists()
     restored_routing = json.loads((xray_dir / "05_routing.json").read_text(encoding="utf-8"))
     restored_balancers = {item["tag"]: item for item in restored_routing["routing"]["balancers"]}
     assert restored_balancers["fast_web_balancer"]["selector"] == ["VPS_"]

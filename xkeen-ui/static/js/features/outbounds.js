@@ -4678,7 +4678,10 @@ let outboundsModuleApi = null;
         const autoTag = subsDraftAutoBalancerTag();
         const hasExistingAutoPool = !!subsRoutingMetaText('existing_auto_balancer_tag');
         const routingMode = subsRoutingModeValue(state.routing_mode);
-        if (tagPrefix) {
+        const selectedManualSubscriptionOnly = routingMode === SUB_ROUTING_MODE_SUBSCRIPTION_ONLY && manualTags.length;
+        if (selectedManualSubscriptionOnly) {
+          items.push(`Routing: \u0440\u0435\u0436\u0438\u043c «\u0422\u043e\u043b\u044c\u043a\u043e \u043f\u043e\u0434\u043f\u0438\u0441\u043a\u0430» \u0431\u0443\u0434\u0435\u0442 \u043e\u043f\u0438\u0440\u0430\u0442\u044c\u0441\u044f \u043d\u0430 \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u044b\u0435 user balancers; \u0441\u043b\u0443\u0436\u0435\u0431\u043d\u044b\u0439 pool ${subsQuotedTag(autoTag)} \u043d\u0435 \u0431\u0443\u0434\u0435\u0442 \u0441\u043e\u0437\u0434\u0430\u043d.`);
+        } else if (tagPrefix) {
           items.push(
             hasExistingAutoPool
               ? `Routing: \u043f\u043e\u0434\u043f\u0438\u0441\u043a\u0430 \u0434\u043e\u0431\u0430\u0432\u0438\u0442 prefix ${subsQuotedTag(tagPrefix)} \u0432 \u0441\u043b\u0443\u0436\u0435\u0431\u043d\u044b\u0439 pool ${subsQuotedTag(autoTag)}.`
@@ -4687,16 +4690,23 @@ let outboundsModuleApi = null;
         } else {
           items.push(`Routing: \u0431\u0443\u0434\u0435\u0442 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d \u0441\u043b\u0443\u0436\u0435\u0431\u043d\u044b\u0439 pool ${subsQuotedTag(autoTag)}.`);
         }
-        items.push('Routing: \u0431\u0443\u0434\u0435\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043e \u0438\u043b\u0438 \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u043e \u0441\u043b\u0443\u0436\u0435\u0431\u043d\u043e\u0435 \u043f\u0440\u0430\u0432\u0438\u043b\u043e xk_auto_leastPing \u0434\u043b\u044f inbound redirect/tproxy.');
+        if (!selectedManualSubscriptionOnly) {
+          items.push('Routing: \u0431\u0443\u0434\u0435\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043e \u0438\u043b\u0438 \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u043e \u0441\u043b\u0443\u0436\u0435\u0431\u043d\u043e\u0435 \u043f\u0440\u0430\u0432\u0438\u043b\u043e xk_auto_leastPing \u0434\u043b\u044f inbound redirect/tproxy.');
+        }
         if (routingMode === 'migrate-vless-rules') {
           items.push('Применение: совместимые auto-правила на vless-reality будут переведены на balancerTag служебного pool.');
-        } else if (routingMode === SUB_ROUTING_MODE_SUBSCRIPTION_ONLY) {
+        } else if (routingMode === SUB_ROUTING_MODE_SUBSCRIPTION_ONLY && !selectedManualSubscriptionOnly) {
           items.push('Применение: только подписка. Служебный pool будет вести трафик только через generated nodes; одиночный vless-reality/proxy в 04_outbounds.json не нужен.');
         }
       }
 
       if (manualTags.length) {
-        items.push(`User balancers: будут расширены selector у ${manualTags.map((tag) => subsQuotedTag(tag)).join(', ')}. Prefix-match Xray: ${subsSelectorPrefixHint(tagPrefix)} Существующие значения не удаляются.`);
+        const routingMode = subsRoutingModeValue(state.routing_mode);
+        if (routingMode === SUB_ROUTING_MODE_SUBSCRIPTION_ONLY) {
+          items.push(`User balancers: selector у ${manualTags.map((tag) => subsQuotedTag(tag)).join(', ')} будет заменён на подписочный prefix. Prefix-match Xray: ${subsSelectorPrefixHint(tagPrefix)}`);
+        } else {
+          items.push(`User balancers: будут расширены selector у ${manualTags.map((tag) => subsQuotedTag(tag)).join(', ')}. Prefix-match Xray: ${subsSelectorPrefixHint(tagPrefix)} Существующие значения не удаляются.`);
+        }
       }
 
       if (!state.routing_auto_rule && !manualTags.length) {
