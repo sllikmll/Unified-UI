@@ -2201,14 +2201,44 @@ def test_refresh_subscription_only_mode_replaces_manual_runtime_and_bypasses_sha
                             "selector": ["VPS_"],
                             "strategy": {"type": "leastPing"},
                             "fallbackTag": "direct",
+                        },
+                        {
+                            "tag": "heavy_load_balancer",
+                            "selector": ["VPS_"],
+                            "strategy": {"type": "leastLoad"},
+                            "fallbackTag": "direct",
                         }
                     ],
                     "rules": [
                         {
                             "type": "field",
+                            "ruleTag": "log_01_messengers_quic_domain",
+                            "domain": [
+                                "ext:geosite_v2fly.dat:telegram",
+                                "ext:geosite_v2fly.dat:whatsapp",
+                            ],
+                            "protocol": ["quic"],
+                            "balancerTag": "fast_web_balancer",
+                        },
+                        {
+                            "type": "field",
+                            "ruleTag": "log_03_block_quic_non_ru",
+                            "outboundTag": "block",
+                            "network": "udp",
+                            "port": "443",
+                            "ip": ["ext:geoip_zkeenip.dat:!ru"],
+                        },
+                        {
+                            "type": "field",
                             "ruleTag": "log_05_direct_ru_by_domains",
                             "outboundTag": "direct",
                             "domain": ["ext:geosite_v2fly.dat:category-ru"],
+                        },
+                        {
+                            "type": "field",
+                            "ruleTag": "log_04_heavy_content_load",
+                            "domain": ["domain:googlevideo.com", "ext:geosite_v2fly.dat:steam"],
+                            "balancerTag": "heavy_load_balancer",
                         },
                         {
                             "type": "field",
@@ -2274,17 +2304,24 @@ def test_refresh_subscription_only_mode_replaces_manual_runtime_and_bypasses_sha
     routing = json.loads((xray_dir / "05_routing.json").read_text(encoding="utf-8"))
     balancers = {item["tag"]: item for item in routing["routing"]["balancers"]}
     assert balancers["fast_web_balancer"]["selector"] == ["VPS_"]
+    assert balancers["heavy_load_balancer"]["selector"] == ["VPS_"]
     assert balancers["proxy"]["selector"] == ["cp.landing-nl.rfid-technologies.org"]
 
     rules = routing["routing"]["rules"]
     assert [rule.get("ruleTag") for rule in rules] == [
+        "log_01_messengers_quic_domain",
+        "log_03_block_quic_non_ru",
         "log_05_direct_ru_by_domains",
+        "log_04_heavy_content_load",
         "xk_auto_leastPing",
         "log_07_catch_all_fast_web_balancer",
     ]
-    assert rules[0]["outboundTag"] == "direct"
-    assert rules[1]["balancerTag"] == "proxy"
-    assert rules[2]["balancerTag"] == "fast_web_balancer"
+    assert rules[0]["balancerTag"] == "proxy"
+    assert rules[1]["outboundTag"] == "block"
+    assert rules[2]["outboundTag"] == "direct"
+    assert rules[3]["balancerTag"] == "proxy"
+    assert rules[4]["balancerTag"] == "proxy"
+    assert rules[5]["balancerTag"] == "proxy"
 
 
 def test_refresh_subscription_strict_mode_keeps_ru_direct_rules_before_migrated_pool_rule(tmp_path: Path, monkeypatch):

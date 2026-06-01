@@ -3213,6 +3213,45 @@ def _sync_vless_reality_rules_to_balancer(
     return {"changed": changed, "migrated": migrated, "reverted": reverted, "skipped": skipped}
 
 
+def _subscription_only_retarget_proxy_rules(
+    routing: Dict[str, Any],
+    *,
+    balancer_tag: str,
+) -> Dict[str, int | bool]:
+    rules = routing.get("rules")
+    if not isinstance(rules, list):
+        return {"changed": False, "retargeted": 0}
+
+    target_balancer = str(balancer_tag or AUTO_BALANCER_TAG).strip() or AUTO_BALANCER_TAG
+    terminal_targets = {"direct", "block", "blackhole", "reject", "dns"}
+    changed = False
+    retargeted = 0
+    for rule in rules:
+        if not isinstance(rule, dict) or not _rule_touches_proxy_inbound(rule):
+            continue
+        if str(rule.get("ruleTag") or "").strip() == AUTO_BALANCER_RULE_TAG:
+            continue
+        outbound_tag = str(rule.get("outboundTag") or "").strip()
+        balancer = str(rule.get("balancerTag") or "").strip()
+        if outbound_tag:
+            if outbound_tag.lower() in terminal_targets:
+                continue
+            before = copy.deepcopy(rule)
+            rule.pop("outboundTag", None)
+            rule["balancerTag"] = target_balancer
+            if before != rule:
+                changed = True
+                retargeted += 1
+            continue
+        if balancer and balancer != target_balancer:
+            before = copy.deepcopy(rule)
+            rule["balancerTag"] = target_balancer
+            if before != rule:
+                changed = True
+                retargeted += 1
+    return {"changed": changed, "retargeted": retargeted}
+
+
 def _effective_subscription_routing_mode(ui_state_dir: str) -> str:
     state = load_subscription_state(ui_state_dir)
     strict_enabled = False
@@ -3788,6 +3827,12 @@ def sync_subscription_runtime_plan_delta(
         balancer_tag=balancer_tag,
         enabled=strict_enabled,
     )
+    retarget_stats = (
+        _subscription_only_retarget_proxy_rules(routing, balancer_tag=balancer_tag)
+        if next_subscription_only
+        else {"changed": False, "retargeted": 0}
+    )
+    changed = bool(changed or retarget_stats.get("changed"))
     changed = bool(changed or migrate_stats.get("changed"))
 
     routing_changed = False
@@ -3818,7 +3863,10 @@ def sync_subscription_runtime_plan_delta(
             "balancer_tag": balancer_tag if next_auto_terms else "",
             "routing_file": os.path.basename(routing_path),
             "routing_mode": effective_mode,
-            "migrated_rules": int(migrate_stats.get("migrated") or 0),
+            "migrated_rules": (
+                int(migrate_stats.get("migrated") or 0)
+                + int(retarget_stats.get("retargeted") or 0)
+            ),
             "reverted_rules": int(migrate_stats.get("reverted") or 0),
             "skipped_rules": int(migrate_stats.get("skipped") or 0),
             "manual_balancer_tags": applied_manual_tags,
@@ -4373,6 +4421,7 @@ def refresh_subscription(
             snapshot=snapshot,
             previous_state=previous_state_for_runtime,
             state_override=state_for_runtime,
+            rebuild_from_baseline=True,
         )
         observatory_changed = bool(rebuild_stats.get("observatory_changed"))
         routing_changed = bool(rebuild_stats.get("routing_changed"))
