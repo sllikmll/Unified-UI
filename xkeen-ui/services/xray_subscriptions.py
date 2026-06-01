@@ -44,9 +44,11 @@ STATE_FILENAME = "xray_subscriptions.json"
 MANAGED_BASELINES_KEY = "managed_baselines"
 MANAGED_BASELINE_ROUTING_KEY = "routing"
 MANAGED_BASELINE_OBSERVATORY_KEY = "observatory"
+MANAGED_BASELINE_OUTBOUNDS_KEY = "outbounds"
 MANAGED_BASELINE_TARGETS = {
     MANAGED_BASELINE_ROUTING_KEY: ROUTING_FILE,
     MANAGED_BASELINE_OBSERVATORY_KEY: "07_observatory.json",
+    MANAGED_BASELINE_OUTBOUNDS_KEY: OUTBOUNDS_FILE,
 }
 
 DEFAULT_INTERVAL_HOURS = 24
@@ -942,6 +944,7 @@ def delete_subscription(
 
     observatory_changed = False
     routing_changed = False
+    outbounds_changed = False
     routing_sync: Dict[str, Any] = {}
     restored_baseline = False
     rebuild_stats = _rebuild_subscription_runtime(
@@ -955,6 +958,7 @@ def delete_subscription(
     restored_baseline = bool(rebuild_stats.get("baseline_restored"))
     observatory_changed = bool(rebuild_stats.get("observatory_changed"))
     routing_changed = bool(rebuild_stats.get("routing_changed"))
+    outbounds_changed = bool(rebuild_stats.get("outbounds_changed"))
     routing_sync = rebuild_stats.get("routing_sync") if isinstance(rebuild_stats.get("routing_sync"), dict) else {}
     if not rebuild_stats.get("has_runtime_targets"):
         _clear_subscription_managed_baselines(ui_state_dir)
@@ -982,7 +986,7 @@ def delete_subscription(
     snapshots_removed = _remove_config_snapshots_for_paths(xray_configs_dir, snapshot_cleanup_paths)
 
     restarted = False
-    if restart_xkeen and (output_removed or observatory_changed or routing_changed):
+    if restart_xkeen and (output_removed or observatory_changed or routing_changed or outbounds_changed):
         try:
             restarted = bool(restart_xkeen(source="xray-subscription-delete"))
         except TypeError:
@@ -995,6 +999,7 @@ def delete_subscription(
         "output_removed": output_removed,
         "observatory_changed": observatory_changed,
         "routing_changed": routing_changed,
+        "outbounds_changed": outbounds_changed,
         "routing_file": str(routing_sync.get("routing_file") or ""),
         "routing_balancer_tag": str(routing_sync.get("balancer_tag") or ""),
         "routing_manual_balancer_tags": list(routing_sync.get("manual_balancer_tags") or []),
@@ -2242,10 +2247,20 @@ def _restore_subscription_managed_baselines(
             default_name="07_observatory.json",
             snapshot=snapshot,
         )
+    outbounds_changed = False
+    outbounds_baseline = baselines.get(MANAGED_BASELINE_OUTBOUNDS_KEY)
+    if outbounds_baseline is not None:
+        outbounds_changed = _restore_managed_file_baseline(
+            xray_configs_dir,
+            outbounds_baseline,
+            default_name=OUTBOUNDS_FILE,
+            snapshot=snapshot,
+        )
     return {
         "restored": True,
         "routing_changed": bool(routing_changed),
         "observatory_changed": bool(observatory_changed),
+        "outbounds_changed": bool(outbounds_changed),
     }
 
 
@@ -2735,9 +2750,34 @@ def _preserved_balancer_tags(xray_configs_dir: str) -> List[str]:
     return [tag for tag in AUTO_BALANCER_PRESERVE_TAGS if tag in available]
 
 
-def _subscription_only_excluded_runtime_tags(xray_configs_dir: str) -> List[str]:
-    path = _config_fragment_path(xray_configs_dir, OUTBOUNDS_FILE)
-    return _clean_tags_list(_load_proxy_outbound_tags(path))
+def _subscription_only_excluded_runtime_tags(
+    xray_configs_dir: str,
+    active_terms: Iterable[Any] | None = None,
+) -> List[str]:
+    active = _clean_tags_list(active_terms or [])
+    tags: List[str] = []
+    seen: set[str] = set()
+    paths: List[str] = []
+    base_path = _config_fragment_path(xray_configs_dir, OUTBOUNDS_FILE)
+    paths.append(base_path)
+    try:
+        for name in os.listdir(xray_configs_dir):
+            if not str(name or "").startswith("04_outbounds") or not str(name or "").endswith(".json"):
+                continue
+            path = os.path.join(xray_configs_dir, name)
+            if path not in paths:
+                paths.append(path)
+    except Exception:
+        pass
+    for path in paths:
+        for tag in _load_proxy_outbound_tags(path):
+            if active and any(_selector_term_matches_any_tag(term, [tag]) for term in active):
+                continue
+            if tag in seen:
+                continue
+            seen.add(tag)
+            tags.append(tag)
+    return tags
 
 
 def _routing_field_missing(routing: Dict[str, Any], key: str) -> bool:
@@ -3252,6 +3292,107 @@ def _subscription_only_retarget_proxy_rules(
     return {"changed": changed, "retargeted": retargeted}
 
 
+def _selector_term_matches_any_tag(selector: str, tags: Iterable[Any]) -> bool:
+    term = str(selector or "").strip()
+    if not term:
+        return False
+    for value in tags:
+        tag = str(value or "").strip()
+        if tag and (tag == term or tag.startswith(term)):
+            return True
+    return False
+
+
+def _subscription_only_remove_unused_manual_balancers(
+    routing: Dict[str, Any],
+    *,
+    balancer_tag: str,
+    manual_tags: Iterable[Any],
+) -> Dict[str, int | bool]:
+    balancers = routing.get("balancers")
+    rules = routing.get("rules")
+    if not isinstance(balancers, list) or not isinstance(rules, list):
+        return {"changed": False, "removed": 0}
+
+    target_balancer = str(balancer_tag or AUTO_BALANCER_TAG).strip() or AUTO_BALANCER_TAG
+    manual = _clean_tags_list(manual_tags)
+    if not manual:
+        return {"changed": False, "removed": 0}
+
+    referenced = {
+        str(rule.get("balancerTag") or "").strip()
+        for rule in rules
+        if isinstance(rule, dict) and str(rule.get("balancerTag") or "").strip()
+    }
+    changed = False
+    removed = 0
+    kept: List[Any] = []
+    for balancer in balancers:
+        if not isinstance(balancer, dict):
+            kept.append(balancer)
+            continue
+        tag = str(balancer.get("tag") or "").strip()
+        selector = _clean_tags_list(balancer.get("selector") if isinstance(balancer.get("selector"), list) else [])
+        if (
+            tag
+            and tag != target_balancer
+            and tag not in referenced
+            and any(_selector_term_matches_any_tag(term, manual) for term in selector)
+        ):
+            changed = True
+            removed += 1
+            continue
+        kept.append(balancer)
+
+    if changed:
+        routing["balancers"] = kept
+    return {"changed": changed, "removed": removed}
+
+
+def _sync_subscription_only_base_outbounds(
+    *,
+    xray_configs_dir: str,
+    enabled: bool,
+    snapshot: SnapshotCallback | None = None,
+) -> Dict[str, int | bool]:
+    path = _config_fragment_path(xray_configs_dir, OUTBOUNDS_FILE)
+    if not os.path.exists(path):
+        return {"changed": False, "removed": 0}
+
+    obj = _read_json_file(path, None)
+    if not isinstance(obj, dict) or not isinstance(obj.get("outbounds"), list):
+        return {"changed": False, "removed": 0}
+
+    outbounds = obj.get("outbounds")
+    next_outbounds: List[Any] = []
+    removed = 0
+    for item in outbounds:
+        if not enabled or not isinstance(item, dict):
+            next_outbounds.append(item)
+            continue
+        protocol = str(item.get("protocol") or "").strip().lower()
+        tag = str(item.get("tag") or "").strip()
+        if tag and protocol and protocol not in IGNORED_OUTBOUND_PROTOCOLS:
+            removed += 1
+            continue
+        next_outbounds.append(item)
+
+    if not enabled or removed <= 0:
+        return {"changed": False, "removed": 0}
+
+    next_obj = copy.deepcopy(obj)
+    next_obj["outbounds"] = next_outbounds
+    main_changed = _write_json_if_changed(path, next_obj, snapshot=snapshot)
+    raw_changed = _write_jsonc_sidecar_if_changed(
+        path,
+        next_obj,
+        header="// Generated by XKeen UI subscriptions (subscription-only base outbounds)",
+        snapshot=snapshot,
+        preserve_existing_comments=True,
+    )
+    return {"changed": bool(main_changed or raw_changed), "removed": removed}
+
+
 def _effective_subscription_routing_mode(ui_state_dir: str) -> str:
     state = load_subscription_state(ui_state_dir)
     strict_enabled = False
@@ -3502,7 +3643,7 @@ def sync_subscription_routing(
     routing_path = _config_fragment_path(xray_configs_dir, ROUTING_FILE)
     cfg, routing, normalized_model = _ensure_routing_model(_read_json_file(routing_path, {}))
     balancer_tag = _choose_auto_balancer_tag(routing)
-    subscription_only_excluded_tags = _subscription_only_excluded_runtime_tags(xray_configs_dir) if subscription_only else []
+    subscription_only_excluded_tags = _subscription_only_excluded_runtime_tags(xray_configs_dir, add) if subscription_only else []
     balancer = _find_balancer_by_tag(routing.get("balancers", []), balancer_tag)
     current_selector = _clean_tags_list(
         balancer.get("selector") if isinstance(balancer, dict) and isinstance(balancer.get("selector"), list) else []
@@ -3735,7 +3876,11 @@ def sync_subscription_runtime_plan_delta(
 
     next_subscription_only = bool(nxt.get("subscription_only")) and bool(next_auto_terms)
     entering_subscription_only = next_subscription_only and not bool(prev.get("subscription_only"))
-    subscription_only_excluded_tags = _subscription_only_excluded_runtime_tags(xray_configs_dir) if next_subscription_only else []
+    subscription_only_excluded_tags = (
+        _subscription_only_excluded_runtime_tags(xray_configs_dir, next_auto_terms)
+        if next_subscription_only
+        else []
+    )
     observatory_remove_tags = [tag for tag in prev_observatory_terms if tag not in set(next_observatory_terms)]
     if next_subscription_only:
         observatory_remove_tags = _clean_tags_list(observatory_remove_tags + subscription_only_excluded_tags)
@@ -3833,7 +3978,22 @@ def sync_subscription_runtime_plan_delta(
         if next_subscription_only
         else {"changed": False, "retargeted": 0}
     )
+    prune_stats = (
+        _subscription_only_remove_unused_manual_balancers(
+            routing,
+            balancer_tag=balancer_tag,
+            manual_tags=subscription_only_excluded_tags,
+        )
+        if next_subscription_only
+        else {"changed": False, "removed": 0}
+    )
+    outbounds_stats = _sync_subscription_only_base_outbounds(
+        xray_configs_dir=xray_configs_dir,
+        enabled=next_subscription_only,
+        snapshot=snapshot,
+    )
     changed = bool(changed or retarget_stats.get("changed"))
+    changed = bool(changed or prune_stats.get("changed"))
     changed = bool(changed or migrate_stats.get("changed"))
 
     routing_changed = False
@@ -3858,6 +4018,7 @@ def sync_subscription_runtime_plan_delta(
         "baseline_restored": False,
         "observatory_changed": bool(observatory_changed),
         "routing_changed": bool(routing_changed),
+        "outbounds_changed": bool(outbounds_stats.get("changed")),
         "routing_sync": {
             "changed": bool(routing_changed),
             "selector": selector,
@@ -3872,6 +4033,8 @@ def sync_subscription_runtime_plan_delta(
             "skipped_rules": int(migrate_stats.get("skipped") or 0),
             "manual_balancer_tags": applied_manual_tags,
             "scenario_skipped_auto_terms": scenario_skipped_auto_terms,
+            "removed_manual_balancers": int(prune_stats.get("removed") or 0),
+            "disabled_manual_outbounds": int(outbounds_stats.get("removed") or 0),
         },
         "has_runtime_targets": next_has_runtime_targets,
     }
@@ -4038,6 +4201,7 @@ def _rebuild_subscription_runtime(
                 "baseline_restored": bool(restored.get("restored")),
                 "observatory_changed": bool(restored.get("observatory_changed")),
                 "routing_changed": bool(restored.get("routing_changed")),
+                "outbounds_changed": bool(restored.get("outbounds_changed")),
                 "routing_sync": {
                     "changed": False,
                     "selector": [],
@@ -4058,6 +4222,7 @@ def _rebuild_subscription_runtime(
             restored.get("observatory_changed") or rebuilt.get("observatory_changed")
         )
         rebuilt["routing_changed"] = bool(restored.get("routing_changed") or rebuilt.get("routing_changed"))
+        rebuilt["outbounds_changed"] = bool(restored.get("outbounds_changed") or rebuilt.get("outbounds_changed"))
         return rebuilt
     return sync_subscription_runtime_plan_delta(
         xray_configs_dir=xray_configs_dir,
@@ -4216,6 +4381,7 @@ def refresh_subscription(
         "changed": False,
         "observatory_changed": False,
         "routing_changed": False,
+        "outbounds_changed": False,
         "restarted": False,
         "count": 0,
         "source_count": 0,
@@ -4428,6 +4594,7 @@ def refresh_subscription(
         )
         observatory_changed = bool(rebuild_stats.get("observatory_changed"))
         routing_changed = bool(rebuild_stats.get("routing_changed"))
+        outbounds_changed = bool(rebuild_stats.get("outbounds_changed"))
         routing_sync = rebuild_stats.get("routing_sync") if isinstance(rebuild_stats.get("routing_sync"), dict) else {}
         if not rebuild_stats.get("has_runtime_targets"):
             _clear_subscription_managed_baselines(ui_state_dir)
@@ -4441,7 +4608,7 @@ def refresh_subscription(
         )
 
         restarted = False
-        if restart and restart_xkeen and (changed or observatory_changed or routing_changed):
+        if restart and restart_xkeen and (changed or observatory_changed or routing_changed or outbounds_changed):
             try:
                 restarted = bool(restart_xkeen(source="xray-subscription-refresh"))
             except TypeError:
@@ -4455,6 +4622,7 @@ def refresh_subscription(
                 "changed": bool(changed),
                 "observatory_changed": bool(observatory_changed),
                 "routing_changed": bool(routing_changed),
+                "outbounds_changed": bool(outbounds_changed),
                 "restarted": restarted,
                 "count": len(outbounds),
                 "source_count": source_count,
@@ -4478,6 +4646,8 @@ def refresh_subscription(
                 "routing_migrated_rules": int(routing_sync.get("migrated_rules") or 0) if "routing_sync" in locals() else 0,
                 "routing_reverted_rules": int(routing_sync.get("reverted_rules") or 0) if "routing_sync" in locals() else 0,
                 "routing_skipped_rules": int(routing_sync.get("skipped_rules") or 0) if "routing_sync" in locals() else 0,
+                "routing_removed_manual_balancers": int(routing_sync.get("removed_manual_balancers") or 0) if "routing_sync" in locals() else 0,
+                "disabled_manual_outbounds": int(routing_sync.get("disabled_manual_outbounds") or 0) if "routing_sync" in locals() else 0,
                 "next_update_ts": sub.get("next_update_ts"),
             }
         )

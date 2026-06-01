@@ -2296,6 +2296,8 @@ def test_refresh_subscription_only_mode_replaces_manual_runtime_and_bypasses_sha
     assert result["ok"] is True
     assert result["routing_mode"] == "subscription-only"
     assert result["routing_selector_count"] == 1
+    assert result["routing_removed_manual_balancers"] == 2
+    assert result["disabled_manual_outbounds"] == 1
 
     observatory = json.loads((xray_dir / "07_observatory.json").read_text(encoding="utf-8"))
     assert observatory["observatory"]["subjectSelector"] == ["cp.landing-nl.rfid-technologies.org"]
@@ -2303,9 +2305,12 @@ def test_refresh_subscription_only_mode_replaces_manual_runtime_and_bypasses_sha
 
     routing = json.loads((xray_dir / "05_routing.json").read_text(encoding="utf-8"))
     balancers = {item["tag"]: item for item in routing["routing"]["balancers"]}
-    assert balancers["fast_web_balancer"]["selector"] == ["VPS_"]
-    assert balancers["heavy_load_balancer"]["selector"] == ["VPS_"]
+    assert "fast_web_balancer" not in balancers
+    assert "heavy_load_balancer" not in balancers
     assert balancers["proxy"]["selector"] == ["cp.landing-nl.rfid-technologies.org"]
+
+    base_outbounds = json.loads((xray_dir / "04_outbounds.json").read_text(encoding="utf-8"))
+    assert [item["tag"] for item in base_outbounds["outbounds"]] == ["direct", "block"]
 
     rules = routing["routing"]["rules"]
     assert [rule.get("ruleTag") for rule in rules] == [
@@ -2322,6 +2327,23 @@ def test_refresh_subscription_only_mode_replaces_manual_runtime_and_bypasses_sha
     assert rules[3]["balancerTag"] == "proxy"
     assert rules[4]["balancerTag"] == "proxy"
     assert rules[5]["balancerTag"] == "proxy"
+
+    deleted = subs.delete_subscription(
+        str(ui_state_dir),
+        "subscription-only",
+        xray_configs_dir=str(xray_dir),
+        snapshot=lambda _path: None,
+        remove_file=True,
+        restart_xkeen=None,
+    )
+    assert deleted["baseline_restored"] is True
+    assert deleted["outbounds_changed"] is True
+    restored_outbounds = json.loads((xray_dir / "04_outbounds.json").read_text(encoding="utf-8"))
+    assert [item["tag"] for item in restored_outbounds["outbounds"]] == ["manual-vless", "direct", "block"]
+    restored_routing = json.loads((xray_dir / "05_routing.json").read_text(encoding="utf-8"))
+    restored_balancers = {item["tag"]: item for item in restored_routing["routing"]["balancers"]}
+    assert restored_balancers["fast_web_balancer"]["selector"] == ["VPS_"]
+    assert restored_balancers["heavy_load_balancer"]["selector"] == ["VPS_"]
 
 
 def test_refresh_subscription_only_preserves_manual_edits_after_activation(tmp_path: Path, monkeypatch):
