@@ -5399,6 +5399,13 @@ let outboundsModuleApi = null;
       return true;
     }
 
+    function subsDiscardUnprotectedDraftOnClose() {
+      const formState = subsReadFormState();
+      if (!subsHasDirtyDraft(formState)) return false;
+      if (subsHasProtectedDirtyDraft(formState)) return false;
+      return subsRestoreBaseline({ focus: false });
+    }
+
     function subsBuildPayload(formState) {
       const state = (formState && typeof formState === 'object') ? formState : subsReadFormState();
       return {
@@ -7541,6 +7548,7 @@ let outboundsModuleApi = null;
         cancelText: 'Остаться',
       });
       if (!ok) return false;
+      try { subsDiscardUnprotectedDraftOnClose(); } catch (e) {}
       subsShow(false);
       return true;
     }

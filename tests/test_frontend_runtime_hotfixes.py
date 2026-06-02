@@ -1523,6 +1523,17 @@ def test_mihomo_template_load_button_uses_dirty_guard_while_select_path_skips_du
     assert "const loaded = await MP.loadSelectedTemplateToEditor({ confirmDirty: false });" in text
 
 
+def test_xray_subscription_modal_discards_url_only_draft_on_close_without_prompt():
+    text = Path('xkeen-ui/static/js/features/outbounds.js').read_text(encoding='utf-8')
+
+    assert 'function subsDiscardUnprotectedDraftOnClose() {' in text
+    assert 'if (!subsHasDirtyDraft(formState)) return false;' in text
+    assert 'if (subsHasProtectedDirtyDraft(formState)) return false;' in text
+    assert 'return subsRestoreBaseline({ focus: false });' in text
+    close_block = text.split('async function subsClose() {', 1)[1].split('function wireSubscriptionsModalControls', 1)[0]
+    assert close_block.index('try { subsDiscardUnprotectedDraftOnClose(); } catch (e) {}') < close_block.index('subsShow(false);')
+
+
 def test_mihomo_server_side_config_swaps_resync_editor_after_activate_and_restore():
     text = Path('xkeen-ui/static/js/features/mihomo_panel.js').read_text(encoding='utf-8')
 
