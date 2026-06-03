@@ -2780,7 +2780,12 @@ def _load_proxy_outbound_tags(path: str) -> List[str]:
             continue
         tag = str(item.get("tag") or "").strip()
         protocol = str(item.get("protocol") or "").strip().lower()
-        if not tag or tag in seen or not protocol or protocol in IGNORED_OUTBOUND_PROTOCOLS:
+        if (
+            not tag
+            or tag in seen
+            or tag.lower() in RESERVED_TAGS
+            or (protocol and protocol in IGNORED_OUTBOUND_PROTOCOLS)
+        ):
             continue
         seen.add(tag)
         tags.append(tag)
@@ -3150,6 +3155,20 @@ def _find_auto_rule_idx(rules: List[Any], auto_tag: str = AUTO_BALANCER_RULE_TAG
     return -1
 
 
+def _find_subscription_only_catch_all_rule_idx(rules: List[Any]) -> int:
+    if not isinstance(rules, list):
+        return -1
+    candidate_idx = -1
+    for idx, rule in enumerate(rules):
+        if not isinstance(rule, dict):
+            continue
+        if str(rule.get("ruleTag") or "").strip() == AUTO_BALANCER_RULE_TAG:
+            continue
+        if _is_proxy_inbound_catchall_rule(rule):
+            candidate_idx = idx
+    return candidate_idx
+
+
 def _choose_insert_index(rules: List[Any]) -> int:
     if not isinstance(rules, list) or not rules:
         return 0
@@ -3364,8 +3383,6 @@ def _subscription_only_remove_unused_manual_balancers(
 
     target_balancer = str(balancer_tag or AUTO_BALANCER_TAG).strip() or AUTO_BALANCER_TAG
     manual = _clean_tags_list(manual_tags)
-    if not manual:
-        return {"changed": False, "removed": 0}
 
     referenced = {
         str(rule.get("balancerTag") or "").strip()
@@ -3385,7 +3402,7 @@ def _subscription_only_remove_unused_manual_balancers(
             tag
             and tag != target_balancer
             and tag not in referenced
-            and any(_selector_term_matches_any_tag(term, manual) for term in selector)
+            and (not manual or any(_selector_term_matches_any_tag(term, manual) for term in selector))
         ):
             changed = True
             removed += 1
@@ -3424,7 +3441,11 @@ def _sync_subscription_only_base_outbounds(
             continue
         protocol = str(item.get("protocol") or "").strip().lower()
         tag = str(item.get("tag") or "").strip()
-        if tag and protocol and protocol not in IGNORED_OUTBOUND_PROTOCOLS:
+        if (
+            tag
+            and tag.lower() not in RESERVED_TAGS
+            and (not protocol or protocol not in IGNORED_OUTBOUND_PROTOCOLS)
+        ):
             removed += 1
             continue
         next_outbounds.append(item)
@@ -3617,7 +3638,15 @@ def _ensure_default_balancer_rule(
         routing["rules"] = rules
 
     candidate_idx = _find_auto_rule_idx(rules)
-    if candidate_idx < 0:
+    if subscription_only:
+        catch_all_idx = _find_subscription_only_catch_all_rule_idx(rules)
+        if catch_all_idx >= 0:
+            if candidate_idx >= 0 and candidate_idx != catch_all_idx:
+                rules.pop(candidate_idx)
+                if candidate_idx < catch_all_idx:
+                    catch_all_idx -= 1
+            candidate_idx = catch_all_idx
+    if candidate_idx < 0 and not subscription_only:
         for idx, rule in enumerate(rules):
             if _is_default_balancer_rule(rule, balancer_tag):
                 candidate_idx = idx
@@ -3631,14 +3660,26 @@ def _ensure_default_balancer_rule(
     else:
         rule = {}
     before_rule = copy.deepcopy(rule)
+    allowed = (
+        {"type", "balancerTag", "ruleTag", "network"}
+        if subscription_only
+        else {"type", "balancerTag", "ruleTag", "inboundTag"}
+    )
     for key in tuple(rule.keys()):
-        if key not in {"type", "balancerTag", "ruleTag", "inboundTag"}:
+        if key not in allowed:
             rule.pop(key, None)
     rule["type"] = "field"
     rule["balancerTag"] = str(balancer_tag or AUTO_BALANCER_TAG).strip() or AUTO_BALANCER_TAG
-    rule["inboundTag"] = ["redirect", "tproxy"]
     rule["ruleTag"] = AUTO_BALANCER_RULE_TAG
-    insert_at = _choose_subscription_only_insert_index(rules) if subscription_only else _choose_insert_index(rules)
+    if subscription_only:
+        rule["network"] = "tcp,udp"
+        rule.pop("inboundTag", None)
+    else:
+        rule["inboundTag"] = ["redirect", "tproxy"]
+        rule.pop("network", None)
+    insert_at = before_idx if subscription_only and before_idx >= 0 else (
+        _choose_subscription_only_insert_index(rules) if subscription_only else _choose_insert_index(rules)
+    )
     rules.insert(insert_at, rule)
     return before_idx != insert_at or before_rule != rule
 

@@ -1411,8 +1411,11 @@ def test_refresh_subscription_only_mode_excludes_vless_reality_from_runtime_pool
     assert rules[0]["ruleTag"].startswith("xk_auto_vless_pool_")
     assert rules[0]["balancerTag"] == "proxy"
     assert "outboundTag" not in rules[0]
+    assert len(rules) == 2
     assert rules[1]["ruleTag"] == "xk_auto_leastPing"
-    assert rules[2]["outboundTag"] == "direct"
+    assert rules[1]["balancerTag"] == "proxy"
+    assert rules[1]["network"] == "tcp,udp"
+    assert "inboundTag" not in rules[1]
 
 
 def test_refresh_subscription_only_mode_removes_existing_manual_proxy_from_runtime_pool(tmp_path: Path, monkeypatch):
@@ -2468,14 +2471,14 @@ def test_refresh_subscription_only_mode_replaces_manual_runtime_and_bypasses_sha
         "log_05_direct_ru_by_domains",
         "log_04_heavy_content_load",
         "xk_auto_leastPing",
-        "log_07_catch_all_fast_web_balancer",
     ]
     assert rules[0]["balancerTag"] == "proxy"
     assert rules[1]["outboundTag"] == "block"
     assert rules[2]["outboundTag"] == "direct"
     assert rules[3]["balancerTag"] == "proxy"
     assert rules[4]["balancerTag"] == "proxy"
-    assert rules[5]["balancerTag"] == "proxy"
+    assert rules[4]["network"] == "tcp,udp"
+    assert "inboundTag" not in rules[4]
 
     deleted = subs.delete_subscription(
         str(ui_state_dir),
@@ -2494,6 +2497,253 @@ def test_refresh_subscription_only_mode_replaces_manual_runtime_and_bypasses_sha
     restored_balancers = {item["tag"]: item for item in restored_routing["routing"]["balancers"]}
     assert restored_balancers["fast_web_balancer"]["selector"] == ["VPS_"]
     assert restored_balancers["heavy_load_balancer"]["selector"] == ["VPS_"]
+
+
+def test_refresh_subscription_only_reuses_existing_catch_all_and_removes_auto_duplicate(tmp_path: Path, monkeypatch):
+    from services import xray_subscriptions as subs
+
+    ui_state_dir = tmp_path / "state"
+    xray_dir = tmp_path / "xray" / "configs"
+    jsonc_dir = tmp_path / "jsonc"
+    ui_state_dir.mkdir()
+    xray_dir.mkdir(parents=True)
+    jsonc_dir.mkdir()
+
+    monkeypatch.setattr(subs, "jsonc_path_for", lambda path: str(jsonc_dir / (Path(path).name + "c")))
+    monkeypatch.setattr(subs, "ensure_xray_jsonc_dir", lambda: None)
+    monkeypatch.setattr(
+        subs,
+        "fetch_subscription_body",
+        lambda _url: (_vless_transport("WS Germany", "ws", host="ws.example.com"), {}),
+    )
+
+    (xray_dir / "04_outbounds.json").write_text(
+        json.dumps(
+            {
+                "outbounds": [
+                    {"tag": "manual-vless", "protocol": "vless"},
+                    {"tag": "direct", "protocol": "freedom"},
+                    {"tag": "block", "protocol": "blackhole"},
+                ]
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (xray_dir / "05_routing.json").write_text(
+        json.dumps(
+            {
+                "routing": {
+                    "balancers": [
+                        {
+                            "tag": "proxy",
+                            "selector": ["manual-vless"],
+                            "strategy": {"type": "leastPing"},
+                            "fallbackTag": "direct",
+                        }
+                    ],
+                    "rules": [
+                        {
+                            "type": "field",
+                            "ruleTag": "xk_auto_leastPing",
+                            "balancerTag": "proxy",
+                            "inboundTag": ["redirect", "tproxy"],
+                        },
+                        {
+                            "type": "field",
+                            "ruleTag": "log_07_catch_all_fast_web_balancer",
+                            "balancerTag": "proxy",
+                            "network": "tcp,udp",
+                        },
+                    ],
+                }
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    subs.upsert_subscription(
+        str(ui_state_dir),
+        {
+            "id": "subscription-only",
+            "tag": "subscription.example",
+            "url": "https://example.com/sub",
+            "enabled": True,
+            "ping_enabled": True,
+            "routing_auto_rule": True,
+            "routing_mode": "subscription-only",
+        },
+    )
+
+    result = subs.refresh_subscription(
+        str(ui_state_dir),
+        "subscription-only",
+        xray_configs_dir=str(xray_dir),
+        snapshot=lambda _path: None,
+        restart_xkeen=None,
+        restart=False,
+    )
+
+    assert result["ok"] is True
+    routing = json.loads((xray_dir / "05_routing.json").read_text(encoding="utf-8"))
+    rules = routing["routing"]["rules"]
+    auto_rules = [rule for rule in rules if rule.get("ruleTag") == "xk_auto_leastPing"]
+    assert len(auto_rules) == 1
+    assert auto_rules[0] == {
+        "type": "field",
+        "balancerTag": "proxy",
+        "ruleTag": "xk_auto_leastPing",
+        "network": "tcp,udp",
+    }
+    assert all(rule.get("ruleTag") != "log_07_catch_all_fast_web_balancer" for rule in rules)
+
+
+def test_refresh_subscription_only_disables_protocol_redacted_manual_pool(tmp_path: Path, monkeypatch):
+    from services import xray_subscriptions as subs
+
+    ui_state_dir = tmp_path / "state"
+    xray_dir = tmp_path / "xray" / "configs"
+    jsonc_dir = tmp_path / "jsonc"
+    ui_state_dir.mkdir()
+    xray_dir.mkdir(parents=True)
+    jsonc_dir.mkdir()
+
+    monkeypatch.setattr(subs, "jsonc_path_for", lambda path: str(jsonc_dir / (Path(path).name + "c")))
+    monkeypatch.setattr(subs, "ensure_xray_jsonc_dir", lambda: None)
+    monkeypatch.setattr(
+        subs,
+        "fetch_subscription_body",
+        lambda _url: (_vless_transport("CH", "tcp", host="ch.example.com"), {}),
+    )
+
+    (xray_dir / "04_outbounds.json").write_text(
+        json.dumps(
+            {
+                "outbounds": [
+                    {"tag": "VPS_NL"},
+                    {"tag": "VPS_US"},
+                    {"tag": "direct", "protocol": "freedom"},
+                    {"tag": "block", "protocol": "blackhole"},
+                ]
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (xray_dir / "05_routing.json").write_text(
+        json.dumps(
+            {
+                "routing": {
+                    "balancers": [
+                        {
+                            "tag": "fast_web_balancer",
+                            "selector": ["VPS_"],
+                            "strategy": {"type": "leastPing"},
+                            "fallbackTag": "direct",
+                        },
+                        {
+                            "tag": "heavy_load_balancer",
+                            "selector": ["VPS_"],
+                            "strategy": {"type": "leastLoad"},
+                            "fallbackTag": "direct",
+                        },
+                    ],
+                    "rules": [
+                        {
+                            "type": "field",
+                            "ruleTag": "log_01_messengers_quic_domain",
+                            "domain": ["ext:geosite_v2fly.dat:telegram"],
+                            "balancerTag": "fast_web_balancer",
+                        },
+                        {
+                            "type": "field",
+                            "ruleTag": "log_04_heavy_content_load",
+                            "domain": ["domain:googlevideo.com"],
+                            "balancerTag": "heavy_load_balancer",
+                        },
+                        {
+                            "type": "field",
+                            "ruleTag": "log_05_direct_ru_by_domains",
+                            "domain": ["ext:geosite_v2fly.dat:category-ru"],
+                            "outboundTag": "direct",
+                        },
+                        {
+                            "type": "field",
+                            "ruleTag": "log_07_catch_all_fast_web_balancer",
+                            "network": "tcp,udp",
+                            "balancerTag": "fast_web_balancer",
+                        },
+                    ],
+                }
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (xray_dir / "07_observatory.json").write_text(
+        json.dumps({"observatory": {"subjectSelector": ["VPS_"]}}, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    subs.upsert_subscription(
+        str(ui_state_dir),
+        {
+            "id": "test-sub-ch",
+            "tag": "TEST_SUB_CH",
+            "url": "https://example.com/sub",
+            "enabled": True,
+            "ping_enabled": True,
+            "routing_auto_rule": True,
+            "routing_mode": "subscription-only",
+        },
+    )
+
+    result = subs.refresh_subscription(
+        str(ui_state_dir),
+        "test-sub-ch",
+        xray_configs_dir=str(xray_dir),
+        snapshot=lambda _path: None,
+        restart_xkeen=None,
+        restart=False,
+    )
+
+    assert result["ok"] is True
+    assert result["disabled_manual_outbounds"] == 2
+    assert result["routing_removed_manual_balancers"] == 2
+
+    base_outbounds = json.loads((xray_dir / "04_outbounds.json").read_text(encoding="utf-8"))
+    assert [item["tag"] for item in base_outbounds["outbounds"]] == ["direct", "block"]
+    assert (xray_dir / "04_outbounds.json.disable").exists()
+
+    routing = json.loads((xray_dir / "05_routing.json").read_text(encoding="utf-8"))
+    assert [(item["tag"], item["selector"]) for item in routing["routing"]["balancers"]] == [
+        ("proxy", ["TEST_SUB_CH"])
+    ]
+    rules = routing["routing"]["rules"]
+    assert [rule.get("ruleTag") for rule in rules] == [
+        "log_01_messengers_quic_domain",
+        "log_04_heavy_content_load",
+        "log_05_direct_ru_by_domains",
+        "xk_auto_leastPing",
+    ]
+    assert rules[0]["balancerTag"] == "proxy"
+    assert rules[1]["balancerTag"] == "proxy"
+    assert rules[2]["outboundTag"] == "direct"
+    assert rules[3] == {
+        "type": "field",
+        "balancerTag": "proxy",
+        "ruleTag": "xk_auto_leastPing",
+        "network": "tcp,udp",
+    }
 
 
 def test_refresh_subscription_only_preserves_manual_edits_after_activation(tmp_path: Path, monkeypatch):
