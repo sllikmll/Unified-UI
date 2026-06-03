@@ -1534,6 +1534,26 @@ def test_xray_subscription_modal_discards_url_only_draft_on_close_without_prompt
     assert close_block.index('try { subsDiscardUnprotectedDraftOnClose(); } catch (e) {}') < close_block.index('subsShow(false);')
 
 
+def test_xray_subscription_modal_restarts_with_clean_blank_form_after_mutations():
+    text = Path('xkeen-ui/static/js/features/outbounds.js').read_text(encoding='utf-8')
+
+    load_block = text.split('async function subsLoad() {', 1)[1].split('function subsClearPreview', 1)[0]
+    assert 'let cleanBlankDraft = false;' in load_block
+    assert 'cleanBlankDraft = !_subscriptionBaseline || !subsHasDirtyDraft();' in load_block
+    assert load_block.index('if (cleanBlankDraft) {') < load_block.index('$(SUB_IDS.routingAutoRule).checked = subsSuggestedAutoRuleDefault();')
+    assert load_block.index('try { subsRenderRoutingBalancers(subsSelectedBalancerTags()); } catch') < load_block.index('try { subsCaptureBaseline(); } catch')
+
+    delete_block = text.split('async function subsDelete(id) {', 1)[1].split('async function subsOpen()', 1)[0]
+    assert "const deletingActiveSubscription = String(_subscriptionEditId || '') === subId;" in delete_block
+    assert 'if (deletingActiveSubscription) subsResetForm();' in delete_block
+
+    open_block = text.split('async function subsOpen() {', 1)[1].split('async function subsClose()', 1)[0]
+    assert open_block.index('try { subsResetForm(); } catch (e) {}') < open_block.index('subsShow(true);')
+
+    close_block = text.split('async function subsClose() {', 1)[1].split('function wireSubscriptionsModalControls', 1)[0]
+    assert close_block.index('subsShow(false);') < close_block.index('try { subsResetForm(); } catch (e) {}')
+
+
 def test_mihomo_server_side_config_swaps_resync_editor_after_activate_and_restore():
     text = Path('xkeen-ui/static/js/features/mihomo_panel.js').read_text(encoding='utf-8')
 

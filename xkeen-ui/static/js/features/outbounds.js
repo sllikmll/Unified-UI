@@ -7123,12 +7123,19 @@ let outboundsModuleApi = null;
         if (active) subsFillForm(active, { focus: false, keepRefreshNow: true });
         else if (_subscriptionEditId) subsResetForm();
         else {
+          let cleanBlankDraft = false;
           try {
-            if (!_subscriptionBaseline || !subsHasDirtyDraft()) {
+            cleanBlankDraft = !_subscriptionBaseline || !subsHasDirtyDraft();
+          } catch (e4) {}
+          try {
+            if (cleanBlankDraft) {
               $(SUB_IDS.routingAutoRule).checked = subsSuggestedAutoRuleDefault();
             }
-          } catch (e4) {}
-          try { subsRenderRoutingBalancers(subsSelectedBalancerTags()); } catch (e5) {}
+          } catch (e5) {}
+          try { subsRenderRoutingBalancers(subsSelectedBalancerTags()); } catch (e6) {}
+          if (cleanBlankDraft) {
+            try { subsCaptureBaseline(); } catch (e7) {}
+          }
         }
         subsRender();
         try { subsSyncSubscriptionFormState(); } catch (e3) {}
@@ -7467,6 +7474,7 @@ let outboundsModuleApi = null;
       const subId = String(id || '').trim();
       if (!subId) return false;
       const prevActive = getActiveFragment();
+      const deletingActiveSubscription = String(_subscriptionEditId || '') === subId;
       try {
         const deleteOk = await confirmXkeenAction({
           title: 'Удалить подписку?',
@@ -7496,7 +7504,7 @@ let outboundsModuleApi = null;
           throw new Error(String((data && (data.error || data.message)) || ('HTTP ' + res.status)));
         }
         subsSetStatus('Удалено.', false, true);
-        if (_subscriptionEditId === subId) subsResetForm();
+        if (deletingActiveSubscription) subsResetForm();
         await subsSyncOutboundsViewAfterMutation({
           prevActive,
           touchedFiles: [data && data.deleted && data.deleted.output_file],
@@ -7531,9 +7539,7 @@ let outboundsModuleApi = null;
       }
       if (!modal) return;
       try { wireSubscriptionsModalControls(modal); } catch (e) {}
-      if (!_subscriptionBaseline) {
-        try { subsResetForm(); } catch (e) {}
-      }
+      try { subsResetForm(); } catch (e) {}
       subsShow(true);
       subsSetStatus('', false);
       await subsLoad();
@@ -7550,6 +7556,7 @@ let outboundsModuleApi = null;
       if (!ok) return false;
       try { subsDiscardUnprotectedDraftOnClose(); } catch (e) {}
       subsShow(false);
+      try { subsResetForm(); } catch (e) {}
       return true;
     }
 
