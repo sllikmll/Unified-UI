@@ -87,6 +87,11 @@ def test_diff_modal_exposes_bidirectional_apply_and_save_contracts():
     assert "ignoreTrimWhitespace: !!_ignoreTrimWhitespace" in diff_modal
     assert "scope.saveClosesOwner" in diff_modal
     assert "String(ev.key || '').toLowerCase() === 's'" in diff_modal
+    assert "document.addEventListener('keydown', handleOpenModalKeydown, true);" in diff_modal
+    assert "function consumeKeyEvent(ev)" in diff_modal
+    assert "function isSaveShortcut(ev)" in diff_modal
+    assert "function handleOpenModalKeydown(ev)" in diff_modal
+    assert "ev.stopImmediatePropagation();" in diff_modal
     assert "_labelsRowEl.classList.toggle('hidden', !!hidden);" in diff_modal
     assert "window.__xkLastClipboardText" in diff_modal
     assert "Вставьте текст из буфера обмена и нажмите OK:" in diff_modal
@@ -114,7 +119,7 @@ def test_diff_modal_exposes_bidirectional_apply_and_save_contracts():
     assert "return !!(_hasSaveScope() && _hasWritableBufferSide());" in diff_modal
     assert "return _saveDisabledReason() === '';" in diff_modal
     assert diff_modal.count("if (!_canRunSaveAction()) return;") >= 2
-    assert "String(ev.key || '').toLowerCase() === 's') {\n          ev.preventDefault();\n          if (!_canRunSaveAction()) return;" in diff_modal
+    assert "else if (isSaveShortcut(ev)) {\n      consumeKeyEvent(ev);\n      if (!_canRunSaveAction()) return;" in diff_modal
     assert "} finally {\n      try { refreshActionButtons(); } catch (e) {}" in diff_modal
     assert "btn.classList.toggle('is-disabled', disabled);" in diff_modal
     assert "btn.disabled = disabled;" in diff_modal

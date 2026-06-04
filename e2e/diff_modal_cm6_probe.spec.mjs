@@ -199,11 +199,70 @@ async function expectSaveButtonState(page, enabled) {
   else await expect(saveBtn).toBeDisabled();
 }
 
+async function focusDiffHotkeyTarget(page) {
+  const monacoEditor = page.locator('#xkeen-diff-modal .monaco-editor').last();
+  if (await monacoEditor.count()) {
+    await monacoEditor.click({ force: true });
+    return;
+  }
+
+  const cmEditor = page.locator('#xkeen-diff-modal .cm-content').last();
+  if (await cmEditor.count()) {
+    await cmEditor.click({ force: true });
+    return;
+  }
+
+  await page.locator('#xkeen-diff-modal').click({ force: true });
+}
+
+async function installHotkeyLeakProbe(page) {
+  await page.evaluate(() => {
+    window.__xkeenDiffHotkeyLeak = {
+      documentKeydowns: 0,
+      hostKeydowns: 0,
+      saveRequests: 0,
+    };
+    const isSave = (event) => !!(
+      event &&
+      (event.ctrlKey || event.metaKey) &&
+      !event.altKey &&
+      String(event.key || '').toLowerCase() === 's'
+    );
+    const state = () => window.__xkeenDiffHotkeyLeak || null;
+    document.addEventListener('keydown', (event) => {
+      if (!isSave(event)) return;
+      const current = state();
+      if (current) current.documentKeydowns += 1;
+    }, true);
+    document.addEventListener('xkeen-editor-save-request', () => {
+      const current = state();
+      if (current) current.saveRequests += 1;
+    }, true);
+    const host = document.querySelector('#xkeen-diff-modal .xkeen-diff-host');
+    if (host) {
+      host.addEventListener('keydown', (event) => {
+        if (!isSave(event)) return;
+        const current = state();
+        if (current) current.hostKeydowns += 1;
+      }, true);
+    }
+  });
+}
+
+async function expectNoHotkeyLeak(page) {
+  await expect.poll(() => page.evaluate(() => window.__xkeenDiffHotkeyLeak || null)).toEqual({
+    documentKeydowns: 0,
+    hostKeydowns: 0,
+    saveRequests: 0,
+  });
+}
+
 async function triggerSave(page, via) {
   if (via === 'button') {
     await page.locator('#xkeen-diff-modal .xkeen-diff-save-btn').click();
     return;
   }
+  await focusDiffHotkeyTarget(page);
   await page.keyboard.press('Control+S');
 }
 
@@ -223,8 +282,10 @@ async function runDiffSaveMatrix(page, ensureEngine) {
     await installProbeScope(page);
     await openProbeDiff(page);
     await expectSaveButtonState(page, true);
+    if (item.via === 'hotkey') await installHotkeyLeakProbe(page);
     await item.trigger();
     await expectProbeSaveCount(page, 1);
+    if (item.via === 'hotkey') await expectNoHotkeyLeak(page);
     await closeDiffModal(page);
     await ensureEngine(page);
   }
@@ -235,8 +296,11 @@ async function runDiffSaveMatrix(page, ensureEngine) {
   await expectSaveButtonState(page, false);
   await triggerDisabledButtonSave(page);
   await expectProbeSaveCount(page, 0);
+  await installHotkeyLeakProbe(page);
+  await focusDiffHotkeyTarget(page);
   await page.keyboard.press('Control+S');
   await expectProbeSaveCount(page, 0);
+  await expectNoHotkeyLeak(page);
   await closeDiffModal(page);
   await ensureEngine(page);
 
@@ -246,8 +310,10 @@ async function runDiffSaveMatrix(page, ensureEngine) {
     await page.locator('#xkeen-diff-modal .xkeen-diff-apply-group .xkeen-diff-apply-btn').nth(0).click();
     await expect(page.locator('#xkeen-diff-modal .xkeen-diff-summary')).toContainText('Различий нет');
     await expectSaveButtonState(page, true);
+    if (item.via === 'hotkey') await installHotkeyLeakProbe(page);
     await item.trigger();
     await expectProbeSaveCount(page, 1);
+    if (item.via === 'hotkey') await expectNoHotkeyLeak(page);
     await closeDiffModal(page);
     await ensureEngine(page);
   }

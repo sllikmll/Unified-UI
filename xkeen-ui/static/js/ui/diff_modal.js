@@ -290,20 +290,7 @@
       modal.addEventListener('click', (ev) => {
         if (ev && ev.target === modal) close('backdrop');
       });
-      document.addEventListener('keydown', (ev) => {
-        if (!isOpen()) return;
-        if (ev && ev.key === 'Escape') {
-          ev.preventDefault();
-          close('escape');
-        } else if (ev && ev.key === 'F3') {
-          ev.preventDefault();
-          navigateDiff(ev.shiftKey ? -1 : 1);
-        } else if (ev && (ev.ctrlKey || ev.metaKey) && !ev.altKey && String(ev.key || '').toLowerCase() === 's') {
-          ev.preventDefault();
-          if (!_canRunSaveAction()) return;
-          saveComparedFile();
-        }
-      });
+      document.addEventListener('keydown', handleOpenModalKeydown, true);
     }
 
     _modalEl = modal;
@@ -330,6 +317,31 @@
     if (!_modalEl) return false;
     try { return !_modalEl.classList.contains('hidden'); } catch (e) {}
     return false;
+  }
+
+  function consumeKeyEvent(ev) {
+    try { ev.preventDefault(); } catch (e) {}
+    try { ev.stopPropagation(); } catch (e2) {}
+    try { ev.stopImmediatePropagation(); } catch (e3) {}
+  }
+
+  function isSaveShortcut(ev) {
+    return !!(ev && (ev.ctrlKey || ev.metaKey) && !ev.altKey && String(ev.key || '').toLowerCase() === 's');
+  }
+
+  function handleOpenModalKeydown(ev) {
+    if (!isOpen()) return;
+    if (ev && ev.key === 'Escape') {
+      consumeKeyEvent(ev);
+      close('escape');
+    } else if (ev && ev.key === 'F3') {
+      consumeKeyEvent(ev);
+      navigateDiff(ev.shiftKey ? -1 : 1);
+    } else if (isSaveShortcut(ev)) {
+      consumeKeyEvent(ev);
+      if (!_canRunSaveAction()) return;
+      saveComparedFile();
+    }
   }
 
   function showError(message) {
