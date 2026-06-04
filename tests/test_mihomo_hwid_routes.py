@@ -169,3 +169,43 @@ def test_hwid_probe_route_maps_tls_handshake_timeout_to_504(monkeypatch, client)
     assert response.status_code == 504
     payload = response.get_json()
     assert payload["error"]["code"] == "TLS_HANDSHAKE_TIMEOUT"
+
+
+def test_hwid_provider_adapter_route_is_loopback_only(monkeypatch, client):
+    monkeypatch.setattr(
+        mihomo,
+        "_mh_hwid_get_device_info",
+        lambda: {"headers": {"x-hwid": "AABBCCDDEEFF"}},
+    )
+
+    calls = []
+
+    def fake_fetch(url, *, headers, insecure, timeout, policy):
+        calls.append(
+            {
+                "url": url,
+                "headers": headers,
+                "insecure": insecure,
+                "allow_custom_urls": policy.allow_custom_urls,
+            }
+        )
+        return "proxies:\n  - name: node-1\n    type: direct\n", {"converted": True}
+
+    monkeypatch.setattr(mihomo, "_mh_hwid_fetch_provider_payload", fake_fetch)
+
+    response = client.get(
+        "/mihomo/hwid/provider.yaml?url=https%3A%2F%2Fprovider.example%2Fsub&insecure=1"
+    )
+
+    assert response.status_code == 200
+    assert response.get_data(as_text=True).startswith("proxies:\n")
+    assert calls[0]["url"] == "https://provider.example/sub"
+    assert calls[0]["headers"]["x-hwid"] == "AABBCCDDEEFF"
+    assert calls[0]["insecure"] is True
+    assert calls[0]["allow_custom_urls"] is True
+
+    denied = client.get(
+        "/mihomo/hwid/provider.yaml?url=https%3A%2F%2Fprovider.example%2Fsub",
+        environ_base={"REMOTE_ADDR": "192.168.1.50"},
+    )
+    assert denied.status_code == 403

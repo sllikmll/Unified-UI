@@ -708,14 +708,31 @@ let mihomoHwidSubModuleApi = null;
     return s.slice(0, 64);
   }
 
-  function buildProviderSnippet(name, url, headers) {
+  function buildProviderAdapterUrl(url, insecure) {
+    const raw = String(url || '').trim();
+    let port = '';
+    try {
+      port = String(window.location && window.location.port ? window.location.port : '').trim();
+      if (!port) port = (window.location && window.location.protocol === 'https:') ? '443' : '80';
+    } catch (e) {
+      port = '8088';
+    }
+    const params = new URLSearchParams();
+    params.set('url', raw);
+    params.set('insecure', insecure ? '1' : '0');
+    return `http://127.0.0.1:${port}/mihomo/hwid/provider.yaml?${params.toString()}`;
+  }
+
+  function buildProviderSnippet(name, url, headers, opts) {
     const nm = sanitizeProviderName(name);
     const h = headers || {};
+    const options = opts || {};
+    const providerUrl = String(options.providerUrl || url || '').trim();
 
     const lines = [];
     lines.push(`  ${nm}:`);
     lines.push(`    type: http`);
-    lines.push(`    url: ${yamlQuote(url)}`);
+    lines.push(`    url: ${yamlQuote(providerUrl)}`);
     lines.push(`    interval: 43200`);
     lines.push(`    path: ${yamlQuote(`./proxy_providers/${nm}.yaml`)}`);
     lines.push(`    health-check:`);
@@ -783,8 +800,9 @@ let mihomoHwidSubModuleApi = null;
       setApplyEnabled(false);
       return;
     }
-    const headers = (_lastProbe && _lastProbe.headers_used) || (_device && _device.headers) || {};
-    setPreview(buildProviderSnippet(name, url, headers));
+    const insecureEl = $(IDS.insecure);
+    const adapterUrl = buildProviderAdapterUrl(url, !!(insecureEl && insecureEl.checked));
+    setPreview(buildProviderSnippet(name, url, {}, { providerUrl: adapterUrl }));
     if (_lastProbe && _lastProbe.ok) {
       setInsertEnabled(true);
       setApplyEnabled(true);
@@ -874,7 +892,8 @@ let mihomoHwidSubModuleApi = null;
       } catch (e0) {
         setTip('');
       }
-      const snippet = buildProviderSnippet(nm, url, headers);
+      const adapterUrl = buildProviderAdapterUrl(url, insecure);
+      const snippet = buildProviderSnippet(nm, url, {}, { providerUrl: adapterUrl });
       setPreview(snippet);
 
       // Meta line
@@ -1067,8 +1086,9 @@ let mihomoHwidSubModuleApi = null;
       return;
     }
 
-    const headers = (_lastProbe && _lastProbe.headers_used) || (_device && _device.headers) || {};
-    const snippet = buildProviderSnippet(name, url, headers);
+    const insecureEl = $(IDS.insecure);
+    const adapterUrl = buildProviderAdapterUrl(url, !!(insecureEl && insecureEl.checked));
+    const snippet = buildProviderSnippet(name, url, {}, { providerUrl: adapterUrl });
 
     const patch = getMihomoYamlPatchApi();
     if (!patch || typeof patch.insertIntoSection !== 'function') {

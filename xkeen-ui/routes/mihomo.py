@@ -11,6 +11,7 @@ Endpoints:
  - GET  /api/mihomo-templates
  - GET  /api/mihomo-template
  - POST /api/mihomo-template
+ - GET  /mihomo/hwid/provider.yaml
  - POST /api/mihomo/hwid/apply
  - POST /api/mihomo/generate
  - POST /api/mihomo/download
@@ -34,6 +35,7 @@ Endpoints:
 
 from __future__ import annotations
 
+import ipaddress
 import os
 import re
 import urllib.error
@@ -96,6 +98,7 @@ from services.mihomo_backups import (
 from services.mihomo_hwid_sub import (
     get_device_info as _mh_hwid_get_device_info,
     probe_subscription_safe as _mh_hwid_probe_subscription_safe,
+    fetch_provider_payload as _mh_hwid_fetch_provider_payload,
     apply_mode as _mh_hwid_apply_mode,
     build_provider_entry as _mh_hwid_build_provider_entry,
     ensure_unique_provider_name as _mh_hwid_ensure_unique_provider_name,
@@ -308,6 +311,52 @@ def create_mihomo_blueprint(
     def _same_config_text(left: str, right: str) -> bool:
         return str(left or "").replace("\r\n", "\n").rstrip("\n") == str(right or "").replace("\r\n", "\n").rstrip("\n")
 
+    def _request_is_loopback() -> bool:
+        addr = str(request.remote_addr or "").strip()
+        if addr in {"localhost", "127.0.0.1", "::1"}:
+            return True
+        try:
+            return bool(ipaddress.ip_address(addr).is_loopback)
+        except Exception:
+            return False
+
+    def _ui_loopback_port() -> int:
+        candidates = [
+            os.environ.get("XKEEN_UI_PORT"),
+            str(urllib.parse.urlsplit(request.host_url or "").port or ""),
+            "8088",
+        ]
+        for raw in candidates:
+            try:
+                port = int(str(raw or "").strip())
+            except Exception:
+                continue
+            if 0 < port <= 65535:
+                return port
+        return 8088
+
+    def _hwid_provider_adapter_url(upstream_url: str, *, insecure: bool) -> str:
+        query = urllib.parse.urlencode(
+            {
+                "url": str(upstream_url or "").strip(),
+                "insecure": "1" if insecure else "0",
+            }
+        )
+        return f"http://127.0.0.1:{_ui_loopback_port()}/mihomo/hwid/provider.yaml?{query}"
+
+    def _write_hwid_provider_cache(provider_name: str, payload: str) -> bool:
+        name = _mh_hwid_ensure_unique_provider_name("", provider_name)
+        if not name:
+            return False
+        try:
+            root = os.path.dirname(MIHOMO_CONFIG_FILE)
+            provider_dir = os.path.join(root, "proxy_providers")
+            os.makedirs(provider_dir, exist_ok=True)
+            save_text(os.path.join(provider_dir, f"{name}.yaml"), payload)
+            return True
+        except Exception:
+            return False
+
     def _sync_mihomo_managed_subscriptions(state: Dict[str, Any], cfg: str) -> None:
         try:
             _mh_sub_sync_from_generator_state(ui_state_dir, state, config_text=cfg)
@@ -315,6 +364,45 @@ def create_mihomo_blueprint(
             # Managed subscription metadata is best-effort; config save/restart
             # must not fail just because the sidecar state could not be updated.
             pass
+
+    @bp.get("/mihomo/hwid/provider.yaml")
+    def public_mihomo_hwid_provider_yaml():
+        """Loopback-only provider adapter for full-config HWID subscriptions."""
+
+        if not _request_is_loopback():
+            return current_app.response_class("forbidden\n", status=403, mimetype="text/plain")
+
+        url = (request.args.get("url") or "").strip()
+        insecure = _bool_arg("insecure", False)
+        policy = _mihomo_hwid_url_policy()
+        reason = _mihomo_hwid_policy_block_reason(url, policy)
+        if reason:
+            return current_app.response_class(
+                f"url blocked: {reason}\n",
+                status=400,
+                mimetype="text/plain",
+            )
+
+        try:
+            info = _mh_hwid_get_device_info()
+            payload, _meta = _mh_hwid_fetch_provider_payload(
+                url,
+                headers=info.get("headers") or {},
+                insecure=insecure,
+                timeout=20.0,
+                policy=policy,
+            )
+            return current_app.response_class(payload, mimetype="text/yaml")
+        except ValueError as exc:
+            msg = str(exc or "invalid_provider_payload")
+            status = 400 if msg.startswith("url_blocked:") else 502
+            return current_app.response_class(msg + "\n", status=status, mimetype="text/plain")
+        except Exception as exc:
+            return current_app.response_class(
+                _subscription_fetch_failure_reason(exc) + "\n",
+                status=502,
+                mimetype="text/plain",
+            )
 
     # ---------- API: mihomo config.yaml ----------
 
@@ -541,7 +629,20 @@ def create_mihomo_blueprint(
             base_for_name = base_yaml
 
         name_unique = _mh_hwid_ensure_unique_provider_name(base_for_name, name_base)
-        entry = _mh_hwid_build_provider_entry(name_unique, url, headers)
+        adapter_url = _hwid_provider_adapter_url(url, insecure=insecure)
+        entry = _mh_hwid_build_provider_entry(name_unique, url, {}, provider_url=adapter_url)
+        provider_cache_written = False
+        try:
+            provider_payload, _provider_meta = _mh_hwid_fetch_provider_payload(
+                url,
+                headers=headers,
+                insecure=insecure,
+                timeout=20.0,
+                policy=policy,
+            )
+            provider_cache_written = _write_hwid_provider_cache(name_unique, provider_payload)
+        except Exception:
+            provider_cache_written = False
 
         try:
             cfg_new = _mh_hwid_apply_mode(base_yaml, mode, entry, template_yaml=tmpl_yaml)
@@ -580,6 +681,8 @@ def create_mihomo_blueprint(
                 "active_profile": active_profile,
                 "config_length": len(cfg_new),
                 "core": running_core,
+                "provider_url": adapter_url,
+                "provider_cache_written": provider_cache_written,
             }
 
             if restart_flag:

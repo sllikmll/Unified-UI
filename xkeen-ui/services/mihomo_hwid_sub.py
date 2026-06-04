@@ -556,6 +556,130 @@ def _make_error(
     return payload
 
 
+def _yaml_line_key(line: str) -> tuple[str, bool] | None:
+    raw = str(line or "").rstrip("\r\n")
+    if not raw.strip() or raw.lstrip().startswith("#"):
+        return None
+    if raw[:1].isspace():
+        return None
+    m = re.match(r"^([A-Za-z0-9_.-]+)\s*:\s*(.*)$", raw)
+    if not m:
+        return None
+    value = m.group(2).strip()
+    return m.group(1), bool(value and not value.startswith("#"))
+
+
+def _yaml_extract_top_level_section(text: str, key: str) -> tuple[str | None, int]:
+    s = str(text or "").replace("\r\n", "\n").replace("\r", "\n")
+    lines = s.splitlines(keepends=True)
+    start = -1
+    end = len(lines)
+    top_level_keys = 0
+
+    for idx, line in enumerate(lines):
+        parsed = _yaml_line_key(line)
+        if not parsed:
+            continue
+        top_level_keys += 1
+        k, _inline = parsed
+        if k == key and start < 0:
+            start = idx
+            continue
+        if start >= 0:
+            end = idx
+            break
+
+    if start < 0:
+        return None, top_level_keys
+    return "".join(lines[start:end]).strip() + "\n", top_level_keys
+
+
+def provider_payload_from_subscription_text(text: str) -> tuple[str, Dict[str, Any]]:
+    """Return Mihomo proxy-provider compatible payload.
+
+    Some subscription servers return a full Clash/Mihomo config with a top-level
+    `proxies:` section. Mihomo proxy-providers expect provider content instead:
+    YAML with `proxies:`, plain URI lines, or base64 URI text. If a full config is
+    detected, keep only the `proxies:` section.
+    """
+
+    raw = str(text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not raw:
+        return "proxies: []\n", {"format": "empty", "converted": False, "proxy_section": False}
+
+    proxies_section, top_level_keys = _yaml_extract_top_level_section(raw, "proxies")
+    if proxies_section:
+        converted = top_level_keys > 1
+        return proxies_section, {
+            "format": "yaml",
+            "converted": bool(converted),
+            "proxy_section": True,
+            "top_level_keys": top_level_keys,
+        }
+
+    # URI/base64 providers are already valid proxy-provider payloads.
+    return raw + "\n", {
+        "format": "raw",
+        "converted": False,
+        "proxy_section": False,
+        "top_level_keys": top_level_keys,
+    }
+
+
+def fetch_provider_payload(
+    url: str,
+    *,
+    headers: Dict[str, str] | None,
+    insecure: bool = False,
+    timeout: float = 20.0,
+    policy: URLPolicy | None = None,
+    max_bytes: int = 2 * 1024 * 1024,
+) -> tuple[str, Dict[str, Any]]:
+    """Fetch a HWID subscription and return provider-compatible YAML/text."""
+
+    u = (url or "").strip()
+    effective_policy = policy or _hwid_subscription_policy()
+    ok_url, reason = is_url_allowed(u, effective_policy)
+    if not ok_url:
+        raise ValueError("url_blocked:" + reason)
+
+    req_headers = dict(headers or {})
+    req_headers.setdefault("Accept", "text/yaml, text/plain, */*")
+    req = urllib.request.Request(u, headers=req_headers, method="GET")
+    ctx = ssl._create_unverified_context() if insecure else None
+
+    class SafeRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401,N803
+            ok, redirect_reason = is_url_allowed(newurl, effective_policy)
+            if not ok:
+                raise urllib.error.URLError("url_blocked:" + redirect_reason)
+            return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+    handlers: list[Any] = [SafeRedirect]
+    if ctx is not None:
+        handlers.append(urllib.request.HTTPSHandler(context=ctx))
+
+    opener = urllib.request.build_opener(*handlers)
+    with opener.open(req, timeout=float(timeout)) as resp:
+        raw = resp.read(max(1, int(max_bytes)) + 1)
+        if len(raw) > max_bytes:
+            raise ValueError("subscription_too_large")
+        content_type = resp.headers.get("Content-Type") or ""
+
+    charset = "utf-8"
+    m = re.search(r"charset=([A-Za-z0-9._-]+)", content_type, flags=re.I)
+    if m:
+        charset = m.group(1)
+    try:
+        text = raw.decode(charset, errors="replace")
+    except LookupError:
+        text = raw.decode("utf-8", errors="replace")
+
+    payload, meta = provider_payload_from_subscription_text(text)
+    meta.update({"content_type": content_type, "bytes": len(raw)})
+    return payload, meta
+
+
 def _is_tls_handshake_timeout_message(msg: str) -> bool:
     low = str(msg or "").lower()
     return (
@@ -1182,11 +1306,13 @@ def build_provider_entry(
     provider_name: str,
     url: str,
     headers: Dict[str, str] | None,
+    *,
+    provider_url: str | None = None,
 ) -> str:
     """Build YAML snippet for a single provider entry (indented under proxy-providers)."""
 
     nm = _sanitize_provider_name(provider_name or "")
-    u = (url or "").strip()
+    u = (provider_url or url or "").strip()
     h = dict(headers or {})
 
     lines: list[str] = []

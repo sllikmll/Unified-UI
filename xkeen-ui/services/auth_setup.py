@@ -185,6 +185,7 @@ def init_auth(app) -> None:
         if path.startswith("/static/") or path in (
             "/ui/branding.json",
             "/ui/terminal-theme.css",
+            "/mihomo/hwid/provider.yaml",
         ):
             return None
 

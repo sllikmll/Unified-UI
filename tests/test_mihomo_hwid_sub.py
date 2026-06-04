@@ -168,6 +168,43 @@ def test_hwid_provider_entry_uses_mihomo_provider_defaults():
     assert "      tfo: true" in entry
 
 
+def test_hwid_provider_payload_extracts_proxies_from_full_mihomo_config():
+    payload, meta = hwid.provider_payload_from_subscription_text(
+        """
+mixed-port: 7890
+dns:
+  enable: true
+proxies:
+  - name: node-1
+    type: vless
+    server: example.com
+    port: 443
+proxy-groups:
+  - name: auto
+    type: select
+    proxies: [node-1]
+"""
+    )
+
+    assert meta["converted"] is True
+    assert payload.startswith("proxies:\n")
+    assert "  - name: node-1" in payload
+    assert "mixed-port:" not in payload
+    assert "proxy-groups:" not in payload
+
+
+def test_hwid_provider_entry_can_use_local_adapter_url_without_headers():
+    entry = hwid.build_provider_entry(
+        "Whitenet_VPN",
+        "https://sub.example/full-config",
+        {},
+        provider_url="http://127.0.0.1:8088/mihomo/hwid/provider.yaml?url=https%3A%2F%2Fsub.example%2Ffull-config",
+    )
+
+    assert '    url: "http://127.0.0.1:8088/mihomo/hwid/provider.yaml?' in entry
+    assert "    header:" not in entry
+
+
 def test_hwid_user_agent_strips_v_prefix_and_uses_clashmeta_compatibility():
     assert (
         hwid._mihomo_hwid_user_agent("v1.19.25")
