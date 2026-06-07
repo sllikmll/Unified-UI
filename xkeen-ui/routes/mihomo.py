@@ -206,6 +206,22 @@ def _mihomo_provider_url_policy() -> URLPolicy:
     )
 
 
+def _mihomo_provider_direct_headers() -> Dict[str, str]:
+    ua = str(os.environ.get(f"{_MIHOMO_PROVIDER_URL_POLICY_ENV_PREFIX}_USER_AGENT") or "router").strip()
+    return {"User-Agent": ua} if ua else {}
+
+
+def _mihomo_provider_payload_is_non_empty(payload: str, meta: Dict[str, Any] | None = None) -> bool:
+    text = str(payload or "").strip()
+    if not text:
+        return False
+    if text == "proxies: []":
+        return False
+    if re.match(r"(?is)^proxies\s*:\s*\[\s*\]\s*$", text):
+        return False
+    return True
+
+
 def _mihomo_hwid_url_blocked_hint(reason: str) -> str:
     r = str(reason or "").strip()
     if r == "http_not_allowed":
@@ -463,15 +479,35 @@ def create_mihomo_blueprint(
         if isinstance(result, dict):
             result = dict(result)
             if result.get("ok") is True:
-                result["provider_url"] = (
+                adapter_url = (
                     f"http://127.0.0.1:{_ui_loopback_port()}/mihomo/provider.yaml?"
-                    + urllib.parse.urlencode(
-                        {
-                            "url": url,
-                            "insecure": "1" if insecure else "0",
-                        }
-                    )
+                    + urllib.parse.urlencode({"url": url, "insecure": "1" if insecure else "0"})
                 )
+                result["provider_url"] = adapter_url
+                result["provider_headers"] = {}
+                result["provider_mode"] = "adapter"
+
+                direct_headers = _mihomo_provider_direct_headers()
+                if direct_headers:
+                    try:
+                        payload, meta = _mh_hwid_fetch_provider_payload(
+                            url,
+                            headers=direct_headers,
+                            insecure=insecure,
+                            timeout=timeout_s,
+                            policy=policy,
+                        )
+                        if _mihomo_provider_payload_is_non_empty(payload, meta):
+                            result["provider_url"] = url
+                            result["provider_headers"] = dict(direct_headers)
+                            result["provider_mode"] = "direct_headers"
+                            result["provider_payload"] = {
+                                "format": (meta or {}).get("format"),
+                                "content_type": (meta or {}).get("content_type"),
+                                "bytes": (meta or {}).get("bytes"),
+                            }
+                    except Exception as exc:
+                        result["provider_direct_error"] = _subscription_fetch_failure_reason(exc)
 
         if isinstance(result, dict) and result.get("ok") is True:
             return jsonify(result), 200

@@ -246,10 +246,11 @@ def test_regular_provider_adapter_route_fetches_without_hwid_headers(monkeypatch
 
 
 def test_regular_provider_probe_fetches_without_hwid_headers(monkeypatch, client):
-    calls = []
+    probe_calls = []
+    fetch_calls = []
 
     def fake_probe(url, *, headers, insecure, timeout, prefer, policy):
-        calls.append(
+        probe_calls.append(
             {
                 "url": url,
                 "headers": headers,
@@ -272,7 +273,23 @@ def test_regular_provider_probe_fetches_without_hwid_headers(monkeypatch, client
             "warnings": [],
         }
 
+    def fake_fetch(url, *, headers, insecure, timeout, policy):
+        fetch_calls.append(
+            {
+                "url": url,
+                "headers": headers,
+                "insecure": insecure,
+                "allow_http": policy.allow_http,
+            }
+        )
+        return "dmxlc3M6Ly9leGFtcGxl\n", {
+            "format": "raw",
+            "content_type": "text/plain",
+            "bytes": 24,
+        }
+
     monkeypatch.setattr(mihomo, "_mh_hwid_probe_subscription_safe", fake_probe)
+    monkeypatch.setattr(mihomo, "_mh_hwid_fetch_provider_payload", fake_fetch)
 
     response = client.post(
         "/api/mihomo/provider/probe",
@@ -282,11 +299,44 @@ def test_regular_provider_probe_fetches_without_hwid_headers(monkeypatch, client
     assert response.status_code == 200
     payload = response.get_json()
     assert payload["profile"]["suggested_name"] == "Remnawave"
+    assert payload["provider_url"] == "http://provider.example/sub"
+    assert payload["provider_headers"] == {"User-Agent": "router"}
+    assert payload["provider_mode"] == "direct_headers"
+    assert payload["provider_payload"]["format"] == "raw"
+    assert probe_calls[0]["url"] == "http://provider.example/sub"
+    assert probe_calls[0]["headers"] == {}
+    assert probe_calls[0]["insecure"] is True
+    assert probe_calls[0]["prefer"] == "head_then_range_get"
+    assert probe_calls[0]["allow_http"] is True
+    assert probe_calls[0]["allow_custom_urls"] is True
+    assert fetch_calls[0]["headers"] == {"User-Agent": "router"}
+    assert fetch_calls[0]["allow_http"] is True
+
+
+def test_regular_provider_probe_falls_back_to_adapter_when_direct_headers_empty(monkeypatch, client):
+    def fake_probe(url, *, headers, insecure, timeout, prefer, policy):
+        return {
+            "ok": True,
+            "probe": {"url": url, "http_status": 200},
+            "profile": {"profile_title": "Empty", "suggested_name": "Empty"},
+            "headers_used": {},
+            "warnings": [],
+        }
+
+    def fake_fetch(url, *, headers, insecure, timeout, policy):
+        return "proxies: []\n", {"format": "yaml", "content_type": "text/yaml", "bytes": 12}
+
+    monkeypatch.setattr(mihomo, "_mh_hwid_probe_subscription_safe", fake_probe)
+    monkeypatch.setattr(mihomo, "_mh_hwid_fetch_provider_payload", fake_fetch)
+
+    response = client.post(
+        "/api/mihomo/provider/probe",
+        json={"url": "https://provider.example/sub"},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
     assert payload["provider_url"].startswith("http://127.0.0.1:")
     assert "/mihomo/provider.yaml?" in payload["provider_url"]
-    assert calls[0]["url"] == "http://provider.example/sub"
-    assert calls[0]["headers"] == {}
-    assert calls[0]["insecure"] is True
-    assert calls[0]["prefer"] == "head_then_range_get"
-    assert calls[0]["allow_http"] is True
-    assert calls[0]["allow_custom_urls"] is True
+    assert payload["provider_headers"] == {}
+    assert payload["provider_mode"] == "adapter"

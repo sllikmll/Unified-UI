@@ -1729,6 +1729,19 @@ let mihomoImportModuleApi = null;
     return `http://127.0.0.1:${port}/mihomo/provider.yaml?${params.toString()}`;
   }
 
+  function normalizeProviderHeaders(headers) {
+    if (!headers || typeof headers !== 'object') return null;
+    const out = {};
+    Object.entries(headers).forEach(([key, value]) => {
+      const cleanKey = String(key || '').trim();
+      if (!cleanKey) return;
+      const values = Array.isArray(value) ? value : [value];
+      const cleanValues = values.map((item) => String(item == null ? '' : item).trim()).filter(Boolean);
+      if (cleanValues.length) out[cleanKey] = cleanValues;
+    });
+    return Object.keys(out).length ? out : null;
+  }
+
   async function probeRegularProvider(url) {
     const http = getMihomoCoreHttpApi();
     const post = http && typeof http.postJSON === 'function' ? http.postJSON : null;
@@ -1753,9 +1766,11 @@ let mihomoImportModuleApi = null;
     const profile = (probe && probe.profile) || {};
     const providerName = String(profile.suggested_name || profile.profile_title || '').trim();
     const providerUrl = String((probe && probe.provider_url) || '').trim() || localProviderAdapterUrl(uri, false);
-    const out = generateConfigForMihomo(uri, existingConfig, { providerName, providerUrl });
+    const providerHeaders = normalizeProviderHeaders((probe && probe.provider_headers) || null);
+    const out = generateConfigForMihomo(uri, existingConfig, { providerName, providerUrl, providerHeaders });
     out.profile_title = String(profile.profile_title || '').trim();
     out.provider_name = providerName || out.provider_name || '';
+    out.provider_mode = String((probe && probe.provider_mode) || '').trim();
     return out;
   }
 
@@ -1771,24 +1786,27 @@ let mihomoImportModuleApi = null;
       const opts = options || {};
       const name = uniqueProviderName(opts.providerName || '', existingConfig, 'subscription');
       const providerUrl = String(opts.providerUrl || '').trim() || localProviderAdapterUrl(uri, false);
+      const headers = normalizeProviderHeaders(opts.providerHeaders || null);
+      const provider = {
+        type: 'http',
+        url: providerUrl,
+        interval: 43200,
+        path: `./proxy_providers/${name}.yaml`,
+        'health-check': {
+          enable: true,
+          url: 'https://www.gstatic.com/generate_204',
+          interval: 300,
+          'expected-status': 204,
+        },
+        override: { udp: true, tfo: true },
+      };
+      if (headers) provider.header = headers;
       return {
         type: 'proxy-provider',
         provider_name: name,
         content: toYaml(
           {
-            [name]: {
-              type: 'http',
-              url: providerUrl,
-              interval: 43200,
-              path: `./proxy_providers/${name}.yaml`,
-              'health-check': {
-                enable: true,
-                url: 'https://www.gstatic.com/generate_204',
-                interval: 300,
-                'expected-status': 204,
-              },
-              override: { udp: true, tfo: true },
-            },
+            [name]: provider,
           },
           2,
         ),

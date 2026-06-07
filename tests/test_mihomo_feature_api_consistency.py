@@ -92,6 +92,8 @@ def test_mihomo_menu_feature_flows_keep_editor_patch_integrations_and_single_sav
             "await post('/api/mihomo/provider/probe', {",
             "return `http://127.0.0.1:${port}/mihomo/provider.yaml?${params.toString()}`;",
             "const out = await buildSubscriptionProviderConfig(line, tmp);",
+            "providerHeaders",
+            "if (headers) provider.header = headers;",
         ],
         "xkeen-ui/static/js/features/mihomo_proxy_tools.js": [
             "const mi = getMihomoImportApi();",
