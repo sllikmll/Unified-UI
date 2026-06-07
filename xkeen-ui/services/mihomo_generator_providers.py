@@ -7,13 +7,81 @@ pipeline orchestration.
 
 from __future__ import annotations
 
+import os
 import re
+import urllib.parse
 from typing import Any, Dict, List, Optional, Sequence, Set
 
 from services.mihomo_generator_meta import (
     ROUTER_PROVIDER_NAMES,
     provider_name_for_index as _provider_name_for_index,
 )
+
+
+_PROVIDER_ADAPTER_BASE_ENV = "XKEEN_UI_PROVIDER_ADAPTER_BASE"
+
+
+def _provider_adapter_base(base_url: str | None = None) -> str:
+    raw = str(base_url or os.environ.get(_PROVIDER_ADAPTER_BASE_ENV) or "").strip()
+    if raw:
+        if "://" not in raw:
+            raw = "http://" + raw
+        parsed = urllib.parse.urlsplit(raw)
+        if parsed.scheme in {"http", "https"} and parsed.netloc:
+            return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, "", "", "")).rstrip("/")
+
+    for candidate in (os.environ.get("XKEEN_UI_PORT"), "8088"):
+        try:
+            port = int(str(candidate or "").strip())
+        except Exception:
+            continue
+        if 0 < port <= 65535:
+            return f"http://127.0.0.1:{port}"
+    return "http://127.0.0.1:8088"
+
+
+def mihomo_provider_adapter_url(
+    upstream_url: str,
+    *,
+    base_url: str | None = None,
+    insecure: bool = False,
+) -> str:
+    """Build a loopback provider adapter URL for regular HTTP subscriptions."""
+    query = urllib.parse.urlencode(
+        {
+            "url": str(upstream_url or "").strip(),
+            "insecure": "1" if insecure else "0",
+        }
+    )
+    return f"{_provider_adapter_base(base_url)}/mihomo/provider.yaml?{query}"
+
+
+def adapt_subscription_urls_for_provider(
+    subscriptions: Sequence[str],
+    *,
+    base_url: str | None = None,
+) -> List[str]:
+    """Route regular HTTP(S) subscriptions through the local provider adapter.
+
+    Some providers return different payloads for Mihomo/Clash user agents. The
+    adapter fetches such subscriptions from the panel and gives Mihomo a stable
+    provider payload, while non-HTTP subscription references are left untouched.
+    """
+    adapted: List[str] = []
+    for raw in subscriptions or []:
+        url = str(raw).strip()
+        if not url:
+            continue
+        try:
+            parsed = urllib.parse.urlsplit(url)
+        except Exception:
+            adapted.append(url)
+            continue
+        if parsed.scheme.lower() in {"http", "https"} and parsed.netloc:
+            adapted.append(mihomo_provider_adapter_url(url, base_url=base_url))
+        else:
+            adapted.append(url)
+    return adapted
 
 
 def replace_provider_urls(content: str, subscriptions: Sequence[str]) -> str:
@@ -324,6 +392,8 @@ def ensure_empty_proxy_providers_map(content: str) -> str:
 
 
 __all__ = [
+    "adapt_subscription_urls_for_provider",
+    "mihomo_provider_adapter_url",
     "replace_provider_urls",
     "append_extra_provider_blocks",
     "filter_proxy_group_uses",

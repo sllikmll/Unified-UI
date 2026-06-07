@@ -209,3 +209,84 @@ def test_hwid_provider_adapter_route_is_loopback_only(monkeypatch, client):
         environ_base={"REMOTE_ADDR": "192.168.1.50"},
     )
     assert denied.status_code == 403
+
+
+def test_regular_provider_adapter_route_fetches_without_hwid_headers(monkeypatch, client):
+    calls = []
+
+    def fake_fetch(url, *, headers, insecure, timeout, policy):
+        calls.append(
+            {
+                "url": url,
+                "headers": headers,
+                "insecure": insecure,
+                "allow_custom_urls": policy.allow_custom_urls,
+            }
+        )
+        return "dmxlc3M6Ly9leGFtcGxl\n", {"format": "raw"}
+
+    monkeypatch.setattr(mihomo, "_mh_hwid_fetch_provider_payload", fake_fetch)
+
+    response = client.get(
+        "/mihomo/provider.yaml?url=http%3A%2F%2Fprovider.example%2Fsub&insecure=1"
+    )
+
+    assert response.status_code == 200
+    assert response.get_data(as_text=True).startswith("dmxlc3M6")
+    assert calls[0]["url"] == "http://provider.example/sub"
+    assert calls[0]["headers"] == {}
+    assert calls[0]["insecure"] is True
+    assert calls[0]["allow_custom_urls"] is True
+
+    denied = client.get(
+        "/mihomo/provider.yaml?url=https%3A%2F%2Fprovider.example%2Fsub",
+        environ_base={"REMOTE_ADDR": "192.168.1.50"},
+    )
+    assert denied.status_code == 403
+
+
+def test_regular_provider_probe_fetches_without_hwid_headers(monkeypatch, client):
+    calls = []
+
+    def fake_probe(url, *, headers, insecure, timeout, prefer, policy):
+        calls.append(
+            {
+                "url": url,
+                "headers": headers,
+                "insecure": insecure,
+                "prefer": prefer,
+                "allow_http": policy.allow_http,
+                "allow_custom_urls": policy.allow_custom_urls,
+            }
+        )
+        return {
+            "ok": True,
+            "probe": {"url": url, "http_status": 200},
+            "profile": {
+                "profile_title": "Remnawave",
+                "profile_title_raw": "base64:UmVtbmF3YXZl",
+                "profile_title_encoding": "base64",
+                "suggested_name": "Remnawave",
+            },
+            "headers_used": {},
+            "warnings": [],
+        }
+
+    monkeypatch.setattr(mihomo, "_mh_hwid_probe_subscription_safe", fake_probe)
+
+    response = client.post(
+        "/api/mihomo/provider/probe",
+        json={"url": "http://provider.example/sub", "insecure": True},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["profile"]["suggested_name"] == "Remnawave"
+    assert payload["provider_url"].startswith("http://127.0.0.1:")
+    assert "/mihomo/provider.yaml?" in payload["provider_url"]
+    assert calls[0]["url"] == "http://provider.example/sub"
+    assert calls[0]["headers"] == {}
+    assert calls[0]["insecure"] is True
+    assert calls[0]["prefer"] == "head_then_range_get"
+    assert calls[0]["allow_http"] is True
+    assert calls[0]["allow_custom_urls"] is True

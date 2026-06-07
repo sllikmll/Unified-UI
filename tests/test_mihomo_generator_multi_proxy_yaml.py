@@ -7,6 +7,8 @@ proxies that must each be registered in proxy-groups.
 
 from __future__ import annotations
 
+import urllib.parse
+
 import yaml
 from pathlib import Path
 
@@ -200,6 +202,27 @@ def test_router_custom_keeps_sniffer_rule_provider_when_telegram_group_is_disabl
     assert "telegram@ipcidr" in parsed["rule-providers"]
     assert all(group.get("name") != "Telegram" for group in parsed.get("proxy-groups") or [])
     assert "RULE-SET,telegram@ipcidr" not in cfg
+
+
+def test_router_custom_routes_http_subscriptions_through_provider_adapter(monkeypatch):
+    bundled_templates = Path("xkeen-ui/opt/etc/mihomo/templates").resolve()
+    monkeypatch.setattr(generator_meta, "TEMPLATES_DIR", bundled_templates)
+
+    cfg = build_full_config({
+        "profile": "router_custom",
+        "enabledRuleGroups": [],
+        "subscriptions": ["https://provider.example/sub?a=1"],
+        "proxies": [],
+        "_xk_mihomo_provider_adapter_base": "http://127.0.0.1:18088",
+    })
+    parsed = yaml.safe_load(cfg)
+
+    url = parsed["proxy-providers"]["proxy-sub"]["url"]
+    assert url.startswith("http://127.0.0.1:18088/mihomo/provider.yaml?")
+    query = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
+    assert query["url"] == ["https://provider.example/sub?a=1"]
+    assert query["insecure"] == ["0"]
+    assert 'url: "https://provider.example/sub' not in cfg
 
 
 def test_router_custom_keeps_new_community_rule_sets_when_enabled(monkeypatch):

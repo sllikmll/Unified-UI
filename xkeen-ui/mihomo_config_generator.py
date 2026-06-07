@@ -40,7 +40,7 @@ The generator is deliberately tolerant and will just ignore unknown keys.
 
 from __future__ import annotations
 
-from typing import Dict
+from typing import Any, Dict
 
 from services.mihomo_generator_meta import (
     normalise_profile_name as _normalise_profile_name,
@@ -49,6 +49,7 @@ from services.mihomo_generator_meta import (
     get_profile_rule_presets,
 )
 from services.mihomo_generator_providers import (
+    adapt_subscription_urls_for_provider as _adapt_subscription_urls_for_provider,
     replace_provider_urls as _replace_provider_urls,
     filter_proxy_group_uses as _filter_proxy_group_uses,
     maybe_strip_example_vless as _maybe_strip_example_vless,
@@ -85,10 +86,14 @@ def build_router_config(state: Dict[str, Any]) -> str:
     if not isinstance(subs, list):
         subs = []
     subs = [str(x).strip() for x in subs if str(x).strip()]
-    content = _replace_provider_urls(content, subs)
-    content = _filter_proxy_group_uses(content, subs)
-    content = _maybe_strip_example_vless(content, state, subs)
-    if not subs:
+    provider_subs = _adapt_subscription_urls_for_provider(
+        subs,
+        base_url=str(state.get("_xk_mihomo_provider_adapter_base") or "").strip() or None,
+    )
+    content = _replace_provider_urls(content, provider_subs)
+    content = _filter_proxy_group_uses(content, provider_subs)
+    content = _maybe_strip_example_vless(content, state, provider_subs)
+    if not provider_subs:
         content = _ensure_empty_proxy_providers_map(content)
 
     # 2) rule-group packages

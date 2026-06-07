@@ -1686,8 +1686,81 @@ let mihomoImportModuleApi = null;
   }
 
 
+  function sanitizeProviderName(name) {
+    let s = String(name || '').trim();
+    if (!s) return '';
+    s = s.replace(/\s+/g, '_');
+    s = s.replace(/[^A-Za-z0-9._-]+/g, '_');
+    s = s.replace(/_+/g, '_').replace(/^[._-]+|[._-]+$/g, '');
+    return s.slice(0, 64);
+  }
 
-  function generateConfigForMihomo(uri, existingConfig = '') {
+  function uniqueProviderName(base, existingConfig, fallbackBase) {
+    const fallback = sanitizeProviderName(fallbackBase || 'subscription') || 'subscription';
+    const cleanBase = sanitizeProviderName(base || '');
+    if (cleanBase) {
+      if (!configHasProviderName(existingConfig, cleanBase)) return cleanBase;
+      let i = 2;
+      while (i < 2000) {
+        const candidate = `${cleanBase}_${i}`;
+        if (!configHasProviderName(existingConfig, candidate)) return candidate;
+        i++;
+      }
+      return `${cleanBase}_${Date.now()}`;
+    }
+
+    let index = 1;
+    while (configHasProviderName(existingConfig, `${fallback}_${index}`)) index++;
+    return `${fallback}_${index}`;
+  }
+
+  function localProviderAdapterUrl(url, insecure) {
+    const raw = String(url || '').trim();
+    let port = '';
+    try {
+      port = String(window.location && window.location.port ? window.location.port : '').trim();
+      if (!port) port = (window.location && window.location.protocol === 'https:') ? '443' : '80';
+    } catch (e) {
+      port = '8088';
+    }
+    const params = new URLSearchParams();
+    params.set('url', raw);
+    params.set('insecure', insecure ? '1' : '0');
+    return `http://127.0.0.1:${port}/mihomo/provider.yaml?${params.toString()}`;
+  }
+
+  async function probeRegularProvider(url) {
+    const http = getMihomoCoreHttpApi();
+    const post = http && typeof http.postJSON === 'function' ? http.postJSON : null;
+    if (!post) throw new Error('core http.postJSON РЅРµРґРѕСЃС‚СѓРїРµРЅ');
+    const data = await post('/api/mihomo/provider/probe', {
+      url: String(url || '').trim(),
+      insecure: false,
+      prefer: 'head_then_range_get',
+      timeout_ms: 8000,
+    });
+    if (!data || data.ok === false) throw new Error((data && data.error && data.error.message) || (data && data.error) || 'provider probe failed');
+    return data;
+  }
+
+  async function buildSubscriptionProviderConfig(uri, existingConfig) {
+    let probe = null;
+    try {
+      probe = await probeRegularProvider(uri);
+    } catch (e) {
+      try { console.warn('mihomo provider probe failed, using generated provider name', e); } catch (e2) {}
+    }
+    const profile = (probe && probe.profile) || {};
+    const providerName = String(profile.suggested_name || profile.profile_title || '').trim();
+    const providerUrl = String((probe && probe.provider_url) || '').trim() || localProviderAdapterUrl(uri, false);
+    const out = generateConfigForMihomo(uri, existingConfig, { providerName, providerUrl });
+    out.profile_title = String(profile.profile_title || '').trim();
+    out.provider_name = providerName || out.provider_name || '';
+    return out;
+  }
+
+
+  function generateConfigForMihomo(uri, existingConfig = '', options = {}) {
     const generateName = (base, existsFn) => {
       let index = 1;
       while (existsFn(existingConfig, `${base}_${index}`)) index++;
@@ -1695,15 +1768,19 @@ let mihomoImportModuleApi = null;
     };
 
     if (uri.startsWith('http')) {
-      const name = generateName('subscription', configHasProviderName);
+      const opts = options || {};
+      const name = uniqueProviderName(opts.providerName || '', existingConfig, 'subscription');
+      const providerUrl = String(opts.providerUrl || '').trim() || localProviderAdapterUrl(uri, false);
       return {
         type: 'proxy-provider',
+        provider_name: name,
         content: toYaml(
           {
             [name]: {
               type: 'http',
-              url: uri,
+              url: providerUrl,
               interval: 43200,
+              path: `./proxy_providers/${name}.yaml`,
               'health-check': {
                 enable: true,
                 url: 'https://www.gstatic.com/generate_204',
@@ -2027,6 +2104,10 @@ let mihomoImportModuleApi = null;
               }
               continue;
             }
+            const out = await buildSubscriptionProviderConfig(line, tmp);
+            outputs.push({ ...out, uri: line });
+            tmp += '\n' + out.content;
+            continue;
           }
 
           const out = generateConfigForMihomo(line, tmp);

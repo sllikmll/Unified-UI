@@ -11,6 +11,8 @@ Endpoints:
  - GET  /api/mihomo-templates
  - GET  /api/mihomo-template
  - POST /api/mihomo-template
+ - POST /api/mihomo/provider/probe
+ - GET  /mihomo/provider.yaml
  - GET  /mihomo/hwid/provider.yaml
  - POST /api/mihomo/hwid/apply
  - POST /api/mihomo/generate
@@ -183,6 +185,7 @@ def _mihomo_fetch_failed_response(reason: str):
 
 
 _MIHOMO_HWID_URL_POLICY_ENV_PREFIX = "XKEEN_MIHOMO_HWID"
+_MIHOMO_PROVIDER_URL_POLICY_ENV_PREFIX = "XKEEN_MIHOMO_PROVIDER"
 
 
 def _mihomo_hwid_url_policy() -> URLPolicy:
@@ -190,6 +193,15 @@ def _mihomo_hwid_url_policy() -> URLPolicy:
         allow_hosts=(),
         allow_http=env_flag(f"{_MIHOMO_HWID_URL_POLICY_ENV_PREFIX}_ALLOW_HTTP", False),
         allow_private_hosts=env_flag(f"{_MIHOMO_HWID_URL_POLICY_ENV_PREFIX}_ALLOW_PRIVATE_HOSTS", False),
+        allow_custom_urls=True,
+    )
+
+
+def _mihomo_provider_url_policy() -> URLPolicy:
+    return URLPolicy(
+        allow_hosts=(),
+        allow_http=env_flag(f"{_MIHOMO_PROVIDER_URL_POLICY_ENV_PREFIX}_ALLOW_HTTP", True),
+        allow_private_hosts=env_flag(f"{_MIHOMO_PROVIDER_URL_POLICY_ENV_PREFIX}_ALLOW_PRIVATE_HOSTS", False),
         allow_custom_urls=True,
     )
 
@@ -254,6 +266,10 @@ def _mihomo_hwid_policy_block_reason(url: str, policy: URLPolicy) -> str | None:
     return None if ok else reason
 
 
+def _mihomo_provider_policy_block_reason(url: str, policy: URLPolicy) -> str | None:
+    return _mihomo_hwid_policy_block_reason(url, policy)
+
+
 def _mihomo_yaml_invalid(*, stage: str | None = None):
     code = "yaml_invalid"
     message = "Некорректный YAML-конфиг."
@@ -286,10 +302,32 @@ def _safe_template_path(templates_dir: str, name: str) -> str | None:
     return os.path.join(templates_dir, name)
 
 
+def _mihomo_ui_loopback_port_from_request() -> int:
+    candidates = [
+        os.environ.get("XKEEN_UI_PORT"),
+        str(urllib.parse.urlsplit(request.host_url or "").port or ""),
+        "8088",
+    ]
+    for raw in candidates:
+        try:
+            port = int(str(raw or "").strip())
+        except Exception:
+            continue
+        if 0 < port <= 65535:
+            return port
+    return 8088
+
+
+def _mihomo_provider_adapter_base_from_request() -> str:
+    return f"http://127.0.0.1:{_mihomo_ui_loopback_port_from_request()}"
+
+
 def _mihomo_get_state_from_request() -> Dict[str, Any]:
     """Obtain Mihomo state from the current HTTP request via service parser."""
     data = request.get_json(silent=True) or {}
-    return _mihomo_parse_state(data)
+    state = _mihomo_parse_state(data)
+    state["_xk_mihomo_provider_adapter_base"] = _mihomo_provider_adapter_base_from_request()
+    return state
 
 
 def create_mihomo_blueprint(
@@ -321,19 +359,7 @@ def create_mihomo_blueprint(
             return False
 
     def _ui_loopback_port() -> int:
-        candidates = [
-            os.environ.get("XKEEN_UI_PORT"),
-            str(urllib.parse.urlsplit(request.host_url or "").port or ""),
-            "8088",
-        ]
-        for raw in candidates:
-            try:
-                port = int(str(raw or "").strip())
-            except Exception:
-                continue
-            if 0 < port <= 65535:
-                return port
-        return 8088
+        return _mihomo_ui_loopback_port_from_request()
 
     def _hwid_provider_adapter_url(upstream_url: str, *, insecure: bool) -> str:
         query = urllib.parse.urlencode(
@@ -359,11 +385,107 @@ def create_mihomo_blueprint(
 
     def _sync_mihomo_managed_subscriptions(state: Dict[str, Any], cfg: str) -> None:
         try:
-            _mh_sub_sync_from_generator_state(ui_state_dir, state, config_text=cfg)
+            state_for_sync = dict(state)
+            state_for_sync.pop("_xk_mihomo_provider_adapter_base", None)
+            _mh_sub_sync_from_generator_state(ui_state_dir, state_for_sync, config_text=cfg)
         except Exception:
             # Managed subscription metadata is best-effort; config save/restart
             # must not fail just because the sidecar state could not be updated.
             pass
+
+    @bp.get("/mihomo/provider.yaml")
+    def public_mihomo_provider_yaml():
+        """Loopback-only provider adapter for regular HTTP subscriptions."""
+
+        if not _request_is_loopback():
+            return current_app.response_class("forbidden\n", status=403, mimetype="text/plain")
+
+        url = (request.args.get("url") or "").strip()
+        insecure = _bool_arg("insecure", False)
+        policy = _mihomo_provider_url_policy()
+        reason = _mihomo_provider_policy_block_reason(url, policy)
+        if reason:
+            return current_app.response_class(
+                f"url blocked: {reason}\n",
+                status=400,
+                mimetype="text/plain",
+            )
+
+        try:
+            payload, _meta = _mh_hwid_fetch_provider_payload(
+                url,
+                headers={},
+                insecure=insecure,
+                timeout=20.0,
+                policy=policy,
+            )
+            return current_app.response_class(payload, mimetype="text/yaml")
+        except ValueError as exc:
+            msg = str(exc or "invalid_provider_payload")
+            status = 400 if msg.startswith("url_blocked:") else 502
+            return current_app.response_class(msg + "\n", status=status, mimetype="text/plain")
+        except Exception as exc:
+            return current_app.response_class(
+                _subscription_fetch_failure_reason(exc) + "\n",
+                status=502,
+                mimetype="text/plain",
+            )
+
+    @bp.post("/api/mihomo/provider/probe")
+    def api_mihomo_provider_probe():
+        """Probe regular provider subscription URL without HWID/Mihomo headers."""
+        data = request.get_json(silent=True) or {}
+        url = (data.get("url") or "").strip()
+        insecure = bool(data.get("insecure", False))
+        prefer = (data.get("prefer") or "head_then_range_get").strip() or "head_then_range_get"
+
+        policy = _mihomo_provider_url_policy()
+        reason = _mihomo_provider_policy_block_reason(url, policy)
+        if reason:
+            return jsonify(_mihomo_hwid_url_blocked_result(url, reason)), 400
+
+        timeout_ms = data.get("timeout_ms", 8000)
+        try:
+            timeout_ms = int(timeout_ms)
+        except Exception:
+            timeout_ms = 8000
+        timeout_s = max(1.0, min(float(timeout_ms) / 1000.0, 60.0))
+
+        result = _mh_hwid_probe_subscription_safe(
+            url,
+            headers={},
+            insecure=insecure,
+            timeout=timeout_s,
+            prefer=prefer,
+            policy=policy,
+        )
+
+        if isinstance(result, dict):
+            result = dict(result)
+            if result.get("ok") is True:
+                result["provider_url"] = (
+                    f"http://127.0.0.1:{_ui_loopback_port()}/mihomo/provider.yaml?"
+                    + urllib.parse.urlencode(
+                        {
+                            "url": url,
+                            "insecure": "1" if insecure else "0",
+                        }
+                    )
+                )
+
+        if isinstance(result, dict) and result.get("ok") is True:
+            return jsonify(result), 200
+
+        err = (result.get("error") or {}) if isinstance(result, dict) else {}
+        code = (err.get("code") or "").upper()
+        status = 502
+        if code == "INVALID_URL":
+            status = 400
+        elif code in {"TIMEOUT", "TLS_HANDSHAKE_TIMEOUT"}:
+            status = 504
+        elif code == "URL_BLOCKED":
+            status = 400
+        return jsonify(result), status
 
     @bp.get("/mihomo/hwid/provider.yaml")
     def public_mihomo_hwid_provider_yaml():
