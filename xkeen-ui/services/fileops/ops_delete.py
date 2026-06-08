@@ -17,7 +17,7 @@ def run_job_delete(job: FileOpJob, spec: Dict[str, Any], rt: FileOpsRuntime) -> 
 
     rt.progress_set(job, files_total=len(sources), files_done=0, bytes_done=0, bytes_total=0)
 
-    trash_summary = {'moved': 0, 'permanent': 0, 'trash_full': 0, 'too_large': 0}
+    trash_summary = {'moved': 0, 'permanent': 0, 'trash_full': 0, 'too_large': 0, 'disabled': 0}
     last_trash_stats: Dict[str, Any] | None = None
 
     def _add_note(msg: str) -> None:
@@ -72,6 +72,9 @@ def run_job_delete(job: FileOpJob, spec: Dict[str, Any], rt: FileOpsRuntime) -> 
                             elif reason == 'too_large_for_trash':
                                 trash_summary['too_large'] += 1
                                 _add_note(f"Слишком большой для корзины — {sname or spath} удалён(о) навсегда")
+                            elif reason == 'trash_disabled':
+                                trash_summary['disabled'] += 1
+                                _add_note(f"Корзина отключена — {sname or spath} удалён(о) навсегда")
                     except Exception:
                         pass
 
@@ -103,7 +106,9 @@ def run_job_delete(job: FileOpJob, spec: Dict[str, Any], rt: FileOpsRuntime) -> 
         if src_target == 'local':
             notice = None
             try:
-                if trash_summary.get('trash_full', 0):
+                if trash_summary.get('disabled', 0):
+                    notice = "Корзина отключена настройками. Удаляемые файлы удаляются сразу."
+                elif trash_summary.get('trash_full', 0):
                     # Trash is full: further deletes will be permanent.
                     pct = None
                     if last_trash_stats and last_trash_stats.get('percent') is not None:
@@ -142,4 +147,3 @@ def run_job_delete(job: FileOpJob, spec: Dict[str, Any], rt: FileOpsRuntime) -> 
         except Exception:
             pass
         job._proc = None
-

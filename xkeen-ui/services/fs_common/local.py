@@ -307,6 +307,8 @@ _TRASH_META_DIRNAME = '.xkeen_trashinfo'
 # - Auto-purge: delete items older than 30 days (configurable)
 # - Never allow overflow: if trash is full or the item is larger than max size,
 #   the delete operation becomes a hard delete for that item.
+# - Explicit 0 for max size or TTL disables soft-delete; files are deleted
+#   permanently. TTL=0 also expires already trashed entries immediately.
 #
 # Environment overrides:
 #   XKEEN_TRASH_MAX_BYTES / XKEEN_TRASH_MAX_GB
@@ -342,7 +344,7 @@ def _trash_cfg() -> Dict[str, Any]:
                 max_bytes = max(0, int(float(gb) * 1024 * 1024 * 1024))
         except Exception:
             max_bytes = None
-    if max_bytes is None or max_bytes <= 0:
+    if max_bytes is None:
         max_bytes = int(_TRASH_MAX_BYTES_DEFAULT)
 
     ttl_days = _read_int_env('XKEEN_TRASH_TTL_DAYS', _TRASH_TTL_DAYS_DEFAULT)
@@ -464,7 +466,7 @@ def _trash_hard_delete_path(p: str) -> bool:
 
 def _local_trash_purge_expired(roots: List[str], *, ttl_days: int) -> Dict[str, Any]:
     """Delete expired trash entries (older than ttl_days)."""
-    if ttl_days <= 0:
+    if ttl_days < 0:
         return {'purged': 0, 'meta_purged': 0, 'errors': []}
     try:
         trash_root, meta_dir = _local_trash_dirs(roots)
@@ -589,6 +591,8 @@ def _local_trash_stats(roots: List[str], *, force_refresh: bool = False, force_p
     cfg = _trash_cfg()
     now = float(time.time())
     max_bytes = int(cfg['max_bytes'])
+    ttl_days = int(cfg['ttl_days'])
+    enabled = bool(max_bytes > 0 and ttl_days > 0)
 
     with _TRASH_MAINT_LOCK:
         global _TRASH_LAST_PURGE_TS
@@ -597,8 +601,8 @@ def _local_trash_stats(roots: List[str], *, force_refresh: bool = False, force_p
 
         purged_info: Dict[str, Any] | None = None
 
-        if force_purge or (now - float(_TRASH_LAST_PURGE_TS or 0.0) > float(cfg['purge_interval_seconds'])):
-            purged_info = _local_trash_purge_expired(roots, ttl_days=int(cfg['ttl_days']))
+        if force_purge or ttl_days == 0 or (now - float(_TRASH_LAST_PURGE_TS or 0.0) > float(cfg['purge_interval_seconds'])):
+            purged_info = _local_trash_purge_expired(roots, ttl_days=ttl_days)
             _TRASH_LAST_PURGE_TS = now
             # After purge, refresh stats
             force_refresh = True
@@ -623,12 +627,13 @@ def _local_trash_stats(roots: List[str], *, force_refresh: bool = False, force_p
             except Exception:
                 pct = None
 
-        is_full = bool(used_i is not None and max_bytes > 0 and used_i >= max_bytes)
-        is_near = bool(pct is not None and pct >= float(cfg['warn_ratio']))
+        is_full = bool(enabled and used_i is not None and used_i >= max_bytes)
+        is_near = bool(enabled and pct is not None and pct >= float(cfg['warn_ratio']))
 
         data = {
+            'enabled': enabled,
             'max_bytes': max_bytes,
-            'ttl_days': int(cfg['ttl_days']),
+            'ttl_days': ttl_days,
             'used_bytes': used_i,
             'truncated': bool(trunc),
             'percent': (round(pct * 100.0, 1) if pct is not None else None),
@@ -848,7 +853,17 @@ def _local_soft_delete(path: str, roots: List[str], *, hard: bool = False) -> Di
 
     # Run periodic purge and get fresh stats for decision making.
     stats = _local_trash_stats(roots, force_refresh=True, force_purge=False)
-    max_bytes = int(stats.get('max_bytes') or _TRASH_MAX_BYTES_DEFAULT)
+    max_bytes = int(stats.get('max_bytes') if stats.get('max_bytes') is not None else _TRASH_MAX_BYTES_DEFAULT)
+    ttl_days = int(stats.get('ttl_days') if stats.get('ttl_days') is not None else _TRASH_TTL_DAYS_DEFAULT)
+
+    if max_bytes <= 0 or ttl_days <= 0:
+        _local_remove_entry(ap, roots, recursive=True)
+        return {
+            'mode': 'hard',
+            'path': ap,
+            'reason': 'trash_disabled',
+            'trash': stats,
+        }
 
     # Determine entry size (best-effort). If unknown -> refuse moving to trash (avoid overflow).
     item_bytes, trunc = _tree_size_bytes(ap)
@@ -954,4 +969,3 @@ def _local_restore_from_trash(path: str, roots: List[str]) -> Dict[str, Any]:
         pass
 
     return {'from': ap, 'to': dst_final, 'orig': orig}
-
