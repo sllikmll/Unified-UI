@@ -72,6 +72,9 @@ let xrayLogsModuleApi = null;
   const SEED_KEY = 'xkeen.seed.logsPrefs.v1';
   const FILTER_APPLY_DEBOUNCE_MS = 180;
   const LOG_WINDOW_MIN_HEIGHT = 420;
+  const XRAY_DEVICE_NAMES_API = '/api/xray-logs/devices';
+  const XRAY_DEVICE_NAMES_REFRESH_MS = 60000;
+  const XRAY_DEVICE_NAMES_STALE_MS = 30000;
 
   let _maxLines = DEFAULT_MAX_LINES;
   let _pollMs = DEFAULT_POLL_MS;
@@ -134,6 +137,12 @@ let xrayLogsModuleApi = null;
   let _ws2LastOpenAt = 0;
   let _chromeRenderQueued = false;
   let _xrayLogUiStatusRenderQueued = false;
+  let _xrayDeviceNamesLoaded = false;
+  let _xrayDeviceNamesLastFetchAt = 0;
+  let _xrayDeviceNamesRequest = null;
+  let _xrayDeviceNamesRefreshTimer = null;
+  let _xrayDeviceNamesByIp = Object.create(null);
+  let _xrayDeviceNameEntries = [];
   const _xrayLogUiStatus = {
     phase: 'idle',
     tone: 'muted',
@@ -1630,6 +1639,209 @@ let xrayLogsModuleApi = null;
     return '';
   }
 
+  function getCsrfToken() {
+    try {
+      const el = document.querySelector('meta[name="csrf-token"]');
+      return el ? String(el.getAttribute('content') || '').trim() : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function normalizeXrayDeviceIp(raw) {
+    let value = String(raw || '').trim();
+    if (!value) return '';
+
+    if (value.charAt(0) === '[' && value.indexOf(']') > 0) {
+      value = value.slice(1, value.indexOf(']'));
+    } else if (/^(?:\d{1,3}\.){3}\d{1,3}:\d{1,5}$/.test(value)) {
+      value = value.replace(/:\d{1,5}$/, '');
+    }
+
+    const v4 = value.match(/^(\d{1,3})(?:\.(\d{1,3})){3}$/);
+    if (v4) {
+      const parts = value.split('.').map((part) => parseInt(part, 10));
+      if (parts.length !== 4 || parts.some((part) => !isFinite(part) || part < 0 || part > 255)) return '';
+      return parts.join('.');
+    }
+
+    if (/^[0-9a-f:]{2,}$/i.test(value) && value.indexOf(':') >= 0) return value.toLowerCase();
+    return '';
+  }
+
+  function normalizeXrayDeviceName(raw) {
+    const value = String(raw || '').replace(/[\r\n\t]+/g, ' ').replace(/[\u0000-\u001F\u007F]/g, '').trim();
+    return value.replace(/\s+/g, ' ').slice(0, 96).trim();
+  }
+
+  function xrayDeviceSourceLabel(source) {
+    const value = String(source || '').trim().toLowerCase();
+    if (value === 'manual') return 'вручную';
+    if (value === 'router') return 'роутер';
+    return value || 'источник';
+  }
+
+  function xrayDeviceSortValue(ip) {
+    const text = String(ip || '');
+    const parts = text.split('.');
+    if (parts.length === 4 && parts.every((part) => /^\d+$/.test(part))) {
+      return parts.map((part) => String(parseInt(part, 10)).padStart(3, '0')).join('.');
+    }
+    return '999.' + text;
+  }
+
+  function normalizeXrayDeviceEntry(raw) {
+    const entry = raw && typeof raw === 'object' ? raw : {};
+    const ip = normalizeXrayDeviceIp(entry.ip);
+    const name = normalizeXrayDeviceName(entry.name);
+    if (!ip || !name) return null;
+    return {
+      ip,
+      name,
+      source: String(entry.source || '').trim().toLowerCase() || 'router',
+      mac: normalizeXrayDeviceName(entry.mac),
+      hostname: normalizeXrayDeviceName(entry.hostname),
+      routerName: normalizeXrayDeviceName(entry.router_name || entry.routerName),
+    };
+  }
+
+  function setXrayDeviceNamesFromPayload(payload) {
+    const data = payload && typeof payload === 'object' ? payload : {};
+    const rawList = Array.isArray(data.devices)
+      ? data.devices
+      : (data.device_map && typeof data.device_map === 'object' ? Object.values(data.device_map) : []);
+
+    const nextMap = Object.create(null);
+    const nextEntries = [];
+    rawList.forEach((raw) => {
+      const entry = normalizeXrayDeviceEntry(raw);
+      if (!entry) return;
+      nextMap[entry.ip] = entry;
+    });
+
+    Object.keys(nextMap)
+      .sort((a, b) => xrayDeviceSortValue(a).localeCompare(xrayDeviceSortValue(b)))
+      .forEach((ip) => nextEntries.push(nextMap[ip]));
+
+    const prevKeys = Object.keys(_xrayDeviceNamesByIp).sort();
+    const nextKeys = Object.keys(nextMap).sort();
+    let changed = prevKeys.length !== nextKeys.length;
+    if (!changed) {
+      for (let i = 0; i < nextKeys.length; i++) {
+        const ip = nextKeys[i];
+        const prev = _xrayDeviceNamesByIp[ip] || {};
+        const next = nextMap[ip] || {};
+        if (prevKeys[i] !== ip || prev.name !== next.name || prev.source !== next.source || prev.routerName !== next.routerName) {
+          changed = true;
+          break;
+        }
+      }
+    }
+
+    _xrayDeviceNamesByIp = nextMap;
+    _xrayDeviceNameEntries = nextEntries;
+    _xrayDeviceNamesLoaded = true;
+    _xrayDeviceNamesLastFetchAt = Date.now();
+    return changed;
+  }
+
+  async function requestXrayDeviceNamesJson(url, options) {
+    const opts = Object.assign({}, options || {});
+    const method = String(opts.method || 'GET').toUpperCase();
+    const headers = new Headers(opts.headers || {});
+    if (method !== 'GET') {
+      if (!headers.has('Content-Type') && opts.body != null) headers.set('Content-Type', 'application/json');
+      const csrf = getCsrfToken();
+      if (csrf && !headers.has('X-CSRF-Token')) headers.set('X-CSRF-Token', csrf);
+    }
+    opts.headers = headers;
+    const res = await fetch(url, opts);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || (data && data.ok === false)) {
+      const err = new Error(String((data && (data.error || data.detail)) || ('http ' + res.status)));
+      err.data = data;
+      throw err;
+    }
+    return data;
+  }
+
+  function getXrayDeviceNameEntry(ip) {
+    const normalized = normalizeXrayDeviceIp(ip);
+    if (!normalized) return null;
+    return _xrayDeviceNamesByIp[normalized] || null;
+  }
+
+  function renderXrayDeviceAliasHtml(ip) {
+    const entry = getXrayDeviceNameEntry(ip);
+    if (!entry || !entry.name) return '';
+    const label = normalizeXrayDeviceName(entry.name);
+    if (!label || label === ip) return '';
+
+    const source = xrayDeviceSourceLabel(entry.source);
+    const title = 'Имя устройства: ' + label + ' (' + source + '). Клик: редактировать';
+    const ipB64 = b64Encode(ip);
+    const nameB64 = b64Encode(label);
+    return '<button type="button" class="xray-log-device-name" data-ip-b64="' + ipB64 + '" data-name-b64="' + nameB64 + '" title="' + escapeHtml(title) + '" aria-label="' + escapeHtml(title) + '">' + escapeHtml(label) + '</button>';
+  }
+
+  function appendXrayDeviceAliasPlaceholder(ip, aliases) {
+    const html = renderXrayDeviceAliasHtml(ip);
+    if (!html) return '';
+    const idx = aliases.length;
+    aliases.push(html);
+    return ' @@XK_DEVICE_ALIAS_' + idx + '@@';
+  }
+
+  function restoreXrayDeviceAliasPlaceholders(html, aliases) {
+    if (!aliases || !aliases.length) return html;
+    return String(html || '').replace(/@@XK_DEVICE_ALIAS_(\d+)@@/g, (m, idx) => {
+      const n = parseInt(idx, 10);
+      return isFinite(n) && aliases[n] ? aliases[n] : '';
+    });
+  }
+
+  async function refreshXrayLogDeviceNames(options) {
+    const opts = options || {};
+    const force = !!opts.force;
+    const staleMs = typeof opts.staleMs === 'number' ? opts.staleMs : XRAY_DEVICE_NAMES_STALE_MS;
+    const now = Date.now();
+    if (!force && _xrayDeviceNamesLoaded && now - _xrayDeviceNamesLastFetchAt < staleMs) {
+      return _xrayDeviceNameEntries.slice();
+    }
+
+    if (_xrayDeviceNamesRequest) return _xrayDeviceNamesRequest;
+
+    _xrayDeviceNamesRequest = (async () => {
+      try {
+        const data = await requestXrayDeviceNamesJson(XRAY_DEVICE_NAMES_API + '?refresh=' + (opts.router === false ? '0' : '1'));
+        const changed = setXrayDeviceNamesFromPayload(data);
+        if (changed && opts.render !== false) {
+          try { applyXrayLogFilterToOutput(); } catch (e) {}
+        }
+        try { renderXrayDeviceNamesModal(data); } catch (e) {}
+        return _xrayDeviceNameEntries.slice();
+      } catch (e) {
+        if (!opts.silent) actionToast('xray-log-devices', 'Не удалось загрузить имена устройств', 'error');
+        return _xrayDeviceNameEntries.slice();
+      } finally {
+        _xrayDeviceNamesRequest = null;
+      }
+    })();
+
+    return _xrayDeviceNamesRequest;
+  }
+
+  function ensureXrayDeviceNamesRefreshTimer() {
+    if (_xrayDeviceNamesRefreshTimer) return;
+    _xrayDeviceNamesRefreshTimer = setInterval(() => {
+      try {
+        if (isLogsViewVisible()) {
+          void refreshXrayLogDeviceNames({ silent: true, staleMs: XRAY_DEVICE_NAMES_REFRESH_MS, router: true });
+        }
+      } catch (e) {}
+    }, XRAY_DEVICE_NAMES_REFRESH_MS);
+  }
+
   function fallbackCopyText(text, okMsg) {
     try {
       const ta = document.createElement('textarea');
@@ -2079,13 +2291,16 @@ let xrayLogsModuleApi = null;
     // Protocol / transport keywords (avoid matching inside injected tags by excluding '>' prefix)
     processed = processed.replace(/(^|[^>])\b(tcp|udp|ws|grpc|http|https|tls|quic|h2|h3|http\/1\.1|http\/2)\b/gi, '$1<span class="log-proto">$2</span>');
 
+    const deviceAliases = [];
+
     // IPv4 (+ optional port) -> clickable token
     processed = processed.replace(/\b((?:\d{1,3}\.){3}\d{1,3})(?::(\d{1,5}))?\b/g, (m, ip, port) => {
       const raw = String(ip || '') + (port ? (':' + String(port)) : '');
       const b64 = b64Encode(raw);
       const vis = String(ip || '') + (port ? (':<span class="log-port">' + String(port) + '</span>') : '');
-      if (!b64) return '<span class="log-ip">' + vis + '</span>';
-      return '<a href="#" class="log-link log-ip" data-kind="ip" data-b64="' + b64 + '" title="' + linkTitle + '">' + vis + '</a>';
+      const alias = appendXrayDeviceAliasPlaceholder(String(ip || ''), deviceAliases);
+      if (!b64) return '<span class="log-ip">' + vis + '</span>' + alias;
+      return '<a href="#" class="log-link log-ip" data-kind="ip" data-b64="' + b64 + '" title="' + linkTitle + '">' + vis + '</a>' + alias;
     });
 
     // Domains (avoid hitting inside already injected tags) -> clickable token
@@ -2097,7 +2312,7 @@ let xrayLogsModuleApi = null;
       return String(pfx || '') + '<a href="#" class="log-link log-domain" data-kind="domain" data-b64="' + b64 + '" title="' + linkTitle + '">' + vis + '</a>';
     });
 
-
+    processed = restoreXrayDeviceAliasPlaceholders(processed, deviceAliases);
 
     // Optional: render ANSI colors from logs (SGR) into HTML spans.
     // Feature is disabled by default (see /api/ui-settings -> logs.ansi).
@@ -2811,6 +3026,7 @@ let xrayLogsModuleApi = null;
     // Load + apply server-side UI prefs only when the user enables the logs stream.
     // (includes one-time migration from legacy localStorage)
     try { await ensureLogsViewPrefsLoadedForLogs(); } catch (e) {}
+    try { void refreshXrayLogDeviceNames({ silent: true, staleMs: 0, router: true }); } catch (e) {}
 
     _liveWanted = true;
     _streaming = true;
@@ -2904,6 +3120,7 @@ let xrayLogsModuleApi = null;
 
   async function xrayLogsView() {
     try { await ensureLogsViewPrefsLoadedForLogs(); } catch (e) {}
+    try { void refreshXrayLogDeviceNames({ silent: true, staleMs: 0, router: true }); } catch (e) {}
     setXrayLogUiStatus({
       phase: 'loading',
       tone: 'muted',
@@ -3328,6 +3545,217 @@ async function xrayLogsDownload() {
   } catch (e) {
     console.error(e);
     actionToast('xray-logs-download', 'Не удалось скачать лог', 'error');
+  }
+}
+
+function getXrayDeviceModalRefs() {
+  return {
+    modal: $('xray-devices-modal'),
+    close1: $('xray-devices-close-btn'),
+    close2: $('xray-devices-close-btn2'),
+    refresh: $('xray-devices-refresh-btn'),
+    save: $('xray-devices-save-btn'),
+    ip: $('xray-devices-ip'),
+    name: $('xray-devices-name'),
+    list: $('xray-devices-list'),
+    summary: $('xray-devices-summary'),
+  };
+}
+
+function fillXrayDeviceForm(ip, name) {
+  const refs = getXrayDeviceModalRefs();
+  if (refs.ip) refs.ip.value = normalizeXrayDeviceIp(ip) || String(ip || '').trim();
+  if (refs.name) refs.name.value = normalizeXrayDeviceName(name);
+  try { if (refs.name) refs.name.focus(); } catch (e) {}
+}
+
+function renderXrayDeviceNamesModal(payload) {
+  const refs = getXrayDeviceModalRefs();
+  if (!refs.list && !refs.summary) return;
+
+  const entries = _xrayDeviceNameEntries.slice();
+  const manualCount = entries.filter((entry) => String(entry.source || '') === 'manual').length;
+  const routerCount = entries.length - manualCount;
+  const routerError = payload && typeof payload === 'object' ? String(payload.router_error || '').trim() : '';
+
+  if (refs.summary) {
+    const parts = [entries.length + ' всего'];
+    if (routerCount) parts.push(routerCount + ' из роутера');
+    if (manualCount) parts.push(manualCount + ' вручную');
+    if (routerError && !routerCount) parts.push('роутер недоступен');
+    refs.summary.textContent = parts.join(' • ');
+  }
+
+  if (!refs.list) return;
+  if (!entries.length) {
+    refs.list.innerHTML = '<div class="xray-devices-empty">Нет сохранённых имён устройств</div>';
+    return;
+  }
+
+  refs.list.innerHTML = entries.map((entry) => {
+    const source = xrayDeviceSourceLabel(entry.source);
+    const sourceClass = String(entry.source || '') === 'manual' ? 'manual' : 'router';
+    const details = [];
+    if (entry.mac) details.push(entry.mac);
+    if (entry.routerName && entry.routerName !== entry.name) details.push('роутер: ' + entry.routerName);
+    const ipB64 = b64Encode(entry.ip);
+    const nameB64 = b64Encode(entry.name);
+    const deleteBtn = String(entry.source || '') === 'manual'
+      ? '<button type="button" class="btn-secondary xray-device-row-btn" data-action="delete" data-ip-b64="' + ipB64 + '">Удалить</button>'
+      : '';
+    return [
+      '<div class="xray-device-row" data-ip-b64="' + ipB64 + '">',
+      '<div class="xray-device-main">',
+      '<span class="xray-device-ip">' + escapeHtml(entry.ip) + '</span>',
+      '<span class="xray-device-name">' + escapeHtml(entry.name) + '</span>',
+      details.length ? '<span class="xray-device-details">' + escapeHtml(details.join(' • ')) + '</span>' : '',
+      '</div>',
+      '<span class="xray-device-source ' + sourceClass + '">' + escapeHtml(source) + '</span>',
+      '<div class="xray-device-actions">',
+      '<button type="button" class="btn-secondary xray-device-row-btn" data-action="edit" data-ip-b64="' + ipB64 + '" data-name-b64="' + nameB64 + '">Править</button>',
+      deleteBtn,
+      '</div>',
+      '</div>',
+    ].join('');
+  }).join('');
+}
+
+async function saveXrayDeviceNameFromModal() {
+  const refs = getXrayDeviceModalRefs();
+  const ip = normalizeXrayDeviceIp(refs.ip && refs.ip.value);
+  const name = normalizeXrayDeviceName(refs.name && refs.name.value);
+  if (!ip) {
+    actionToast('xray-log-devices', 'Укажите корректный IP', 'error');
+    try { if (refs.ip) refs.ip.focus(); } catch (e) {}
+    return;
+  }
+  if (!name) {
+    actionToast('xray-log-devices', 'Укажите имя устройства', 'error');
+    try { if (refs.name) refs.name.focus(); } catch (e) {}
+    return;
+  }
+
+  try {
+    if (refs.save) refs.save.disabled = true;
+    const data = await requestXrayDeviceNamesJson(XRAY_DEVICE_NAMES_API, {
+      method: 'POST',
+      body: JSON.stringify({ ip, name }),
+    });
+    setXrayDeviceNamesFromPayload(data);
+    renderXrayDeviceNamesModal(data);
+    applyXrayLogFilterToOutput();
+    actionToast('xray-log-devices', 'Имя устройства сохранено', 'success');
+  } catch (e) {
+    actionToast('xray-log-devices', 'Не удалось сохранить имя устройства', 'error');
+  } finally {
+    if (refs.save) refs.save.disabled = false;
+  }
+}
+
+async function deleteXrayDeviceNameFromModal(ip) {
+  const normalized = normalizeXrayDeviceIp(ip);
+  if (!normalized) return;
+  const ok = await confirmAction({
+    title: 'Удалить имя устройства',
+    message: 'Удалить ручное имя для ' + normalized + '?',
+    okText: 'Удалить',
+    cancelText: 'Отмена',
+    focus: 'cancel',
+    danger: true,
+  });
+  if (!ok) return;
+
+  try {
+    const data = await requestXrayDeviceNamesJson(XRAY_DEVICE_NAMES_API + '/' + encodeURIComponent(normalized), {
+      method: 'DELETE',
+    });
+    setXrayDeviceNamesFromPayload(data);
+    renderXrayDeviceNamesModal(data);
+    applyXrayLogFilterToOutput();
+    actionToast('xray-log-devices', 'Имя устройства удалено', 'success');
+  } catch (e) {
+    actionToast('xray-log-devices', 'Не удалось удалить имя устройства', 'error');
+  }
+}
+
+async function openXrayDeviceNamesModal(seed) {
+  const refs = getXrayDeviceModalRefs();
+  if (!refs.modal) return;
+  renderXrayDeviceNamesModal();
+  try { openXkeenModal(refs.modal, 'xray_log_devices', true); } catch (e) {}
+  if (seed && (seed.ip || seed.name)) fillXrayDeviceForm(seed.ip, seed.name);
+  void refreshXrayLogDeviceNames({ force: true, silent: true, router: true });
+}
+
+function closeXrayDeviceNamesModal() {
+  const refs = getXrayDeviceModalRefs();
+  if (!refs.modal) return;
+  try { closeXkeenModal(refs.modal, 'xray_log_devices', false); } catch (e) {}
+}
+
+function bindXrayDeviceNamesUi() {
+  const refs = getXrayDeviceModalRefs();
+  const devicesBtn = $('xray-log-devices-btn');
+
+  if (devicesBtn && !devicesBtn.dataset.bound) {
+    devicesBtn.dataset.bound = '1';
+    devicesBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      void openXrayDeviceNamesModal();
+    });
+  }
+
+  [refs.close1, refs.close2].forEach((btn) => {
+    if (!btn || btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      closeXrayDeviceNamesModal();
+    });
+  });
+
+  if (refs.refresh && !refs.refresh.dataset.bound) {
+    refs.refresh.dataset.bound = '1';
+    refs.refresh.addEventListener('click', (e) => {
+      e.preventDefault();
+      void refreshXrayLogDeviceNames({ force: true, silent: false, router: true });
+    });
+  }
+
+  if (refs.save && !refs.save.dataset.bound) {
+    refs.save.dataset.bound = '1';
+    refs.save.addEventListener('click', (e) => {
+      e.preventDefault();
+      void saveXrayDeviceNameFromModal();
+    });
+  }
+
+  [refs.ip, refs.name].forEach((input) => {
+    if (!input || input.dataset.xrayDeviceEnterBound) return;
+    input.dataset.xrayDeviceEnterBound = '1';
+    input.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      void saveXrayDeviceNameFromModal();
+    });
+  });
+
+  if (refs.list && !refs.list.dataset.bound) {
+    refs.list.dataset.bound = '1';
+    refs.list.addEventListener('click', (e) => {
+      const t = e.target;
+      const btn = t && t.closest ? t.closest('[data-action]') : null;
+      if (!btn || !refs.list.contains(btn)) return;
+      e.preventDefault();
+      const ip = b64Decode(String(btn.getAttribute('data-ip-b64') || ''));
+      const action = String(btn.getAttribute('data-action') || '');
+      if (action === 'edit') {
+        const name = b64Decode(String(btn.getAttribute('data-name-b64') || '')) || (getXrayDeviceNameEntry(ip) || {}).name || '';
+        fillXrayDeviceForm(ip, name);
+      } else if (action === 'delete') {
+        void deleteXrayDeviceNameFromModal(ip);
+      }
+    });
   }
 }
 
@@ -3805,6 +4233,17 @@ function copyXrayContextModal() {
         }
       }
 
+      const deviceEl = t && t.closest ? t.closest('.xray-log-device-name') : null;
+      if (deviceEl && outputEl.contains(deviceEl)) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeLineMenu();
+        const ip = b64Decode(String(deviceEl.getAttribute('data-ip-b64') || ''));
+        const name = b64Decode(String(deviceEl.getAttribute('data-name-b64') || '')) || deviceEl.textContent || '';
+        void openXrayDeviceNamesModal({ ip, name });
+        return;
+      }
+
       const linkEl = t && t.closest ? t.closest('.log-link') : null;
       if (linkEl && outputEl.contains(linkEl)) {
         e.preventDefault();
@@ -3947,6 +4386,8 @@ function bindFilterUi() {
 
     try { bindControlsUi(); } catch (e) {}
     try { bindFilterUi(); } catch (e) {}
+    try { bindXrayDeviceNamesUi(); } catch (e) {}
+    try { ensureXrayDeviceNamesRefreshTimer(); } catch (e) {}
     try { _bindFullscreenUi(); } catch (e) {}
 
     // Context modal buttons
@@ -3996,6 +4437,7 @@ function bindFilterUi() {
             return;
           }
           void refreshXrayLogStatus();
+          if (isLogsViewVisible()) void refreshXrayLogDeviceNames({ silent: true, staleMs: XRAY_DEVICE_NAMES_STALE_MS, router: true });
         } catch (e) {}
       });
     } catch (e) {}

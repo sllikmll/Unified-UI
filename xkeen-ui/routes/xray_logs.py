@@ -32,6 +32,11 @@ from services.xray_log_api import (
     get_status,
     resolve_xray_log_path_for_ws,
 )
+from services.xray_device_names import (
+    delete_manual_device_name,
+    get_xray_device_names_state,
+    set_manual_device_name,
+)
 
 
 def _xray_b64e(data: bytes) -> str:
@@ -80,6 +85,7 @@ def create_xray_logs_blueprint(
     *,
     ws_debug: Any,
     restart_xray_core: Any,
+    ui_state_dir: Optional[str] = None,
 ) -> Blueprint:
     bp = Blueprint("xray_logs", __name__)
 
@@ -220,6 +226,36 @@ def create_xray_logs_blueprint(
     def api_xray_logs_status():
         """Return current loglevel and paths."""
         return jsonify(get_status()), 200
+
+    @bp.get("/api/xray-logs/devices")
+    def api_xray_logs_devices():
+        """Return router/manual device names used to enrich Xray access logs."""
+        raw_refresh = str(request.args.get("refresh", "1") or "1").strip().lower()
+        refresh_router = raw_refresh not in ("0", "false", "no", "off")
+        return jsonify(get_xray_device_names_state(ui_state_dir, refresh_router=refresh_router)), 200
+
+    @bp.post("/api/xray-logs/devices")
+    def api_xray_logs_devices_set():
+        """Create or update a manual IP -> device name alias."""
+        data = request.get_json(silent=True) or {}
+        try:
+            entry = set_manual_device_name(ui_state_dir, data.get("ip"), data.get("name"))
+        except ValueError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        payload = get_xray_device_names_state(ui_state_dir, refresh_router=True)
+        payload["entry"] = entry
+        return jsonify(payload), 200
+
+    @bp.delete("/api/xray-logs/devices/<path:ip>")
+    def api_xray_logs_devices_delete(ip: str):
+        """Delete a manual device alias."""
+        try:
+            existed = delete_manual_device_name(ui_state_dir, ip)
+        except ValueError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        payload = get_xray_device_names_state(ui_state_dir, refresh_router=True)
+        payload["deleted"] = bool(existed)
+        return jsonify(payload), 200
 
     @bp.post("/api/xray-logs/enable")
     def api_xray_logs_enable():

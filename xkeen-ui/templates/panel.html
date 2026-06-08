@@ -1581,6 +1581,7 @@
             <button type="button" class="btn-secondary log-btn icon-only" id="xray-log-clear-screen-btn" title="Очистить журнал" aria-label="Очистить журнал">🧹</button>
             <button type="button" class="btn-secondary log-btn icon-only" id="xray-log-clear-files-btn" title="Очистить логфайлы" aria-label="Очистить логфайлы">🗑</button>
             <button type="button" class="btn-secondary log-btn icon-only" id="xray-log-copy-btn" title="Скопировать" aria-label="Скопировать">📋</button>
+            <button type="button" class="btn-secondary log-btn icon-only" id="xray-log-devices-btn" title="Имена устройств" aria-label="Имена устройств">👥</button>
             <button type="button" class="btn-secondary log-btn icon-only" id="xray-log-fullscreen" title="Полный экран" aria-label="Полный экран">⛶</button>
           </div>
         </div>
@@ -1664,6 +1665,31 @@
         <div class="modal-actions">
           <button type="button" class="btn-secondary" id="xray-context-copy-btn" title="Скопировать контекст">📋 Copy</button>
           <button type="button" class="btn-secondary" id="xray-context-close-btn2" title="Закрыть">Закрыть</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Xray log: device names -->
+    <div id="xray-devices-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Имена устройств в логах Xray">
+      <div class="modal-content xray-devices-modal-content" data-modal-key="xray-log-devices">
+        <div class="modal-header">
+          <span class="modal-title">Имена устройств</span>
+          <button type="button" class="modal-close" id="xray-devices-close-btn" title="Закрыть">×</button>
+        </div>
+        <div class="modal-body xray-devices-body">
+          <div class="xray-devices-toolbar">
+            <button type="button" class="btn-secondary" id="xray-devices-refresh-btn">⟳ Обновить</button>
+            <span id="xray-devices-summary" class="small xray-devices-summary"></span>
+          </div>
+          <div class="xray-devices-form" aria-label="Ручное имя устройства">
+            <input id="xray-devices-ip" class="xray-log-filter" type="text" inputmode="numeric" placeholder="192.168.1.83" autocomplete="off">
+            <input id="xray-devices-name" class="xray-log-filter" type="text" placeholder="umar-pc" autocomplete="off">
+            <button type="button" class="btn-secondary" id="xray-devices-save-btn">Сохранить</button>
+          </div>
+          <div id="xray-devices-list" class="xray-devices-list"></div>
+        </div>
+        <div class="modal-actions xray-devices-actions">
+          <button type="button" class="btn-secondary" id="xray-devices-close-btn2">Закрыть</button>
         </div>
       </div>
     </div>

@@ -152,6 +152,7 @@ def register_blueprints(app, ctx: Optional[AppContext] = None):
         create_xray_logs_blueprint(
             ws_debug=ctx.ws_debug,
             restart_xray_core=ctx.restart_xray_core,
+            ui_state_dir=ctx.ui_state_dir,
         )
     )
 

@@ -1851,6 +1851,22 @@ def test_xray_logs_css_keeps_live_window_resizable_past_restart_log_cap():
     assert 'overflow: auto;' in block
 
 
+def test_xray_logs_device_names_ui_contract():
+    script = Path('xkeen-ui/static/js/features/xray_logs.js').read_text(encoding='utf-8')
+    template = Path('xkeen-ui/templates/panel.html').read_text(encoding='utf-8')
+    css = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+
+    assert 'id="xray-log-devices-btn"' in template
+    assert 'id="xray-devices-modal"' in template
+    assert "const XRAY_DEVICE_NAMES_API = '/api/xray-logs/devices';" in script
+    assert 'function refreshXrayLogDeviceNames' in script
+    assert 'function openXrayDeviceNamesModal' in script
+    assert 'class="xray-log-device-name"' in script
+    assert "headers.set('X-CSRF-Token', csrf);" in script
+    assert '.log-block .xray-log-device-name' in css
+    assert '.xray-devices-modal-content' in css
+
+
 def test_file_manager_non_navigation_refreshes_do_not_consume_path_input_drafts():
     editor_text = Path('xkeen-ui/static/js/features/file_manager/editor.js').read_text(encoding='utf-8')
     listing_text = Path('xkeen-ui/static/js/features/file_manager/listing.js').read_text(encoding='utf-8')
