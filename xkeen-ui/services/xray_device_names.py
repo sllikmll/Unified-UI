@@ -23,6 +23,7 @@ DEVICE_NAMES_FILENAME = "device-names.json"
 RCI_DEVICE_LIST_URL = "http://localhost:79/rci/show/device-list"
 DEFAULT_RCI_TIMEOUT = 2.0
 MAX_DEVICE_NAME_LEN = 96
+MOJIBAKE_MARKERS = ("\u00c3", "\u00c2", "\u00d0", "\u00d1")
 
 DeviceEntry = Dict[str, Any]
 DeviceMap = Dict[str, DeviceEntry]
@@ -60,8 +61,43 @@ def normalize_ip(value: Any) -> str:
         return ""
 
 
+def _cyrillic_count(value: str) -> int:
+    return sum(1 for ch in value if "\u0400" <= ch <= "\u04ff")
+
+
+def _c1_control_count(value: str) -> int:
+    return sum(1 for ch in value if 0x80 <= ord(ch) <= 0x9F)
+
+
+def _looks_like_utf8_mojibake(value: str) -> bool:
+    return any(marker in value for marker in MOJIBAKE_MARKERS) or _c1_control_count(value) > 0
+
+
+def _repair_utf8_mojibake(value: str) -> str:
+    """Repair UTF-8 text that was accidentally decoded as Latin-1/CP1252."""
+    if not value or not _looks_like_utf8_mojibake(value):
+        return value
+
+    best = value
+    best_score = (_cyrillic_count(value), -_c1_control_count(value), -sum(value.count(m) for m in MOJIBAKE_MARKERS))
+    for encoding in ("latin1", "cp1252"):
+        try:
+            candidate = value.encode(encoding).decode("utf-8")
+        except Exception:
+            continue
+        score = (
+            _cyrillic_count(candidate),
+            -_c1_control_count(candidate),
+            -sum(candidate.count(m) for m in MOJIBAKE_MARKERS),
+        )
+        if score > best_score and _cyrillic_count(candidate) > _cyrillic_count(value):
+            best = candidate
+            best_score = score
+    return best
+
+
 def normalize_device_name(value: Any) -> str:
-    name = str(value or "").strip()
+    name = _repair_utf8_mojibake(str(value or "")).strip()
     if not name:
         return ""
 

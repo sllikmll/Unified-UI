@@ -26,6 +26,24 @@ def test_extract_device_entries_from_keenetic_device_list():
     assert "999.999.999.999" not in entries
 
 
+def test_device_names_repair_utf8_mojibake_from_router():
+    from services.xray_device_names import extract_device_entries_from_device_list, normalize_device_name
+
+    expected = "Ricoh 3352 SP (\u043f\u0440\u0438\u043d\u0442\u0435\u0440)"
+    latin1_mojibake = expected.encode("utf-8").decode("latin1")
+    cp1252_mojibake = expected.encode("utf-8").decode("cp1252")
+
+    assert normalize_device_name(latin1_mojibake) == expected
+    assert normalize_device_name(cp1252_mojibake) == expected
+    assert normalize_device_name(expected) == expected
+
+    entries = extract_device_entries_from_device_list(
+        {"host": [{"ip": "192.168.1.50", "name": cp1252_mojibake}]}
+    )
+
+    assert entries["192.168.1.50"]["name"] == expected
+
+
 def test_manual_device_name_overrides_router_name(tmp_path: Path):
     from services.xray_device_names import get_xray_device_names_state, set_manual_device_name
 
