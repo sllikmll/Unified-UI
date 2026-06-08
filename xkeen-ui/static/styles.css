@@ -86,6 +86,13 @@
   --xk-monaco-warning-icon: #f8cc79;
   --xk-monaco-info-icon: #8cc7ff;
   --xk-monaco-disabled: color-mix(in srgb, var(--xk-monaco-widget-muted) 68%, transparent);
+  --xk-monaco-hover-bg: #01030a;
+  --xk-monaco-hover-text: #c0caf5;
+  --xk-monaco-hover-title: #f8fbff;
+  --xk-monaco-hover-muted: #9aa7c7;
+  --xk-monaco-hover-border: rgba(122, 162, 247, 0.28);
+  --xk-monaco-hover-shadow: rgba(8, 14, 29, 0.55);
+  --xk-monaco-hover-code-bg: rgba(148, 163, 184, 0.11);
 
   /* Monaco portal widgets inherit these tokens directly from :root. */
   --vscode-menu-background: var(--xk-monaco-widget-bg);
@@ -105,9 +112,9 @@
   --vscode-list-focusBackground: var(--xk-monaco-widget-hover);
   --vscode-list-focusForeground: var(--xk-monaco-widget-text);
   --vscode-list-focusOutline: transparent;
-  --vscode-editorHoverWidget-background: var(--xk-monaco-widget-bg);
-  --vscode-editorHoverWidget-foreground: var(--xk-monaco-widget-text);
-  --vscode-editorHoverWidget-border: var(--xk-monaco-widget-border);
+  --vscode-editorHoverWidget-background: var(--xk-monaco-hover-bg);
+  --vscode-editorHoverWidget-foreground: var(--xk-monaco-hover-text);
+  --vscode-editorHoverWidget-border: var(--xk-monaco-hover-border);
   --vscode-editorHoverWidget-statusBarBackground: var(--xk-monaco-problem-header-bg);
   --vscode-editorMarkerNavigation-background: var(--xk-monaco-problem-bg);
   --vscode-editorMarkerNavigationError-background: var(--xk-monaco-problem-bg);
@@ -656,6 +663,13 @@ html[data-theme="light"] {
   --xk-monaco-warning-icon: #b7791f;
   --xk-monaco-info-icon: #2563eb;
   --xk-monaco-disabled: color-mix(in srgb, var(--xk-monaco-widget-muted) 74%, transparent);
+  --xk-monaco-hover-bg: rgba(255, 255, 255, 0.99);
+  --xk-monaco-hover-text: #18263b;
+  --xk-monaco-hover-title: #162033;
+  --xk-monaco-hover-muted: #52627a;
+  --xk-monaco-hover-border: rgba(148, 163, 184, 0.28);
+  --xk-monaco-hover-shadow: rgba(15, 23, 42, 0.14);
+  --xk-monaco-hover-code-bg: rgba(37, 99, 235, 0.08);
   --xk-tooltip-backdrop: blur(18px) saturate(180%);
 }
 
@@ -908,25 +922,31 @@ html[data-theme="light"] .context-view .monaco-menu .monaco-menu-option.active {
 .monaco-editor-hover,
 .monaco-hover,
 .monaco-hover.workbench-hover {
-  --vscode-editorHoverWidget-background: var(--xk-monaco-widget-bg);
-  --vscode-editorHoverWidget-foreground: var(--xk-monaco-widget-text);
-  --vscode-editorHoverWidget-border: var(--xk-monaco-widget-border);
+  --vscode-editorHoverWidget-background: var(--xk-monaco-hover-bg);
+  --vscode-editorHoverWidget-foreground: var(--xk-monaco-hover-text);
+  --vscode-editorHoverWidget-border: var(--xk-monaco-hover-border);
   --vscode-editorHoverWidget-statusBarBackground: var(--xk-monaco-problem-header-bg);
   --vscode-textLink-foreground: var(--xk-monaco-link);
   --vscode-textLink-activeForeground: var(--xk-monaco-link-active);
-  --vscode-widget-shadow: var(--xk-monaco-widget-shadow);
-  background: var(--xk-monaco-widget-bg) !important;
-  background-color: var(--xk-monaco-widget-bg) !important;
-  color: var(--xk-monaco-widget-text) !important;
-  border: 1px solid var(--xk-monaco-widget-border) !important;
-  border-radius: 12px !important;
-  box-shadow: 0 10px 30px var(--xk-monaco-widget-shadow) !important;
-  backdrop-filter: var(--xk-tooltip-backdrop);
+  --vscode-widget-shadow: var(--xk-monaco-hover-shadow);
+  box-sizing: border-box;
+  background: var(--xk-monaco-hover-bg) !important;
+  background-color: var(--xk-monaco-hover-bg) !important;
+  color: var(--xk-monaco-hover-text) !important;
+  border: 1px solid var(--xk-monaco-hover-border) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 18px 36px var(--xk-monaco-hover-shadow) !important;
+  font-family: var(--xk-mono-font-family);
+  font-size: 13px;
+  line-height: 1.5;
+  backdrop-filter: blur(16px) saturate(135%);
+  -webkit-backdrop-filter: blur(16px) saturate(135%);
 }
 
 .workbench-hover-container,
 .monaco-resizable-hover {
-  max-width: min(660px, calc(100vw - 32px)) !important;
+  max-width: min(560px, calc(100vw - 32px)) !important;
+  max-height: min(320px, calc(100vh - 96px)) !important;
   overflow: hidden !important;
 }
 
@@ -939,8 +959,14 @@ html[data-theme="light"] .context-view .monaco-menu .monaco-menu-option.active {
 }
 
 .monaco-hover.workbench-hover {
-  max-width: min(640px, calc(100vw - 48px)) !important;
+  max-width: min(540px, calc(100vw - 48px)) !important;
+  max-height: min(320px, calc(100vh - 96px)) !important;
   overflow: hidden !important;
+}
+
+.monaco-hover .hover-row .hover-row-contents,
+.monaco-editor-hover .hover-row .hover-row-contents {
+  padding: 12px 14px !important;
 }
 
 .monaco-editor-hover .hover-contents,
@@ -951,9 +977,100 @@ html[data-theme="light"] .context-view .monaco-menu .monaco-menu-option.active {
 .monaco-hover .hover-row,
 .monaco-editor-hover code,
 .monaco-hover code {
-  color: var(--xk-monaco-widget-text) !important;
+  color: var(--xk-monaco-hover-text) !important;
+  font-family: var(--xk-mono-font-family) !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  font-weight: 600;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.monaco-editor-hover .hover-contents,
+.monaco-hover .hover-contents,
+.monaco-editor-hover .markdown-hover,
+.monaco-hover .markdown-hover {
+  box-sizing: border-box;
+  max-width: min(520px, calc(100vw - 48px));
+  max-height: min(320px, calc(100vh - 96px));
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.monaco-editor-hover .markdown-hover p,
+.monaco-hover .markdown-hover p {
+  margin: 0 0 8px;
+}
+
+.monaco-editor-hover .markdown-hover p:last-child,
+.monaco-hover .markdown-hover p:last-child,
+.monaco-editor-hover .markdown-hover ul:last-child,
+.monaco-hover .markdown-hover ul:last-child,
+.monaco-editor-hover .markdown-hover ol:last-child,
+.monaco-hover .markdown-hover ol:last-child {
+  margin-bottom: 0;
+}
+
+.monaco-editor-hover .markdown-hover p:first-child,
+.monaco-hover .markdown-hover p:first-child {
+  color: var(--xk-monaco-hover-title) !important;
+}
+
+.monaco-editor-hover .markdown-hover strong,
+.monaco-hover .markdown-hover strong {
+  color: var(--xk-monaco-hover-title) !important;
+  font-weight: 750;
+}
+
+.monaco-editor-hover .markdown-hover ul,
+.monaco-hover .markdown-hover ul,
+.monaco-editor-hover .markdown-hover ol,
+.monaco-hover .markdown-hover ol {
+  margin: 6px 0 8px;
+  padding-left: 18px;
+}
+
+.monaco-editor-hover .markdown-hover li,
+.monaco-hover .markdown-hover li {
+  margin: 4px 0;
+  padding-left: 2px;
+}
+
+.monaco-editor-hover .markdown-hover em,
+.monaco-hover .markdown-hover em,
+.monaco-editor-hover .markdown-hover .codicon,
+.monaco-hover .markdown-hover .codicon,
+.monaco-editor-hover .markdown-hover .hover-contents-secondary,
+.monaco-hover .markdown-hover .hover-contents-secondary {
+  color: var(--xk-monaco-hover-muted) !important;
+}
+
+.monaco-editor-hover .markdown-hover code,
+.monaco-hover .markdown-hover code {
+  background: transparent !important;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+.monaco-editor-hover .markdown-hover pre,
+.monaco-hover .markdown-hover pre {
+  max-width: 100%;
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: var(--xk-monaco-hover-code-bg) !important;
+  border: 1px solid color-mix(in srgb, var(--xk-monaco-hover-border) 76%, transparent);
+  border-radius: 8px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.monaco-editor-hover .markdown-hover pre code,
+.monaco-hover .markdown-hover pre code {
+  background: transparent !important;
+  border: 0;
+  padding: 0;
 }
 
 .monaco-hover .hover-row,
@@ -969,33 +1086,33 @@ html[data-theme="light"] .context-view .monaco-menu .monaco-menu-option.active {
 .monaco-hover.workbench-hover .hover-row .actions,
 .monaco-editor-hover .hover-row .actions {
   background: var(--xk-monaco-problem-header-bg) !important;
-  color: var(--xk-monaco-widget-text) !important;
-  border-top: 1px solid color-mix(in srgb, var(--xk-monaco-widget-border) 84%, transparent) !important;
+  color: var(--xk-monaco-hover-text) !important;
+  border-top: 1px solid color-mix(in srgb, var(--xk-monaco-hover-border) 84%, transparent) !important;
 }
 
 .monaco-hover hr,
 .monaco-editor-hover hr,
 .monaco-hover.workbench-hover hr {
   border: 0 !important;
-  border-top: 1px solid color-mix(in srgb, var(--xk-monaco-widget-border) 84%, transparent) !important;
+  border-top: 1px solid color-mix(in srgb, var(--xk-monaco-hover-border) 84%, transparent) !important;
   height: 0 !important;
   background: transparent !important;
 }
 
 .workbench-hover-container.locked .monaco-hover.workbench-hover,
 .workbench-hover-container:focus-within.locked .monaco-hover.workbench-hover {
-  outline-color: var(--xk-monaco-widget-border) !important;
+  outline-color: var(--xk-monaco-hover-border) !important;
 }
 
 .workbench-hover-pointer:after {
-  background-color: var(--xk-monaco-widget-bg) !important;
-  border-right-color: var(--xk-monaco-widget-border) !important;
-  border-bottom-color: var(--xk-monaco-widget-border) !important;
+  background-color: var(--xk-monaco-hover-bg) !important;
+  border-right-color: var(--xk-monaco-hover-border) !important;
+  border-bottom-color: var(--xk-monaco-hover-border) !important;
 }
 
 .monaco-hover.workbench-hover .hover-row .actions *,
 .monaco-editor-hover .hover-row .actions * {
-  color: var(--xk-monaco-widget-text) !important;
+  color: var(--xk-monaco-hover-text) !important;
 }
 
 /* Monaco find/replace widget */
