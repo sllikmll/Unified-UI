@@ -30,7 +30,6 @@ def test_hwid_probe_route_blocks_private_url_before_probe(monkeypatch, client):
         raise AssertionError("probe should not be called for blocked URL")
 
     monkeypatch.setattr(mihomo, "_mh_hwid_probe_subscription_safe", fake_probe)
-
     response = client.post(
         "/api/mihomo/hwid/probe",
         json={"url": "https://127.0.0.1/sub"},
@@ -109,6 +108,14 @@ def test_hwid_probe_route_allows_private_url_when_enabled(monkeypatch, client):
         }
 
     monkeypatch.setattr(mihomo, "_mh_hwid_probe_subscription_safe", fake_probe)
+    monkeypatch.setattr(
+        mihomo,
+        "_mh_hwid_fetch_provider_payload",
+        lambda *args, **kwargs: (
+            "proxies:\n  - name: node-1\n    type: direct\n",
+            {"format": "yaml", "proxy_section": True, "bytes": 42},
+        ),
+    )
 
     response = client.post(
         "/api/mihomo/hwid/probe",
@@ -120,8 +127,75 @@ def test_hwid_probe_route_allows_private_url_when_enabled(monkeypatch, client):
     assert payload["ok"] is True
     assert calls[0]["allow_private_hosts"] is True
     assert calls[0]["headers"]["x-hwid"] == "AABBCCDDEEFF"
+    assert payload["provider_payload"]["has_nodes"] is True
+    assert payload["provider_payload"]["node_count"] == 1
     assert "no_headers_ok" not in payload
     assert len(calls) == 1
+
+
+def test_hwid_probe_route_warns_when_hwid_payload_empty_but_regular_has_nodes(monkeypatch, client):
+    monkeypatch.setattr(
+        mihomo,
+        "_mh_hwid_get_device_info",
+        lambda: {"headers": {"x-hwid": "AABBCCDDEEFF"}},
+    )
+
+    def fake_probe(url, *, headers, insecure, timeout, prefer, policy):
+        return {
+            "ok": True,
+            "probe": {"url": url, "http_status": 200, "method": "HEAD"},
+            "profile": {"profile_title": "Empty", "suggested_name": "Empty"},
+            "headers_used": headers or {},
+            "warnings": [],
+            "error": None,
+        }
+
+    fetch_calls = []
+
+    def fake_fetch(url, *, headers, insecure, timeout, policy):
+        fetch_calls.append(headers)
+        if headers:
+            return "proxies: []\n", {
+                "format": "yaml",
+                "proxy_section": True,
+                "content_type": "text/yaml",
+                "bytes": 12,
+            }
+        return "dmxlc3M6Ly9leGFtcGxl\n", {
+            "format": "raw",
+            "content_type": "text/plain",
+            "bytes": 24,
+        }
+
+    monkeypatch.setattr(mihomo, "_mh_hwid_probe_subscription_safe", fake_probe)
+    monkeypatch.setattr(mihomo, "_mh_hwid_fetch_provider_payload", fake_fetch)
+
+    response = client.post(
+        "/api/mihomo/hwid/probe",
+        json={"url": "https://provider.example/sub"},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["provider_payload"]["has_nodes"] is False
+    assert payload["provider_payload"]["empty_proxy_provider"] is True
+    assert payload["regular_provider_payload"]["has_nodes"] is True
+    codes = [w["code"] for w in payload["warnings"]]
+    assert "HWID_PROVIDER_EMPTY" in codes
+    assert "HWID_EMPTY_BUT_REGULAR_HAS_NODES" in codes
+    assert fetch_calls[0] == {"x-hwid": "AABBCCDDEEFF"}
+    assert fetch_calls[1] == {}
+
+
+def test_mihomo_provider_payload_summary_counts_base64_uri_nodes():
+    summary = mihomo._mihomo_provider_payload_summary(
+        "dmxlc3M6Ly9leGFtcGxl\n",
+        {"format": "raw", "bytes": 24},
+    )
+
+    assert summary["has_nodes"] is True
+    assert summary["base64_uri_count"] == 1
+    assert summary["node_count"] == 1
 
 
 def test_hwid_probe_route_maps_tls_handshake_timeout_to_504(monkeypatch, client):

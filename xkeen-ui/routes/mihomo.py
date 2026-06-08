@@ -37,6 +37,7 @@ Endpoints:
 
 from __future__ import annotations
 
+import base64
 import ipaddress
 import os
 import re
@@ -212,14 +213,61 @@ def _mihomo_provider_direct_headers() -> Dict[str, str]:
 
 
 def _mihomo_provider_payload_is_non_empty(payload: str, meta: Dict[str, Any] | None = None) -> bool:
+    summary = _mihomo_provider_payload_summary(payload, meta)
+    return bool(summary.get("has_nodes"))
+
+
+def _mihomo_decode_base64_subscription(text: str) -> str:
+    raw = re.sub(r"\s+", "", str(text or ""))
+    if len(raw) < 16 or not re.fullmatch(r"[A-Za-z0-9+/=_-]+", raw):
+        return ""
+    raw = raw.replace("-", "+").replace("_", "/")
+    raw += "=" * ((4 - len(raw) % 4) % 4)
+    try:
+        return base64.b64decode(raw, validate=False).decode("utf-8", errors="replace")
+    except Exception:
+        return ""
+
+
+_MIHOMO_URI_RE = re.compile(
+    r"(?mi)^\s*(?:vless|vmess|trojan|ss|ssr|hysteria2|hy2|tuic|wireguard)://"
+)
+_MIHOMO_YAML_PROXY_NAME_RE = re.compile(r"(?m)^\s*-\s*name\s*:\s*")
+
+
+def _mihomo_provider_payload_summary(
+    payload: str,
+    meta: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
     text = str(payload or "").strip()
-    if not text:
-        return False
-    if text == "proxies: []":
-        return False
-    if re.match(r"(?is)^proxies\s*:\s*\[\s*\]\s*$", text):
-        return False
-    return True
+    m = dict(meta or {})
+    yaml_proxy_markers = len(_MIHOMO_YAML_PROXY_NAME_RE.findall(text))
+    raw_uri_markers = len(_MIHOMO_URI_RE.findall(text))
+    decoded = _mihomo_decode_base64_subscription(text)
+    base64_uri_markers = len(_MIHOMO_URI_RE.findall(decoded)) if decoded else 0
+
+    inline_empty = bool(re.match(r"(?is)^proxies\s*:\s*\[\s*\]\s*$", text))
+    block_empty = bool(re.match(r"(?is)^proxies\s*:\s*(?:#.*)?$", text)) and yaml_proxy_markers == 0
+    empty_proxy_provider = inline_empty or (
+        bool(m.get("proxy_section")) and yaml_proxy_markers == 0 and raw_uri_markers == 0
+    )
+
+    node_count = yaml_proxy_markers or raw_uri_markers or base64_uri_markers
+    has_nodes = bool(node_count) and not empty_proxy_provider
+    return {
+        "format": m.get("format"),
+        "converted": bool(m.get("converted")),
+        "proxy_section": bool(m.get("proxy_section")),
+        "bytes": m.get("bytes"),
+        "content_type": m.get("content_type"),
+        "hwid_response_headers": m.get("hwid_response_headers") or {},
+        "node_count": int(node_count),
+        "yaml_proxy_count": int(yaml_proxy_markers),
+        "raw_uri_count": int(raw_uri_markers),
+        "base64_uri_count": int(base64_uri_markers),
+        "empty_proxy_provider": bool(empty_proxy_provider or block_empty),
+        "has_nodes": bool(has_nodes),
+    }
 
 
 def _mihomo_hwid_url_blocked_hint(reason: str) -> str:
@@ -688,6 +736,74 @@ def create_mihomo_blueprint(
 
         # Map known error codes to helpful HTTP statuses (no 500).
         if result.get("ok") is True:
+            result = dict(result)
+            warnings = list(result.get("warnings") or [])
+            try:
+                provider_payload, provider_meta = _mh_hwid_fetch_provider_payload(
+                    url,
+                    headers=headers,
+                    insecure=insecure,
+                    timeout=max(3.0, min(timeout_s, 12.0)),
+                    policy=policy,
+                )
+                provider_summary = _mihomo_provider_payload_summary(
+                    provider_payload,
+                    provider_meta,
+                )
+                result["provider_payload"] = provider_summary
+
+                if not provider_summary.get("has_nodes"):
+                    warnings.append(
+                        {
+                            "code": "HWID_PROVIDER_EMPTY",
+                            "hint": (
+                                "HWID-подписка доступна, но вернула 0 узлов. "
+                                "Возможно, этот HWID не привязан к подписке или URL лучше добавить как обычную подписку."
+                            ),
+                        }
+                    )
+                    try:
+                        regular_payload, regular_meta = _mh_hwid_fetch_provider_payload(
+                            url,
+                            headers={},
+                            insecure=insecure,
+                            timeout=max(3.0, min(timeout_s, 12.0)),
+                            policy=policy,
+                        )
+                        regular_summary = _mihomo_provider_payload_summary(
+                            regular_payload,
+                            regular_meta,
+                        )
+                        result["regular_provider_payload"] = regular_summary
+                        if regular_summary.get("has_nodes"):
+                            warnings.append(
+                                {
+                                    "code": "HWID_EMPTY_BUT_REGULAR_HAS_NODES",
+                                    "hint": (
+                                        "Без HWID эта ссылка возвращает узлы, а с HWID — пустой provider. "
+                                        "Попробуйте добавить её как обычную подписку или проверьте привязку HWID у провайдера."
+                                    ),
+                                }
+                            )
+                    except Exception as exc:
+                        result["regular_provider_payload_error"] = {
+                            "code": type(exc).__name__,
+                            "message": _subscription_fetch_failure_reason(exc),
+                        }
+            except Exception as exc:
+                result["provider_payload_error"] = {
+                    "code": type(exc).__name__,
+                    "message": _subscription_fetch_failure_reason(exc),
+                }
+                warnings.append(
+                    {
+                        "code": "PROVIDER_PAYLOAD_CHECK_FAILED",
+                        "hint": (
+                            "Проверка URL прошла, но не удалось получить payload подписки для подсчёта узлов."
+                        ),
+                    }
+                )
+            result["warnings"] = warnings
             return jsonify(result), 200
 
         err = (result.get("error") or {}) if isinstance(result, dict) else {}

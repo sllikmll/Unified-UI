@@ -157,6 +157,30 @@ let mihomoHwidSubModuleApi = null;
     return parts;
   }
 
+  function payloadSummaryTips(res) {
+    const payload = res && res.provider_payload ? res.provider_payload : null;
+    const regular = res && res.regular_provider_payload ? res.regular_provider_payload : null;
+    const tips = [];
+    if (payload && payload.has_nodes === false) {
+      tips.push('HWID-подписка доступна, но вернула 0 узлов. Проверь привязку HWID у провайдера или попробуй обычную подписку.');
+    }
+    if (payload && payload.has_nodes === false && regular && regular.has_nodes === true) {
+      tips.push('Без HWID эта ссылка возвращает узлы, поэтому для неё может лучше подойти обычный provider/import.');
+    }
+    if (res && res.provider_payload_error && res.provider_payload_error.message) {
+      tips.push('URL проверен, но payload для подсчёта узлов получить не удалось: ' + String(res.provider_payload_error.message));
+    }
+    return tips;
+  }
+
+  function payloadSummaryMeta(res) {
+    const payload = res && res.provider_payload ? res.provider_payload : null;
+    if (!payload) return [];
+    if (payload.has_nodes === false) return ['0 nodes'];
+    if (typeof payload.node_count === 'number') return ['nodes: ' + String(payload.node_count)];
+    return [];
+  }
+
   function cmThemeFromPage() {
     const t = document.documentElement.getAttribute('data-theme');
     return t === 'light' ? 'default' : 'material-darker';
@@ -937,6 +961,7 @@ let mihomoHwidSubModuleApi = null;
           tips.push(hwidWarning);
         }
         tips.push(...hwidProviderHeaderTips(res.hwid_response_headers));
+        tips.push(...payloadSummaryTips(res));
         if (res.no_headers_ok === true) {
           tips.push('Сервер отвечает и без HWID-заголовков, но это не доказывает, что подписка обычная. Для premium/HWID лучше оставить header.');
         }
@@ -956,6 +981,7 @@ let mihomoHwidSubModuleApi = null;
       if (typeof probe.timing_ms === 'number') parts.push(probe.timing_ms + 'ms');
       if (probe.resolved_url && String(probe.resolved_url) !== url) parts.push('→ ' + String(probe.resolved_url));
       parts.push(...hwidProviderHeaderMeta(res.hwid_response_headers));
+      parts.push(...payloadSummaryMeta(res));
       if (parts.length) setMeta(parts.join(' • '));
 
       // Warnings
