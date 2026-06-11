@@ -162,6 +162,27 @@ def test_mihomo_hwid_preview_uses_shared_editor_host_contract():
         assert fragment in css_src, f"missing HWID preview layout CSS: {fragment}"
 
 
+def test_mihomo_import_is_compact_and_surfaces_hwid_provider_warnings():
+    panel_src = _read("xkeen-ui/templates/panel.html")
+    import_src = _read("xkeen-ui/static/js/features/mihomo_import.js")
+    css_src = _read("xkeen-ui/static/styles.css")
+
+    assert "mihomo-hwid-sub-btn" not in panel_src
+    assert "Mihomo Premium Import" in panel_src
+    assert "Быстрый импорт без ручного YAML" not in panel_src
+    assert "Сначала проверь превью" not in panel_src
+    assert "id=\"mihomo-hwid-mode\"" not in panel_src
+    assert "id=\"mihomo-hwid-template-wrap\"" not in panel_src
+
+    assert "function providerHeaderWarnings(headers, explicitLimitInfo, opts)" in import_src
+    assert "x-hwid-max-devices-reached" in import_src
+    assert "x-hwid-limit" in import_src
+    assert "limitInfoFromHeaders" in import_src
+    assert "использовано ${data.used} из ${data.limit}" in import_src
+    assert "provider_warnings" in import_src
+    assert "xk-mi-status.warning" in css_src
+
+
 def test_mihomo_runtime_helper_exposes_shared_window_xkeen_adapters():
     src = _read("xkeen-ui/static/js/features/mihomo_runtime.js")
 

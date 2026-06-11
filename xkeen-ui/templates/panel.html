@@ -1009,7 +1009,7 @@
               <button id="mihomo-import-node-btn"
                       type="button"
                       class="terminal-tool-btn"
-                      title="Импорт узла/подписки: вставь ссылку (vless/trojan/vmess/ss/hysteria2/hy2) или https-подписку — панель преобразует в YAML и добавит в config.yaml">
+                      title="Mihomo Premium Import: узел, подписка или конфиг">
                 ➕ Узел
               </button>
 
@@ -1025,13 +1025,6 @@
                       class="terminal-tool-btn"
                       data-tooltip="Открыть Zashboard UI через same-origin прокси (без проблем с портами/CORS)">
                 🌐 Zashboard UI
-              </button>
-
-              <button id="mihomo-hwid-sub-btn"
-                      type="button"
-                      class="terminal-tool-btn"
-                      data-tooltip="Добавить HWID‑подписку (proxy-provider) в config.yaml">
-                🔗 HWID‑подписка
               </button>
 
               <button id="mihomo-format-yaml-btn"
@@ -2814,29 +2807,11 @@ vless://...#mytag"></textarea>
       <div class="modal-content xk-mi-modal" data-modal-key="mihomo-import">
         <div class="modal-header xk-mi-header">
           <div class="xk-mi-titlebox">
-            <span class="xk-mi-kicker">Mihomo · Premium import</span>
-            <span class="modal-title">Импорт узла</span>
-            <p class="xk-mi-subtitle">
-              Поддерживаются <b>vless / trojan / vmess / ss / hysteria2 / hy2</b>, <b>https‑подписка</b>, <b>WireGuard (.conf)</b>, <b>OpenVPN (.ovpn)</b> и <b>Tailscale</b>.
-              Панель аккуратно преобразует их в YAML и вставит в нужную секцию <code>config.yaml</code>.
-            </p>
+            <span class="modal-title">Mihomo Premium Import</span>
           </div>
           <button type="button" class="modal-close" id="mihomo-import-close-btn" title="Закрыть">×</button>
         </div>
         <div class="modal-body xk-mi-body">
-          <section class="xk-mi-lead">
-            <div class="xk-mi-lead-icon" aria-hidden="true">⇢</div>
-            <div class="xk-mi-lead-copy">
-              <div class="xk-mi-lead-title">Быстрый импорт без ручного YAML</div>
-              <div class="xk-mi-lead-desc">Сначала проверь превью, затем одним кликом вставь узел в <code>proxies</code> или подписку в <code>proxy-providers</code>.</div>
-            </div>
-            <div class="xk-mi-chiprow" aria-hidden="true">
-              <span class="xk-mi-chip">Auto</span>
-              <span class="xk-mi-chip">Preview</span>
-              <span class="xk-mi-chip">Safe insert</span>
-            </div>
-          </section>
-
           <div class="xk-mi-grid">
             <section class="xk-mi-panel xk-mi-panel--controls">
               <div class="xk-mi-field-grid">
@@ -3110,24 +3085,6 @@ https://..."></textarea>
                 <label class="xk-hw-field">
                   <span class="hint-label">Имя provider</span>
                   <input id="mihomo-hwid-name" class="xkeen-input xk-hw-control" type="text" placeholder="например: My_Sub" />
-                </label>
-
-                <label class="xk-hw-field">
-                  <span class="hint-label xk-hw-label-row">
-                    <span>Режим применения</span>
-                    <span class="xk-hw-label-tip" tabindex="0" aria-label="Подсказка по режимам" data-tooltip="Рекомендуется add. Остальные режимы перезаписывают часть или весь config.yaml.">ⓘ</span>
-                  </span>
-                  <select id="mihomo-hwid-mode" class="xray-log-select xk-hw-control">
-                    <option value="add">Добавить provider (add)</option>
-                    <option value="replace_providers">Заменить proxy-providers (replace_providers)</option>
-                    <option value="replace_all">Заменить весь config.yaml (replace_all)</option>
-                  </select>
-                </label>
-
-                <label id="mihomo-hwid-template-wrap" class="xk-hw-field xk-hw-field--full hidden">
-                  <span class="hint-label">Шаблон для replace_all</span>
-                  <select id="mihomo-hwid-template" class="xray-log-select xk-hw-control"></select>
-                  <div class="xk-hw-field-note">Если шаблон не выбран, используется шаблон Mihomo по умолчанию.</div>
                 </label>
 
                 <label class="xk-hw-switch xk-hw-switch--full xk-hw-switch--compact">

@@ -129,21 +129,24 @@ let mihomoImportModuleApi = null;
     return document.getElementById(id);
   }
 
-  function toastMsg(msg, isErr) {
+  function toastMsg(msg, kind) {
+    const level = typeof kind === 'string' ? kind : (kind ? 'error' : 'success');
     try {
-      if (window.toast) window.toast(String(msg || ''), isErr ? 'error' : 'success');
-      else if (window.showToast) window.showToast(String(msg || ''), !!isErr);
+      if (window.toast) window.toast(String(msg || ''), level);
+      else if (window.showToast) window.showToast(String(msg || ''), level === 'error');
     } catch (e) {}
   }
 
-  function setStatus(msg, isErr) {
+  function setStatus(msg, isErr, kind) {
     const el = $(IDS.status);
     if (!el) return;
     const value = String(msg || '');
     const hasMsg = !!value.trim();
+    const state = kind || (isErr ? 'error' : 'success');
     el.textContent = value;
-    el.classList.toggle('error', !!isErr);
-    el.classList.toggle('success', hasMsg && !isErr);
+    el.classList.toggle('error', hasMsg && state === 'error');
+    el.classList.toggle('warning', hasMsg && state === 'warning');
+    el.classList.toggle('success', hasMsg && state === 'success');
     el.classList.toggle('hidden', !hasMsg);
   }
 
@@ -153,6 +156,233 @@ let mihomoImportModuleApi = null;
     const value = String(msg || '');
     el.textContent = value;
     el.classList.toggle('hidden', !value.trim());
+  }
+
+  function isTruthyHeader(value) {
+    const s = String(value == null ? '' : value).trim().toLowerCase();
+    return !!s && !['0', 'false', 'no', 'off', 'none', 'null'].includes(s);
+  }
+
+  function intFromHeader(value) {
+    const text = String(value == null ? '' : value).trim();
+    if (!text || /^(true|false|yes|no|on|off)$/i.test(text)) return null;
+    const match = text.match(/(^|[^\d])(\d{1,9})(?!\d)/);
+    if (!match) return null;
+    const n = Number.parseInt(match[2], 10);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function parseLimitPair(value) {
+    const text = String(value == null ? '' : value).trim();
+    if (!text) return {};
+    const pair = text.match(/(^|[^\d])(\d{1,9})\s*\/\s*(\d{1,9})(?!\d)/);
+    if (pair) {
+      return {
+        used: Number.parseInt(pair[2], 10),
+        limit: Number.parseInt(pair[3], 10),
+      };
+    }
+    const parts = {};
+    text.split(/[;,&]\s*/).forEach((chunk) => {
+      const idx = chunk.indexOf('=');
+      if (idx <= 0) return;
+      const key = chunk.slice(0, idx).trim().toLowerCase().replace(/-/g, '_');
+      parts[key] = chunk.slice(idx + 1).trim();
+    });
+    const out = {};
+    ['used', 'current', 'devices_used', 'device_used', 'count'].some((key) => {
+      const valueNum = intFromHeader(parts[key]);
+      if (valueNum == null) return false;
+      out.used = valueNum;
+      return true;
+    });
+    ['limit', 'max', 'total', 'devices_limit', 'device_limit'].some((key) => {
+      const valueNum = intFromHeader(parts[key]);
+      if (valueNum == null) return false;
+      out.limit = valueNum;
+      return true;
+    });
+    return out;
+  }
+
+  function lowerHeaderMap(headers) {
+    const out = {};
+    if (!headers || typeof headers !== 'object') return out;
+    Object.entries(headers).forEach(([key, value]) => {
+      const cleanKey = String(key || '').trim().toLowerCase();
+      const cleanValue = String(value == null ? '' : value).trim();
+      if (cleanKey && cleanValue) out[cleanKey] = cleanValue;
+    });
+    return out;
+  }
+
+  function mergeLimitInfo(...items) {
+    const out = {};
+    items.forEach((item) => {
+      if (!item || typeof item !== 'object') return;
+      ['used', 'limit', 'remaining'].forEach((key) => {
+        if (out[key] != null || item[key] == null) return;
+        const n = Number.parseInt(String(item[key]), 10);
+        if (Number.isFinite(n)) out[key] = n;
+      });
+      if (item.reached === true) out.reached = true;
+      if (!out.summary && item.summary) out.summary = String(item.summary);
+    });
+    if (out.used == null && out.remaining != null && out.limit != null) {
+      out.used = Math.max(0, out.limit - out.remaining);
+    }
+    if (out.used != null && out.limit != null) {
+      out.summary = `${out.used}/${out.limit}`;
+      if (out.used >= out.limit) out.reached = true;
+    }
+    if (out.remaining === 0) out.reached = true;
+    return out;
+  }
+
+  function limitInfoFromHeaders(headers, explicitInfo) {
+    const h = lowerHeaderMap(headers);
+    const info = {};
+    const firstInt = (keys) => {
+      for (const key of keys) {
+        const n = intFromHeader(h[key]);
+        if (n != null) return n;
+      }
+      return null;
+    };
+    const used = firstInt([
+      'x-hwid-devices-used',
+      'x-hwid-device-used',
+      'x-hwid-used',
+      'x-hwid-current-devices',
+      'x-hwid-device-count',
+      'x-hwid-devices-count',
+    ]);
+    const limit = firstInt([
+      'x-hwid-devices-limit',
+      'x-hwid-device-limit',
+      'x-hwid-max-devices',
+      'x-hwid-limit-count',
+      'x-hwid-limit-max',
+      'x-hwid-limit-total',
+      'x-hwid-total-devices',
+    ]);
+    const remaining = firstInt([
+      'x-hwid-devices-remaining',
+      'x-hwid-device-remaining',
+      'x-hwid-remaining',
+      'x-hwid-limit-remaining',
+    ]);
+    if (used != null) info.used = used;
+    if (limit != null) info.limit = limit;
+    if (remaining != null) info.remaining = remaining;
+    ['x-hwid-devices', 'x-hwid-device-limit', 'x-hwid-limit-info', 'x-hwid-limit-detail', 'x-hwid-limit'].forEach((key) => {
+      const pair = parseLimitPair(h[key]);
+      if (info.used == null && pair.used != null) info.used = pair.used;
+      if (info.limit == null && pair.limit != null) info.limit = pair.limit;
+    });
+    if (
+      isTruthyHeader(h['x-hwid-max-devices-reached']) ||
+      isTruthyHeader(h['x-hwid-limit']) ||
+      info.remaining === 0
+    ) {
+      info.reached = true;
+    }
+    return mergeLimitInfo(explicitInfo, info);
+  }
+
+  function uniqueStrings(items) {
+    const seen = new Set();
+    const out = [];
+    (Array.isArray(items) ? items : []).forEach((item) => {
+      const text = String(item || '').trim();
+      if (!text || seen.has(text)) return;
+      seen.add(text);
+      out.push(text);
+    });
+    return out;
+  }
+
+  function formatLimitWarning(info) {
+    const data = info || {};
+    if (data.used != null && data.limit != null) {
+      return `Провайдер сообщил: HWID-лимит устройств исчерпан, использовано ${data.used} из ${data.limit}.`;
+    }
+    if (data.limit != null) {
+      return `Провайдер сообщил: HWID-лимит устройств исчерпан, лимит ${data.limit}.`;
+    }
+    return 'Провайдер сообщил: HWID-лимит устройств исчерпан.';
+  }
+
+  function providerHeaderWarnings(headers, explicitLimitInfo, opts) {
+    const h = lowerHeaderMap(headers);
+    const options = opts || {};
+    const tips = [];
+    const limitInfo = limitInfoFromHeaders(h, explicitLimitInfo);
+    if (limitInfo.reached || isTruthyHeader(h['x-hwid-max-devices-reached']) || isTruthyHeader(h['x-hwid-limit'])) {
+      tips.push(formatLimitWarning(limitInfo));
+    }
+    if (!options.suppressNotSupported && isTruthyHeader(h['x-hwid-not-supported'])) {
+      tips.push('Провайдер сообщил: HWID не поддержан или не принят этим запросом.');
+    }
+    return tips;
+  }
+
+  function providerProbeWarningMessages(probe) {
+    if (!probe || typeof probe !== 'object') return [];
+    const messages = [];
+    const payload = probe.provider_payload || null;
+    const headerSources = [
+      probe.hwid_response_headers,
+      payload && typeof payload === 'object' ? payload.hwid_response_headers : null,
+    ];
+    const mergedHeaders = {};
+    ['x-hwid-max-devices-reached', 'x-hwid-limit', 'x-hwid-not-supported'].forEach((key) => {
+      const hit = headerSources.find((headers) => headers && isTruthyHeader(headers[key]));
+      if (hit) mergedHeaders[key] = hit[key];
+    });
+    headerSources.forEach((headers) => {
+      Object.entries(headers || {}).forEach(([key, value]) => {
+        const cleanKey = String(key || '').trim().toLowerCase();
+        if (cleanKey.startsWith('x-hwid-') && mergedHeaders[cleanKey] == null) {
+          mergedHeaders[cleanKey] = value;
+        }
+      });
+    });
+    const limitInfo = mergeLimitInfo(
+      probe.hwid_limit_info,
+      payload && typeof payload === 'object' ? payload.hwid_limit_info : null,
+      limitInfoFromHeaders(mergedHeaders),
+    );
+    const suppressNotSupported = (
+      String(probe.provider_mode || '') === 'hwid_adapter' &&
+      (limitInfo.reached || isTruthyHeader(mergedHeaders['x-hwid-max-devices-reached']) || isTruthyHeader(mergedHeaders['x-hwid-limit']))
+    );
+    if (suppressNotSupported) {
+      delete mergedHeaders['x-hwid-not-supported'];
+    }
+    messages.push(...providerHeaderWarnings(mergedHeaders, limitInfo, { suppressNotSupported }));
+    (Array.isArray(probe.warnings) ? probe.warnings : []).forEach((warning) => {
+      if (!warning || typeof warning !== 'object') return;
+      const code = String(warning.code || '').trim();
+      if ((code === 'HWID_MAX_DEVICES_REACHED' || code === 'HWID_LIMIT_REACHED') && limitInfo.reached) return;
+      if (code === 'HWID_NOT_SUPPORTED' && (suppressNotSupported || isTruthyHeader(mergedHeaders['x-hwid-not-supported']))) return;
+      messages.push(warning.hint || warning.message || warning.code || '');
+    });
+    return uniqueStrings(messages);
+  }
+
+  function providerOutputWarnings(output) {
+    if (!output || typeof output !== 'object') return [];
+    if (Array.isArray(output.provider_warnings)) {
+      return uniqueStrings(output.provider_warnings);
+    }
+    return uniqueStrings([
+      ...providerHeaderWarnings(output.hwid_response_headers, output.hwid_limit_info),
+      ...providerHeaderWarnings(
+        output.provider_payload && output.provider_payload.hwid_response_headers,
+        output.provider_payload && output.provider_payload.hwid_limit_info,
+      ),
+    ]);
   }
 
   function clampXrayIntervalHours(value) {
@@ -1771,6 +2001,9 @@ let mihomoImportModuleApi = null;
     out.profile_title = String(profile.profile_title || '').trim();
     out.provider_name = providerName || out.provider_name || '';
     out.provider_mode = String((probe && probe.provider_mode) || '').trim();
+    out.hwid_response_headers = (probe && probe.hwid_response_headers) || {};
+    out.provider_payload = (probe && probe.provider_payload) || null;
+    out.provider_warnings = providerProbeWarningMessages(probe);
     return out;
   }
 
@@ -2194,10 +2427,22 @@ let mihomoImportModuleApi = null;
     setHint('Будет добавлено в секцию: ' + targets.join(' + '));
 
     const xrayNodeCount = outputs.filter((o) => o.xrayBulk).length;
+    const providerWarningsRaw = [];
+    outputs.forEach((o) => {
+      providerWarningsRaw.push(...providerOutputWarnings(o));
+    });
+    const providerWarnings = uniqueStrings(providerWarningsRaw);
     updateXrayRefreshUi(outputs);
     if (errors.length) {
       setStatus('Часть данных распознана, часть — нет. Проверь строки ниже в preview.', true);
       setPreview(preview + '\n\n# Ошибки\n' + errors.map((x) => '# ' + x).join('\n') + '\n');
+    } else if (providerWarnings.length) {
+      setStatus(
+        'Готово, но провайдер вернул предупреждение:\n' + providerWarnings.map((msg) => '• ' + msg).join('\n'),
+        false,
+        'warning',
+      );
+      toastMsg(providerWarnings[0], 'warning');
     } else if (xrayNodeCount > 0) {
       const intervalHours = readXrayIntervalHours();
       setStatus(

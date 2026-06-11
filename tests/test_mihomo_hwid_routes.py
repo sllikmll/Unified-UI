@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+
 import pytest
 from flask import Flask
 
@@ -228,6 +230,48 @@ def test_mihomo_provider_payload_summary_exposes_happ_fallback_meta():
     assert summary["happ_fallback_original_count"] == 6
     assert summary["proxy_count"] == 15
     assert summary["skipped_count"] == 0
+
+
+def test_mihomo_provider_payload_summary_exposes_hwid_limit_info():
+    summary = mihomo._mihomo_provider_payload_summary(
+        "proxies:\n  - name: one\n    type: vless\n",
+        {
+            "format": "raw",
+            "hwid_response_headers": {
+                "x-hwid-limit": "true",
+                "x-hwid-devices": "4/4",
+            },
+        },
+    )
+
+    assert summary["hwid_limit_info"]["reached"] is True
+    assert summary["hwid_limit_info"]["used"] == 4
+    assert summary["hwid_limit_info"]["limit"] == 4
+
+
+def test_mihomo_provider_payload_summary_treats_hwid_placeholder_nodes_as_empty():
+    dummy = (
+        "vless://00000000-0000-0000-0000-000000000000@0.0.0.0:1"
+        "?encryption=none#HWID%20%D0%BD%D0%B5%20%D0%BF%D0%BE%D0%B4%D0%B4%D0%B5%D1%80%D0%B6%D0%B0%D0%BD"
+    )
+    encoded = base64.b64encode(dummy.encode("utf-8")).decode("ascii")
+
+    summary = mihomo._mihomo_provider_payload_summary(
+        encoded,
+        {
+            "format": "raw",
+            "hwid_response_headers": {
+                "x-hwid-limit": "true",
+                "x-hwid-not-supported": "true",
+            },
+        },
+    )
+
+    assert summary["base64_uri_count"] == 1
+    assert summary["placeholder_node_count"] == 1
+    assert summary["hwid_placeholder_provider"] is True
+    assert summary["node_count"] == 0
+    assert summary["has_nodes"] is False
 
 
 def test_hwid_probe_route_maps_tls_handshake_timeout_to_504(monkeypatch, client):
@@ -500,5 +544,76 @@ def test_regular_provider_probe_prefers_hwid_adapter_when_hwid_payload_has_more_
     assert "/mihomo/hwid/provider.yaml?" in payload["provider_url"]
     assert payload["provider_headers"] == {}
     assert payload["provider_payload"]["node_count"] == 2
+    assert fetch_calls[0] == {"User-Agent": "router"}
+    assert fetch_calls[1]["x-hwid"] == "AABBCCDDEEFF"
+
+
+def test_regular_provider_probe_ignores_hwid_placeholder_direct_nodes(monkeypatch, client):
+    monkeypatch.setattr(
+        mihomo,
+        "_mh_hwid_get_device_info",
+        lambda: {"headers": {"x-hwid": "AABBCCDDEEFF", "User-Agent": "ClashMeta/1.19.24"}},
+    )
+
+    dummy_lines = "\n".join(
+        [
+            (
+                "vless://00000000-0000-0000-0000-000000000000@0.0.0.0:1"
+                f"?encryption=none#HWID%20placeholder%20{i}"
+            )
+            for i in range(3)
+        ]
+    )
+    dummy_payload = base64.b64encode(dummy_lines.encode("utf-8")).decode("ascii")
+
+    def fake_probe(url, *, headers, insecure, timeout, prefer, policy):
+        return {
+            "ok": True,
+            "probe": {"url": url, "http_status": 200},
+            "profile": {"profile_title": "HWID", "suggested_name": "HWID"},
+            "headers_used": headers or {},
+            "hwid_response_headers": {
+                "x-hwid-limit": "true",
+                "x-hwid-not-supported": "true",
+            },
+            "warnings": [],
+        }
+
+    fetch_calls = []
+
+    def fake_fetch(url, *, headers, insecure, timeout, policy):
+        fetch_calls.append(dict(headers or {}))
+        if (headers or {}).get("x-hwid"):
+            return (
+                "proxies:\n"
+                "  - name: real\n"
+                "    type: vless\n",
+                {"format": "yaml", "proxy_section": True},
+            )
+        return (
+            dummy_payload,
+            {
+                "format": "raw",
+                "hwid_response_headers": {
+                    "x-hwid-limit": "true",
+                    "x-hwid-not-supported": "true",
+                },
+            },
+        )
+
+    monkeypatch.setattr(mihomo, "_mh_hwid_probe_subscription_safe", fake_probe)
+    monkeypatch.setattr(mihomo, "_mh_hwid_fetch_provider_payload", fake_fetch)
+
+    response = client.post(
+        "/api/mihomo/provider/probe",
+        json={"url": "https://provider.example/sub"},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["provider_mode"] == "hwid_adapter"
+    assert "/mihomo/hwid/provider.yaml?" in payload["provider_url"]
+    assert payload["provider_headers"] == {}
+    assert payload["provider_payload"]["node_count"] == 1
     assert fetch_calls[0] == {"User-Agent": "router"}
     assert fetch_calls[1]["x-hwid"] == "AABBCCDDEEFF"

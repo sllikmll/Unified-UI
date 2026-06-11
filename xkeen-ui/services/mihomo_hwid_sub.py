@@ -567,12 +567,157 @@ def _extract_hwid_response_headers(headers: Any) -> Dict[str, str]:
         val = str(raw or "").strip()
         if val:
             out[key] = val
+    for key, val in lower_items.items():
+        if key.startswith("x-hwid-") and val:
+            out.setdefault(key, val)
     return out
 
 
 def _header_truthy(value: str | None) -> bool:
     s = str(value or "").strip().lower()
     return bool(s) and s not in {"0", "false", "no", "off", "none", "null"}
+
+
+def _header_int(value: Any) -> int | None:
+    text = str(value or "").strip()
+    if not text or text.lower() in {"true", "false", "yes", "no", "on", "off"}:
+        return None
+    match = re.search(r"(?<!\d)(\d{1,9})(?!\d)", text)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except Exception:
+        return None
+
+
+def _first_header_int(headers: Dict[str, str], *keys: str) -> int | None:
+    for key in keys:
+        value = _header_int(headers.get(key))
+        if value is not None:
+            return value
+    return None
+
+
+def _parse_hwid_limit_pair(text: Any) -> tuple[int | None, int | None]:
+    raw = str(text or "").strip()
+    if not raw:
+        return None, None
+
+    match = re.search(r"(?<!\d)(\d{1,9})\s*/\s*(\d{1,9})(?!\d)", raw)
+    if match:
+        return int(match.group(1)), int(match.group(2))
+
+    used = None
+    limit = None
+    parts: Dict[str, str] = {}
+    for chunk in re.split(r"[;,&]\s*", raw):
+        if "=" not in chunk:
+            continue
+        key, value = chunk.split("=", 1)
+        parts[key.strip().lower().replace("-", "_")] = value.strip()
+    for key in ("used", "current", "devices_used", "device_used", "count"):
+        if key in parts:
+            used = _header_int(parts.get(key))
+            break
+    for key in ("limit", "max", "total", "devices_limit", "device_limit"):
+        if key in parts:
+            limit = _header_int(parts.get(key))
+            break
+    if used is not None or limit is not None:
+        return used, limit
+
+    used_match = re.search(
+        r"(?:used|использ(?:овано|уется|ованы)?|занято)\D{0,24}(\d{1,9})",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    limit_match = re.search(
+        r"(?:limit|max|total|лимит|всего|из)\D{0,24}(\d{1,9})",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if used_match:
+        used = int(used_match.group(1))
+    if limit_match:
+        limit = int(limit_match.group(1))
+    return used, limit
+
+
+def extract_hwid_limit_info(headers: Dict[str, str] | None) -> Dict[str, Any]:
+    """Best-effort device limit details from provider HWID headers.
+
+    Providers are not consistent here: some send only boolean flags, while
+    others may send custom x-hwid-* counters. Keep this parser permissive and
+    expose details only when numeric data is actually present.
+    """
+
+    h = {str(k or "").strip().lower(): str(v or "").strip() for k, v in (headers or {}).items()}
+    used = _first_header_int(
+        h,
+        "x-hwid-devices-used",
+        "x-hwid-device-used",
+        "x-hwid-used",
+        "x-hwid-current-devices",
+        "x-hwid-device-count",
+        "x-hwid-devices-count",
+    )
+    limit = _first_header_int(
+        h,
+        "x-hwid-devices-limit",
+        "x-hwid-device-limit",
+        "x-hwid-max-devices",
+        "x-hwid-limit-count",
+        "x-hwid-limit-max",
+        "x-hwid-limit-total",
+        "x-hwid-total-devices",
+    )
+    remaining = _first_header_int(
+        h,
+        "x-hwid-devices-remaining",
+        "x-hwid-device-remaining",
+        "x-hwid-remaining",
+        "x-hwid-limit-remaining",
+    )
+
+    for key in (
+        "x-hwid-devices",
+        "x-hwid-device-limit",
+        "x-hwid-limit-info",
+        "x-hwid-limit-detail",
+        "x-hwid-limit",
+    ):
+        pair_used, pair_limit = _parse_hwid_limit_pair(h.get(key))
+        if used is None and pair_used is not None:
+            used = pair_used
+        if limit is None and pair_limit is not None:
+            limit = pair_limit
+
+    if used is None and remaining is not None and limit is not None:
+        used = max(0, limit - remaining)
+    if used is None and limit is not None and (
+        _header_truthy(h.get("x-hwid-max-devices-reached"))
+        or _header_truthy(h.get("x-hwid-limit"))
+        or remaining == 0
+    ):
+        used = limit
+
+    reached = bool(
+        _header_truthy(h.get("x-hwid-max-devices-reached"))
+        or _header_truthy(h.get("x-hwid-limit"))
+        or (used is not None and limit is not None and used >= limit)
+        or remaining == 0
+    )
+    info: Dict[str, Any] = {"reached": reached}
+    if used is not None:
+        info["used"] = used
+    if limit is not None:
+        info["limit"] = limit
+    if remaining is not None:
+        info["remaining"] = remaining
+    if used is not None and limit is not None:
+        info["summary"] = f"{used}/{limit}"
+    return info
 
 
 def _hwid_response_warnings(headers: Dict[str, str]) -> list[Dict[str, Any]]:

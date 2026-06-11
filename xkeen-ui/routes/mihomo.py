@@ -105,6 +105,7 @@ from services.mihomo_hwid_sub import (
     apply_mode as _mh_hwid_apply_mode,
     build_provider_entry as _mh_hwid_build_provider_entry,
     ensure_unique_provider_name as _mh_hwid_ensure_unique_provider_name,
+    extract_hwid_limit_info as _mh_hwid_extract_limit_info,
 )
 
 from services.url_policy import URLPolicy, env_flag, is_url_allowed
@@ -247,6 +248,41 @@ _MIHOMO_URI_RE = re.compile(
     r"(?mi)^\s*(?:vless|vmess|trojan|ss|ssr|shadowsocks|hysteria2|hy2|hysteria|tuic|wireguard)://"
 )
 _MIHOMO_YAML_PROXY_NAME_RE = re.compile(r"(?m)^\s*-\s*name\s*:\s*")
+_MIHOMO_LOOPBACK_PLACEHOLDER_RE = re.compile(r"://[^\s#]*@?0\.0\.0\.0:1(?=$|[/?#])", re.IGNORECASE)
+
+
+def _mihomo_uri_lines(text: str) -> list[str]:
+    return [line.strip() for line in str(text or "").splitlines() if _MIHOMO_URI_RE.match(line)]
+
+
+def _mihomo_provider_payload_is_hwid_placeholder(
+    text: str,
+    decoded: str,
+    meta: Dict[str, Any],
+) -> bool:
+    candidates = _mihomo_uri_lines(decoded) or _mihomo_uri_lines(text)
+    if not candidates:
+        return False
+    if not all(_MIHOMO_LOOPBACK_PLACEHOLDER_RE.search(line) for line in candidates):
+        return False
+
+    readable = urllib.parse.unquote("\n".join(part for part in (decoded, text) if part), errors="replace")
+    lowered = readable.lower()
+    headers = meta.get("hwid_response_headers") or {}
+    if _mihomo_hwid_headers_suggest_required(headers):
+        return True
+
+    return any(
+        marker in lowered
+        for marker in (
+            "hwid",
+            "лимит устройств",
+            "не поддерж",
+            "включите hwid",
+            "max devices",
+            "device limit",
+        )
+    )
 
 
 def _mihomo_provider_payload_summary(
@@ -266,7 +302,10 @@ def _mihomo_provider_payload_summary(
         bool(m.get("proxy_section")) and yaml_proxy_markers == 0 and raw_uri_markers == 0
     )
 
-    node_count = yaml_proxy_markers or raw_uri_markers or base64_uri_markers
+    hwid_headers = m.get("hwid_response_headers") or {}
+    marker_node_count = yaml_proxy_markers or raw_uri_markers or base64_uri_markers
+    hwid_placeholder_provider = _mihomo_provider_payload_is_hwid_placeholder(text, decoded, m)
+    node_count = 0 if hwid_placeholder_provider else marker_node_count
     has_nodes = bool(node_count) and not empty_proxy_provider
     return {
         "format": m.get("format"),
@@ -279,12 +318,15 @@ def _mihomo_provider_payload_summary(
         "proxy_section": bool(m.get("proxy_section")),
         "bytes": m.get("bytes"),
         "content_type": m.get("content_type"),
-        "hwid_response_headers": m.get("hwid_response_headers") or {},
+        "hwid_response_headers": hwid_headers,
+        "hwid_limit_info": _mh_hwid_extract_limit_info(hwid_headers),
         "node_count": int(node_count),
         "yaml_proxy_count": int(yaml_proxy_markers),
         "raw_uri_count": int(raw_uri_markers),
         "base64_uri_count": int(base64_uri_markers),
-        "empty_proxy_provider": bool(empty_proxy_provider or block_empty),
+        "placeholder_node_count": int(marker_node_count) if hwid_placeholder_provider else 0,
+        "hwid_placeholder_provider": bool(hwid_placeholder_provider),
+        "empty_proxy_provider": bool(empty_proxy_provider or block_empty or hwid_placeholder_provider),
         "has_nodes": bool(has_nodes),
     }
 
@@ -545,6 +587,9 @@ def create_mihomo_blueprint(
 
         if isinstance(result, dict):
             result = dict(result)
+            result["hwid_limit_info"] = _mh_hwid_extract_limit_info(
+                result.get("hwid_response_headers") or {}
+            )
             if result.get("ok") is True:
                 adapter_url = (
                     f"http://127.0.0.1:{_ui_loopback_port()}/mihomo/provider.yaml?"
@@ -789,6 +834,9 @@ def create_mihomo_blueprint(
         # Map known error codes to helpful HTTP statuses (no 500).
         if result.get("ok") is True:
             result = dict(result)
+            result["hwid_limit_info"] = _mh_hwid_extract_limit_info(
+                result.get("hwid_response_headers") or {}
+            )
             warnings = list(result.get("warnings") or [])
             try:
                 provider_payload, provider_meta = _mh_hwid_fetch_provider_payload(

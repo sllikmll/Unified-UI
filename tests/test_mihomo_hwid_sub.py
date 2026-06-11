@@ -163,6 +163,38 @@ def test_hwid_env_override_normalizes_mac_like_values_but_rejects_invalid_header
     assert hwid._normalize_env_hwid_override("bad\r\nx-test: 1") == ""
 
 
+def test_hwid_response_headers_preserve_extended_hwid_limit_fields():
+    headers = {
+        "X-Hwid-Limit": "true",
+        "X-Hwid-Devices": "4/4",
+        "X-Hwid-Devices-Used": "4",
+        "X-Hwid-Devices-Limit": "4",
+        "X-Other": "ignored",
+    }
+
+    extracted = hwid._extract_hwid_response_headers(headers)
+
+    assert extracted["x-hwid-limit"] == "true"
+    assert extracted["x-hwid-devices"] == "4/4"
+    assert extracted["x-hwid-devices-used"] == "4"
+    assert extracted["x-hwid-devices-limit"] == "4"
+    assert "x-other" not in extracted
+
+
+def test_hwid_limit_info_parses_used_and_limit_details():
+    info = hwid.extract_hwid_limit_info(
+        {
+            "x-hwid-limit": "true",
+            "x-hwid-devices": "4/4",
+        }
+    )
+
+    assert info["reached"] is True
+    assert info["used"] == 4
+    assert info["limit"] == 4
+    assert info["summary"] == "4/4"
+
+
 def test_hwid_provider_entry_uses_mihomo_provider_defaults():
     entry = hwid.build_provider_entry(
         "OverSecure_VPN_4G",
