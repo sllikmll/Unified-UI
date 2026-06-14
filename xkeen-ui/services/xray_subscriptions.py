@@ -1065,7 +1065,7 @@ class _SafeRedirect(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def fetch_subscription_body(url: str) -> Tuple[str, Dict[str, str]]:
+def fetch_subscription_body(url: str, request_headers: Dict[str, str] | None = None) -> Tuple[str, Dict[str, str]]:
     url_s = str(url or "").strip()
     policy = _subscription_policy()
     ok, reason = is_url_allowed(url_s, policy)
@@ -1085,7 +1085,9 @@ def fetch_subscription_body(url: str) -> Tuple[str, Dict[str, str]]:
         max_bytes = DEFAULT_MAX_BODY_BYTES
 
     opener = urllib.request.build_opener(_SafeRedirect(policy))
-    req = urllib.request.Request(url_s, headers={"User-Agent": "XKeen-UI Subscription Fetcher"})
+    headers = {"User-Agent": "XKeen-UI Subscription Fetcher"}
+    headers.update({str(k): str(v) for k, v in (request_headers or {}).items() if str(k or "").strip()})
+    req = urllib.request.Request(url_s, headers=headers)
     with opener.open(req, timeout=timeout) as resp:
         status = getattr(resp, "status", None)
         if isinstance(status, int) and status >= 400:
@@ -1111,6 +1113,142 @@ def fetch_subscription_body(url: str) -> Tuple[str, Dict[str, str]]:
         headers = {str(k).lower(): str(v) for k, v in dict(resp.headers.items()).items()}
         body = b"".join(chunks).decode("utf-8", errors="replace")
         return body, headers
+
+
+def _subscription_header_truthy(value: Any) -> bool:
+    text = str(value or "").strip().lower()
+    return bool(text) and text not in {"0", "false", "no", "off", "none", "null"}
+
+
+def _subscription_hwid_response_headers(headers: Dict[str, str] | None) -> Dict[str, str]:
+    src = {str(k or "").strip().lower(): str(v or "").strip() for k, v in (headers or {}).items()}
+    return {k: v for k, v in src.items() if k.startswith("x-hwid-") and v}
+
+
+def _subscription_hwid_headers_suggest_required(headers: Dict[str, str] | None) -> bool:
+    h = _subscription_hwid_response_headers(headers)
+    return any(
+        _subscription_header_truthy(h.get(key))
+        for key in ("x-hwid-not-supported", "x-hwid-max-devices-reached", "x-hwid-limit")
+    )
+
+
+_HWID_PLACEHOLDER_LINK_RE = re.compile(r"://[^\s#]*@?0\.0\.0\.0:1(?=$|[/?#])", re.IGNORECASE)
+
+
+def _subscription_links_are_hwid_placeholders(links: List[str]) -> bool:
+    items = [str(item or "").strip() for item in (links or []) if str(item or "").strip()]
+    if not items:
+        return False
+    return all(_HWID_PLACEHOLDER_LINK_RE.search(item) for item in items)
+
+
+def _subscription_body_source_probe(body: str) -> Dict[str, Any]:
+    links = parse_subscription_links(body)
+    if links:
+        return {
+            "has_source": not _subscription_links_are_hwid_placeholders(links),
+            "source_count": len(links),
+            "placeholder": _subscription_links_are_hwid_placeholders(links),
+            "source_format": "links",
+        }
+    _outbounds, _errors, stats = build_subscription_json_outbounds(body, tag_prefix="sub")
+    source_count = int(stats.get("source_count") or 0)
+    return {
+        "has_source": source_count > 0,
+        "source_count": source_count,
+        "placeholder": False,
+        "source_format": "xray-json" if source_count > 0 else "",
+    }
+
+
+def _happ_subscription_headers(headers: Dict[str, str]) -> Dict[str, str] | None:
+    if not env_flag("XKEEN_SUBSCRIPTION_HAPP_FALLBACK", True):
+        return None
+    hwid = ""
+    ua = ""
+    for key, value in (headers or {}).items():
+        key_l = str(key or "").strip().lower()
+        if key_l == "x-hwid":
+            hwid = str(value or "").strip()
+        elif key_l == "user-agent":
+            ua = str(value or "").strip()
+    if not hwid or "happ" in ua.lower():
+        return None
+    fallback_ua = str(os.environ.get("XKEEN_SUBSCRIPTION_HAPP_USER_AGENT") or "Happ/1.0").strip()
+    if not fallback_ua:
+        return None
+    out = dict(headers or {})
+    out["User-Agent"] = fallback_ua
+    return out
+
+
+def fetch_subscription_body_for_xray(url: str) -> Tuple[str, Dict[str, str], Dict[str, Any]]:
+    """Fetch subscription text, retrying with HWID headers when needed.
+
+    Some Remnawave/Happ providers return an empty provider, loopback placeholder
+    nodes, or explicit x-hwid-* response markers unless the request includes the
+    same device headers Mihomo uses. Keep the normal request as the fast path and
+    only retry when the response looks unusable or HWID-gated.
+    """
+
+    body, headers = fetch_subscription_body(url)
+    probe = _subscription_body_source_probe(body)
+    hwid_headers = _subscription_hwid_response_headers(headers)
+    needs_hwid = (
+        _subscription_hwid_headers_suggest_required(headers)
+        or not bool(probe.get("has_source"))
+        or bool(probe.get("placeholder"))
+    )
+    meta: Dict[str, Any] = {
+        "fetch_mode": "direct",
+        "hwid_response_headers": hwid_headers,
+        "warnings": [],
+    }
+    if not needs_hwid:
+        return body, headers, meta
+
+    try:
+        from services.mihomo_hwid_sub import get_device_info
+
+        device_info = get_device_info()
+        request_headers = device_info.get("headers") if isinstance(device_info, dict) else {}
+        if not isinstance(request_headers, dict) or not request_headers:
+            return body, headers, meta
+
+        hwid_body, hwid_headers_raw = fetch_subscription_body(url, request_headers=request_headers)
+        hwid_probe = _subscription_body_source_probe(hwid_body)
+        hwid_response_headers = _subscription_hwid_response_headers(hwid_headers_raw)
+        if bool(hwid_probe.get("has_source")) and not bool(hwid_probe.get("placeholder")):
+            meta.update(
+                {
+                    "fetch_mode": "hwid",
+                    "hwid_response_headers": hwid_response_headers,
+                    "warnings": ["Подписка была скачана с HWID-заголовками устройства."],
+                }
+            )
+            return hwid_body, hwid_headers_raw, meta
+
+        happ_headers = _happ_subscription_headers(request_headers)
+        if happ_headers:
+            happ_body, happ_headers_raw = fetch_subscription_body(url, request_headers=happ_headers)
+            happ_probe = _subscription_body_source_probe(happ_body)
+            happ_response_headers = _subscription_hwid_response_headers(happ_headers_raw)
+            if bool(happ_probe.get("has_source")) and not bool(happ_probe.get("placeholder")):
+                meta.update(
+                    {
+                        "fetch_mode": "happ_hwid",
+                        "hwid_response_headers": happ_response_headers,
+                        "warnings": ["Подписка была скачана с HWID-заголовками устройства и Happ User-Agent."],
+                    }
+                )
+                return happ_body, happ_headers_raw, meta
+    except Exception as exc:
+        meta["hwid_fetch_error"] = str(exc)
+
+    if bool(probe.get("placeholder")):
+        meta["warnings"] = ["Провайдер вернул HWID-заглушку вместо реальных узлов."]
+    return body, headers, meta
 
 
 def _looks_like_proxy_list(text: str) -> bool:
@@ -4466,7 +4604,7 @@ def preview_subscription(payload: Dict[str, Any]) -> Dict[str, Any]:
     _compile_regex_filter(type_filter, "фильтра типа")
     _compile_regex_filter(transport_filter, "фильтра транспорта")
 
-    body, headers = fetch_subscription_body(url)
+    body, headers, fetch_meta = fetch_subscription_body_for_xray(url)
     links = parse_subscription_links(body)
     if links:
         source_format = "links"
@@ -4494,15 +4632,20 @@ def preview_subscription(payload: Dict[str, Any]) -> Dict[str, Any]:
     filtered_out_count = int(stats.get("filtered_out_count") or 0)
     profile_interval = _parse_profile_interval_hours(headers)
 
+    fetch_warnings = [str(item) for item in fetch_meta.get("warnings", []) if str(item or "").strip()]
+    warnings = fetch_warnings + _subscription_result_warnings(nodes)
+
     return {
         "ok": True,
         "nodes": nodes,
         "count": len(outbounds),
         "source_count": source_count,
         "filtered_out_count": filtered_out_count,
-        "warnings": _subscription_result_warnings(nodes),
+        "warnings": warnings,
         "errors": errors,
         "source_format": source_format,
+        "fetch_mode": str(fetch_meta.get("fetch_mode") or "direct"),
+        "hwid_response_headers": fetch_meta.get("hwid_response_headers") or {},
         "profile_update_interval_hours": profile_interval,
         "tag_prefix": tag_prefix,
     }
@@ -4550,7 +4693,7 @@ def refresh_subscription(
     node_latency: Dict[str, Dict[str, Any]] = _prune_node_latency_map(sub.get("node_latency"), _normalize_last_nodes(sub.get("last_nodes")))
 
     try:
-        body, headers = fetch_subscription_body(str(sub.get("url") or ""))
+        body, headers, fetch_meta = fetch_subscription_body_for_xray(str(sub.get("url") or ""))
         links = parse_subscription_links(body)
         excluded_node_keys = _read_string_list_value(sub, EXCLUDED_NODE_KEYS_KEYS)
 
@@ -4678,7 +4821,8 @@ def refresh_subscription(
         else:
             sub.pop("profile_update_interval_hours", None)
 
-        warnings = _subscription_result_warnings(preview_nodes)
+        fetch_warnings = [str(item) for item in fetch_meta.get("warnings", []) if str(item or "").strip()]
+        warnings = fetch_warnings + _subscription_result_warnings(preview_nodes)
         sub.pop("last_error_retry_seconds", None)
         runtime_balancer_tags = _read_string_list_value(sub, ROUTING_BALANCER_TAGS_KEYS)
         runtime_auto_rule = _read_bool_value(sub, ROUTING_AUTO_RULE_KEYS, True)
@@ -4710,6 +4854,7 @@ def refresh_subscription(
                 "last_generated_outbounds": generated_baselines,
                 "last_errors": errors,
                 "last_source_format": source_format,
+                "last_fetch_mode": str(fetch_meta.get("fetch_mode") or "direct"),
                 "next_update_ts": now_ts + (interval * 3600) if bool(sub.get("enabled", True)) else None,
                 "interval_hours": interval,
             }
@@ -4782,6 +4927,8 @@ def refresh_subscription(
                 "tags": tags,
                 "errors": errors,
                 "source_format": source_format,
+                "fetch_mode": str(fetch_meta.get("fetch_mode") or "direct"),
+                "hwid_response_headers": fetch_meta.get("hwid_response_headers") or {},
                 "manual_edits_preserved": int(manual_edits_preserved),
                 "manual_exclusions_added": int(manual_exclusions_added),
                 "output_file": os.path.basename(output_path),
