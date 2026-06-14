@@ -1133,6 +1133,28 @@ def _subscription_hwid_headers_suggest_required(headers: Dict[str, str] | None) 
     )
 
 
+def _subscription_hwid_limit_info(headers: Dict[str, str] | None) -> Dict[str, Any]:
+    try:
+        from services.mihomo_hwid_sub import extract_hwid_limit_info
+
+        info = extract_hwid_limit_info(headers or {})
+        return info if isinstance(info, dict) else {}
+    except Exception:
+        return {}
+
+
+def _subscription_hwid_warning_messages(headers: Dict[str, str] | None) -> List[str]:
+    h = _subscription_hwid_response_headers(headers)
+    out: List[str] = []
+    if _subscription_header_truthy(h.get("x-hwid-not-supported")):
+        out.append("Провайдер сообщил: HWID не поддержан или не принят этим запросом.")
+    if _subscription_header_truthy(h.get("x-hwid-max-devices-reached")):
+        out.append("Провайдер сообщил: достигнут лимит устройств для этой подписки.")
+    if _subscription_header_truthy(h.get("x-hwid-limit")):
+        out.append("Провайдер сообщил: HWID-лимит устройств исчерпан.")
+    return out
+
+
 _HWID_PLACEHOLDER_LINK_RE = re.compile(r"://[^\s#]*@?0\.0\.0\.0:1(?=$|[/?#])", re.IGNORECASE)
 
 
@@ -1146,10 +1168,12 @@ def _subscription_links_are_hwid_placeholders(links: List[str]) -> bool:
 def _subscription_body_source_probe(body: str) -> Dict[str, Any]:
     links = parse_subscription_links(body)
     if links:
+        placeholder = _subscription_links_are_hwid_placeholders(links)
         return {
-            "has_source": not _subscription_links_are_hwid_placeholders(links),
+            "has_source": not placeholder,
             "source_count": len(links),
-            "placeholder": _subscription_links_are_hwid_placeholders(links),
+            "placeholder": placeholder,
+            "placeholder_count": len(links) if placeholder else 0,
             "source_format": "links",
         }
     _outbounds, _errors, stats = build_subscription_json_outbounds(body, tag_prefix="sub")
@@ -1158,6 +1182,7 @@ def _subscription_body_source_probe(body: str) -> Dict[str, Any]:
         "has_source": source_count > 0,
         "source_count": source_count,
         "placeholder": False,
+        "placeholder_count": 0,
         "source_format": "xray-json" if source_count > 0 else "",
     }
 
@@ -1203,6 +1228,7 @@ def fetch_subscription_body_for_xray(url: str) -> Tuple[str, Dict[str, str], Dic
     meta: Dict[str, Any] = {
         "fetch_mode": "direct",
         "hwid_response_headers": hwid_headers,
+        "hwid_limit_info": _subscription_hwid_limit_info(hwid_headers),
         "warnings": [],
     }
     if not needs_hwid:
@@ -1224,7 +1250,9 @@ def fetch_subscription_body_for_xray(url: str) -> Tuple[str, Dict[str, str], Dic
                 {
                     "fetch_mode": "hwid",
                     "hwid_response_headers": hwid_response_headers,
-                    "warnings": ["Подписка была скачана с HWID-заголовками устройства."],
+                    "hwid_limit_info": _subscription_hwid_limit_info(hwid_response_headers),
+                    "warnings": _subscription_hwid_warning_messages(hwid_response_headers)
+                    + ["Подписка была скачана с HWID-заголовками устройства."],
                 }
             )
             return hwid_body, hwid_headers_raw, meta
@@ -1239,15 +1267,19 @@ def fetch_subscription_body_for_xray(url: str) -> Tuple[str, Dict[str, str], Dic
                     {
                         "fetch_mode": "happ_hwid",
                         "hwid_response_headers": happ_response_headers,
-                        "warnings": ["Подписка была скачана с HWID-заголовками устройства и Happ User-Agent."],
+                        "hwid_limit_info": _subscription_hwid_limit_info(happ_response_headers),
+                        "warnings": _subscription_hwid_warning_messages(happ_response_headers)
+                        + ["Подписка была скачана с HWID-заголовками устройства и Happ User-Agent."],
                     }
                 )
                 return happ_body, happ_headers_raw, meta
     except Exception as exc:
         meta["hwid_fetch_error"] = str(exc)
 
+    warnings = _subscription_hwid_warning_messages(hwid_headers)
     if bool(probe.get("placeholder")):
-        meta["warnings"] = ["Провайдер вернул HWID-заглушку вместо реальных узлов."]
+        warnings.append("Провайдер вернул HWID-заглушку вместо реальных узлов.")
+    meta["warnings"] = warnings
     return body, headers, meta
 
 
@@ -1963,6 +1995,11 @@ def build_subscription_json_outbounds(
         "filtered_out_count": max(0, source_count - len(filtered_candidates)),
         "nodes": preview_nodes,
     }
+
+
+def _placeholder_subscription_stats(links: List[str]) -> Dict[str, Any]:
+    count = len([item for item in (links or []) if str(item or "").strip()])
+    return {"source_count": count, "filtered_out_count": count, "nodes": []}
 
 
 def _content_hash(obj: Any) -> str:
@@ -4606,7 +4643,11 @@ def preview_subscription(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     body, headers, fetch_meta = fetch_subscription_body_for_xray(url)
     links = parse_subscription_links(body)
-    if links:
+    placeholder_links = _subscription_links_are_hwid_placeholders(links)
+    if links and placeholder_links:
+        source_format = "hwid-placeholder"
+        outbounds, errors, stats = [], [], _placeholder_subscription_stats(links)
+    elif links:
         source_format = "links"
         outbounds, errors, stats = build_subscription_outbounds(
             links,
@@ -4646,6 +4687,7 @@ def preview_subscription(payload: Dict[str, Any]) -> Dict[str, Any]:
         "source_format": source_format,
         "fetch_mode": str(fetch_meta.get("fetch_mode") or "direct"),
         "hwid_response_headers": fetch_meta.get("hwid_response_headers") or {},
+        "hwid_limit_info": fetch_meta.get("hwid_limit_info") or {},
         "profile_update_interval_hours": profile_interval,
         "tag_prefix": tag_prefix,
     }
@@ -4691,13 +4733,17 @@ def refresh_subscription(
     filtered_out_count = 0
     preview_nodes: List[Dict[str, Any]] = []
     node_latency: Dict[str, Dict[str, Any]] = _prune_node_latency_map(sub.get("node_latency"), _normalize_last_nodes(sub.get("last_nodes")))
+    fetch_meta: Dict[str, Any] = {}
 
     try:
         body, headers, fetch_meta = fetch_subscription_body_for_xray(str(sub.get("url") or ""))
         links = parse_subscription_links(body)
+        placeholder_links = _subscription_links_are_hwid_placeholders(links)
         excluded_node_keys = _read_string_list_value(sub, EXCLUDED_NODE_KEYS_KEYS)
 
         def _build_with_exclusions(keys: List[str]):
+            if links and placeholder_links:
+                return "hwid-placeholder", [], [], _placeholder_subscription_stats(links)
             if links:
                 built_outbounds, built_errors, built_stats = build_subscription_outbounds(
                     links,
@@ -4723,6 +4769,8 @@ def refresh_subscription(
         filtered_out_count = int(stats.get("filtered_out_count") or 0)
         preview_nodes = _normalize_last_nodes(stats.get("nodes"))
         node_latency = _prune_node_latency_map(node_latency, preview_nodes)
+        if placeholder_links and not outbounds:
+            raise RuntimeError("Провайдер вернул HWID-заглушку вместо реальных узлов.")
         manual_exclusions_added = 0
         locked_excluded_keys, locked_added = _extend_manual_selection_exclusions_for_new_nodes(
             sub,
@@ -4855,6 +4903,8 @@ def refresh_subscription(
                 "last_errors": errors,
                 "last_source_format": source_format,
                 "last_fetch_mode": str(fetch_meta.get("fetch_mode") or "direct"),
+                "last_hwid_response_headers": fetch_meta.get("hwid_response_headers") or {},
+                "last_hwid_limit_info": fetch_meta.get("hwid_limit_info") or {},
                 "next_update_ts": now_ts + (interval * 3600) if bool(sub.get("enabled", True)) else None,
                 "interval_hours": interval,
             }
@@ -4929,6 +4979,7 @@ def refresh_subscription(
                 "source_format": source_format,
                 "fetch_mode": str(fetch_meta.get("fetch_mode") or "direct"),
                 "hwid_response_headers": fetch_meta.get("hwid_response_headers") or {},
+                "hwid_limit_info": fetch_meta.get("hwid_limit_info") or {},
                 "manual_edits_preserved": int(manual_edits_preserved),
                 "manual_exclusions_added": int(manual_exclusions_added),
                 "output_file": os.path.basename(output_path),
@@ -4950,6 +5001,7 @@ def refresh_subscription(
     except Exception as exc:
         interval = _clamp_interval(sub.get("interval_hours") or DEFAULT_INTERVAL_HOURS)
         retry_seconds = _refresh_error_retry_seconds(interval)
+        fetch_warnings = [str(item) for item in fetch_meta.get("warnings", []) if str(item or "").strip()]
         sub.update(
             {
                 "last_ok": False,
@@ -4957,8 +5009,12 @@ def refresh_subscription(
                 "last_update_ts": now_ts,
                 "last_source_count": source_count,
                 "last_filtered_out_count": filtered_out_count,
+                "last_warnings": fetch_warnings,
                 "last_nodes": preview_nodes or _normalize_last_nodes(sub.get("last_nodes")),
                 "node_latency": _prune_node_latency_map(node_latency, preview_nodes or _normalize_last_nodes(sub.get("last_nodes"))),
+                "last_fetch_mode": str(fetch_meta.get("fetch_mode") or sub.get("last_fetch_mode") or "direct"),
+                "last_hwid_response_headers": fetch_meta.get("hwid_response_headers") or sub.get("last_hwid_response_headers") or {},
+                "last_hwid_limit_info": fetch_meta.get("hwid_limit_info") or sub.get("last_hwid_limit_info") or {},
                 "next_update_ts": now_ts + retry_seconds if bool(sub.get("enabled", True)) else None,
                 "last_error_retry_seconds": retry_seconds,
             }
@@ -4969,6 +5025,10 @@ def refresh_subscription(
                 "error": str(exc),
                 "source_count": source_count,
                 "filtered_out_count": filtered_out_count,
+                "warnings": fetch_warnings,
+                "fetch_mode": str(fetch_meta.get("fetch_mode") or "direct"),
+                "hwid_response_headers": fetch_meta.get("hwid_response_headers") or {},
+                "hwid_limit_info": fetch_meta.get("hwid_limit_info") or {},
                 "last_nodes": preview_nodes,
                 "node_latency": node_latency,
                 "next_update_ts": sub.get("next_update_ts"),

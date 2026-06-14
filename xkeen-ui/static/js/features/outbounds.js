@@ -6051,6 +6051,70 @@ let outboundsModuleApi = null;
       return nextTs > 0 && nextTs <= currentTs;
     }
 
+    function subsTruthyHeader(value) {
+      const text = String(value == null ? '' : value).trim().toLowerCase();
+      return !!text && !['0', 'false', 'no', 'off', 'none', 'null'].includes(text);
+    }
+
+    function subsPlainObject(value) {
+      return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    }
+
+    function subsHwidLimitSummary(info) {
+      const data = subsPlainObject(info);
+      const summary = String(data.summary || '').trim();
+      if (summary) return summary;
+      const used = Number(data.used);
+      const limit = Number(data.limit);
+      if (Number.isFinite(used) && Number.isFinite(limit) && limit > 0) return `${used}/${limit}`;
+      if (Number.isFinite(limit) && limit > 0) return `limit ${limit}`;
+      const remaining = Number(data.remaining);
+      if (Number.isFinite(remaining)) return `remaining ${remaining}`;
+      return '';
+    }
+
+    function subsHwidDiagnostics(sub) {
+      const s = subsPlainObject(sub);
+      const headers = subsPlainObject(s.last_hwid_response_headers || s.hwid_response_headers);
+      const info = subsPlainObject(s.last_hwid_limit_info || s.hwid_limit_info);
+      const mode = String(s.last_fetch_mode || s.fetch_mode || '').trim();
+      const sourceFormat = String(s.last_source_format || s.source_format || '').trim();
+      const lines = [];
+      const summary = subsHwidLimitSummary(info);
+      const statusParts = [];
+
+      if (subsTruthyHeader(headers['x-hwid-active'])) statusParts.push('HWID-лимит активен');
+      if (subsTruthyHeader(headers['x-hwid-not-supported'])) statusParts.push('HWID не принят или не поддержан');
+      if (subsTruthyHeader(headers['x-hwid-max-devices-reached']) || subsTruthyHeader(headers['x-hwid-limit'])) {
+        statusParts.push('лимит устройств исчерпан');
+      }
+      if (statusParts.length) lines.push(`Провайдер сообщил: ${Array.from(new Set(statusParts)).join('; ')}.`);
+      if (summary) lines.push(`Устройства: ${summary}.`);
+      if (mode && mode !== 'direct') lines.push(`Загрузка выполнена в режиме ${mode}.`);
+      if (sourceFormat === 'hwid-placeholder') {
+        lines.push('Вместо реальных Xray-узлов пришла HWID-заглушка; outbounds не созданы.');
+      }
+
+      const reached = !!(
+        info.reached
+        || subsTruthyHeader(headers['x-hwid-limit'])
+        || subsTruthyHeader(headers['x-hwid-max-devices-reached'])
+      );
+      const hasHeaders = Object.keys(headers).some((key) => key.indexOf('x-hwid-') === 0);
+      return {
+        active: lines.length > 0 || hasHeaders || mode === 'hwid' || mode === 'happ_hwid',
+        reached,
+        summary,
+        lines,
+      };
+    }
+
+    function subsIsHwidWarning(line) {
+      const text = String(line || '').trim();
+      const low = text.toLowerCase();
+      return low.includes('hwid') || text.includes('заглуш');
+    }
+
     function subsRelativeUpdateLabel(ts, nowTs) {
       const stamp = subsTimestamp(ts);
       const currentTs = subsTimestamp(nowTs) || subsNowTs();
@@ -6108,6 +6172,7 @@ let outboundsModuleApi = null;
       const filteredOutCount = Number(s.last_filtered_out_count || 0);
       const due = subsIsDue(s, currentTs);
       const errorText = String(s.last_error || '').trim();
+      const hwid = subsHwidDiagnostics(s);
 
       if (s.last_ok === false) {
         badges.push({
@@ -6123,6 +6188,13 @@ let outboundsModuleApi = null;
           title: s.next_update_ts
             ? `Срок обновления наступил: ${subsFormatTime(s.next_update_ts)}.`
             : 'Срок обновления наступил.',
+        });
+      }
+      if (hwid.active) {
+        badges.push({
+          label: hwid.reached ? 'HWID лимит' : 'HWID',
+          tone: hwid.reached ? 'warning' : 'info',
+          title: (hwid.lines && hwid.lines[0]) || (hwid.summary ? `Устройства: ${hwid.summary}` : 'HWID-данные из ответа провайдера.'),
         });
       }
       if (lastUpdateTs > 0) {
@@ -6189,6 +6261,10 @@ let outboundsModuleApi = null;
           last_filtered_out_count: Number(_subscriptionPreview.filteredOutCount || 0),
           last_warnings: Array.isArray(_subscriptionPreview.warnings) ? _subscriptionPreview.warnings.slice() : [],
           last_errors: Array.isArray(_subscriptionPreview.errors) ? _subscriptionPreview.errors.slice() : [],
+          last_source_format: String(_subscriptionPreview.sourceFormat || ''),
+          last_fetch_mode: String(_subscriptionPreview.fetchMode || ''),
+          last_hwid_response_headers: subsPlainObject(_subscriptionPreview.hwidResponseHeaders),
+          last_hwid_limit_info: subsPlainObject(_subscriptionPreview.hwidLimitInfo),
           preview_ts: Number(_subscriptionPreview.ts || 0),
         };
       }
@@ -6198,19 +6274,23 @@ let outboundsModuleApi = null;
     function subsDiagnosticsSnapshot(sub) {
       const s = sub && typeof sub === 'object' ? sub : {};
       const kind = String(s.__xkDiagnosticsKind || 'saved').trim() || 'saved';
-      const warnings = subsStringList(s.last_warnings);
+      const rawWarnings = subsStringList(s.last_warnings);
       const errors = subsFormatResultErrors(s.last_errors);
       const refreshError = String(s.last_error || '').trim();
       const title = String(s.name || s.tag || s.id || (kind === 'preview' ? 'Черновик' : 'Подписка')).trim() || 'Подписка';
       const pills = [];
+      const hwid = subsHwidDiagnostics(s);
+      const warnings = hwid.active ? rawWarnings.filter((line) => !subsIsHwidWarning(line)) : rawWarnings;
       if (refreshError || s.last_ok === false) pills.push({ label: 'refresh error', tone: 'error', title: refreshError || 'Последнее обновление завершилось ошибкой.' });
-      if (warnings.length) pills.push({ label: `${warnings.length} warning`, tone: 'warning', title: warnings[0] });
+      if (hwid.active) pills.push({ label: hwid.reached ? 'HWID лимит' : 'HWID', tone: hwid.reached ? 'warning' : 'info', title: (hwid.lines && hwid.lines[0]) || 'HWID-данные из ответа провайдера.' });
+      if (warnings.length) pills.push({ label: `${warnings.length} предупрежд.`, tone: 'warning', title: warnings[0] });
       if (errors.length) pills.push({ label: `${errors.length} parse`, tone: 'error-list', title: errors[0] });
 
       return {
         kind,
         title,
         pills,
+        hwid,
         warnings,
         errors,
         refreshError,
@@ -6258,7 +6338,7 @@ let outboundsModuleApi = null;
       }
       if (snapshot.warnings.length) {
         groups.push(
-          `<div class="xk-sub-diag-group is-warning"><div class="xk-sub-diag-label">Warnings</div><ul class="xk-sub-diag-list">${snapshot.warnings.map((line) => `<li>${escapeHtml(String(line || ''))}</li>`).join('')}</ul></div>`
+          `<div class="xk-sub-diag-group is-warning"><div class="xk-sub-diag-label">Предупреждения</div><ul class="xk-sub-diag-list">${snapshot.warnings.map((line) => `<li>${escapeHtml(String(line || ''))}</li>`).join('')}</ul></div>`
         );
       }
       if (snapshot.errors.length) {
@@ -6318,14 +6398,14 @@ let outboundsModuleApi = null;
       const pills = Array.isArray(snapshot.pills) ? snapshot.pills.slice() : [];
       if (plan.items.length) {
         pills.unshift({
-          label: `${plan.items.length} change`,
+          label: `${plan.items.length} измен.`,
           tone: 'filtered',
           title: '\u0427\u0442\u043e \u0438\u0437\u043c\u0435\u043d\u0438\u0442\u0441\u044f \u0432 observatory, routing \u0438 user balancer-\u0430\u0445 \u043f\u043e\u0441\u043b\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f.',
         });
       }
       if (plan.warnings.length) {
         pills.unshift({
-          label: `${plan.warnings.length} warning`,
+          label: `${plan.warnings.length} предупрежд.`,
           tone: 'warning',
           title: plan.warnings[0],
         });
@@ -6350,6 +6430,11 @@ let outboundsModuleApi = null;
           `<div class="xk-sub-diag-group is-warning"><div class="xk-sub-diag-label">\u0412\u043e\u0437\u043c\u043e\u0436\u043d\u044b\u0439 \u043a\u043e\u043d\u0444\u043b\u0438\u043a\u0442 routing</div><ul class="xk-sub-diag-list">${plan.warnings.map((line) => `<li>${escapeHtml(String(line || ''))}</li>`).join('')}</ul></div>`
         );
       }
+      if (snapshot.hwid && snapshot.hwid.active && Array.isArray(snapshot.hwid.lines) && snapshot.hwid.lines.length) {
+        groups.push(
+          `<div class="xk-sub-diag-group is-warning"><div class="xk-sub-diag-label">HWID / лимит устройств</div><ul class="xk-sub-diag-list">${snapshot.hwid.lines.map((line) => `<li>${escapeHtml(String(line || ''))}</li>`).join('')}</ul></div>`
+        );
+      }
       if (snapshot.refreshError) {
         groups.push(
           `<div class="xk-sub-diag-group is-error"><div class="xk-sub-diag-label">\u041e\u0448\u0438\u0431\u043a\u0430 refresh</div><pre class="xk-sub-diag-pre">${escapeHtml(snapshot.refreshError)}</pre></div>`
@@ -6357,7 +6442,7 @@ let outboundsModuleApi = null;
       }
       if (snapshot.warnings.length) {
         groups.push(
-          `<div class="xk-sub-diag-group is-warning"><div class="xk-sub-diag-label">Warnings</div><ul class="xk-sub-diag-list">${snapshot.warnings.map((line) => `<li>${escapeHtml(String(line || ''))}</li>`).join('')}</ul></div>`
+          `<div class="xk-sub-diag-group is-warning"><div class="xk-sub-diag-label">Предупреждения</div><ul class="xk-sub-diag-list">${snapshot.warnings.map((line) => `<li>${escapeHtml(String(line || ''))}</li>`).join('')}</ul></div>`
         );
       }
       if (snapshot.errors.length) {
@@ -7208,6 +7293,10 @@ let outboundsModuleApi = null;
           filteredOutCount: Number(data.filtered_out_count || 0),
           warnings: Array.isArray(data.warnings) ? data.warnings : [],
           errors: Array.isArray(data.errors) ? data.errors : [],
+          sourceFormat: String(data.source_format || ''),
+          fetchMode: String(data.fetch_mode || ''),
+          hwidResponseHeaders: subsPlainObject(data.hwid_response_headers),
+          hwidLimitInfo: subsPlainObject(data.hwid_limit_info),
           profileUpdateIntervalHours: Number(data.profile_update_interval_hours || 0),
           tagPrefix: String(data.tag_prefix || payload.tag || ''),
           ts: Date.now(),
@@ -7215,14 +7304,24 @@ let outboundsModuleApi = null;
         subsRenderNodeList();
         subsRenderDiagnostics();
         subsSyncSubscriptionFormState();
-        const nodeCount = _subscriptionPreview.nodes.length;
+        const nodeCount = Number(_subscriptionPreview.sourceCount || _subscriptionPreview.nodes.length || 0);
         const okCount = Number(data.count || 0);
         const filteredNote = _subscriptionPreview.filteredOutCount > 0
           ? ` · скрыто фильтрами ${_subscriptionPreview.filteredOutCount}`
           : '';
         subsSetStatus(`Черновик: ${okCount} из ${nodeCount} узлов${filteredNote}. Подписка не сохранена — нажми «Сохранить», чтобы применить.`, false, true);
         if (_subscriptionPreview.warnings.length) {
-          try { toastXkeen(_subscriptionPreview.warnings.join(' '), 'warning'); } catch (e) {}
+          const hwidToast = subsHwidDiagnostics({
+            last_source_format: _subscriptionPreview.sourceFormat,
+            last_fetch_mode: _subscriptionPreview.fetchMode,
+            last_hwid_response_headers: _subscriptionPreview.hwidResponseHeaders,
+            last_hwid_limit_info: _subscriptionPreview.hwidLimitInfo,
+          });
+          const nonHwidWarnings = _subscriptionPreview.warnings.filter((line) => !subsIsHwidWarning(line));
+          const toastText = hwidToast.active
+            ? ((hwidToast.lines && hwidToast.lines[0]) || _subscriptionPreview.warnings[0])
+            : (nonHwidWarnings[0] || _subscriptionPreview.warnings[0]);
+          try { toastXkeen(String(toastText || ''), 'warning'); } catch (e) {}
         }
         return true;
       } catch (err) {
@@ -7307,7 +7406,7 @@ let outboundsModuleApi = null;
         ].filter(Boolean);
         const msg = `Готово: ${Number(data.count || 0)} outbound` + filterNote + (changeParts.length ? (' · ' + changeParts.join(' · ')) : ' · без изменений');
         const fileNote = data.output_file ? (' · ' + String(data.output_file)) : '';
-        const warningStatusNote = warningList.length ? ` · warning: ${warningList[0]}` : '';
+        const warningStatusNote = warningList.length ? ` · предупреждение: ${warningList[0]}` : '';
         subsSetStatus(msg + fileNote + routingNote + routingModeNote + routingSkippedNote + warningStatusNote, false, true);
         if (warningList.length) {
           try { toastXkeen(warningList.join(' '), 'warning'); } catch (eWarn) {}
