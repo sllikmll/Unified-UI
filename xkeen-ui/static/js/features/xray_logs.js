@@ -1685,10 +1685,15 @@ let xrayLogsModuleApi = null;
     if (v4) {
       const parts = value.split('.').map((part) => parseInt(part, 10));
       if (parts.length !== 4 || parts.some((part) => !isFinite(part) || part < 0 || part > 255)) return '';
+      if (parts.every((part) => part === 0)) return '';
       return parts.join('.');
     }
 
-    if (/^[0-9a-f:]{2,}$/i.test(value) && value.indexOf(':') >= 0) return value.toLowerCase();
+    if (/^[0-9a-f:]{2,}$/i.test(value) && value.indexOf(':') >= 0) {
+      const normalized = value.toLowerCase();
+      if (normalized === '::' || normalized === '0:0:0:0:0:0:0:0') return '';
+      return normalized;
+    }
     return '';
   }
 

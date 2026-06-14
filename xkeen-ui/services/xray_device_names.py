@@ -40,7 +40,7 @@ def _state_path(ui_state_dir: Optional[str] = None) -> str:
 
 
 def normalize_ip(value: Any) -> str:
-    """Return canonical IP address text, or an empty string when invalid."""
+    """Return canonical usable IP address text, or an empty string when invalid."""
     raw = str(value or "").strip()
     if not raw:
         return ""
@@ -56,9 +56,12 @@ def normalize_ip(value: Any) -> str:
         raw = raw.split("%", 1)[0].strip()
 
     try:
-        return str(ipaddress.ip_address(raw))
+        ip = ipaddress.ip_address(raw)
     except Exception:
         return ""
+    if ip.is_unspecified:
+        return ""
+    return str(ip)
 
 
 def _cyrillic_count(value: str) -> int:
