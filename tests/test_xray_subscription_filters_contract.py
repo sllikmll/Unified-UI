@@ -341,7 +341,7 @@ def test_xray_subscription_modal_exposes_transport_preview_and_manual_exclusions
     assert "btn.setAttribute('data-tooltip', tooltip);" in outbounds_src
     assert "btn.setAttribute('aria-busy', 'true');" in outbounds_src
     assert "btn.removeAttribute('aria-busy');" in outbounds_src
-    assert "btn.disabled = false;" in outbounds_src
+    assert "btn.disabled = !hasPingable;" in outbounds_src
     assert "Нет активных узлов в generated fragment." in outbounds_src
     assert "Tag prefix" in outbounds_src
     assert "function subsSelectorPrefixHint(tagPrefix) {" in outbounds_src

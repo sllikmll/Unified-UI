@@ -21,10 +21,10 @@ from services.utils.env import _read_float_env, _read_int_env
 
 
 def _local_allowed_roots() -> List[str]:
-    # Colon-separated list of allowed roots. Defaults are safe-ish for router UI.
+    # Platform path-list separator (":" on routers/Linux, ";" on Windows dev hosts).
     env = (os.getenv('XKEEN_LOCALFM_ROOTS', '') or '').strip()
     if env:
-        roots = [r for r in env.split(':') if r.strip()]
+        roots = [r for r in env.split(os.pathsep) if r.strip()]
     else:
         # Default allowlist:
         # - /opt/etc : configs (xray/mihomo) and other Entware settings
