@@ -6789,7 +6789,7 @@ let outboundsModuleApi = null;
         const reasonLabel = escapeHtml(subsNodeReasonLabel(reasons));
         const manualExcluded = !!(node && node.key && excluded.has(String(node.key)));
         const nodeTag = String(node && node.tag ? node.tag : '').trim();
-        const canPing = !!nodeTag && !isPreview;
+        const canPing = enabled && !!nodeTag && !isPreview;
         const pingStateKey = subsNodePingStateKey(subId, String(node && node.key ? node.key : ''));
         const pingBusy = !!_subscriptionNodePingState[pingStateKey];
         const latencyEntry = subsNodeLatencyEntry(sub, String(node && node.key ? node.key : ''));
@@ -6946,7 +6946,18 @@ let outboundsModuleApi = null;
       const sub = subId
         ? _subscriptions.find((item) => String(item && item.id || '') === subId) || null
         : null;
-      const hasPingable = !!(sub && Array.isArray(sub.last_nodes) && sub.last_nodes.some((n) => n && n.tag));
+      let hasPingable = false;
+      if (sub && Array.isArray(sub.last_nodes)) {
+        const draft = subsCurrentDraftFor(sub);
+        const compiled = {
+          name: subsCompilePreviewRegex(SUB_IDS.nameFilter),
+          type: subsCompilePreviewRegex(SUB_IDS.typeFilter),
+          transport: subsCompilePreviewRegex(SUB_IDS.transportFilter),
+        };
+        hasPingable = sub.last_nodes.some((node) => (
+          node && node.tag && subsNodeReasonCodes(node, draft, compiled).length === 0
+        ));
+      }
       const tooltip = subsPingAllTooltipText(sub, hasPingable);
       const busyTooltip = 'Идёт проверка задержки для активных узлов этой подписки.';
       btn.setAttribute('data-tooltip', tooltip);
@@ -6963,7 +6974,7 @@ let outboundsModuleApi = null;
       }
       btn.classList.remove('is-busy');
       btn.removeAttribute('aria-busy');
-      btn.disabled = false;
+      btn.disabled = !hasPingable;
     }
 
     async function subsProbeAllNodes() {

@@ -4561,6 +4561,45 @@ def test_build_subscription_outbounds_applies_transport_filter_and_manual_exclus
     assert stats["filtered_out_count"] == 2
 
 
+def test_build_subscription_outbounds_hysteria2_filter_aliases_and_name_filter():
+    from services import xray_subscriptions as subs
+
+    link = (
+        "hysteria2://ccw3rsgjb76o8ots@94.159.111.238:1935/"
+        "?sni=nosfer-nle.mooo.com&insecure=0&alpn=h3"
+        "&obfs=salamander&obfs-password=k2x4hicqgsu0v6qu"
+        "#DE%20hys2-Test_Umar-9D%2C21H%E2%8F%B3"
+    )
+
+    outbounds, errors, stats = subs.build_subscription_outbounds(
+        [link],
+        tag_prefix="firew.mooo.com",
+        type_filter="hysteria2|hy2",
+        transport_filter="quic|hysteria",
+    )
+
+    assert errors == []
+    assert stats["filtered_out_count"] == 0
+    assert stats["nodes"][0]["protocol"] == "hysteria2"
+    assert stats["nodes"][0]["transport"] == "quic"
+    assert outbounds[0]["protocol"] == "hysteria"
+    assert outbounds[0]["streamSettings"]["finalmask"]["udp"][0]["type"] == "salamander"
+
+    outbounds, errors, stats = subs.build_subscription_outbounds(
+        [link],
+        tag_prefix="firew.mooo.com",
+        name_filter="Germany|Netherlands|SG",
+        type_filter="hysteria2|hy2",
+        transport_filter="quic|hysteria",
+    )
+
+    assert errors == []
+    assert outbounds == []
+    assert stats["source_count"] == 1
+    assert stats["filtered_out_count"] == 1
+    assert "tag" not in stats["nodes"][0]
+
+
 def test_refresh_subscription_keeps_curated_manual_selection_closed_to_new_nodes(tmp_path: Path, monkeypatch):
     from services import xray_subscriptions as subs
 
@@ -5336,6 +5375,31 @@ def test_probe_text_summary_keeps_xray_tail_separate():
     assert "Xray 26.4.25" in tail
     assert "accepted //www.gstatic.com:443" in tail
     assert "xray:" not in summary.lower()
+
+
+def test_probe_via_local_proxy_tries_fallback_url(monkeypatch):
+    from services import xray_subscriptions as subs
+
+    calls = []
+
+    def _fake_once(port, probe_url, timeout_value):
+        calls.append((port, probe_url, timeout_value))
+        if probe_url == subs.DEFAULT_PROBE_URL:
+            return None, "<urlopen error [Errno 104] Connection reset by peer>"
+        return 1174, ""
+
+    monkeypatch.setattr(subs, "_probe_once_via_local_proxy", _fake_once)
+    monkeypatch.setenv("XKEEN_PROBE_REQUEST_ATTEMPTS", "1")
+    monkeypatch.delenv("XKEEN_PROBE_FALLBACK_URLS", raising=False)
+
+    delay_ms, error = subs._probe_via_local_proxy(18080, subs.DEFAULT_PROBE_URL, 8.0)
+
+    assert delay_ms == 1174
+    assert error == ""
+    assert [item[1] for item in calls] == [
+        subs.DEFAULT_PROBE_URL,
+        subs.DEFAULT_PROBE_FALLBACK_URLS[0],
+    ]
 
 
 def test_probe_subscription_nodes_latency_updates_state_once(tmp_path: Path, monkeypatch):

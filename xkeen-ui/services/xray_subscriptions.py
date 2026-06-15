@@ -118,7 +118,9 @@ LAST_RUNTIME_ROUTING_MODE_KEYS = ("last_routing_mode", "lastRoutingMode")
 LAST_RUNTIME_ACTIVE_KEYS = ("last_runtime_active", "lastRuntimeActive")
 
 DEFAULT_PROBE_URL = "https://www.gstatic.com/generate_204"
+DEFAULT_PROBE_FALLBACK_URLS = ("https://cp.cloudflare.com/generate_204",)
 DEFAULT_PROBE_TIMEOUT_SECONDS = 8.0
+PROBE_REQUEST_ATTEMPTS = 2
 PROBE_PROCESS_START_TIMEOUT_SECONDS = 4.0
 PROBE_PROCESS_START_ATTEMPTS = 3
 PROBE_BATCH_CONCURRENCY = 3
@@ -5491,7 +5493,29 @@ def _build_batch_probe_config(targets: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
-def _probe_via_local_proxy(port: int, probe_url: str, timeout_value: float) -> tuple[int | None, str]:
+def _probe_candidate_urls(primary_url: str) -> List[str]:
+    urls: List[str] = []
+    for value in [primary_url, *DEFAULT_PROBE_FALLBACK_URLS]:
+        text = str(value or "").strip()
+        if text and text not in urls:
+            urls.append(text)
+    extra_raw = os.environ.get("XKEEN_PROBE_FALLBACK_URLS", "")
+    for value in re.split(r"[\s,;]+", str(extra_raw or "")):
+        text = str(value or "").strip()
+        if text and text not in urls:
+            urls.append(text)
+    return urls or [DEFAULT_PROBE_URL]
+
+
+def _probe_request_attempts() -> int:
+    try:
+        raw = int(os.environ.get("XKEEN_PROBE_REQUEST_ATTEMPTS", str(PROBE_REQUEST_ATTEMPTS)) or PROBE_REQUEST_ATTEMPTS)
+    except Exception:
+        raw = PROBE_REQUEST_ATTEMPTS
+    return max(1, min(4, raw))
+
+
+def _probe_once_via_local_proxy(port: int, probe_url: str, timeout_value: float) -> tuple[int | None, str]:
     error_text = ""
     delay_ms: int | None = None
     proxy_url = f"http://127.0.0.1:{int(port)}"
@@ -5512,6 +5536,25 @@ def _probe_via_local_proxy(port: int, probe_url: str, timeout_value: float) -> t
     except Exception as exc:
         error_text = str(exc)
     return delay_ms, error_text
+
+
+def _probe_via_local_proxy(port: int, probe_url: str, timeout_value: float) -> tuple[int | None, str]:
+    errors: List[str] = []
+    candidates = _probe_candidate_urls(probe_url)
+    attempts = _probe_request_attempts()
+    for attempt_idx in range(attempts):
+        for url in candidates:
+            delay_ms, error_text = _probe_once_via_local_proxy(port, url, timeout_value)
+            if delay_ms is not None:
+                return delay_ms, ""
+            error_text = str(error_text or "").strip()
+            if error_text:
+                errors.append(error_text)
+            time.sleep(0.15)
+        if attempt_idx + 1 < attempts:
+            time.sleep(0.35)
+    last_error = errors[-1] if errors else "probe failed"
+    return None, last_error
 
 
 def _start_probe_process(
