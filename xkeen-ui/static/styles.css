@@ -2600,6 +2600,29 @@ button[data-tooltip]:focus-visible::before {
   color: var(--sem-error, #fca5a5);
 }
 
+/* Подсказка про loglevel=info для domain hints на access.log */
+.xray-log-domain-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  border: 1px solid var(--sem-warning, #f59e0b);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--sem-warning, #f59e0b) 12%, transparent);
+  color: var(--fg, #e5e7eb);
+}
+
+.xray-log-domain-hint .dt-log-btn {
+  margin-left: auto;
+}
+
+/* Активное состояние: доменные имена уже отображаются */
+.xray-log-domain-hint.is-active {
+  border-color: var(--sem-success, #22c55e);
+  background: color-mix(in srgb, var(--sem-success, #22c55e) 12%, transparent);
+}
+
 
 .inbounds-modes {
   display: flex;

@@ -122,7 +122,10 @@ function addDomainCandidate(out, seen, raw, source) {
 
 function isXrayOutboundEndpointDialLine(line) {
   const s = String(line || '');
-  return /\btransport\/internet\/[A-Za-z0-9_.-]+:\s+dialing\s+(?:tcp|udp)\s+to\s+(?:tcp|udp):/i.test(s);
+  // Matches both:
+  //   transport/internet/tcp: dialing TCP to tcp:DOMAIN  (Info level, with sub-protocol)
+  //   transport/internet: dialing to tcp:DOMAIN          (Debug level, without sub-protocol)
+  return /\btransport\/internet(?:\/[A-Za-z0-9_.-]+)?:\s+dialing(?:\s+(?:tcp|udp))?\s+to\s+(?:tcp|udp):/i.test(s);
 }
 
 export function collectXrayLogDomainCandidates(line) {

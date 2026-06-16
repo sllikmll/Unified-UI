@@ -82,8 +82,8 @@ let xrayLogsModuleApi = null;
   const XRAY_DEVICE_NAMES_API = '/api/xray-logs/devices';
   const XRAY_DEVICE_NAMES_REFRESH_MS = 60000;
   const XRAY_DEVICE_NAMES_STALE_MS = 30000;
-  const XRAY_DESTINATION_DOMAIN_HINTS_REFRESH_MS = 30000;
-  const XRAY_DESTINATION_DOMAIN_HINTS_MAX_LINES = isPerfLite() ? 600 : 1200;
+  const XRAY_DESTINATION_DOMAIN_HINTS_POLL_MS = 2500;
+  const XRAY_DESTINATION_DOMAIN_HINTS_INIT_LINES = isPerfLite() ? 2500 : 5000;
   const XRAY_DESTINATION_DOMAIN_CACHE_MAX = 500;
   const XRAY_DESTINATION_CONN_CACHE_MAX = isPerfLite() ? 1000 : 2000;
 
@@ -161,6 +161,8 @@ let xrayLogsModuleApi = null;
   let _xrayDestinationDomainConnOrder = [];
   let _xrayDestinationDomainHintsRequest = null;
   let _xrayDestinationDomainHintsLastFetchAt = 0;
+  let _xrayDomainHintsCursor = '';
+  let _xrayDomainHintsTimer = null;
   const _xrayLogUiStatus = {
     phase: 'idle',
     tone: 'muted',
@@ -529,6 +531,7 @@ let xrayLogsModuleApi = null;
       filter: $('xray-log-filter'),
       output: $('xray-log-output'),
       status: $('xray-log-status'),
+      domainHint: $('xray-log-domain-hint'),
       mode: $('xray-log-mode'),
       stats: $('xray-log-stats'),
       pause: $('xray-log-pause'),
@@ -978,6 +981,57 @@ let xrayLogsModuleApi = null;
     } catch (e) {}
   }
 
+  // Баннер-переключатель отображения доменных имён рядом с IP на access.log.
+  // Технически это управление уровнем логирования Xray (info даёт sniffed/dialing
+  // строки в error.log, из которых строятся подсказки), но от пользователя деталь
+  // скрыта: «включить/отключить отображение доменных имён».
+  function updateXrayLogDomainHintBanner() {
+    const el = $('xray-log-domain-hint');
+    if (!el) return;
+
+    const onAccess = _isAccessFileName(_currentFile);
+    const live = !!(_liveWanted || _streaming);
+
+    if (!(onAccess && live)) {
+      el.classList.add('hidden');
+      el.classList.remove('is-active');
+      el.innerHTML = '';
+      return;
+    }
+
+    const lvl = String(_activeLogLevel || 'none').trim().toLowerCase();
+    const domainsOn = (lvl === 'info' || lvl === 'debug');
+
+    if (domainsOn) {
+      el.classList.add('is-active');
+      el.innerHTML =
+        'Доменные имена отображаются рядом с IP-адресами. '
+        + '<button type="button" id="xray-log-toggle-domains" class="btn-secondary dt-log-btn">Отключить</button>';
+    } else {
+      el.classList.remove('is-active');
+      el.innerHTML =
+        'Сейчас доменные имена рядом с IP-адресами не отображаются. '
+        + '<button type="button" id="xray-log-toggle-domains" class="btn-secondary dt-log-btn">Включить отображение доменных имён</button>';
+    }
+    el.classList.remove('hidden');
+
+    const btn = $('xray-log-toggle-domains');
+    if (btn) {
+      // Включаем доменные имена через info; выключаем — возвратом на штатный warning
+      // (не none, чтобы не гасить логи целиком).
+      const target = domainsOn ? 'warning' : 'info';
+      btn.onclick = () => {
+        const lvlSel = $('xray-log-level');
+        if (lvlSel) lvlSel.value = target;
+        try { scheduleSaveUiState(); } catch (e) {}
+        // Реальная очистка/восстановление кеша доменов происходит в
+        // refreshXrayLogStatus по факту смены активного уровня (после рестарта Xray),
+        // чтобы фон не наполнил кеш заново из старых info-строк в error.log.
+        try { xrayLogsEnable(); } catch (e) {}
+      };
+    }
+  }
+
   function renderXrayLogPauseLayer(dom, runtimeState) {
     const refs = dom || getXrayLogsDom();
     const btn = refs.pause;
@@ -1194,20 +1248,20 @@ let xrayLogsModuleApi = null;
       outputEl.innerHTML = renderXrayLogEmptyStateHtml(buildXrayLogEmptyStateModel(runtime, view, filtered));
     }
     try { maybeRefreshXrayDestinationDomainHints({ render: true }); } catch (e) {}
+    try { updateXrayLogDomainHintBanner(); } catch (e) {}
     if (shouldScroll) outputEl.scrollTop = outputEl.scrollHeight;
   }
 
   function resetXrayLogBuffer(options) {
     const opts = options || {};
     _lastLines = [];
-    resetXrayDestinationDomainCaches();
+    if (opts.resetDomains !== false) resetXrayDestinationDomainCaches();
     if (opts.resetCursor !== false) _cursor = '';
     if (opts.resetPending !== false) _pendingCount = 0;
     return readXrayLogsRuntimeState();
   }
 
   function replaceXrayLogBuffer(lines) {
-    resetXrayDestinationDomainCaches();
     _lastLines = trimLogBuffer(lines, _maxLines);
     try { ingestXrayLogDestinationDomains(_lastLines, { source: _currentFile || 'log' }); } catch (e) {}
     return _lastLines;
@@ -1883,9 +1937,9 @@ let xrayLogsModuleApi = null;
     if (!connId || !domain) return false;
 
     const prev = _xrayDestinationDomainsByConnId[connId] || '';
-    if (prev === domain) return false;
+    if (prev) return false;
 
-    if (!prev) _xrayDestinationDomainConnOrder.push(connId);
+    _xrayDestinationDomainConnOrder.push(connId);
     _xrayDestinationDomainsByConnId[connId] = domain;
 
     if (_xrayDestinationDomainConnOrder.length > XRAY_DESTINATION_CONN_CACHE_MAX) {
@@ -1902,6 +1956,13 @@ let xrayLogsModuleApi = null;
     _xrayDestinationDomainsByConnId = Object.create(null);
     _xrayDestinationDomainConnOrder = [];
     _xrayDestinationDomainHintsLastFetchAt = 0;
+    _xrayDomainHintsCursor = '';
+  }
+
+  function resetXrayDestinationDomainIpCache() {
+    _xrayDestinationDomainsByIp = Object.create(null);
+    _xrayDestinationDomainHintsLastFetchAt = 0;
+    _xrayDomainHintsCursor = '';
   }
 
   function rememberXrayDestinationDomain(ipRaw, domainRaw, source) {
@@ -2026,27 +2087,30 @@ let xrayLogsModuleApi = null;
 
   async function refreshXrayDestinationDomainHints(options) {
     const opts = options || {};
-    const force = !!opts.force;
-    const staleMs = typeof opts.staleMs === 'number' ? opts.staleMs : XRAY_DESTINATION_DOMAIN_HINTS_REFRESH_MS;
-    const now = Date.now();
-
-    if (!force && now - _xrayDestinationDomainHintsLastFetchAt < staleMs) return false;
     if (_xrayDestinationDomainHintsRequest) return _xrayDestinationDomainHintsRequest;
 
     _xrayDestinationDomainHintsRequest = (async () => {
       try {
         const params = new URLSearchParams();
         params.set('file', 'error');
-        params.set('max_lines', String(Math.max(50, Math.min(MAX_MAX_LINES, XRAY_DESTINATION_DOMAIN_HINTS_MAX_LINES))));
         params.set('source', 'domain_hints');
+
+        if (_xrayDomainHintsCursor) {
+          params.set('cursor', _xrayDomainHintsCursor);
+        } else {
+          params.set('max_lines', String(Math.max(50, Math.min(MAX_MAX_LINES, XRAY_DESTINATION_DOMAIN_HINTS_INIT_LINES))));
+        }
 
         const res = await fetch('/api/xray-logs?' + params.toString(), { cache: 'no-store' });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error('http ' + res.status);
 
-        const changed = ingestXrayLogDestinationDomains(Array.isArray(data.lines) ? data.lines : [], { source: 'error_log' });
+        if (data.cursor) _xrayDomainHintsCursor = String(data.cursor);
+
+        const lines = Array.isArray(data.lines) ? data.lines : [];
+        const changed = lines.length > 0 && ingestXrayLogDestinationDomains(lines, { source: 'error_log' });
         _xrayDestinationDomainHintsLastFetchAt = Date.now();
-        if (changed && opts.render !== false) {
+        if (opts.render !== false) {
           try { applyXrayLogFilterToOutput(); } catch (e) {}
         }
         return changed;
@@ -2061,9 +2125,41 @@ let xrayLogsModuleApi = null;
     return _xrayDestinationDomainHintsRequest;
   }
 
+  function stopXrayDomainHintsPolling() {
+    if (_xrayDomainHintsTimer) {
+      clearInterval(_xrayDomainHintsTimer);
+      _xrayDomainHintsTimer = null;
+    }
+  }
+
+  // Domain hints имеют смысл только когда Xray пишет error.log на уровне info/debug
+  // (иначе sniffed/dialing строк нет). При warning и ниже не поллим, чтобы фон не
+  // наполнял кеш заново из старых info-строк, оставшихся в файле error.log.
+  function _xrayLogLevelGivesDomains() {
+    const lvl = String(_activeLogLevel || 'none').trim().toLowerCase();
+    return lvl === 'info' || lvl === 'debug';
+  }
+
+  function ensureXrayDomainHintsPolling() {
+    if (_xrayDomainHintsTimer) return;
+    void refreshXrayDestinationDomainHints({ render: true });
+    _xrayDomainHintsTimer = setInterval(() => {
+      try {
+        if (!_isAccessFileName(_currentFile) || !_xrayLogLevelGivesDomains()) {
+          stopXrayDomainHintsPolling();
+          return;
+        }
+        void refreshXrayDestinationDomainHints({ render: true });
+      } catch (e) {}
+    }, XRAY_DESTINATION_DOMAIN_HINTS_POLL_MS);
+  }
+
   function maybeRefreshXrayDestinationDomainHints(options) {
-    if (!_isAccessFileName(_currentFile)) return;
-    void refreshXrayDestinationDomainHints(Object.assign({ staleMs: XRAY_DESTINATION_DOMAIN_HINTS_REFRESH_MS }, options || {}));
+    if (!_isAccessFileName(_currentFile) || !_xrayLogLevelGivesDomains()) {
+      stopXrayDomainHintsPolling();
+      return;
+    }
+    ensureXrayDomainHintsPolling();
   }
 
   async function refreshXrayLogDeviceNames(options) {
@@ -2310,6 +2406,12 @@ let xrayLogsModuleApi = null;
       const data = await res.json().catch(() => ({}));
       const level = String(data.loglevel || 'none').toLowerCase();
       _activeLogLevel = level;
+      // Домены отключены (уровень ниже info), но в кеше остались старые записи —
+      // чистим и перерисовываем, иначе прежние домены продолжат висеть рядом с IP.
+      if (!_xrayLogLevelGivesDomains() && Object.keys(_xrayDestinationDomainsByIp).length > 0) {
+        try { resetXrayDestinationDomainCaches(); } catch (e) {}
+        try { applyXrayLogFilterToOutput(); } catch (e) {}
+      }
       const state = level === 'none' ? 'off' : 'on';
       // ВАЖНО: индикатор в карточке Live логов показывает только автообновление,
       // а глобальный статус логирования отображаем в шапке (badge).
@@ -2318,11 +2420,13 @@ let xrayLogsModuleApi = null;
       // ВАЖНО: не "подкручиваем" селектор loglevel под текущее состояние.
       // Селектор — это *желательный* уровень для действия "▶ Включить логи".
       // Текущий активный уровень показываем в бейдже в шапке (xray-logs-badge).
+      try { updateXrayLogDomainHintBanner(); } catch (e) {}
     } catch (e) {
       console.error('xray log status error', e);
       _activeLogLevel = 'none';
       // Do not show the badge when status is unknown.
       setXrayHeaderBadgeState('off', 'none');
+      try { updateXrayLogDomainHintBanner(); } catch (e2) {}
     }
   }
 
@@ -3297,6 +3401,14 @@ let xrayLogsModuleApi = null;
     // (includes one-time migration from legacy localStorage)
     try { await ensureLogsViewPrefsLoadedForLogs(); } catch (e) {}
     try { void refreshXrayLogDeviceNames({ silent: true, staleMs: 0, router: true }); } catch (e) {}
+    try {
+      if (_isAccessFileName(_currentFile)) {
+        // Force a fresh full snapshot on live-start: clear cursor so we get 3000 lines,
+        // not just a tiny incremental tail that may contain no domain→IP pairs.
+        _xrayDomainHintsCursor = '';
+        ensureXrayDomainHintsPolling();
+      }
+    } catch (e) {}
 
     _liveWanted = true;
     _streaming = true;
@@ -3384,6 +3496,8 @@ let xrayLogsModuleApi = null;
       _ws = null;
       try { updateXrayLogStats(); } catch (e) {}
     }
+
+    try { stopXrayDomainHintsPolling(); } catch (e) {}
   }
 
   // ---------- Actions (wired from HTML) ----------
@@ -3428,8 +3542,8 @@ let xrayLogsModuleApi = null;
     updateLoglevelUiForCurrentFile();
     try { scheduleSaveUiState(); } catch (e) {}
 
-    // clear buffer + redraw
-    resetXrayLogBuffer();
+    // clear buffer + redraw; preserve domain cache so hints survive the file switch
+    resetXrayLogBuffer({ resetDomains: false });
     applyXrayLogFilterToOutput();
 
     // Load server-side UI prefs only when the logs view is actively used.
@@ -4325,9 +4439,10 @@ function copyXrayContextModal() {
 
       // If Xray logging is already enabled, changing loglevel should apply immediately
       // (restart only Xray core) so the user doesn't have to press ▶ manually.
+      // NOTE: applies on BOTH access.log and error.log — domain hints on access.log
+      // require loglevel=info in error.log, so the user must be able to raise the
+      // level without first switching to the error tab.
       try {
-        const isErrorFile = _isErrorFileName(_currentFile);
-        if (!isErrorFile) return;
         const desired = String(lvlSel.value || '').trim().toLowerCase();
         const active = String(_activeLogLevel || 'none').trim().toLowerCase();
         if (ALLOWED_LOGLEVELS.includes(desired) && active && active !== 'none' && desired !== active) {

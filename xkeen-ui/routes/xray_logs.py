@@ -178,8 +178,12 @@ def create_xray_logs_blueprint(
                     200,
                 )
 
-        # Full tail snapshot
-        lines = _svc_tail_lines_fast(path, max_lines=max_lines, max_bytes=256 * 1024)
+        # Full tail snapshot.
+        # Domain-hint polling needs enough history to pair `sniffed domain` lines
+        # with their `dialing/tunneling tcp:IP` counterpart (same connId), so we
+        # allow a larger byte window for that source only; regular views stay at 256KB.
+        tail_max_bytes = (1024 * 1024) if source == "domain_hints" else (256 * 1024)
+        lines = _svc_tail_lines_fast(path, max_lines=max_lines, max_bytes=tail_max_bytes)
         if filter_expr:
             lines = _filter_lines(lines, matcher)
         lines = adjust_log_timezone(lines)
