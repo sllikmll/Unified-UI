@@ -2406,9 +2406,11 @@ let xrayLogsModuleApi = null;
       const data = await res.json().catch(() => ({}));
       const level = String(data.loglevel || 'none').toLowerCase();
       _activeLogLevel = level;
-      // Домены отключены (уровень ниже info), но в кеше остались старые записи —
-      // чистим и перерисовываем, иначе прежние домены продолжат висеть рядом с IP.
-      if (!_xrayLogLevelGivesDomains() && Object.keys(_xrayDestinationDomainsByIp).length > 0) {
+      // Домены отключены (уровень ниже info), но в кеше остались старые записи.
+      // Чистим и перерисовываем ТОЛЬКО на живом потоке: иначе прежние домены
+      // продолжат висеть рядом с новыми IP. Когда поток остановлен (_streaming=false),
+      // снимок заморожен — оставляем домены, чтобы их можно было анализировать.
+      if (_streaming && !_xrayLogLevelGivesDomains() && Object.keys(_xrayDestinationDomainsByIp).length > 0) {
         try { resetXrayDestinationDomainCaches(); } catch (e) {}
         try { applyXrayLogFilterToOutput(); } catch (e) {}
       }
