@@ -249,6 +249,10 @@ _MIHOMO_URI_RE = re.compile(
 )
 _MIHOMO_YAML_PROXY_NAME_RE = re.compile(r"(?m)^\s*-\s*name\s*:\s*")
 _MIHOMO_LOOPBACK_PLACEHOLDER_RE = re.compile(r"://[^\s#]*@?0\.0\.0\.0:1(?=$|[/?#])", re.IGNORECASE)
+_MIHOMO_YAML_LOOPBACK_PLACEHOLDER_RE = re.compile(
+    r"(?ims)^\s*-\s*name\s*:\s*.+?(?:^\s*server\s*:\s*[\"']?0\.0\.0\.0[\"']?\s*$)"
+    r".+?(?:^\s*port\s*:\s*[\"']?1[\"']?\s*$)"
+)
 
 
 def _mihomo_uri_lines(text: str) -> list[str]:
@@ -260,29 +264,54 @@ def _mihomo_provider_payload_is_hwid_placeholder(
     decoded: str,
     meta: Dict[str, Any],
 ) -> bool:
-    candidates = _mihomo_uri_lines(decoded) or _mihomo_uri_lines(text)
-    if not candidates:
-        return False
-    if not all(_MIHOMO_LOOPBACK_PLACEHOLDER_RE.search(line) for line in candidates):
-        return False
+    return bool(_mihomo_provider_payload_hwid_placeholder_reason(text, decoded, meta))
 
-    readable = urllib.parse.unquote("\n".join(part for part in (decoded, text) if part), errors="replace")
+
+def _mihomo_provider_payload_hwid_placeholder_reason(
+    text: str,
+    decoded: str,
+    meta: Dict[str, Any],
+) -> str:
+    candidates = _mihomo_uri_lines(decoded) or _mihomo_uri_lines(text)
+    raw_text = "\n".join(part for part in (decoded, text) if part)
+    readable = urllib.parse.unquote(raw_text, errors="replace")
     lowered = readable.lower()
+
     headers = meta.get("hwid_response_headers") or {}
     if _mihomo_hwid_headers_suggest_required(headers):
-        return True
+        if _mihomo_header_truthy(headers.get("x-hwid-max-devices-reached")) or _mihomo_header_truthy(headers.get("x-hwid-limit")):
+            return "device_limit"
+        return "hwid_required"
 
-    return any(
+    has_uri_placeholder = bool(candidates) and all(
+        _MIHOMO_LOOPBACK_PLACEHOLDER_RE.search(line) for line in candidates
+    )
+    has_yaml_placeholder = bool(_MIHOMO_YAML_LOOPBACK_PLACEHOLDER_RE.search(str(text or "")))
+    if not has_uri_placeholder and not has_yaml_placeholder:
+        return ""
+
+    if any(
         marker in lowered
         for marker in (
-            "hwid",
+            "превышен лимит устройств",
             "лимит устройств",
-            "не поддерж",
-            "включите hwid",
             "max devices",
             "device limit",
         )
-    )
+    ):
+        return "device_limit"
+
+    if any(
+        marker in lowered
+        for marker in (
+            "hwid",
+            "не поддерж",
+            "включите hwid",
+        )
+    ):
+        return "hwid_required"
+
+    return ""
 
 
 def _mihomo_provider_payload_summary(
@@ -304,9 +333,14 @@ def _mihomo_provider_payload_summary(
 
     hwid_headers = m.get("hwid_response_headers") or {}
     marker_node_count = yaml_proxy_markers or raw_uri_markers or base64_uri_markers
-    hwid_placeholder_provider = _mihomo_provider_payload_is_hwid_placeholder(text, decoded, m)
+    hwid_placeholder_reason = _mihomo_provider_payload_hwid_placeholder_reason(text, decoded, m)
+    hwid_placeholder_provider = bool(hwid_placeholder_reason)
     node_count = 0 if hwid_placeholder_provider else marker_node_count
     has_nodes = bool(node_count) and not empty_proxy_provider
+    hwid_limit_info = _mh_hwid_extract_limit_info(hwid_headers)
+    if hwid_placeholder_reason == "device_limit":
+        hwid_limit_info = dict(hwid_limit_info or {})
+        hwid_limit_info["reached"] = True
     return {
         "format": m.get("format"),
         "converted": bool(m.get("converted")),
@@ -319,13 +353,14 @@ def _mihomo_provider_payload_summary(
         "bytes": m.get("bytes"),
         "content_type": m.get("content_type"),
         "hwid_response_headers": hwid_headers,
-        "hwid_limit_info": _mh_hwid_extract_limit_info(hwid_headers),
+        "hwid_limit_info": hwid_limit_info,
         "node_count": int(node_count),
         "yaml_proxy_count": int(yaml_proxy_markers),
         "raw_uri_count": int(raw_uri_markers),
         "base64_uri_count": int(base64_uri_markers),
         "placeholder_node_count": int(marker_node_count) if hwid_placeholder_provider else 0,
         "hwid_placeholder_provider": bool(hwid_placeholder_provider),
+        "hwid_placeholder_reason": hwid_placeholder_reason,
         "empty_proxy_provider": bool(empty_proxy_provider or block_empty or hwid_placeholder_provider),
         "has_nodes": bool(has_nodes),
     }

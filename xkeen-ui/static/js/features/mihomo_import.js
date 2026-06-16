@@ -366,10 +366,14 @@ let mihomoImportModuleApi = null;
       delete mergedHeaders['x-hwid-not-supported'];
     }
     messages.push(...providerHeaderWarnings(mergedHeaders, limitInfo, { suppressNotSupported }));
+    if (payload && payload.hwid_placeholder_provider && String(payload.hwid_placeholder_reason || '') === 'device_limit') {
+      messages.push(formatLimitWarning(payload.hwid_limit_info || { reached: true }));
+    }
     (Array.isArray(probe.warnings) ? probe.warnings : []).forEach((warning) => {
       if (!warning || typeof warning !== 'object') return;
       const code = String(warning.code || '').trim();
       if ((code === 'HWID_MAX_DEVICES_REACHED' || code === 'HWID_LIMIT_REACHED') && limitInfo.reached) return;
+      if (code === 'HWID_PROVIDER_EMPTY' && payload && payload.hwid_placeholder_provider) return;
       if (code === 'HWID_NOT_SUPPORTED' && (suppressNotSupported || isTruthyHeader(mergedHeaders['x-hwid-not-supported']))) return;
       messages.push(warning.hint || warning.message || warning.code || '');
     });
@@ -381,11 +385,17 @@ let mihomoImportModuleApi = null;
     if (Array.isArray(output.provider_warnings)) {
       return uniqueStrings(output.provider_warnings);
     }
+    const payload = output.provider_payload || null;
+    const payloadPlaceholderWarnings = [];
+    if (payload && payload.hwid_placeholder_provider && String(payload.hwid_placeholder_reason || '') === 'device_limit') {
+      payloadPlaceholderWarnings.push(formatLimitWarning(payload.hwid_limit_info || { reached: true }));
+    }
     return uniqueStrings([
+      ...payloadPlaceholderWarnings,
       ...providerHeaderWarnings(output.hwid_response_headers, output.hwid_limit_info),
       ...providerHeaderWarnings(
-        output.provider_payload && output.provider_payload.hwid_response_headers,
-        output.provider_payload && output.provider_payload.hwid_limit_info,
+        payload && payload.hwid_response_headers,
+        payload && payload.hwid_limit_info,
       ),
     ]);
   }

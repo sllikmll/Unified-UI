@@ -161,7 +161,9 @@ let mihomoHwidSubModuleApi = null;
     const payload = res && res.provider_payload ? res.provider_payload : null;
     const regular = res && res.regular_provider_payload ? res.regular_provider_payload : null;
     const tips = [];
-    if (payload && payload.has_nodes === false) {
+    if (payload && payload.hwid_placeholder_provider && String(payload.hwid_placeholder_reason || '') === 'device_limit') {
+      tips.push('Провайдер сообщил: HWID-лимит устройств исчерпан.');
+    } else if (payload && payload.has_nodes === false) {
       tips.push('HWID-подписка доступна, но вернула 0 узлов. Проверь привязку HWID у провайдера или попробуй обычную подписку.');
     }
     if (payload && payload.has_nodes === false && regular && regular.has_nodes === true) {

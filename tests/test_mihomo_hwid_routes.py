@@ -274,6 +274,34 @@ def test_mihomo_provider_payload_summary_treats_hwid_placeholder_nodes_as_empty(
     assert summary["has_nodes"] is False
 
 
+def test_mihomo_provider_payload_summary_detects_yaml_device_limit_placeholder():
+    payload = """
+proxies:
+  - name: "📱 Превышен лимит устройств "
+    type: vless
+    server: 0.0.0.0
+    port: 1
+    uuid: 00000000-0000-0000-0000-000000000000
+proxy-groups:
+  - name: Remnawave
+    proxies:
+      - "📱 Превышен лимит устройств "
+"""
+
+    summary = mihomo._mihomo_provider_payload_summary(
+        payload,
+        {"format": "yaml", "content_type": "text/yaml"},
+    )
+
+    assert summary["yaml_proxy_count"] >= 1
+    assert summary["placeholder_node_count"] >= 1
+    assert summary["hwid_placeholder_provider"] is True
+    assert summary["hwid_placeholder_reason"] == "device_limit"
+    assert summary["hwid_limit_info"]["reached"] is True
+    assert summary["node_count"] == 0
+    assert summary["has_nodes"] is False
+
+
 def test_hwid_probe_route_maps_tls_handshake_timeout_to_504(monkeypatch, client):
     monkeypatch.setattr(
         mihomo,
