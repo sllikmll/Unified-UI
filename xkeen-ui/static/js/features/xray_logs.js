@@ -86,6 +86,18 @@ let xrayLogsModuleApi = null;
   const XRAY_DESTINATION_DOMAIN_HINTS_INIT_LINES = isPerfLite() ? 2500 : 5000;
   const XRAY_DESTINATION_DOMAIN_CACHE_MAX = 500;
   const XRAY_DESTINATION_CONN_CACHE_MAX = isPerfLite() ? 1000 : 2000;
+  // Кеш IP->домен сохраняется в localStorage, чтобы DNS-записи переживали
+  // перезагрузку страницы (иначе при F5 модуль пересоздаётся с пустым кешем).
+  const XRAY_DOMAIN_CACHE_STORAGE_KEY = 'xkeen.ui.xrayLogs.domainCache.v1';
+  const XRAY_DOMAIN_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+  const XRAY_DOMAIN_CACHE_SAVE_DEBOUNCE_MS = 1000;
+  // Переключатель отображения доменных имён рядом с IP — чистый display-флаг,
+  // независимый от Live и от loglevel. Значение ключа оставлено старым ('domainsWanted')
+  // для бесшовной миграции прежнего выбора пользователя.
+  const XRAY_DOMAINS_DISPLAY_STORAGE_KEY = 'xkeen.ui.xrayLogs.domainsWanted.v1';
+  // Намерение пользователя держать онлайн-поток (переключатель «Live логов»).
+  // Сохраняется, чтобы после F5 поток восстанавливался, а не сбрасывался.
+  const XRAY_LIVE_WANTED_STORAGE_KEY = 'xkeen.ui.xrayLogs.liveWanted.v1';
 
   let _maxLines = DEFAULT_MAX_LINES;
   let _pollMs = DEFAULT_POLL_MS;
@@ -163,6 +175,16 @@ let xrayLogsModuleApi = null;
   let _xrayDestinationDomainHintsLastFetchAt = 0;
   let _xrayDomainHintsCursor = '';
   let _xrayDomainHintsTimer = null;
+  let _xrayDomainCacheSaveTimer = null;
+  // Показывать ли DNS-бейджи рядом с IP (persisted). Чистый display-флаг:
+  // не трогает loglevel и не зависит от Live. Default false = «только IP»
+  // (сохраняем прежнее opt-in поведение для тех, кто домены не включал).
+  let _xrayDomainsDisplay = false;
+  // Идёт переустановка уровня на info (debounce, чтобы не рестартовать Xray
+  // повторно в окне рестарта, пока статус ещё рапортует старый уровень).
+  let _xrayResolveEnsurePending = false;
+  // Восстановленное при загрузке намерение Live (null = не трогали).
+  let _xrayLiveWantedRestore = null;
   const _xrayLogUiStatus = {
     phase: 'idle',
     tone: 'muted',
@@ -600,7 +622,9 @@ let xrayLogsModuleApi = null;
     const flush = () => {
       _xrayLogUiStatusRenderQueued = false;
       try {
-        if ($('xray-log-output')) applyXrayLogFilterToOutput();
+        // На паузе не перерисовываем буфер логов — только статус/статистику,
+        // чтобы заморозка вывода держалась.
+        if ($('xray-log-output') && !_paused) applyXrayLogFilterToOutput();
         else updateXrayLogStats();
       } catch (e) {
         try { updateXrayLogStats(); } catch (e2) {}
@@ -982,9 +1006,9 @@ let xrayLogsModuleApi = null;
   }
 
   // Баннер-переключатель отображения доменных имён рядом с IP на access.log.
-  // Технически это управление уровнем логирования Xray (info даёт sniffed/dialing
-  // строки в error.log, из которых строятся подсказки), но от пользователя деталь
-  // скрыта: «включить/отключить отображение доменных имён».
+  // Это ЧИСТЫЙ display-переключатель: он только показывает/скрывает бейджи из кеша
+  // и не зависит от Live и от loglevel. Резолвинг (наполнение кеша) обеспечивается
+  // отдельно — info держится при Live, см. ensureXrayResolveLoglevelForLive().
   function updateXrayLogDomainHintBanner() {
     const el = $('xray-log-domain-hint');
     if (!el) return;
@@ -999,35 +1023,35 @@ let xrayLogsModuleApi = null;
       return;
     }
 
-    const lvl = String(_activeLogLevel || 'none').trim().toLowerCase();
-    const domainsOn = (lvl === 'info' || lvl === 'debug');
+    const domainsOn = !!_xrayDomainsDisplay;
 
     if (domainsOn) {
       el.classList.add('is-active');
       el.innerHTML =
         'Доменные имена отображаются рядом с IP-адресами. '
-        + '<button type="button" id="xray-log-toggle-domains" class="btn-secondary dt-log-btn">Отключить</button>';
+        + '<button type="button" id="xray-log-toggle-domains" class="btn-secondary dt-log-btn">Скрыть</button>';
     } else {
       el.classList.remove('is-active');
       el.innerHTML =
-        'Сейчас доменные имена рядом с IP-адресами не отображаются. '
-        + '<button type="button" id="xray-log-toggle-domains" class="btn-secondary dt-log-btn">Включить отображение доменных имён</button>';
+        'Показаны только IP-адреса. '
+        + '<button type="button" id="xray-log-toggle-domains" class="btn-secondary dt-log-btn">Показать доменные имена</button>';
     }
     el.classList.remove('hidden');
 
     const btn = $('xray-log-toggle-domains');
     if (btn) {
-      // Включаем доменные имена через info; выключаем — возвратом на штатный warning
-      // (не none, чтобы не гасить логи целиком).
-      const target = domainsOn ? 'warning' : 'info';
       btn.onclick = () => {
-        const lvlSel = $('xray-log-level');
-        if (lvlSel) lvlSel.value = target;
-        try { scheduleSaveUiState(); } catch (e) {}
-        // Реальная очистка/восстановление кеша доменов происходит в
-        // refreshXrayLogStatus по факту смены активного уровня (после рестарта Xray),
-        // чтобы фон не наполнил кеш заново из старых info-строк в error.log.
-        try { xrayLogsEnable(); } catch (e) {}
+        // Чистое переключение отображения: мгновенно, без рестарта Xray.
+        const next = !_xrayDomainsDisplay;
+        try { persistXrayDomainsDisplay(next); } catch (e) {}
+        // Перерисовываем уже накопленный буфер с учётом нового флага.
+        try { applyXrayLogFilterToOutput(); } catch (e) {}
+        try { updateXrayLogDomainHintBanner(); } catch (e) {}
+        // При включении показа гарантируем резолвинг (info) при Live, чтобы
+        // кеш наполнялся свежими доменами. При выключении уровень не трогаем.
+        if (next) {
+          try { ensureXrayResolveLoglevelForLive(); } catch (e) {}
+        }
       };
     }
   }
@@ -1957,12 +1981,153 @@ let xrayLogsModuleApi = null;
     _xrayDestinationDomainConnOrder = [];
     _xrayDestinationDomainHintsLastFetchAt = 0;
     _xrayDomainHintsCursor = '';
+    clearPersistedXrayDestinationDomains();
+  }
+
+  // ---- Персистентность кеша IP->домен (переживает перезагрузку страницы) ----
+
+  function loadPersistedXrayDestinationDomains() {
+    try {
+      if (!window.localStorage) return;
+      const raw = localStorage.getItem(XRAY_DOMAIN_CACHE_STORAGE_KEY);
+      if (!raw) return;
+      const obj = JSON.parse(raw);
+      const items = (obj && Array.isArray(obj.items)) ? obj.items : [];
+      const now = Date.now();
+      let restored = 0;
+      items.forEach((it) => {
+        if (!it || restored >= XRAY_DESTINATION_DOMAIN_CACHE_MAX) return;
+        const ip = normalizeXrayDeviceIp(it.ip);
+        const domain = normalizeXrayLogDomain(it.domain);
+        if (!ip || !domain) return;
+        const updatedAt = parseInt(it.updatedAt, 10) || 0;
+        if (updatedAt && now - updatedAt > XRAY_DOMAIN_CACHE_TTL_MS) return;
+        _xrayDestinationDomainsByIp[ip] = {
+          ip,
+          domain,
+          source: String(it.source || 'storage'),
+          updatedAt: updatedAt || now,
+        };
+        restored += 1;
+      });
+    } catch (e) {}
+  }
+
+  function persistXrayDestinationDomainsNow() {
+    try {
+      if (!window.localStorage) return;
+      const items = [];
+      const map = _xrayDestinationDomainsByIp;
+      for (const ip in map) {
+        const it = map[ip];
+        if (!it || !it.domain) continue;
+        items.push({
+          ip: it.ip || ip,
+          domain: it.domain,
+          source: it.source || '',
+          updatedAt: it.updatedAt || 0,
+        });
+      }
+      localStorage.setItem(
+        XRAY_DOMAIN_CACHE_STORAGE_KEY,
+        JSON.stringify({ v: 1, items: items.slice(-XRAY_DESTINATION_DOMAIN_CACHE_MAX) })
+      );
+    } catch (e) {}
+  }
+
+  function scheduleSaveXrayDestinationDomains() {
+    if (_xrayDomainCacheSaveTimer) return;
+    try {
+      _xrayDomainCacheSaveTimer = setTimeout(() => {
+        _xrayDomainCacheSaveTimer = null;
+        persistXrayDestinationDomainsNow();
+      }, XRAY_DOMAIN_CACHE_SAVE_DEBOUNCE_MS);
+    } catch (e) {
+      _xrayDomainCacheSaveTimer = null;
+    }
+  }
+
+  function clearPersistedXrayDestinationDomains() {
+    try {
+      if (_xrayDomainCacheSaveTimer) {
+        clearTimeout(_xrayDomainCacheSaveTimer);
+        _xrayDomainCacheSaveTimer = null;
+      }
+    } catch (e) {}
+    try {
+      if (window.localStorage) localStorage.removeItem(XRAY_DOMAIN_CACHE_STORAGE_KEY);
+    } catch (e) {}
   }
 
   function resetXrayDestinationDomainIpCache() {
     _xrayDestinationDomainsByIp = Object.create(null);
     _xrayDestinationDomainHintsLastFetchAt = 0;
     _xrayDomainHintsCursor = '';
+  }
+
+  // ---- Персистентность намерения «показывать домены» (баг: баннер после F5) ----
+
+  function loadPersistedXrayDomainsDisplay() {
+    try {
+      if (!window.localStorage) return;
+      const raw = localStorage.getItem(XRAY_DOMAINS_DISPLAY_STORAGE_KEY);
+      if (raw === '1') _xrayDomainsDisplay = true;
+      else if (raw === '0') _xrayDomainsDisplay = false;
+    } catch (e) {}
+  }
+
+  function persistXrayDomainsDisplay(display) {
+    _xrayDomainsDisplay = !!display;
+    try {
+      if (window.localStorage) {
+        localStorage.setItem(XRAY_DOMAINS_DISPLAY_STORAGE_KEY, display ? '1' : '0');
+      }
+    } catch (e) {}
+  }
+
+  // ---- Персистентность намерения Live (переключатель сбрасывался при F5) ----
+
+  function loadPersistedXrayLiveWanted() {
+    try {
+      if (!window.localStorage) return;
+      const raw = localStorage.getItem(XRAY_LIVE_WANTED_STORAGE_KEY);
+      if (raw === '1') _xrayLiveWantedRestore = true;
+      else if (raw === '0') _xrayLiveWantedRestore = false;
+    } catch (e) {}
+  }
+
+  function persistXrayLiveWanted(wanted) {
+    try {
+      if (window.localStorage) {
+        localStorage.setItem(XRAY_LIVE_WANTED_STORAGE_KEY, wanted ? '1' : '0');
+      }
+    } catch (e) {}
+  }
+
+  // Резолвинг доменов требует уровня info (sniffed/dialing строки в error.log).
+  // Чтобы переключатель показа доменов работал мгновенно (без рестарта Xray на
+  // каждое нажатие), info держим постоянно, пока пользователь хочет видеть домены
+  // (_xrayDomainsDisplay) и идёт Live на access.log. Один раз поднимаем уровень
+  // warning/error -> info; дальше он персистентен и переключение показа — чисто
+  // визуальное. Остановленные логи (none) не трогаем — их выключили намеренно.
+  function ensureXrayResolveLoglevelForLive() {
+    if (!_xrayDomainsDisplay) return;
+    if (!_isAccessFileName(_currentFile)) return;
+    if (!(_liveWanted || _streaming)) return;
+    if (_xrayResolveEnsurePending) return;
+    // На паузе не перезапускаем Xray (рестарт сбросил бы _paused и разморозил вывод).
+    // Резолвинг подтянется на следующем опросе статуса после возобновления.
+    if (_paused) return;
+
+    const lvl = String(_activeLogLevel || 'none').trim().toLowerCase();
+    if (lvl === 'none' || lvl === 'info' || lvl === 'debug') return;
+
+    // Логи запущены, но на уровне без доменов — поднимаем info для резолвинга.
+    _xrayResolveEnsurePending = true;
+    const lvlSel = $('xray-log-level');
+    if (lvlSel) lvlSel.value = 'info';
+    try { scheduleSaveUiState(); } catch (e) {}
+    try { xrayLogsEnable(); } catch (e) {}
   }
 
   function rememberXrayDestinationDomain(ipRaw, domainRaw, source) {
@@ -1984,6 +2149,7 @@ let xrayLogsModuleApi = null;
       updatedAt: Date.now(),
     };
     pruneXrayDestinationDomainCache();
+    scheduleSaveXrayDestinationDomains();
     return true;
   }
 
@@ -2044,6 +2210,9 @@ let xrayLogsModuleApi = null;
   }
 
   function renderXrayDestinationDomainHtml(ip, port) {
+    // Чистый display-gate: если пользователь выбрал «только IP» — бейджи не рисуем,
+    // даже когда домен уже есть в кеше. Независимо от Live/loglevel.
+    if (!_xrayDomainsDisplay) return '';
     const hint = getXrayDestinationDomainHint(ip);
     if (!hint || !hint.domain) return '';
 
@@ -2110,7 +2279,9 @@ let xrayLogsModuleApi = null;
         const lines = Array.isArray(data.lines) ? data.lines : [];
         const changed = lines.length > 0 && ingestXrayLogDestinationDomains(lines, { source: 'error_log' });
         _xrayDestinationDomainHintsLastFetchAt = Date.now();
-        if (opts.render !== false) {
+        // НЕ перерисовываем экран на паузе: кеш доменов обновляем, но вывод заморожен
+        // (иначе фоновый опрос каждые 2.5с показывал бы накопленные строки — пауза «не держит»).
+        if (opts.render !== false && !_paused) {
           try { applyXrayLogFilterToOutput(); } catch (e) {}
         }
         return changed;
@@ -2177,7 +2348,8 @@ let xrayLogsModuleApi = null;
       try {
         const data = await requestXrayDeviceNamesJson(XRAY_DEVICE_NAMES_API + '?refresh=' + (opts.router === false ? '0' : '1'));
         const changed = setXrayDeviceNamesFromPayload(data);
-        if (changed && opts.render !== false) {
+        // На паузе экран не трогаем — имена применятся при возобновлении.
+        if (changed && opts.render !== false && !_paused) {
           try { applyXrayLogFilterToOutput(); } catch (e) {}
         }
         try { renderXrayDeviceNamesModal(data); } catch (e) {}
@@ -2406,13 +2578,13 @@ let xrayLogsModuleApi = null;
       const data = await res.json().catch(() => ({}));
       const level = String(data.loglevel || 'none').toLowerCase();
       _activeLogLevel = level;
-      // Домены отключены (уровень ниже info), но в кеше остались старые записи.
-      // Чистим и перерисовываем ТОЛЬКО на живом потоке: иначе прежние домены
-      // продолжат висеть рядом с новыми IP. Когда поток остановлен (_streaming=false),
-      // снимок заморожен — оставляем домены, чтобы их можно было анализировать.
-      if (_streaming && !_xrayLogLevelGivesDomains() && Object.keys(_xrayDestinationDomainsByIp).length > 0) {
-        try { resetXrayDestinationDomainCaches(); } catch (e) {}
-        try { applyXrayLogFilterToOutput(); } catch (e) {}
+      // Кеш доменов НЕ чистим на смене уровня: видимость доменов управляется
+      // отдельным display-флагом (_xrayDomainsDisplay), а сам кеш персистентен.
+      // Снятие галочки показа просто прячет бейджи (renderXrayDestinationDomainHtml),
+      // не теряя накопленные домены.
+      if (level === 'info' || level === 'debug') {
+        // Уровень поднялся до резолвящего — снимаем debounce переустановки.
+        _xrayResolveEnsurePending = false;
       }
       const state = level === 'none' ? 'off' : 'on';
       // ВАЖНО: индикатор в карточке Live логов показывает только автообновление,
@@ -2423,9 +2595,16 @@ let xrayLogsModuleApi = null;
       // Селектор — это *желательный* уровень для действия "▶ Включить логи".
       // Текущий активный уровень показываем в бейдже в шапке (xray-logs-badge).
       try { updateXrayLogDomainHintBanner(); } catch (e) {}
+
+      // Если пользователь хочет видеть домены и идёт Live — держим info,
+      // чтобы кеш наполнялся (резолвинг). Переключение показа — отдельно.
+      try { ensureXrayResolveLoglevelForLive(); } catch (e) {}
     } catch (e) {
       console.error('xray log status error', e);
       _activeLogLevel = 'none';
+      // Уровень неизвестен — снимаем debounce, чтобы переустановка info могла
+      // повториться на следующем успешном опросе (если enable не удался).
+      _xrayResolveEnsurePending = false;
       // Do not show the badge when status is unknown.
       setXrayHeaderBadgeState('off', 'none');
       try { updateXrayLogDomainHintBanner(); } catch (e2) {}
@@ -3416,6 +3595,9 @@ let xrayLogsModuleApi = null;
     _streaming = true;
     _paused = false;
     _pendingCount = 0;
+    // Если показ доменов включён — сразу поднимаем info для резолвинга, не дожидаясь
+    // фонового опроса статуса (переключение показа потом мгновенное).
+    try { ensureXrayResolveLoglevelForLive(); } catch (e) {}
     try { updatePauseButton(); } catch (e) {}
 
     // UI: этот индикатор показывает только автообновление (stream), а не loglevel.
@@ -3716,9 +3898,9 @@ let xrayLogsModuleApi = null;
     const file = _currentFile || 'access';
     const ok = await confirmAction({
       title: 'Очистить логфайлы',
-      message: 'Очистить ' + formatXrayLogFileLabel(file) + '?',
+      message: 'Очистить все логфайлы Xray (access.log и error.log)?',
       details: [
-        'Будет очищен файл логов на диске, а не только видимый буфер.',
+        'Будут очищены оба файла логов на диске (access.log и error.log), а не только видимый буфер.',
         'Это действие необратимо.',
       ],
       okText: 'Очистить',
@@ -3748,10 +3930,12 @@ let xrayLogsModuleApi = null;
       file,
     });
     try {
+      // 'all' не совпадает с access/error -> бэкенд clear_logs() чистит ОБА файла
+      // (access.log и error.log вместе с их *.saved снимками).
       const res = await fetch('/api/xray-logs/clear', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file }),
+        body: JSON.stringify({ file: 'all' }),
       });
       if (!res.ok) throw new Error('http ' + res.status);
 
@@ -4421,6 +4605,9 @@ function copyXrayContextModal() {
 	    _liveWanted = !!liveEl.checked;
 	    liveEl.addEventListener('change', () => {
 	      setXrayLogsLiveWanted(!!liveEl.checked, { skipRender: true });
+      // Явный выбор пользователя — сохраняем намерение Live, чтобы оно
+      // пережило перезагрузку страницы (поток восстановится на init).
+      try { persistXrayLiveWanted(!!liveEl.checked); } catch (e) {}
 	      if (liveEl.checked) startXrayLogAuto();
 	      else stopXrayLogAuto();
       try { updateXrayLogStats(); } catch (e) {}
@@ -4814,6 +5001,13 @@ function bindFilterUi() {
 
     // По умолчанию автообновление выключено
     _streaming = false;
+    // Восстанавливаем кеш IP->домен из localStorage, чтобы DNS-записи
+    // переживали перезагрузку страницы (баг №2).
+    try { loadPersistedXrayDestinationDomains(); } catch (e) {}
+    // Восстанавливаем display-флаг показа доменов (независим от Live/loglevel).
+    try { loadPersistedXrayDomainsDisplay(); } catch (e) {}
+    // Восстанавливаем намерение Live, чтобы поток после F5 не сбрасывался.
+    try { loadPersistedXrayLiveWanted(); } catch (e) {}
     try { setXrayLogLampState('off'); } catch (e) {}
     try { setXrayHeaderBadgeState((_activeLogLevel && _activeLogLevel !== 'none') ? 'on' : 'off', _activeLogLevel || 'none'); } catch (e) {}
 
@@ -4880,6 +5074,24 @@ function bindFilterUi() {
           if (isLogsViewVisible()) void refreshXrayLogDeviceNames({ silent: true, staleMs: XRAY_DEVICE_NAMES_STALE_MS, router: true });
         } catch (e) {}
       });
+    } catch (e) {}
+
+    // Авто-возобновление Live после перезагрузки страницы: если онлайн-поток был
+    // включён до F5 и вкладка логов сейчас видима — поднимаем его заново.
+    // Делается после bindControlsUi (строка `_liveWanted = liveEl.checked`
+    // перезатирает флаг), чтобы startXrayLogAuto выставил и флаг, и галочку.
+    try {
+      if (_xrayLiveWantedRestore === true && isLogsViewVisible()) {
+        // Выставляем намерение СИНХРОННО (флаг + галочка) до того, как
+        // resolve'нется уже запущенный выше refreshXrayLogStatus: его reconcile
+        // доменов одноразовый и проверяет `_liveWanted || _streaming`.
+        _liveWanted = true;
+        try {
+          const liveEl = $('xray-log-live');
+          if (liveEl) liveEl.checked = true;
+        } catch (e) {}
+        void startXrayLogAuto();
+      }
     } catch (e) {}
   }
 
