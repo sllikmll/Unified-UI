@@ -1015,8 +1015,12 @@ let xrayLogsModuleApi = null;
 
     const onAccess = _isAccessFileName(_currentFile);
     const live = !!(_liveWanted || _streaming);
+    // Показываем переключатель на access.log не только в Live, но и на замороженном
+    // снимке (поток остановлен, но в буфере есть строки) — чтобы переключать IP⇄DNS
+    // и при анализе снимка. На снимке это чистый показ из кеша, без рестарта Xray.
+    const hasBufferedLines = Array.isArray(_lastLines) && _lastLines.length > 0;
 
-    if (!(onAccess && live)) {
+    if (!(onAccess && (live || hasBufferedLines))) {
       el.classList.add('hidden');
       el.classList.remove('is-active');
       el.innerHTML = '';
@@ -3682,6 +3686,9 @@ let xrayLogsModuleApi = null;
     }
 
     try { stopXrayDomainHintsPolling(); } catch (e) {}
+    // Поток остановлен, но снимок остаётся — сразу пересобираем баннер, чтобы
+    // переключатель IP⇄DNS не исчезал на замороженном снимке (ждать опрос статуса).
+    try { updateXrayLogDomainHintBanner(); } catch (e) {}
   }
 
   // ---------- Actions (wired from HTML) ----------
