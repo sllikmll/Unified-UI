@@ -129,6 +129,34 @@ def test_parse_xray_json_surfaces_happ_landing_page_hint(client):
     assert payload["ok"] is False
 
 
+def test_parse_xray_json_surfaces_happ_decryptor_hint(client):
+    body = (
+        "<!DOCTYPE html><html><body>"
+        '<a href="happ://crypt5/demo-token">Happ</a>'
+        "</body></html>"
+    )
+    with patch(
+        "routes.mihomo._xray_fetch_subscription_body",
+        return_value=(
+            body,
+            {
+                "content-type": "text/html; charset=utf-8",
+                "x-xkeen-happ-error": "happ_decryptor_not_configured",
+            },
+        ),
+    ):
+        r = client.post(
+            "/api/mihomo/parse/xray-json",
+            json={"url": "https://landing.example/sub"},
+        )
+
+    assert r.status_code == 422
+    payload = r.get_json()
+    assert payload["code"] == "happ_landing_page"
+    assert "XKEEN_HAPP_DECRYPTOR_CMD" in payload["hint"]
+    assert payload["ok"] is False
+
+
 def test_parse_xray_json_returns_400_when_neither_url_nor_text(client):
     r = client.post("/api/mihomo/parse/xray-json", json={})
     assert r.status_code == 400

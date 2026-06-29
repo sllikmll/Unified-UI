@@ -197,10 +197,14 @@ def _subscription_landing_page_probe_error(result: Dict[str, Any], *, mode: str)
         "Для импорта в XKeen нужен прямой URL, который отдает proxy-provider YAML, "
         "список URI-узлов или Xray JSON. Этот адрес похож на лендинг для Happ/INCY."
     )
-    if "happ_helper_not_configured" in failure_text:
-        hint += " Настройте XKEEN_HAPP_HELPER_CMD, чтобы панель могла расшифровать Happ deep-link."
+    if "happ_decryptor_not_configured" in failure_text:
+        hint += " Настройте XKEEN_HAPP_DECRYPTOR_CMD или положите внешний decryptor в xkeen-ui/bin."
+    elif "happ_helper_not_configured" in failure_text:
+        hint += " Настройте XKEEN_HAPP_HELPER_CMD, чтобы панель могла обработать Happ landing page."
     elif "happ_helper_" in failure_text:
         hint += " Happ helper не смог расшифровать deep-link этой подписки."
+    elif "happ_decryptor_" in failure_text:
+        hint += " Внешний Happ decryptor не смог расшифровать deep-link этой подписки."
     payload["error"] = {
         "code": "LANDING_PAGE_HTML",
         "message": "URL возвращает HTML-страницу установки, а не прямую подписку.",
@@ -2109,12 +2113,16 @@ def create_mihomo_blueprint(
                         status=413,
                         code="size_limit",
                     )
-                if reason.startswith("happ_helper_"):
+                if reason.startswith("happ_helper_") or reason.startswith("happ_decryptor_"):
+                    hint = (
+                        f"Проверьте {happ_links.HAPP_HELPER_CMD_ENV} "
+                        f"и {happ_links.HAPP_DECRYPTOR_CMD_ENV}, затем повторите попытку."
+                    )
                     return _mihomo_error(
                         _happ_helper_error_message(reason),
                         status=422,
                         code="happ_helper_failed",
-                        hint=f"Проверьте {happ_links.HAPP_HELPER_CMD_ENV} и повторите попытку.",
+                        hint=hint,
                     )
                 return _mihomo_fetch_failed_response(reason)
             except (urllib.error.URLError, TimeoutError, OSError) as e:
@@ -2136,10 +2144,17 @@ def create_mihomo_blueprint(
                     "Эта ссылка ведет на Happ-страницу установки, а не на прямой Xray JSON URL. "
                     "Для такого формата панели нужен настроенный Happ helper-дешифратор."
                 )
-                if helper_error == "happ_helper_not_configured":
+                if helper_error == "happ_decryptor_not_configured":
+                    hint += (
+                        f" Настройте {happ_links.HAPP_DECRYPTOR_CMD_ENV} "
+                        "или положите внешний decryptor в xkeen-ui/bin."
+                    )
+                elif helper_error == "happ_helper_not_configured":
                     hint += f" Настройте {happ_links.HAPP_HELPER_CMD_ENV}."
                 elif helper_error.startswith("happ_helper_"):
                     hint += " Текущий Happ helper не смог расшифровать deep-link."
+                elif helper_error.startswith("happ_decryptor_"):
+                    hint += " Текущий внешний Happ decryptor не смог расшифровать deep-link."
                 return _mihomo_error(
                     "URL возвращает Happ landing page, а не прямую Xray-JSON подписку.",
                     status=422,

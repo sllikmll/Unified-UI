@@ -208,6 +208,7 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
   ENV_HELP.XKEEN_CONFIG_EXCHANGE_MAX_BYTES = 'Максимальный размер входящего тела для config exchange import/export API, в байтах. По умолчанию 4194304.';
   ENV_HELP.XKEEN_MIHOMO_HWID = 'Ручной override x-hwid для premium/HWID-подписок Mihomo. Обычно оставьте пустым: панель сама определит HWID роутера. Заполняйте только если провайдер уже привязал подписку к конкретному HWID или ожидает значение из кабинета/поддержки. Применяется при следующей проверке/генерации HWID-подписки без Restart UI.';
   ENV_HELP.XKEEN_HAPP_HELPER_CMD = 'Команда helper-дешифратора для Happ/INCY подписок. Если переменная пуста, панель попробует bundled helper `scripts/happ_transport_helper.py` автоматически. В команде можно использовать `%LINK%` как placeholder входной ссылки.';
+  ENV_HELP.XKEEN_HAPP_DECRYPTOR_CMD = 'Команда внешнего decryptor для raw `happ://crypt...` deep-link. Если переменная пуста, панель попробует auto-detect drop-in decryptor в `xkeen-ui/bin` или `xkeen-ui/scripts`. В команде можно использовать `%LINK%` как placeholder входной ссылки.';
   ENV_HELP.XKEEN_HAPP_HELPER_TIMEOUT = 'Таймаут запуска Happ helper в секундах. По умолчанию 15. Применяется к следующей попытке импорта или обновления без Restart UI.';
   ENV_HELP.XKEEN_HAPP_HELPER_HWID = 'Необязательный ручной HWID для bundled Happ helper. Обычно оставьте пустым: helper возьмёт HWID роутера автоматически.';
   ENV_HELP.XKEEN_SUBSCRIPTION_HAPP_USER_AGENT = 'User-Agent для bundled Happ helper и Happ fallback-запросов. По умолчанию: Happ/3.18.3/Android/17771400994551771562.';
@@ -348,6 +349,7 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
   ENV_NO_RESTART_KEYS.add('XKEEN_GEODAT_ALLOW_PRIVATE_HOSTS');
   ENV_NO_RESTART_KEYS.add('XKEEN_MIHOMO_HWID');
   ENV_NO_RESTART_KEYS.add('XKEEN_HAPP_HELPER_CMD');
+  ENV_NO_RESTART_KEYS.add('XKEEN_HAPP_DECRYPTOR_CMD');
   ENV_NO_RESTART_KEYS.add('XKEEN_HAPP_HELPER_TIMEOUT');
   ENV_NO_RESTART_KEYS.add('XKEEN_HAPP_HELPER_HWID');
   ENV_NO_RESTART_KEYS.add('XKEEN_SUBSCRIPTION_HAPP_USER_AGENT');
@@ -373,6 +375,7 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
   ENV_RESTART_KEYS.delete('XKEEN_GEODAT_ALLOW_PRIVATE_HOSTS');
   ENV_RESTART_KEYS.delete('XKEEN_MIHOMO_HWID');
   ENV_RESTART_KEYS.delete('XKEEN_HAPP_HELPER_CMD');
+  ENV_RESTART_KEYS.delete('XKEEN_HAPP_DECRYPTOR_CMD');
   ENV_RESTART_KEYS.delete('XKEEN_HAPP_HELPER_TIMEOUT');
   ENV_RESTART_KEYS.delete('XKEEN_HAPP_HELPER_HWID');
   ENV_RESTART_KEYS.delete('XKEEN_SUBSCRIPTION_HAPP_USER_AGENT');
@@ -443,6 +446,7 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
         'XKEEN_MIHOMO_JSON_MAX_BYTES',
         'XKEEN_MIHOMO_HWID',
         'XKEEN_HAPP_HELPER_CMD',
+        'XKEEN_HAPP_DECRYPTOR_CMD',
         'XKEEN_HAPP_HELPER_TIMEOUT',
         'XKEEN_HAPP_HELPER_HWID',
         'XKEEN_SUBSCRIPTION_HAPP_USER_AGENT',

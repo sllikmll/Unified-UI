@@ -1311,10 +1311,17 @@ def _subscription_html_landing_message(body: str, headers: Dict[str, str] | None
         return ""
     helper_error = str((headers or {}).get(happ_links.HAPP_ERROR_HEADER) or "").strip()
     helper_hint = ""
-    if helper_error == "happ_helper_not_configured":
-        helper_hint = f" Настройте {happ_links.HAPP_HELPER_CMD_ENV}, чтобы панель могла расшифровать Happ deep-link."
+    if helper_error == "happ_decryptor_not_configured":
+        helper_hint = (
+            f" Настройте {happ_links.HAPP_DECRYPTOR_CMD_ENV} "
+            "или положите внешний decryptor в xkeen-ui/bin."
+        )
+    elif helper_error == "happ_helper_not_configured":
+        helper_hint = f" Настройте {happ_links.HAPP_HELPER_CMD_ENV}, чтобы панель могла обработать Happ landing page."
     elif helper_error.startswith("happ_helper_"):
         helper_hint = " Happ helper не смог расшифровать deep-link этой подписки."
+    elif helper_error.startswith("happ_decryptor_"):
+        helper_hint = " Внешний Happ decryptor не смог расшифровать deep-link этой подписки."
     if _SUBSCRIPTION_CLIENT_INSTALL_RE.search(text):
         return (
             "URL возвращает HTML-страницу установки Happ/INCY, а не прямую подписку "
@@ -1326,19 +1333,35 @@ def _subscription_html_landing_message(body: str, headers: Dict[str, str] | None
 
 def _happ_helper_error_message(reason: Any) -> str:
     code = str(reason or "").strip()
+    if code == "happ_decryptor_not_configured":
+        return (
+            "Для raw Happ deep-link нужен внешний decryptor. "
+            f"Укажите {happ_links.HAPP_DECRYPTOR_CMD_ENV} "
+            "или положите drop-in decryptor в xkeen-ui/bin."
+        )
     if code == "happ_helper_not_configured":
         return (
-            "Для Happ deep-link нужен настроенный helper-дешифратор. "
+            "Для Happ landing page нужен настроенный transport helper. "
             f"Укажите {happ_links.HAPP_HELPER_CMD_ENV}."
         )
+    if code == "happ_decryptor_timeout":
+        return "Внешний Happ decryptor не ответил вовремя."
     if code == "happ_helper_timeout":
         return "Happ helper не ответил вовремя."
+    if code.startswith("happ_decryptor_missing:"):
+        return "Не найден исполняемый файл внешнего Happ decryptor."
     if code.startswith("happ_helper_missing:"):
         return "Не найден исполняемый файл Happ helper."
+    if code.startswith("happ_decryptor_failed:"):
+        return "Внешний Happ decryptor завершился с ошибкой."
     if code.startswith("happ_helper_failed:"):
         return "Happ helper завершился с ошибкой."
+    if code == "happ_decryptor_empty":
+        return "Внешний Happ decryptor не вернул расшифрованный результат."
     if code == "happ_helper_empty":
         return "Happ helper не вернул расшифрованный результат."
+    if code == "happ_decryptor_unparsed_output":
+        return "Панель не смогла разобрать вывод внешнего Happ decryptor."
     if code == "happ_helper_unparsed_output":
         return "Панель не смогла разобрать вывод Happ helper."
     return "Не удалось обработать Happ deep-link."
@@ -1378,7 +1401,7 @@ def fetch_subscription_body_for_xray(url: str) -> Tuple[str, Dict[str, str], Dic
         body, headers = fetch_subscription_body(url)
     except RuntimeError as exc:
         reason = str(exc or "").strip()
-        if reason.startswith("happ_helper_"):
+        if reason.startswith("happ_helper_") or reason.startswith("happ_decryptor_"):
             raise ValueError(_happ_helper_error_message(reason)) from exc
         raise
     probe = _subscription_body_source_probe(body)

@@ -7,6 +7,7 @@ def test_happ_helper_env_keys_are_exposed_in_devtools():
 
     for key in (
         "XKEEN_HAPP_HELPER_CMD",
+        "XKEEN_HAPP_DECRYPTOR_CMD",
         "XKEEN_HAPP_HELPER_TIMEOUT",
         "XKEEN_HAPP_HELPER_HWID",
         "XKEEN_SUBSCRIPTION_HAPP_USER_AGENT",
@@ -21,6 +22,7 @@ def test_happ_helper_env_keys_are_grouped_under_mihomo_hwid():
 
     assert "title: 'Mihomo и HWID'" in env_js
     assert "'XKEEN_HAPP_HELPER_CMD'" in env_js
+    assert "'XKEEN_HAPP_DECRYPTOR_CMD'" in env_js
     assert "'XKEEN_HAPP_HELPER_TIMEOUT'" in env_js
     assert "'XKEEN_HAPP_HELPER_HWID'" in env_js
     assert "'XKEEN_SUBSCRIPTION_HAPP_USER_AGENT'" in env_js

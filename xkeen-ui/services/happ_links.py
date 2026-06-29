@@ -15,6 +15,7 @@ from pathlib import Path
 
 
 HAPP_HELPER_CMD_ENV = "XKEEN_HAPP_HELPER_CMD"
+HAPP_DECRYPTOR_CMD_ENV = "XKEEN_HAPP_DECRYPTOR_CMD"
 HAPP_HELPER_TIMEOUT_ENV = "XKEEN_HAPP_HELPER_TIMEOUT"
 HAPP_RESOLVED_HEADER = "x-xkeen-happ-resolved"
 HAPP_LINK_HEADER = "x-xkeen-happ-link"
@@ -40,6 +41,19 @@ _SUPPORTED_TEXT_SCHEMES = (
     "tuic://",
     "wireguard://",
 )
+_DECRYPTOR_DROPIN_NAMES = (
+    "happ_decryptor.py",
+    "happ-decryptor.py",
+    "happ_decrypt_universal.py",
+    "happ-decrypt-universal.py",
+    "happwner.py",
+    "Happwner.py",
+    "happ_decryptor",
+    "happ-decryptor",
+    "happ_decrypt_universal",
+    "happ-decrypt-universal",
+    "happwner",
+)
 
 
 def _is_http_url(value: Any) -> bool:
@@ -62,16 +76,50 @@ def _bundled_helper_script_path() -> str:
     return ""
 
 
-def _bundled_helper_command_parts() -> List[str]:
-    script = _bundled_helper_script_path()
+def _command_parts_from_path(path: str) -> List[str]:
+    script = str(path or "").strip()
     if not script:
         return []
     exe = str(sys.executable or "").strip()
-    if not exe:
-        exe = str(shutil.which("python3") or shutil.which("python") or "").strip()
-    if not exe:
-        return []
-    return [exe, script]
+    suffix = Path(script).suffix.lower()
+    if suffix == ".py":
+        if not exe:
+            exe = str(shutil.which("python3") or shutil.which("python") or "").strip()
+        if not exe:
+            return []
+        return [exe, script]
+    return [script]
+
+
+def _bundled_helper_command_parts() -> List[str]:
+    return _command_parts_from_path(_bundled_helper_script_path())
+
+
+def _bundled_decryptor_command_parts() -> List[str]:
+    try:
+        here = Path(__file__).resolve()
+        roots = (
+            here.parents[1],
+            here.parents[2],
+        )
+        for root in roots:
+            for relative_dir in ("bin", "scripts"):
+                base = root / relative_dir
+                if not base.is_dir():
+                    continue
+                for name in _DECRYPTOR_DROPIN_NAMES:
+                    candidate = base / name
+                    if candidate.is_file():
+                        parts = _command_parts_from_path(str(candidate))
+                        if parts:
+                            return parts
+    except Exception:
+        pass
+    return []
+
+
+def helper_env_configured() -> bool:
+    return bool(str(os.environ.get(HAPP_HELPER_CMD_ENV) or "").strip())
 
 
 def helper_command_parts() -> List[str]:
@@ -81,12 +129,19 @@ def helper_command_parts() -> List[str]:
     return _bundled_helper_command_parts()
 
 
+def decryptor_command_parts() -> List[str]:
+    raw = str(os.environ.get(HAPP_DECRYPTOR_CMD_ENV) or "").strip()
+    if raw:
+        return _parse_command(raw)
+    return _bundled_decryptor_command_parts()
+
+
 def _format_command_parts(parts: List[str], *, include_placeholder: bool = False) -> str:
     out = list(parts or [])
-    if include_placeholder:
-        out.append("%LINK%")
     if not out:
         return ""
+    if include_placeholder:
+        out.append("%LINK%")
     if os.name == "nt":
         return subprocess.list2cmdline(out)
     try:
@@ -102,8 +157,19 @@ def helper_command() -> str:
     return _format_command_parts(_bundled_helper_command_parts(), include_placeholder=True)
 
 
+def decryptor_command() -> str:
+    raw = str(os.environ.get(HAPP_DECRYPTOR_CMD_ENV) or "").strip()
+    if raw:
+        return raw
+    return _format_command_parts(_bundled_decryptor_command_parts(), include_placeholder=True)
+
+
 def helper_configured() -> bool:
     return bool(helper_command_parts())
+
+
+def decryptor_configured() -> bool:
+    return bool(decryptor_command_parts())
 
 
 def helper_timeout_seconds() -> float:
@@ -256,16 +322,11 @@ def _normalize_helper_output(text: Any) -> Dict[str, Any] | None:
     return {"kind": "text", "value": raw, "headers": {}}
 
 
-def run_helper(link: str) -> Dict[str, Any]:
+def _run_command(parts: List[str], link: str, *, error_prefix: str) -> Dict[str, Any]:
     if not str(link or "").strip():
-        raise RuntimeError("happ_helper_invalid_input")
-    cmd = helper_command()
-    if not cmd:
-        raise RuntimeError("happ_helper_not_configured")
-
-    parts = helper_command_parts()
+        raise RuntimeError(f"{error_prefix}invalid_input")
     if not parts:
-        raise RuntimeError("happ_helper_not_configured")
+        raise RuntimeError(f"{error_prefix}not_configured")
 
     command = _command_with_link(parts, str(link).strip())
     timeout = helper_timeout_seconds()
@@ -278,25 +339,57 @@ def run_helper(link: str) -> Dict[str, Any]:
             check=False,
         )
     except FileNotFoundError as exc:
-        raise RuntimeError("happ_helper_missing:" + str(exc)) from exc
+        raise RuntimeError(f"{error_prefix}missing:" + str(exc)) from exc
     except subprocess.TimeoutExpired as exc:
-        raise RuntimeError("happ_helper_timeout") from exc
+        raise RuntimeError(f"{error_prefix}timeout") from exc
     except Exception as exc:
-        raise RuntimeError("happ_helper_failed:" + str(exc)) from exc
+        raise RuntimeError(f"{error_prefix}failed:" + str(exc)) from exc
 
     stdout = str(completed.stdout or "").strip()
     stderr = str(completed.stderr or "").strip()
     if completed.returncode != 0:
         detail = stderr or stdout or f"exit_{completed.returncode}"
-        raise RuntimeError("happ_helper_failed:" + detail[:240])
+        raise RuntimeError(f"{error_prefix}failed:" + detail[:240])
     if not stdout:
-        raise RuntimeError("happ_helper_empty")
+        raise RuntimeError(f"{error_prefix}empty")
 
     parsed = _normalize_helper_output(stdout)
     if not parsed:
-        raise RuntimeError("happ_helper_unparsed_output")
+        raise RuntimeError(f"{error_prefix}unparsed_output")
     parsed["helper_stdout"] = stdout
     return parsed
+
+
+def run_helper(link: str) -> Dict[str, Any]:
+    return _run_command(helper_command_parts(), link, error_prefix="happ_helper_")
+
+
+def run_decryptor(link: str) -> Dict[str, Any]:
+    return _run_command(decryptor_command_parts(), link, error_prefix="happ_decryptor_")
+
+
+def _resolve_candidates(
+    candidates: List[str],
+    runner,
+    *,
+    via: str,
+) -> tuple[Dict[str, Any] | None, RuntimeError | None]:
+    seen: set[str] = set()
+    last_error: RuntimeError | None = None
+    for candidate in candidates:
+        candidate_s = str(candidate or "").strip()
+        if not candidate_s or candidate_s in seen:
+            continue
+        seen.add(candidate_s)
+        try:
+            parsed = runner(candidate_s)
+        except RuntimeError as exc:
+            last_error = exc
+            continue
+        parsed["via"] = via
+        parsed["candidate"] = candidate_s
+        return parsed, None
+    return None, last_error
 
 
 def resolve_source(url: str, *, body: Any = None, content_type: Any = None) -> Dict[str, Any] | None:
@@ -330,29 +423,46 @@ def resolve_source(url: str, *, body: Any = None, content_type: Any = None) -> D
                         "candidate": target.strip(),
                     }
 
-    if helper_configured() and (helper_inputs or candidates):
-        seen: set[str] = set()
-        last_error: RuntimeError | None = None
-        for candidate in helper_inputs + candidates:
-            candidate_s = str(candidate or "").strip()
-            if not candidate_s or candidate_s in seen:
-                continue
-            seen.add(candidate_s)
-            try:
-                parsed = run_helper(candidate_s)
-            except RuntimeError as exc:
-                last_error = exc
-                continue
-            parsed["via"] = "helper"
-            parsed["candidate"] = candidate_s
+    last_error: RuntimeError | None = None
+
+    if helper_inputs and helper_configured():
+        parsed, last_error = _resolve_candidates(helper_inputs, run_helper, via="helper")
+        if parsed:
             return parsed
-        if last_error is not None and candidates:
-            raise last_error
+
+    if candidates and decryptor_configured():
+        parsed, last_error = _resolve_candidates(candidates, run_decryptor, via="decryptor")
+        if parsed:
+            return parsed
+
+    if candidates and helper_env_configured():
+        parsed, last_error = _resolve_candidates(candidates, run_helper, via="helper")
+        if parsed:
+            return parsed
+
+    if last_error is not None and candidates:
+        raise last_error
 
     if not candidates:
         return None
 
-    parsed = run_helper(candidates[0])
-    parsed["via"] = "helper"
-    parsed["candidate"] = candidates[0]
-    return parsed
+    if is_happ_deep_link(candidates[0]):
+        if decryptor_configured():
+            parsed = run_decryptor(candidates[0])
+            parsed["via"] = "decryptor"
+            parsed["candidate"] = candidates[0]
+            return parsed
+        if helper_env_configured():
+            parsed = run_helper(candidates[0])
+            parsed["via"] = "helper"
+            parsed["candidate"] = candidates[0]
+            return parsed
+        raise RuntimeError("happ_decryptor_not_configured")
+
+    if helper_configured():
+        parsed = run_helper(candidates[0])
+        parsed["via"] = "helper"
+        parsed["candidate"] = candidates[0]
+        return parsed
+
+    return None

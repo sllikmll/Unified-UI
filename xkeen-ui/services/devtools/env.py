@@ -33,6 +33,7 @@ ENV_WHITELIST: Tuple[str, ...] = (
     "XKEEN_CONFIG_EXCHANGE_MAX_BYTES",
     "XKEEN_MIHOMO_HWID",
     "XKEEN_HAPP_HELPER_CMD",
+    "XKEEN_HAPP_DECRYPTOR_CMD",
     "XKEEN_HAPP_HELPER_TIMEOUT",
     "XKEEN_HAPP_HELPER_HWID",
     "XKEEN_SUBSCRIPTION_HAPP_USER_AGENT",
@@ -289,6 +290,13 @@ def _default_effective_value(
             from services import happ_links
 
             return happ_links.helper_command()
+        except Exception:
+            return ""
+    if k == "XKEEN_HAPP_DECRYPTOR_CMD":
+        try:
+            from services import happ_links
+
+            return happ_links.decryptor_command()
         except Exception:
             return ""
     if k == "XKEEN_HAPP_HELPER_TIMEOUT":
