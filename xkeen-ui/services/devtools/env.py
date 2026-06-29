@@ -32,6 +32,10 @@ ENV_WHITELIST: Tuple[str, ...] = (
     "XKEEN_ROUTING_SAVE_MAX_BYTES",
     "XKEEN_CONFIG_EXCHANGE_MAX_BYTES",
     "XKEEN_MIHOMO_HWID",
+    "XKEEN_HAPP_HELPER_CMD",
+    "XKEEN_HAPP_HELPER_TIMEOUT",
+    "XKEEN_HAPP_HELPER_HWID",
+    "XKEEN_SUBSCRIPTION_HAPP_USER_AGENT",
     "XKEEN_XRAY_TEST_TIMEOUT",
     "XKEEN_DAT_ALLOW_HOSTS",
     "XKEEN_DAT_ALLOW_HTTP",
@@ -280,6 +284,19 @@ def _default_effective_value(
         return str(4 * 1024 * 1024)
     if k == "XKEEN_MIHOMO_HWID":
         return ""
+    if k == "XKEEN_HAPP_HELPER_CMD":
+        try:
+            from services import happ_links
+
+            return happ_links.helper_command()
+        except Exception:
+            return ""
+    if k == "XKEEN_HAPP_HELPER_TIMEOUT":
+        return "15"
+    if k == "XKEEN_HAPP_HELPER_HWID":
+        return ""
+    if k == "XKEEN_SUBSCRIPTION_HAPP_USER_AGENT":
+        return "Happ/3.18.3/Android/17771400994551771562"
     if k == "XKEEN_DAT_ALLOW_HOSTS":
         return "github.com,raw.githubusercontent.com,objects.githubusercontent.com,release-assets.githubusercontent.com,codeload.github.com"
     if k == "XKEEN_DAT_ALLOW_HTTP":

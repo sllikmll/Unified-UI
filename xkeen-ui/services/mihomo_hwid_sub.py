@@ -28,6 +28,7 @@ from datetime import datetime
 from typing import Any, Dict
 from urllib.parse import urlparse
 
+from services import happ_links
 from services.net import net_call
 from services.url_policy import URLPolicy, env_flag, is_url_allowed
 
@@ -47,6 +48,8 @@ _HAPP_FALLBACK_DEFAULT_UA = "Happ/1.0"
 _PROXY_URI_RE = re.compile(
     r"(?mi)^\s*(?:vless|vmess|trojan|ss|ssr|shadowsocks|hysteria2|hy2|hysteria|tuic|wireguard)://"
 )
+_HTML_LANDING_RE = re.compile(r"(?is)^\s*(?:<!doctype html|<html\b)")
+_CLIENT_INSTALL_SCHEME_RE = re.compile(r"(?i)\b(?:happ|incy)://")
 
 
 def _read_text(path: str, *, max_bytes: int = 64 * 1024) -> str | None:
@@ -923,6 +926,33 @@ def _provider_payload_node_count(payload: str) -> int:
     return len(_PROXY_URI_RE.findall(decoded)) if decoded else 0
 
 
+def _provider_payload_landing_page_reason(payload: str, meta: Dict[str, Any] | None = None) -> str:
+    text = str(payload or "")
+    stripped = text.lstrip("\ufeff\r\n\t ")
+    content_type = str((meta or {}).get("content_type") or "").strip().lower()
+    looks_html = "text/html" in content_type or bool(_HTML_LANDING_RE.match(stripped))
+    if not looks_html:
+        return ""
+    if _provider_payload_node_count(text) > 0:
+        return ""
+    if _CLIENT_INSTALL_SCHEME_RE.search(text):
+        return "install_page"
+    return "html_page"
+
+
+def _resolved_happ_provider_payload_meta(
+    resolved: Dict[str, Any] | None,
+    meta: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
+    out = dict(meta or {})
+    if not isinstance(resolved, dict):
+        return out
+    out[happ_links.HAPP_RESOLVED_HEADER] = str(resolved.get("via") or "helper")
+    if str(resolved.get("candidate") or "").strip():
+        out[happ_links.HAPP_LINK_HEADER] = str(resolved.get("candidate") or "").strip()
+    return out
+
+
 def _fetch_provider_subscription_text(
     url: str,
     *,
@@ -1055,6 +1085,36 @@ def fetch_provider_payload(
     if not ok_url:
         raise ValueError("url_blocked:" + reason)
 
+    if happ_links.is_happ_deep_link(u):
+        try:
+            resolved = happ_links.resolve_source(u)
+        except RuntimeError as exc:
+            raise ValueError("landing_page_html:" + str(exc)) from exc
+        if not resolved:
+            raise ValueError("landing_page_html:install_page")
+        kind = str(resolved.get("kind") or "").strip().lower()
+        if kind == "text":
+            payload, meta = provider_payload_from_subscription_text(str(resolved.get("value") or ""))
+            return payload, _resolved_happ_provider_payload_meta(resolved, meta)
+        if kind == "url":
+            u = str(resolved.get("value") or "").strip()
+            helper_headers = resolved.get("headers") if isinstance(resolved.get("headers"), dict) else {}
+            if not u or u == url:
+                raise ValueError("landing_page_html:happ_helper_resolution_loop")
+            next_headers = dict(headers or {})
+            for key, value in helper_headers.items():
+                if str(key or "").strip():
+                    next_headers[str(key)] = str(value)
+            payload, meta = fetch_provider_payload(
+                u,
+                headers=next_headers,
+                insecure=insecure,
+                timeout=timeout,
+                policy=policy,
+                max_bytes=max_bytes,
+            )
+            return payload, _resolved_happ_provider_payload_meta(resolved, meta)
+
     req_headers = dict(headers or {})
     req_headers.setdefault("Accept", "text/yaml, text/plain, */*")
     text, fetch_meta = _fetch_provider_subscription_text(
@@ -1067,6 +1127,40 @@ def fetch_provider_payload(
     )
     payload, meta = provider_payload_from_subscription_text(text)
     meta.update(fetch_meta)
+    landing_reason = _provider_payload_landing_page_reason(payload, meta)
+    if landing_reason:
+        try:
+            resolved = happ_links.resolve_source(
+                u,
+                body=text,
+                content_type=fetch_meta.get("content_type"),
+            )
+        except RuntimeError as exc:
+            raise ValueError("landing_page_html:" + str(exc)) from exc
+        if resolved:
+            kind = str(resolved.get("kind") or "").strip().lower()
+            if kind == "text":
+                payload, next_meta = provider_payload_from_subscription_text(str(resolved.get("value") or ""))
+                return payload, _resolved_happ_provider_payload_meta(resolved, next_meta)
+            if kind == "url":
+                helper_headers = resolved.get("headers") if isinstance(resolved.get("headers"), dict) else {}
+                next_url = str(resolved.get("value") or "").strip()
+                if not next_url or next_url == u:
+                    raise ValueError("landing_page_html:happ_helper_resolution_loop")
+                next_headers = dict(req_headers or {})
+                for key, value in helper_headers.items():
+                    if str(key or "").strip():
+                        next_headers[str(key)] = str(value)
+                payload, next_meta = fetch_provider_payload(
+                    next_url,
+                    headers=next_headers,
+                    insecure=insecure,
+                    timeout=timeout,
+                    policy=policy,
+                    max_bytes=max_bytes,
+                )
+                return payload, _resolved_happ_provider_payload_meta(resolved, next_meta)
+        raise ValueError("landing_page_html" + (":" + landing_reason if landing_reason else ""))
 
     fallback = _maybe_use_happ_fallback(
         u,

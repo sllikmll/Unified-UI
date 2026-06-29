@@ -99,7 +99,34 @@ def test_parse_xray_json_returns_422_for_non_xray_body(client):
     assert r.status_code == 422
     body = r.get_json()
     assert body["code"] == "not_xray_json"
-    assert body["ok"] is False
+
+
+def test_parse_xray_json_surfaces_happ_landing_page_hint(client):
+    body = (
+        "<!DOCTYPE html><html><body>"
+        '<a href="happ://crypt5/demo-token">Happ</a>'
+        "</body></html>"
+    )
+    with patch(
+        "routes.mihomo._xray_fetch_subscription_body",
+        return_value=(
+            body,
+            {
+                "content-type": "text/html; charset=utf-8",
+                "x-xkeen-happ-error": "happ_helper_not_configured",
+            },
+        ),
+    ):
+        r = client.post(
+            "/api/mihomo/parse/xray-json",
+            json={"url": "https://landing.example/sub"},
+        )
+
+    assert r.status_code == 422
+    payload = r.get_json()
+    assert payload["code"] == "happ_landing_page"
+    assert "XKEEN_HAPP_HELPER_CMD" in payload["hint"]
+    assert payload["ok"] is False
 
 
 def test_parse_xray_json_returns_400_when_neither_url_nor_text(client):

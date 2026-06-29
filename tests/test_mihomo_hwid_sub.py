@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import urllib.error
 
+import pytest
 import yaml
 
 from services import mihomo_hwid_sub as hwid
@@ -387,6 +388,68 @@ def test_hwid_fetch_provider_payload_prefers_happ_json_when_it_has_more_nodes(mo
     assert meta["happ_fallback_original_count"] == 1
     parsed = yaml.safe_load(payload)
     assert [proxy["type"] for proxy in parsed["proxies"]] == ["hysteria2", "vless"]
+
+
+def test_hwid_fetch_provider_payload_rejects_html_install_page(monkeypatch):
+    def fake_fetch(url, *, headers, insecure, timeout, policy, max_bytes):
+        return (
+            (
+                "<!DOCTYPE html><html><body>"
+                '<a href="happ://crypt5/abc">Happ</a>'
+                '<a href="incy://import/https://example.com/sub">Incy</a>'
+                "</body></html>"
+            ),
+            {"content_type": "text/html; charset=utf-8", "bytes": 180},
+        )
+
+    monkeypatch.setattr(hwid, "_fetch_provider_subscription_text", fake_fetch)
+
+    with pytest.raises(ValueError, match="landing_page_html"):
+        hwid.fetch_provider_payload(
+            "https://provider.example/sub",
+            headers={"User-Agent": "router"},
+        )
+
+
+def test_hwid_fetch_provider_payload_resolves_html_install_page_via_helper(monkeypatch):
+    def fake_fetch(url, *, headers, insecure, timeout, policy, max_bytes):
+        return (
+            (
+                "<!DOCTYPE html><html><body>"
+                '<a href="happ://crypt5/demo-token">Happ</a>'
+                "</body></html>"
+            ),
+            {"content_type": "text/html; charset=utf-8", "bytes": 120},
+        )
+
+    monkeypatch.setattr(hwid, "_fetch_provider_subscription_text", fake_fetch)
+    monkeypatch.setattr(
+        hwid.happ_links,
+        "resolve_source",
+        lambda url, **kwargs: {
+            "kind": "text",
+            "value": (
+                "proxies:\n"
+                "  - name: Helper Node\n"
+                "    type: vless\n"
+                "    server: helper.example.com\n"
+                "    port: 443\n"
+            ),
+            "headers": {},
+            "via": "helper",
+            "candidate": "happ://crypt5/demo-token",
+        },
+    )
+
+    payload, meta = hwid.fetch_provider_payload(
+        "https://provider.example/sub",
+        headers={"User-Agent": "router"},
+    )
+
+    parsed = yaml.safe_load(payload)
+    assert parsed["proxies"][0]["name"] == "Helper Node"
+    assert meta["x-xkeen-happ-resolved"] == "helper"
+    assert meta["x-xkeen-happ-link"] == "happ://crypt5/demo-token"
 
 
 def test_hwid_provider_entry_can_use_local_adapter_url_without_headers():

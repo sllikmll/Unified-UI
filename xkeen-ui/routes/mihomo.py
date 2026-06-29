@@ -76,11 +76,15 @@ from services.mihomo_subscriptions import (
     sync_from_generator_state as _mh_sub_sync_from_generator_state,
     update_subscription_settings as _mh_sub_update_subscription_settings,
 )
-from services.xray_subscriptions import fetch_subscription_body as _xray_fetch_subscription_body
+from services.xray_subscriptions import (
+    fetch_subscription_body as _xray_fetch_subscription_body,
+    _happ_helper_error_message,
+)
 
 
 import xkeen_mihomo_service as mihomo_svc
 
+from services import happ_links
 from services.mihomo import (
     parse_state_from_payload as _mihomo_parse_state,
     list_profiles_for_api as _mh_list_profiles_for_api,
@@ -175,6 +179,36 @@ def _subscription_fetch_failure_reason(exc: BaseException) -> str:
     if len(text) > 240:
         text = text[:237].rstrip() + "..."
     return text
+
+
+def _is_subscription_landing_page_error(reason: Any) -> bool:
+    return str(reason or "").strip().lower().startswith("landing_page_html")
+
+
+def _subscription_landing_page_probe_error(result: Dict[str, Any], *, mode: str):
+    payload = dict(result or {})
+    payload["ok"] = False
+    failure_text = " ".join(
+        str(payload.get(key) or "").strip()
+        for key in ("provider_adapter_error", "provider_direct_error", "provider_hwid_error")
+        if str(payload.get(key) or "").strip()
+    ).lower()
+    hint = (
+        "Для импорта в XKeen нужен прямой URL, который отдает proxy-provider YAML, "
+        "список URI-узлов или Xray JSON. Этот адрес похож на лендинг для Happ/INCY."
+    )
+    if "happ_helper_not_configured" in failure_text:
+        hint += " Настройте XKEEN_HAPP_HELPER_CMD, чтобы панель могла расшифровать Happ deep-link."
+    elif "happ_helper_" in failure_text:
+        hint += " Happ helper не смог расшифровать deep-link этой подписки."
+    payload["error"] = {
+        "code": "LANDING_PAGE_HTML",
+        "message": "URL возвращает HTML-страницу установки, а не прямую подписку.",
+        "hint": hint,
+        "mode": str(mode or "").strip() or "provider",
+        "retryable": False,
+    }
+    return jsonify(payload), 400
 
 
 def _mihomo_fetch_failed_response(reason: str):
@@ -771,6 +805,50 @@ def create_mihomo_blueprint(
                                 result["provider_proxies"] = provider_proxies
                     except Exception as exc:
                         result["provider_hwid_error"] = _subscription_fetch_failure_reason(exc)
+
+                if (
+                    str(result.get("provider_mode") or "").strip() == "adapter"
+                    and (
+                        not current_provider_summary
+                        or not current_provider_summary.get("has_nodes")
+                    )
+                ):
+                    try:
+                        adapter_payload, adapter_meta = _mh_hwid_fetch_provider_payload(
+                            url,
+                            headers={},
+                            insecure=insecure,
+                            timeout=timeout_s,
+                            policy=policy,
+                        )
+                        adapter_summary = _mihomo_provider_payload_summary(
+                            adapter_payload,
+                            adapter_meta,
+                        )
+                        current_provider_summary = adapter_summary
+                        result["provider_payload"] = adapter_summary
+                    except Exception as exc:
+                        result["provider_adapter_error"] = _subscription_fetch_failure_reason(exc)
+
+                if (
+                    str(result.get("provider_mode") or "").strip() == "adapter"
+                    and not (
+                        current_provider_summary
+                        and current_provider_summary.get("has_nodes")
+                    )
+                    and (
+                        result.get("provider_adapter_error")
+                        or result.get("provider_direct_error")
+                        or result.get("provider_hwid_error")
+                    )
+                ):
+                    failure_reason = (
+                        result.get("provider_adapter_error")
+                        or result.get("provider_direct_error")
+                        or result.get("provider_hwid_error")
+                    )
+                    if _is_subscription_landing_page_error(failure_reason):
+                        return _subscription_landing_page_probe_error(result, mode="provider")
 
         if isinstance(result, dict) and result.get("ok") is True:
             return jsonify(result), 200
@@ -2031,6 +2109,13 @@ def create_mihomo_blueprint(
                         status=413,
                         code="size_limit",
                     )
+                if reason.startswith("happ_helper_"):
+                    return _mihomo_error(
+                        _happ_helper_error_message(reason),
+                        status=422,
+                        code="happ_helper_failed",
+                        hint=f"Проверьте {happ_links.HAPP_HELPER_CMD_ENV} и повторите попытку.",
+                    )
                 return _mihomo_fetch_failed_response(reason)
             except (urllib.error.URLError, TimeoutError, OSError) as e:
                 return _mihomo_fetch_failed_response(_subscription_fetch_failure_reason(e))
@@ -2041,6 +2126,25 @@ def create_mihomo_blueprint(
                     hint="Проверьте URL и сетевую доступность.",
                     exc=e,
                     status=502,
+                )
+            if happ_links.looks_like_html_landing(
+                text,
+                content_type=(_headers or {}).get("content-type"),
+            ) and happ_links.extract_happ_links(text):
+                helper_error = str((_headers or {}).get(happ_links.HAPP_ERROR_HEADER) or "").strip()
+                hint = (
+                    "Эта ссылка ведет на Happ-страницу установки, а не на прямой Xray JSON URL. "
+                    "Для такого формата панели нужен настроенный Happ helper-дешифратор."
+                )
+                if helper_error == "happ_helper_not_configured":
+                    hint += f" Настройте {happ_links.HAPP_HELPER_CMD_ENV}."
+                elif helper_error.startswith("happ_helper_"):
+                    hint += " Текущий Happ helper не смог расшифровать deep-link."
+                return _mihomo_error(
+                    "URL возвращает Happ landing page, а не прямую Xray-JSON подписку.",
+                    status=422,
+                    code="happ_landing_page",
+                    hint=hint,
                 )
 
         try:

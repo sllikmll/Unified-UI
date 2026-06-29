@@ -26,6 +26,7 @@ import urllib.request
 from typing import Any, Callable, Dict, Iterable, List, Tuple
 from urllib.parse import parse_qs, unquote, urlparse
 
+from services import happ_links
 from services.io.atomic import _atomic_write_json, _atomic_write_text
 from services.url_policy import URLPolicy, env_flag, is_url_allowed
 from services.xray_config_files import OUTBOUNDS_FILE, ROUTING_FILE, ensure_xray_jsonc_dir, jsonc_path_for
@@ -1069,7 +1070,7 @@ class _SafeRedirect(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def fetch_subscription_body(url: str, request_headers: Dict[str, str] | None = None) -> Tuple[str, Dict[str, str]]:
+def _fetch_subscription_body_once(url: str, request_headers: Dict[str, str] | None = None) -> Tuple[str, Dict[str, str]]:
     url_s = str(url or "").strip()
     policy = _subscription_policy()
     ok, reason = is_url_allowed(url_s, policy)
@@ -1119,6 +1120,111 @@ def fetch_subscription_body(url: str, request_headers: Dict[str, str] | None = N
         return body, headers
 
 
+def _mark_happ_resolution_headers(
+    headers: Dict[str, str] | None,
+    resolved: Dict[str, Any] | None,
+) -> Dict[str, str]:
+    out = {str(k).lower(): str(v) for k, v in (headers or {}).items()}
+    if not isinstance(resolved, dict):
+        return out
+    via = str(resolved.get("via") or "helper").strip() or "helper"
+    candidate = str(resolved.get("candidate") or "").strip()
+    if via:
+        out[happ_links.HAPP_RESOLVED_HEADER] = via
+    if candidate:
+        out[happ_links.HAPP_LINK_HEADER] = candidate
+    return out
+
+
+def _mark_happ_error_headers(
+    headers: Dict[str, str] | None,
+    error_code: str,
+) -> Dict[str, str]:
+    out = {str(k).lower(): str(v) for k, v in (headers or {}).items()}
+    if str(error_code or "").strip():
+        out[happ_links.HAPP_ERROR_HEADER] = str(error_code).strip()
+    return out
+
+
+def _resolve_happ_subscription_source(
+    url: str,
+    *,
+    body: str | None = None,
+    headers: Dict[str, str] | None = None,
+    request_headers: Dict[str, str] | None = None,
+) -> Dict[str, Any] | None:
+    content_type = (headers or {}).get("content-type") if isinstance(headers, dict) else None
+    body_text = str(body or "")
+    url_s = str(url or "").strip()
+    if not happ_links.is_happ_deep_link(url_s):
+        if not happ_links.looks_like_html_landing(body_text, content_type=content_type):
+            return None
+        if not happ_links.extract_happ_links(body_text):
+            return None
+    resolved = happ_links.resolve_source(url_s, body=body_text, content_type=content_type)
+    if not resolved:
+        return None
+    kind = str(resolved.get("kind") or "").strip().lower()
+    if kind == "url":
+        target = str(resolved.get("value") or "").strip()
+        if not target:
+            raise RuntimeError("happ_helper_empty")
+        merged_headers = {str(k): str(v) for k, v in (request_headers or {}).items() if str(k or "").strip()}
+        for key, value in (resolved.get("headers") or {}).items():
+            if not str(key or "").strip():
+                continue
+            merged_headers[str(key)] = str(value)
+        if target == url:
+            raise RuntimeError("happ_helper_resolution_loop")
+        fetched_body, fetched_headers = fetch_subscription_body(
+            target,
+            request_headers=merged_headers,
+            _happ_depth=1,
+        )
+        return {
+            "body": fetched_body,
+            "headers": _mark_happ_resolution_headers(fetched_headers, resolved),
+        }
+    if kind == "text":
+        return {
+            "body": str(resolved.get("value") or ""),
+            "headers": _mark_happ_resolution_headers({"content-type": "text/plain; charset=utf-8"}, resolved),
+        }
+    return None
+
+
+def fetch_subscription_body(
+    url: str,
+    request_headers: Dict[str, str] | None = None,
+    *,
+    _happ_depth: int = 0,
+) -> Tuple[str, Dict[str, str]]:
+    url_s = str(url or "").strip()
+    if _happ_depth > 2:
+        raise RuntimeError("happ_helper_resolution_loop")
+    if happ_links.is_happ_deep_link(url_s):
+        resolved = _resolve_happ_subscription_source(url_s, request_headers=request_headers)
+        if resolved:
+            return str(resolved.get("body") or ""), dict(resolved.get("headers") or {})
+        raise RuntimeError("happ_helper_empty")
+
+    body, headers = _fetch_subscription_body_once(url_s, request_headers=request_headers)
+    try:
+        resolved = _resolve_happ_subscription_source(
+            url_s,
+            body=body,
+            headers=headers,
+            request_headers=request_headers,
+        )
+    except RuntimeError as exc:
+        if happ_links.extract_happ_links(body):
+            return body, _mark_happ_error_headers(headers, str(exc))
+        raise
+    if resolved:
+        return str(resolved.get("body") or ""), dict(resolved.get("headers") or {})
+    return body, headers
+
+
 def _subscription_header_truthy(value: Any) -> bool:
     text = str(value or "").strip().lower()
     return bool(text) and text not in {"0", "false", "no", "off", "none", "null"}
@@ -1160,6 +1266,8 @@ def _subscription_hwid_warning_messages(headers: Dict[str, str] | None) -> List[
 
 
 _HWID_PLACEHOLDER_LINK_RE = re.compile(r"://[^\s#]*@?0\.0\.0\.0:1(?=$|[/?#])", re.IGNORECASE)
+_SUBSCRIPTION_HTML_RE = re.compile(r"(?is)^\s*(?:<!doctype html|<html\b)")
+_SUBSCRIPTION_CLIENT_INSTALL_RE = re.compile(r"(?i)\b(?:happ|incy)://")
 
 
 def _subscription_links_are_hwid_placeholders(links: List[str]) -> bool:
@@ -1189,6 +1297,51 @@ def _subscription_body_source_probe(body: str) -> Dict[str, Any]:
         "placeholder_count": 0,
         "source_format": "xray-json" if source_count > 0 else "",
     }
+
+
+def _subscription_html_landing_message(body: str, headers: Dict[str, str] | None = None) -> str:
+    text = str(body or "")
+    stripped = text.lstrip("\ufeff\r\n\t ")
+    content_type = str((headers or {}).get("content-type") or "").strip().lower()
+    looks_html = "text/html" in content_type or bool(_SUBSCRIPTION_HTML_RE.match(stripped))
+    if not looks_html:
+        return ""
+    probe = _subscription_body_source_probe(text)
+    if probe.get("has_source"):
+        return ""
+    helper_error = str((headers or {}).get(happ_links.HAPP_ERROR_HEADER) or "").strip()
+    helper_hint = ""
+    if helper_error == "happ_helper_not_configured":
+        helper_hint = f" Настройте {happ_links.HAPP_HELPER_CMD_ENV}, чтобы панель могла расшифровать Happ deep-link."
+    elif helper_error.startswith("happ_helper_"):
+        helper_hint = " Happ helper не смог расшифровать deep-link этой подписки."
+    if _SUBSCRIPTION_CLIENT_INSTALL_RE.search(text):
+        return (
+            "URL возвращает HTML-страницу установки Happ/INCY, а не прямую подписку "
+            "Xray/Mihomo."
+            + helper_hint
+        )
+    return "URL возвращает HTML-страницу, а не прямую подписку Xray/Mihomo." + helper_hint
+
+
+def _happ_helper_error_message(reason: Any) -> str:
+    code = str(reason or "").strip()
+    if code == "happ_helper_not_configured":
+        return (
+            "Для Happ deep-link нужен настроенный helper-дешифратор. "
+            f"Укажите {happ_links.HAPP_HELPER_CMD_ENV}."
+        )
+    if code == "happ_helper_timeout":
+        return "Happ helper не ответил вовремя."
+    if code.startswith("happ_helper_missing:"):
+        return "Не найден исполняемый файл Happ helper."
+    if code.startswith("happ_helper_failed:"):
+        return "Happ helper завершился с ошибкой."
+    if code == "happ_helper_empty":
+        return "Happ helper не вернул расшифрованный результат."
+    if code == "happ_helper_unparsed_output":
+        return "Панель не смогла разобрать вывод Happ helper."
+    return "Не удалось обработать Happ deep-link."
 
 
 def _happ_subscription_headers(headers: Dict[str, str]) -> Dict[str, str] | None:
@@ -1221,7 +1374,13 @@ def fetch_subscription_body_for_xray(url: str) -> Tuple[str, Dict[str, str], Dic
     only retry when the response looks unusable or HWID-gated.
     """
 
-    body, headers = fetch_subscription_body(url)
+    try:
+        body, headers = fetch_subscription_body(url)
+    except RuntimeError as exc:
+        reason = str(exc or "").strip()
+        if reason.startswith("happ_helper_"):
+            raise ValueError(_happ_helper_error_message(reason)) from exc
+        raise
     probe = _subscription_body_source_probe(body)
     hwid_headers = _subscription_hwid_response_headers(headers)
     needs_hwid = (
@@ -1235,6 +1394,13 @@ def fetch_subscription_body_for_xray(url: str) -> Tuple[str, Dict[str, str], Dic
         "hwid_limit_info": _subscription_hwid_limit_info(hwid_headers),
         "warnings": [],
     }
+    if str(headers.get(happ_links.HAPP_RESOLVED_HEADER) or "").strip():
+        meta["fetch_mode"] = "happ-helper"
+        candidate = str(headers.get(happ_links.HAPP_LINK_HEADER) or "").strip()
+        helper_message = "Подписка была получена через Happ helper-дешифратор."
+        if candidate:
+            helper_message += f" Источник: {candidate}."
+        meta["warnings"] = [helper_message]
     if not needs_hwid:
         return body, headers, meta
 
@@ -4675,6 +4841,9 @@ def preview_subscription(payload: Dict[str, Any]) -> Dict[str, Any]:
     nodes = _normalize_last_nodes(stats.get("nodes"))
     source_count = int(stats.get("source_count") or 0)
     filtered_out_count = int(stats.get("filtered_out_count") or 0)
+    landing_page_message = _subscription_html_landing_message(body, headers)
+    if landing_page_message and source_count <= 0:
+        raise ValueError(landing_page_message)
     profile_interval = _parse_profile_interval_hours(headers)
 
     fetch_warnings = [str(item) for item in fetch_meta.get("warnings", []) if str(item or "").strip()]
@@ -4772,6 +4941,9 @@ def refresh_subscription(
         source_count = int(stats.get("source_count") or 0)
         filtered_out_count = int(stats.get("filtered_out_count") or 0)
         preview_nodes = _normalize_last_nodes(stats.get("nodes"))
+        landing_page_message = _subscription_html_landing_message(body, headers)
+        if landing_page_message and source_count <= 0:
+            raise RuntimeError(landing_page_message)
         node_latency = _prune_node_latency_map(node_latency, preview_nodes)
         if placeholder_links and not outbounds:
             raise RuntimeError("Провайдер вернул HWID-заглушку вместо реальных узлов.")

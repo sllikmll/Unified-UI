@@ -52,6 +52,94 @@ def test_parse_subscription_links_accepts_plain_and_base64_payloads():
     assert parse_subscription_links(encoded) == [_vless("Plain"), _vless("Second")]
 
 
+def test_fetch_subscription_body_resolves_happ_landing_via_helper(monkeypatch):
+    from services import xray_subscriptions as subs
+
+    html = (
+        "<!DOCTYPE html><html><body>"
+        '<a href="happ://crypt5/demo-token">Happ</a>'
+        "</body></html>"
+    )
+
+    monkeypatch.setattr(
+        subs,
+        "_fetch_subscription_body_once",
+        lambda _url, request_headers=None: (html, {"content-type": "text/html; charset=utf-8"}),
+    )
+    monkeypatch.setattr(
+        subs.happ_links,
+        "resolve_source",
+        lambda url, **kwargs: {
+            "kind": "text",
+            "value": _vless("Helper Node"),
+            "headers": {},
+            "via": "helper",
+            "candidate": "happ://crypt5/demo-token",
+        },
+    )
+
+    body, headers = subs.fetch_subscription_body("https://landing.example/sub")
+
+    assert _vless("Helper Node") in body
+    assert headers["x-xkeen-happ-resolved"] == "helper"
+    assert headers["x-xkeen-happ-link"] == "happ://crypt5/demo-token"
+
+
+def test_preview_subscription_accepts_happ_landing_when_helper_returns_links(monkeypatch):
+    from services import xray_subscriptions as subs
+
+    html = (
+        "<!DOCTYPE html><html><body>"
+        '<a href="happ://crypt5/demo-token">Happ</a>'
+        "</body></html>"
+    )
+    monkeypatch.setattr(
+        subs,
+        "_fetch_subscription_body_once",
+        lambda _url, request_headers=None: (html, {"content-type": "text/html; charset=utf-8"}),
+    )
+    monkeypatch.setattr(
+        subs.happ_links,
+        "resolve_source",
+        lambda url, **kwargs: {
+            "kind": "text",
+            "value": _vless("Resolved Node"),
+            "headers": {},
+            "via": "helper",
+            "candidate": "happ://crypt5/demo-token",
+        },
+    )
+
+    preview = subs.preview_subscription({"url": "https://landing.example/sub"})
+
+    assert preview["ok"] is True
+    assert preview["count"] == 1
+    assert preview["fetch_mode"] == "happ-helper"
+    assert any("Happ helper" in line for line in preview["warnings"])
+
+
+def test_preview_subscription_rejects_html_install_landing_page(monkeypatch):
+    from services import xray_subscriptions as subs
+
+    monkeypatch.setattr(
+        subs,
+        "fetch_subscription_body_for_xray",
+        lambda _url: (
+            (
+                "<!DOCTYPE html><html><body>"
+                '<a href="happ://crypt5/abc">Happ</a>'
+                '<a href="incy://import/https://example.com/sub">Incy</a>'
+                "</body></html>"
+            ),
+            {"content-type": "text/html; charset=utf-8"},
+            {"fetch_mode": "direct", "warnings": []},
+        ),
+    )
+
+    with pytest.raises(ValueError, match="Happ/INCY"):
+        subs.preview_subscription({"url": "https://example.com/sub"})
+
+
 def test_upsert_subscription_validates_regex_filters(tmp_path: Path):
     from services import xray_subscriptions as subs
 
@@ -191,6 +279,59 @@ def test_refresh_subscription_writes_generated_fragment_and_observatory(tmp_path
     assert second["routing_changed"] is False
     assert second["restarted"] is False
     assert restarts == []
+
+
+def test_refresh_subscription_reports_html_install_landing_page(tmp_path: Path, monkeypatch):
+    from services import xray_subscriptions as subs
+
+    ui_state_dir = tmp_path / "state"
+    xray_dir = tmp_path / "xray" / "configs"
+    jsonc_dir = tmp_path / "jsonc"
+    ui_state_dir.mkdir()
+    xray_dir.mkdir(parents=True)
+    jsonc_dir.mkdir()
+
+    monkeypatch.setattr(subs, "jsonc_path_for", lambda path: str(jsonc_dir / (Path(path).name + "c")))
+    monkeypatch.setattr(subs, "ensure_xray_jsonc_dir", lambda: None)
+    monkeypatch.setattr(
+        subs,
+        "fetch_subscription_body_for_xray",
+        lambda _url: (
+            (
+                "<!DOCTYPE html><html><body>"
+                '<a href="happ://crypt5/abc">Happ</a>'
+                '<a href="incy://import/https://example.com/sub">Incy</a>'
+                "</body></html>"
+            ),
+            {"content-type": "text/html; charset=utf-8"},
+            {"fetch_mode": "direct", "warnings": []},
+        ),
+    )
+
+    subs.upsert_subscription(
+        str(ui_state_dir),
+        {
+            "id": "demo",
+            "name": "Demo",
+            "tag": "demo",
+            "url": "https://example.com/sub",
+            "enabled": True,
+            "ping_enabled": False,
+        },
+    )
+
+    result = subs.refresh_subscription(
+        str(ui_state_dir),
+        "demo",
+        xray_configs_dir=str(xray_dir),
+        snapshot=lambda _path: None,
+        restart=False,
+    )
+
+    assert result["ok"] is False
+    assert "Happ/INCY" in result["error"]
+    state = subs.load_subscription_state(str(ui_state_dir))
+    assert "Happ/INCY" in state["subscriptions"][0]["last_error"]
 
 
 def test_refresh_subscription_does_not_restart_when_provider_reorders_nodes(tmp_path: Path, monkeypatch):

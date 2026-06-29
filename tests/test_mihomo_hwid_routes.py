@@ -520,6 +520,36 @@ def test_regular_provider_probe_falls_back_to_adapter_when_direct_headers_empty(
     assert payload["provider_mode"] == "adapter"
 
 
+def test_regular_provider_probe_rejects_html_install_page_from_adapter(monkeypatch, client):
+    monkeypatch.setattr(mihomo, "_mihomo_provider_direct_headers", lambda: {})
+
+    def fake_probe(url, *, headers, insecure, timeout, prefer, policy):
+        return {
+            "ok": True,
+            "probe": {"url": url, "http_status": 200},
+            "profile": {"profile_title": "Landing", "suggested_name": "Landing"},
+            "headers_used": {},
+            "warnings": [],
+        }
+
+    def fake_fetch(url, *, headers, insecure, timeout, policy):
+        raise ValueError("landing_page_html:install_page")
+
+    monkeypatch.setattr(mihomo, "_mh_hwid_probe_subscription_safe", fake_probe)
+    monkeypatch.setattr(mihomo, "_mh_hwid_fetch_provider_payload", fake_fetch)
+
+    response = client.post(
+        "/api/mihomo/provider/probe",
+        json={"url": "https://provider.example/sub"},
+    )
+
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "LANDING_PAGE_HTML"
+    assert "Happ/INCY" in payload["error"]["hint"]
+
+
 def test_regular_provider_probe_prefers_hwid_adapter_when_hwid_payload_has_more_nodes(monkeypatch, client):
     monkeypatch.setattr(
         mihomo,

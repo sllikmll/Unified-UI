@@ -207,6 +207,10 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
   ENV_HELP.XKEEN_ROUTING_SAVE_MAX_BYTES = 'Максимальный размер тела для сохранения JSON/JSONC роутинга Xray, в байтах. По умолчанию 1048576.';
   ENV_HELP.XKEEN_CONFIG_EXCHANGE_MAX_BYTES = 'Максимальный размер входящего тела для config exchange import/export API, в байтах. По умолчанию 4194304.';
   ENV_HELP.XKEEN_MIHOMO_HWID = 'Ручной override x-hwid для premium/HWID-подписок Mihomo. Обычно оставьте пустым: панель сама определит HWID роутера. Заполняйте только если провайдер уже привязал подписку к конкретному HWID или ожидает значение из кабинета/поддержки. Применяется при следующей проверке/генерации HWID-подписки без Restart UI.';
+  ENV_HELP.XKEEN_HAPP_HELPER_CMD = 'Команда helper-дешифратора для Happ/INCY подписок. Если переменная пуста, панель попробует bundled helper `scripts/happ_transport_helper.py` автоматически. В команде можно использовать `%LINK%` как placeholder входной ссылки.';
+  ENV_HELP.XKEEN_HAPP_HELPER_TIMEOUT = 'Таймаут запуска Happ helper в секундах. По умолчанию 15. Применяется к следующей попытке импорта или обновления без Restart UI.';
+  ENV_HELP.XKEEN_HAPP_HELPER_HWID = 'Необязательный ручной HWID для bundled Happ helper. Обычно оставьте пустым: helper возьмёт HWID роутера автоматически.';
+  ENV_HELP.XKEEN_SUBSCRIPTION_HAPP_USER_AGENT = 'User-Agent для bundled Happ helper и Happ fallback-запросов. По умолчанию: Happ/3.18.3/Android/17771400994551771562.';
   ENV_HELP.XKEEN_XRAY_TEST_TIMEOUT = 'Таймаут preflight-проверки Xray (`xray -test`) в секундах. По умолчанию 30 секунд для всех роутеров, минимум 5. Пользователь может подобрать значение под своё устройство; применяется при следующем сохранении без Restart UI.';
   ENV_HELP.XKEEN_DAT_ALLOW_HOSTS = 'Доверенные хосты для обновления DAT по URL. Формат: через запятую. По умолчанию: GitHub/release/raw хосты.';
   ENV_HELP.XKEEN_DAT_ALLOW_HTTP = 'Разрешить plain HTTP для DAT update. По умолчанию 0 (только HTTPS).';
@@ -343,6 +347,10 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
   ENV_NO_RESTART_KEYS.add('XKEEN_GEODAT_ALLOW_CUSTOM_URLS');
   ENV_NO_RESTART_KEYS.add('XKEEN_GEODAT_ALLOW_PRIVATE_HOSTS');
   ENV_NO_RESTART_KEYS.add('XKEEN_MIHOMO_HWID');
+  ENV_NO_RESTART_KEYS.add('XKEEN_HAPP_HELPER_CMD');
+  ENV_NO_RESTART_KEYS.add('XKEEN_HAPP_HELPER_TIMEOUT');
+  ENV_NO_RESTART_KEYS.add('XKEEN_HAPP_HELPER_HWID');
+  ENV_NO_RESTART_KEYS.add('XKEEN_SUBSCRIPTION_HAPP_USER_AGENT');
   ENV_NO_RESTART_KEYS.add('XKEEN_XRAY_TEST_TIMEOUT');
   ENV_RESTART_KEYS.delete('XKEEN_ALLOW_SHELL');
   ENV_RESTART_KEYS.delete('XKEEN_AUTH_LOGIN_WINDOW_SECONDS');
@@ -364,6 +372,10 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
   ENV_RESTART_KEYS.delete('XKEEN_GEODAT_ALLOW_CUSTOM_URLS');
   ENV_RESTART_KEYS.delete('XKEEN_GEODAT_ALLOW_PRIVATE_HOSTS');
   ENV_RESTART_KEYS.delete('XKEEN_MIHOMO_HWID');
+  ENV_RESTART_KEYS.delete('XKEEN_HAPP_HELPER_CMD');
+  ENV_RESTART_KEYS.delete('XKEEN_HAPP_HELPER_TIMEOUT');
+  ENV_RESTART_KEYS.delete('XKEEN_HAPP_HELPER_HWID');
+  ENV_RESTART_KEYS.delete('XKEEN_SUBSCRIPTION_HAPP_USER_AGENT');
   ENV_RESTART_KEYS.delete('XKEEN_XRAY_TEST_TIMEOUT');
   ENV_RESTART_KEYS.add('XKEEN_INIT_SCRIPT');
 
@@ -427,7 +439,14 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
       id: 'mihomo',
       title: 'Mihomo и HWID',
       desc: 'Лимиты Mihomo API и HWID для premium/HWID-подписок.',
-      keys: ['XKEEN_MIHOMO_JSON_MAX_BYTES', 'XKEEN_MIHOMO_HWID'],
+      keys: [
+        'XKEEN_MIHOMO_JSON_MAX_BYTES',
+        'XKEEN_MIHOMO_HWID',
+        'XKEEN_HAPP_HELPER_CMD',
+        'XKEEN_HAPP_HELPER_TIMEOUT',
+        'XKEEN_HAPP_HELPER_HWID',
+        'XKEEN_SUBSCRIPTION_HAPP_USER_AGENT',
+      ],
       prefixes: [],
     },
     {
