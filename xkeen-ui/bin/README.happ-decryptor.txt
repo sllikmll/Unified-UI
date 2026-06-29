@@ -1,9 +1,10 @@
-Drop-in external Happ decryptor
-================================
+Внешний Happ decryptor
+======================
 
-Place a third-party decryptor here if you need raw `happ://crypt...` support.
+Кладите сюда сторонний decryptor, если нужна поддержка raw-ссылок
+`happ://crypt...`.
 
-Auto-detected filenames:
+Имена файлов, которые панель ищет автоматически:
 - happ_decryptor.py
 - happ-decryptor.py
 - happ_decrypt_universal.py
@@ -16,63 +17,119 @@ Auto-detected filenames:
 - happ-decrypt-universal
 - happwner
 
-Command contract:
-- XKeen passes the incoming link as the last argument, or replaces `%LINK%`.
-- The decryptor should print one of:
-  - a direct subscription URL
-  - decoded subscription text/body
-  - JSON with `url`, `text`, `result`, `output`, `body`, or `decrypted`
+Контракт команды:
+- XKeen передаёт входящую ссылку последним аргументом или заменяет `%LINK%`.
+- Decryptor должен вывести один из вариантов:
+  - прямой URL подписки
+  - расшифрованный текст или тело подписки
+  - JSON с полем `url`, `text`, `result`, `output`, `body` или `decrypted`
 
-You can always override auto-detection with:
+Автоопределение всегда можно переопределить переменной:
 - XKEEN_HAPP_DECRYPTOR_CMD
 
-The built-in `scripts/happ_transport_helper.py` still handles HTTP(S) Happ landing pages.
+Встроенный `scripts/happ_transport_helper.py` по-прежнему отвечает за HTTP(S)
+landing page подписки Happ.
 
-Local aarch64 router build
-==========================
+Локальная сборка для aarch64 роутеров
+=====================================
 
-The XKeen repository does not store Happ decryptor binaries or key material.
-For local tests you can build a drop-in Linux/arm64 binary from a local
-`LeeeeT/happ-decryptor` checkout and include it into your local
-`xkeen-ui-routing.tar.gz` archive without committing the binary or generated
-key-bearing source to GitHub.
+Репозиторий XKeen не хранит бинарники Happ decryptor и ключевой материал. Для
+локальных тестов можно собрать drop-in бинарник Linux/arm64 из локального
+checkout `LeeeeT/happ-decryptor` и включить его в локальный архив
+`xkeen-ui-routing.tar.gz`, не коммитя сам бинарник или сгенерированный исходник
+с ключевым материалом в GitHub.
 
-Expected local source checkout:
+Ожидаемый локальный checkout:
 - `.tmp/leeeet-happ-decryptor`
 
-The builder reads:
+Builder читает:
 - `src/decrypt.js`
 - `public/data/expanded_rsa_keys.json`
 
-Build command from the repository root:
+Команда сборки из корня репозитория:
 
 ```sh
 python scripts/build_happ_decryptor_aarch64.py
 ```
 
-Default output:
+Выходной файл по умолчанию:
 
 ```text
 xkeen-ui/bin/happ-decrypt-universal
 ```
 
-Default target:
+Целевая платформа по умолчанию:
 
 ```text
 GOOS=linux GOARCH=arm64 CGO_ENABLED=0
 ```
 
-Default router command:
+Команда для роутера по умолчанию:
 
 ```sh
 XKEEN_HAPP_DECRYPTOR_CMD='/opt/etc/xkeen-ui/bin/happ-decrypt-universal %LINK%'
 ```
 
-If the binary keeps the auto-detected name `happ-decrypt-universal`, setting
-`XKEEN_HAPP_DECRYPTOR_CMD` is optional. The panel will discover it automatically.
+Если бинарник сохраняет auto-detect имя `happ-decrypt-universal`, задавать
+`XKEEN_HAPP_DECRYPTOR_CMD` необязательно. Панель найдёт его автоматически.
 
-To ship the local binary to testers, rebuild the user archive after the binary exists:
+Чтобы передать локальный бинарник тестировщикам, пересоберите пользовательский
+архив после появления бинарника:
 
 ```sh
 python scripts/build_user_archive.py --skip-frontend-build
 ```
+
+Ручная установка у тестировщика
+===============================
+
+Тестировщикам можно передавать только локальный бинарный файл:
+
+```text
+happ-decrypt-universal
+```
+
+Этот бинарник предназначен для Linux/aarch64 роутеров. На MIPS, ARMv7 и x86
+роутерах он не запустится.
+
+Рекомендуемый путь на роутере:
+
+```sh
+/opt/etc/xkeen-ui/bin/happ-decrypt-universal
+```
+
+Пример загрузки с ПК:
+
+```sh
+scp happ-decrypt-universal root@192.168.1.1:/tmp/happ-decrypt-universal
+```
+
+Затем выполните на роутере по SSH:
+
+```sh
+mkdir -p /opt/etc/xkeen-ui/bin
+mv /tmp/happ-decrypt-universal /opt/etc/xkeen-ui/bin/happ-decrypt-universal
+chmod 755 /opt/etc/xkeen-ui/bin/happ-decrypt-universal
+```
+
+Быстрая проверка на роутере:
+
+```sh
+/opt/etc/xkeen-ui/bin/happ-decrypt-universal
+```
+
+Ожидаемый вывод без аргументов:
+
+```text
+usage: happ-decrypt-universal <happ://crypt...>
+```
+
+Если файл лежит по указанному пути и сохранил auto-detect имя, XKeen должен
+найти его автоматически. Для явной настройки через DevTools -> ENV укажите:
+
+```sh
+XKEEN_HAPP_DECRYPTOR_CMD=/opt/etc/xkeen-ui/bin/happ-decrypt-universal %LINK%
+```
+
+Значение применяется к следующей попытке импорта или обновления и не требует
+Restart UI.
