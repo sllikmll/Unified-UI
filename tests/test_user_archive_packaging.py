@@ -17,9 +17,25 @@ def test_local_user_archive_script_matches_ci_packaging_expectations():
     assert '["npm", "run", "frontend:build"]' in script
     assert 'tarfile.open(archive_path, "w:gz", format=tarfile.PAX_FORMAT)' in script
     assert 'write_build_json(package_root, version=version, update_url=update_url)' in script
+    assert 'filter=normalize_archive_tarinfo' in script
+    assert 'happ-decrypt-universal' in script
     assert 'replace_file_with_retries(temp_archive, archive_path)' in script
     assert 'derive_fallback_archive_path(archive_path)' in script
     assert 'Path(str(archive_path) + ".sha256")' in script
+
+
+def test_happ_decryptor_aarch64_build_script_is_local_only():
+    script = (ROOT / "scripts" / "build_happ_decryptor_aarch64.py").read_text(encoding="utf-8")
+    gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+
+    assert "LeeeeT/happ-decryptor.git" in script
+    assert "PKCS1_KEYS_B64" in script
+    assert "public/data/expanded_rsa_keys.json" in script
+    assert '"GOARCH": goarch' in script
+    assert '"arm64"' in script
+    assert "/xkeen-ui/bin/happ-decrypt*" in gitignore
+    assert "!/xkeen-ui/bin/README.happ-decryptor.txt" in gitignore
+    assert "/.tmp/leeeet-happ-decryptor/" in gitignore
 
 
 def test_package_json_exposes_local_user_archive_commands():

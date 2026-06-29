@@ -33,6 +33,13 @@ EXCLUDED_FILE_SUFFIXES = {
 EXCLUDED_PROJECT_RELATIVE_DIRS = {
     Path("opt/etc/mihomo/backup"),
 }
+EXECUTABLE_BIN_NAMES = {
+    "happ-decryptor",
+    "happ_decryptor",
+    "happ-decrypt-universal",
+    "happ_decrypt_universal",
+    "happwner",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -132,7 +139,19 @@ def write_build_json(dst_root: Path, *, version: str, update_url: str) -> None:
 def build_archive(src_root: Path, archive_path: Path) -> None:
     archive_path.parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(archive_path, "w:gz", format=tarfile.PAX_FORMAT) as tar:
-        tar.add(src_root, arcname=PROJECT_DIRNAME)
+        tar.add(src_root, arcname=PROJECT_DIRNAME, filter=normalize_archive_tarinfo)
+
+
+def normalize_archive_tarinfo(info: tarfile.TarInfo) -> tarfile.TarInfo:
+    try:
+        rel = Path(info.name).as_posix()
+        if info.isfile() and rel.startswith(f"{PROJECT_DIRNAME}/bin/"):
+            stem = Path(rel).name
+            if stem in EXECUTABLE_BIN_NAMES:
+                info.mode = 0o755
+    except Exception:
+        pass
+    return info
 
 
 def write_sha256(archive_path: Path, sha_path: Path) -> str:

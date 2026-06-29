@@ -27,6 +27,15 @@ package-root/
 /scripts/build_debian_archive.py
 /tests/test_debian_packaging_contract.py
 
+# Local-only Happ decryptor binaries/assets.
+# Keep README tracked, but never commit private decryptor material.
+/xkeen-ui/bin/happ-decrypt*
+/xkeen-ui/bin/happ_decrypt*
+/xkeen-ui/bin/happwner*
+!/xkeen-ui/bin/README.happ-decryptor.txt
+/.tmp/happ-decrypt-universal/
+/.tmp/leeeet-happ-decryptor/
+
 # Playwright / e2e
 playwright-report/
 test-results/
