@@ -5088,11 +5088,14 @@ let outboundsModuleApi = null;
       } else {
         try {
           const parsed = new URL(state.url);
-          if (!/^https?:$/i.test(String(parsed.protocol || '')) || !String(parsed.hostname || '').trim()) {
+          const protocol = String(parsed.protocol || '').toLowerCase();
+          const isHttpSubscription = /^https?:$/i.test(protocol) && String(parsed.hostname || '').trim();
+          const isHappDeepLink = protocol === 'happ:' && /^happ:\/\/crypt[0-9]*\//i.test(state.url);
+          if (!isHttpSubscription && !isHappDeepLink) {
             throw new Error('bad-protocol');
           }
         } catch (e) {
-          errors.url = 'Укажи корректный HTTP(S) URL.';
+          errors.url = 'Укажи корректный HTTP(S) URL или Happ deep-link (happ://crypt...).';
         }
       }
 
@@ -5527,9 +5530,9 @@ let outboundsModuleApi = null;
                       </div>
                     </label>
                     <div class="xk-sub-wide xk-sub-url-row">
-                      <label class="xk-sub-url-field" data-tooltip="HTTP(S) URL подписки. Поддерживаются share-ссылки, base64 и Xray JSON outbounds.">
+                      <label class="xk-sub-url-field" data-tooltip="HTTP(S) URL подписки или Happ deep-link. Поддерживаются share-ссылки, base64 и Xray JSON outbounds.">
                         <span class="xk-pool-fieldlabel">URL</span>
-                        <input id="outbounds-subscriptions-url" class="xray-log-filter" type="url" placeholder="https://..." title="URL подписки" data-tooltip="Вставь HTTP(S) URL подписки. Панель скачает nodes и создаст отдельный outbounds-фрагмент.">
+                        <input id="outbounds-subscriptions-url" class="xray-log-filter" type="text" inputmode="url" placeholder="https://... или happ://crypt..." title="URL подписки" data-tooltip="Вставь HTTP(S) URL подписки или Happ deep-link. Панель скачает nodes и создаст отдельный outbounds-фрагмент.">
                         <span id="outbounds-subscriptions-url-note" class="xk-sub-field-note" hidden></span>
                       </label>
                       <div class="xk-sub-url-action">

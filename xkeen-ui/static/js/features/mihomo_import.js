@@ -1831,6 +1831,11 @@ let mihomoImportModuleApi = null;
     return protocols[protocol](uri);
   }
 
+  function isBackendSubscriptionLink(value) {
+    const text = String(value || '').trim();
+    return /^https?:\/\//i.test(text) || /^happ:\/\/crypt[0-9]*\//i.test(text);
+  }
+
   function convertToMihomoYaml(proxyConfig) {
     const settings = proxyConfig.settings;
     const streamSettings = proxyConfig.streamSettings || {};
@@ -2389,8 +2394,8 @@ let mihomoImportModuleApi = null;
 
       for (const line of lines) {
         try {
-          if (mode === 'subscription' && !/^https?:\/\//i.test(line)) {
-            throw new Error('Ожидается HTTPS‑подписка (URL начинается с http/https)');
+          if (mode === 'subscription' && !isBackendSubscriptionLink(line)) {
+            throw new Error('Ожидается HTTPS‑подписка или Happ deep-link (happ://crypt...)');
           }
           if (mode === 'proxy' && /^https?:\/\//i.test(line)) {
             throw new Error('Это похоже на подписку. Выбери «HTTPS subscription» или «Auto».');
@@ -2406,10 +2411,10 @@ let mihomoImportModuleApi = null;
             continue;
           }
 
-          // For http(s) URLs in subscription/auto modes, try the backend
+          // For http(s)/Happ URLs in subscription/auto modes, try the backend
           // Xray-JSON parser first; on not_xray_json we transparently fall
           // back to creating a regular proxy-provider entry.
-          if (/^https?:\/\//i.test(line) && mode !== 'proxy') {
+          if (isBackendSubscriptionLink(line) && mode !== 'proxy') {
             setStatus(`Распознаю подписку ${line}…`, false);
             const existingNames = collectProxyNamesFromText(tmp);
             const xrayProxies = await parseXrayJsonViaApi(line, existingNames);

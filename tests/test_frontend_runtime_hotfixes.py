@@ -23,6 +23,21 @@ def test_update_notifier_postjson_sends_csrf_header():
     assert "headers['X-CSRF-Token'] = csrf" in text
 
 
+def test_happ_deep_links_reach_backend_import_paths():
+    mihomo_import = Path('xkeen-ui/static/js/features/mihomo_import.js').read_text(encoding='utf-8')
+    outbounds = Path('xkeen-ui/static/js/features/outbounds.js').read_text(encoding='utf-8')
+
+    assert 'function isBackendSubscriptionLink(value)' in mihomo_import
+    assert r"/^happ:\/\/crypt[0-9]*\//i.test(text)" in mihomo_import
+    assert "if (isBackendSubscriptionLink(line) && mode !== 'proxy')" in mihomo_import
+    assert "Ожидается HTTPS‑подписка или Happ deep-link" in mihomo_import
+
+    assert "const isHappDeepLink = protocol === 'happ:'" in outbounds
+    assert r"/^happ:\/\/crypt[0-9]*\//i.test(state.url)" in outbounds
+    assert 'type="text" inputmode="url"' in outbounds
+    assert "HTTP(S) URL или Happ deep-link" in outbounds
+
+
 def test_devtools_postjson_uses_single_request_path_and_keeps_csrf_on_raw_fallback():
     devtools_text = Path('xkeen-ui/static/js/features/devtools/shared.js').read_text(encoding='utf-8')
     ui_text = Path('xkeen-ui/static/js/ui/shared_primitives.js').read_text(encoding='utf-8')
