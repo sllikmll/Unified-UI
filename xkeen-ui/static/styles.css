@@ -8635,6 +8635,35 @@ html[data-theme="light"] #routing-forced-rules-modal .xk-chip[data-kind="ip"] {
   border: 1px solid rgba(96, 165, 250, 0.18);
   background: rgba(15, 23, 42, 0.46);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.xk-status-inline {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 9px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.xk-status-message {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.xk-inline-spinner {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  margin-top: 1px;
+  border-radius: 999px;
+  border: 2px solid rgba(191, 219, 254, 0.18);
+  border-top-color: #dbeafe;
+  border-right-color: rgba(125, 211, 252, 0.82);
+  animation: xkeen-spinner 0.8s linear infinite;
 }
 
 .xk-mi-status.success {
@@ -10259,6 +10288,9 @@ html[data-theme="light"] .xk-sub-draft-badge {
   color: #a8b3c5;
   font-size: calc(12px * var(--xk-font-scale));
   line-height: 1.35;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 #outbounds-subscriptions-modal .modal-actions {

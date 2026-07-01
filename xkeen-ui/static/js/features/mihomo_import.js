@@ -142,16 +142,55 @@ let mihomoImportModuleApi = null;
     } catch (e) {}
   }
 
-  function setStatus(msg, isErr, kind) {
+  function shortenStatusUrl(value, maxLen = 88) {
+    const text = String(value || '').trim();
+    if (!text || text.length <= maxLen) return text;
+    const head = Math.max(24, Math.min(54, Math.floor((maxLen - 1) * 0.68)));
+    const tail = Math.max(12, maxLen - head - 1);
+    return `${text.slice(0, head)}…${text.slice(-tail)}`;
+  }
+
+  function compactStatusLinks(value) {
+    return String(value || '').replace(/((?:https?:\/\/|happ:\/\/)[^\s]+)/gi, (match) => shortenStatusUrl(match));
+  }
+
+  function setStatusContent(el, msg, opts) {
+    if (!el) return;
+    const text = compactStatusLinks(msg);
+    const hasMsg = !!String(text || '').trim();
+    const busy = !!(opts && opts.busy);
+    el.innerHTML = '';
+    if (!hasMsg) return;
+    if (busy) {
+      const wrap = document.createElement('span');
+      wrap.className = 'xk-status-inline is-busy';
+      const spinner = document.createElement('span');
+      spinner.className = 'xk-inline-spinner';
+      spinner.setAttribute('aria-hidden', 'true');
+      const content = document.createElement('span');
+      content.className = 'xk-status-message';
+      content.textContent = text;
+      wrap.appendChild(spinner);
+      wrap.appendChild(content);
+      el.appendChild(wrap);
+      return;
+    }
+    el.textContent = text;
+  }
+
+  function setStatus(msg, isErr, kind, opts) {
     const el = $(IDS.status);
     if (!el) return;
     const value = String(msg || '');
     const hasMsg = !!value.trim();
     const state = kind || (isErr ? 'error' : 'success');
-    el.textContent = value;
+    setStatusContent(el, value, opts);
     el.classList.toggle('error', hasMsg && state === 'error');
     el.classList.toggle('warning', hasMsg && state === 'warning');
     el.classList.toggle('success', hasMsg && state === 'success');
+    el.classList.toggle('is-busy', hasMsg && !!(opts && opts.busy));
+    if (hasMsg && opts && opts.busy) el.setAttribute('aria-busy', 'true');
+    else el.removeAttribute('aria-busy');
     el.classList.toggle('hidden', !hasMsg);
   }
 
@@ -2358,7 +2397,7 @@ let mihomoImportModuleApi = null;
     // Config modes: parse whole textarea as a single config.
     if (mode === 'wireguard' || mode === 'openvpn' || mode === 'tailscale') {
       const label = mode === 'wireguard' ? 'WireGuard' : (mode === 'openvpn' ? 'OpenVPN' : 'Tailscale');
-      setStatus('Разбираю ' + label + '…', false);
+      setStatus('Разбираю ' + label + '…', false, null, { busy: true });
       try {
         let out = await parseConfigViaApi(mode, rawText, null);
         // Ensure unique name against current config.yaml
@@ -2415,7 +2454,7 @@ let mihomoImportModuleApi = null;
           // Xray-JSON parser first; on not_xray_json we transparently fall
           // back to creating a regular proxy-provider entry.
           if (isBackendSubscriptionLink(line) && mode !== 'proxy') {
-            setStatus(`Распознаю подписку ${line}…`, false);
+            setStatus(`Распознаю подписку ${line}…`, false, null, { busy: true });
             const existingNames = collectProxyNamesFromText(tmp);
             const xrayProxies = await parseXrayJsonViaApi(line, existingNames);
             if (xrayProxies && xrayProxies.length) {
@@ -2578,7 +2617,7 @@ let mihomoImportModuleApi = null;
       try { btnParseStatic.classList.add('loading'); } catch (e2b) {}
     }
 
-    setStatus('Вставляю в config.yaml…', false);
+    setStatus('Вставляю в config.yaml…', false, null, { busy: true });
 
     try {
       let txt = getEditorText() || '';

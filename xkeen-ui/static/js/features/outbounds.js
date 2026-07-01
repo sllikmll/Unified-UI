@@ -5749,13 +5749,40 @@ let outboundsModuleApi = null;
       try { syncXkeenBodyScrollLock(!!show); } catch (e2) {}
     }
 
-    function subsSetStatus(msg, isErr, isOk) {
+    function subsSetStatusContent(el, msg, opts) {
+      if (!el) return;
+      const text = String(msg || '');
+      const hasMsg = !!text.trim();
+      const busy = !!(opts && opts.busy);
+      el.innerHTML = '';
+      if (!hasMsg) return;
+      if (busy) {
+        const wrap = document.createElement('span');
+        wrap.className = 'xk-status-inline is-busy';
+        const spinner = document.createElement('span');
+        spinner.className = 'xk-inline-spinner';
+        spinner.setAttribute('aria-hidden', 'true');
+        const content = document.createElement('span');
+        content.className = 'xk-status-message';
+        content.textContent = text;
+        wrap.appendChild(spinner);
+        wrap.appendChild(content);
+        el.appendChild(wrap);
+        return;
+      }
+      el.textContent = text;
+    }
+
+    function subsSetStatus(msg, isErr, isOk, opts) {
       const el = $(SUB_IDS.status);
       if (!el) return;
       try {
-        el.textContent = String(msg || '');
+        subsSetStatusContent(el, String(msg || ''), opts);
         el.classList.toggle('is-error', !!isErr);
         el.classList.toggle('is-success', !isErr && !!isOk);
+        el.classList.toggle('is-busy', !!(msg && String(msg).trim()) && !!(opts && opts.busy));
+        if (msg && String(msg).trim() && opts && opts.busy) el.setAttribute('aria-busy', 'true');
+        else el.removeAttribute('aria-busy');
       } catch (e) {}
     }
 
@@ -6907,7 +6934,7 @@ let outboundsModuleApi = null;
       if (_subscriptionNodePingState[pendingKey]) return false;
       _subscriptionNodePingState[pendingKey] = true;
       try { subsRenderNodeList(); } catch (e) {}
-      subsSetStatus('Проверяю задержку узла…', false);
+      subsSetStatus('Проверяю задержку узла…', false, false, { busy: true });
       try {
         const res = await fetch(`/api/xray/subscriptions/${encodeURIComponent(sid)}/nodes/ping`, {
           method: 'POST',
@@ -7022,7 +7049,7 @@ let outboundsModuleApi = null;
       });
       subsUpdatePingAllBtnState();
       try { subsRenderNodeList(); } catch (e) {}
-      subsSetStatus(`Проверяю задержку: ${targets.length} узлов…`, false);
+      subsSetStatus(`Проверяю задержку: ${targets.length} узлов…`, false, false, { busy: true });
 
       try {
         const data = await postLatencyProbe(`/api/xray/subscriptions/${encodeURIComponent(subId)}/nodes/ping-bulk`, {
@@ -7032,7 +7059,7 @@ let outboundsModuleApi = null;
           onPoll: (job) => {
             const status = String(job && job.status || '').trim();
             if (status === 'queued' || status === 'running') {
-              subsSetStatus(`Проверяю задержку в фоне: ${targets.length} узлов…`, false);
+              subsSetStatus(`Проверяю задержку в фоне: ${targets.length} узлов…`, false, false, { busy: true });
             }
           },
         });
@@ -7288,7 +7315,7 @@ let outboundsModuleApi = null;
       _subscriptionPreviewBusy = true;
       subsSyncSubscriptionFormState();
       try {
-        subsSetStatus('Скачиваю предпросмотр…', false);
+        subsSetStatus('Скачиваю предпросмотр…', false, false, { busy: true });
         const res = await fetch('/api/xray/subscriptions/preview', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -7360,7 +7387,7 @@ let outboundsModuleApi = null;
         if (!ok) return false;
       }
       const prevActive = getActiveFragment();
-      subsSetStatus('Обновляю подписку…', false);
+      subsSetStatus('Обновляю подписку…', false, false, { busy: true });
       const restart = shouldRestartAfterSave();
       try {
         const res = await fetch('/api/xray/subscriptions/' + encodeURIComponent(subId) + '/refresh?restart=' + (restart ? '1' : '0'), {
@@ -7467,7 +7494,7 @@ let outboundsModuleApi = null;
         cancelText: 'Остаться',
       });
       if (!ok) return false;
-      subsSetStatus('Проверяю due-подписки…', false);
+      subsSetStatus('Проверяю due-подписки…', false, false, { busy: true });
       const prevActive = getActiveFragment();
       const restart = shouldRestartAfterSave();
       try {
@@ -7543,7 +7570,7 @@ let outboundsModuleApi = null;
 
       _subscriptionSaveBusy = true;
       subsSyncSubscriptionFormState();
-      subsSetStatus('Сохраняю…', false);
+      subsSetStatus('Сохраняю…', false, false, { busy: true });
       try {
         const res = await fetch('/api/xray/subscriptions', {
           method: 'POST',
@@ -7605,7 +7632,7 @@ let outboundsModuleApi = null;
       });
       if (!ok) return false;
       const restart = shouldRestartAfterSave();
-      subsSetStatus('Удаляю…', false);
+      subsSetStatus('Удаляю…', false, false, { busy: true });
       try {
         const res = await fetch('/api/xray/subscriptions/' + encodeURIComponent(subId) + '?restart=' + (restart ? '1' : '0'), {
           method: 'DELETE',
