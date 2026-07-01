@@ -9,6 +9,8 @@ import shlex
 import shutil
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from typing import Any, Dict, List
 from urllib.parse import urlparse
 from pathlib import Path
@@ -16,6 +18,7 @@ from pathlib import Path
 
 HAPP_HELPER_CMD_ENV = "XKEEN_HAPP_HELPER_CMD"
 HAPP_DECRYPTOR_CMD_ENV = "XKEEN_HAPP_DECRYPTOR_CMD"
+HAPP_DECRYPTOR_REMOTE_URL_ENV = "XKEEN_HAPP_DECRYPTOR_REMOTE_URL"
 HAPP_HELPER_TIMEOUT_ENV = "XKEEN_HAPP_HELPER_TIMEOUT"
 HAPP_RESOLVED_HEADER = "x-xkeen-happ-resolved"
 HAPP_LINK_HEADER = "x-xkeen-happ-link"
@@ -82,6 +85,11 @@ def _command_parts_from_path(path: str) -> List[str]:
         return []
     exe = str(sys.executable or "").strip()
     suffix = Path(script).suffix.lower()
+    if suffix in {".js", ".mjs", ".cjs"} or _path_has_node_shebang(script):
+        node = str(shutil.which("node") or "").strip()
+        if not node:
+            return []
+        return [node, script]
     if suffix == ".py":
         if not exe:
             exe = str(shutil.which("python3") or shutil.which("python") or "").strip()
@@ -89,6 +97,15 @@ def _command_parts_from_path(path: str) -> List[str]:
             return []
         return [exe, script]
     return [script]
+
+
+def _path_has_node_shebang(path: str) -> bool:
+    try:
+        with open(path, "rb") as f:
+            first = f.readline(160).decode("utf-8", errors="ignore").strip().lower()
+        return first.startswith("#!") and "node" in first
+    except Exception:
+        return False
 
 
 def _bundled_helper_command_parts() -> List[str]:
@@ -164,12 +181,23 @@ def decryptor_command() -> str:
     return _format_command_parts(_bundled_decryptor_command_parts(), include_placeholder=True)
 
 
+def remote_decryptor_url() -> str:
+    raw = str(os.environ.get(HAPP_DECRYPTOR_REMOTE_URL_ENV) or "").strip()
+    if not raw:
+        return ""
+    return raw if _is_http_url(raw) else ""
+
+
 def helper_configured() -> bool:
     return bool(helper_command_parts())
 
 
 def decryptor_configured() -> bool:
     return bool(decryptor_command_parts())
+
+
+def remote_decryptor_configured() -> bool:
+    return bool(remote_decryptor_url())
 
 
 def helper_timeout_seconds() -> float:
@@ -250,7 +278,7 @@ def _command_with_link(parts: List[str], link: str) -> List[str]:
 def _json_helper_value(obj: Any) -> Dict[str, Any] | None:
     if isinstance(obj, dict):
         headers = obj.get("headers") if isinstance(obj.get("headers"), dict) else {}
-        for key in ("url", "uri", "link"):
+        for key in ("url", "uri", "link", "decryptedUrl", "decrypted_url"):
             value = str(obj.get(key) or "").strip()
             if value:
                 return {"kind": "url", "value": value, "headers": headers}
@@ -349,7 +377,7 @@ def _run_command(parts: List[str], link: str, *, error_prefix: str) -> Dict[str,
     stderr = str(completed.stderr or "").strip()
     if completed.returncode != 0:
         detail = stderr or stdout or f"exit_{completed.returncode}"
-        raise RuntimeError(f"{error_prefix}failed:" + detail[:240])
+        raise RuntimeError(f"{error_prefix}failed:" + detail[:900])
     if not stdout:
         raise RuntimeError(f"{error_prefix}empty")
 
@@ -366,6 +394,57 @@ def run_helper(link: str) -> Dict[str, Any]:
 
 def run_decryptor(link: str) -> Dict[str, Any]:
     return _run_command(decryptor_command_parts(), link, error_prefix="happ_decryptor_")
+
+
+def run_remote_decryptor(link: str) -> Dict[str, Any]:
+    target = remote_decryptor_url()
+    if not str(link or "").strip():
+        raise RuntimeError("happ_decryptor_remote_invalid_input")
+    if not target:
+        raise RuntimeError("happ_decryptor_remote_not_configured")
+
+    payload = json.dumps({"url": str(link).strip()}).encode("utf-8")
+    request = urllib.request.Request(
+        target,
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/plain;q=0.9, */*;q=0.8",
+        },
+        method="POST",
+    )
+    timeout = helper_timeout_seconds()
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            status = int(getattr(response, "status", 200) or 200)
+            raw = response.read()
+    except urllib.error.HTTPError as exc:
+        detail = ""
+        try:
+            detail = exc.read().decode("utf-8", errors="replace").strip()
+        except Exception:
+            detail = ""
+        raise RuntimeError(
+            "happ_decryptor_remote_failed:" + (detail or f"http_{exc.code}")[:240]
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError("happ_decryptor_remote_failed:" + str(exc.reason)[:240]) from exc
+    except TimeoutError as exc:
+        raise RuntimeError("happ_decryptor_remote_timeout") from exc
+    except Exception as exc:
+        raise RuntimeError("happ_decryptor_remote_failed:" + str(exc)[:240]) from exc
+
+    text = bytes(raw or b"").decode("utf-8", errors="replace").strip()
+    if status >= 400:
+        raise RuntimeError(f"happ_decryptor_remote_failed:http_{status}")
+    if not text:
+        raise RuntimeError("happ_decryptor_remote_empty")
+
+    parsed = _normalize_helper_output(text)
+    if not parsed:
+        raise RuntimeError("happ_decryptor_remote_unparsed_output")
+    parsed["helper_stdout"] = text
+    return parsed
 
 
 def _resolve_candidates(
@@ -435,6 +514,15 @@ def resolve_source(url: str, *, body: Any = None, content_type: Any = None) -> D
         if parsed:
             return parsed
 
+    if candidates and remote_decryptor_configured():
+        parsed, last_error = _resolve_candidates(
+            candidates,
+            run_remote_decryptor,
+            via="decryptor-remote",
+        )
+        if parsed:
+            return parsed
+
     if candidates and helper_env_configured():
         parsed, last_error = _resolve_candidates(candidates, run_helper, via="helper")
         if parsed:
@@ -450,6 +538,11 @@ def resolve_source(url: str, *, body: Any = None, content_type: Any = None) -> D
         if decryptor_configured():
             parsed = run_decryptor(candidates[0])
             parsed["via"] = "decryptor"
+            parsed["candidate"] = candidates[0]
+            return parsed
+        if remote_decryptor_configured():
+            parsed = run_remote_decryptor(candidates[0])
+            parsed["via"] = "decryptor-remote"
             parsed["candidate"] = candidates[0]
             return parsed
         if helper_env_configured():

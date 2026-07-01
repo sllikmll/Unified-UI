@@ -1314,7 +1314,8 @@ def _subscription_html_landing_message(body: str, headers: Dict[str, str] | None
     if helper_error == "happ_decryptor_not_configured":
         helper_hint = (
             f" Настройте {happ_links.HAPP_DECRYPTOR_CMD_ENV} "
-            "или положите внешний decryptor в xkeen-ui/bin."
+            "или положите внешний decryptor в xkeen-ui/bin. "
+            f"При осознанном доверии внешнему сервису можно задать {happ_links.HAPP_DECRYPTOR_REMOTE_URL_ENV}."
         )
     elif helper_error == "happ_helper_not_configured":
         helper_hint = f" Настройте {happ_links.HAPP_HELPER_CMD_ENV}, чтобы панель могла обработать Happ landing page."
@@ -1337,7 +1338,9 @@ def _happ_helper_error_message(reason: Any) -> str:
         return (
             "Для raw Happ deep-link нужен внешний decryptor. "
             f"Укажите {happ_links.HAPP_DECRYPTOR_CMD_ENV} "
-            "или положите drop-in decryptor в xkeen-ui/bin."
+            "или положите drop-in decryptor в xkeen-ui/bin. "
+            f"Опционально можно задать {happ_links.HAPP_DECRYPTOR_REMOTE_URL_ENV} "
+            "для осознанного HTTP fallback."
         )
     if code == "happ_helper_not_configured":
         return (
@@ -1353,9 +1356,11 @@ def _happ_helper_error_message(reason: Any) -> str:
     if code.startswith("happ_helper_missing:"):
         return "Не найден исполняемый файл Happ helper."
     if code.startswith("happ_decryptor_failed:"):
-        return "Внешний Happ decryptor завершился с ошибкой."
+        detail = _compact_happ_error_detail(code, "happ_decryptor_failed:")
+        return "Внешний Happ decryptor завершился с ошибкой." + (f" Детали: {detail}" if detail else "")
     if code.startswith("happ_helper_failed:"):
-        return "Happ helper завершился с ошибкой."
+        detail = _compact_happ_error_detail(code, "happ_helper_failed:")
+        return "Happ helper завершился с ошибкой." + (f" Детали: {detail}" if detail else "")
     if code == "happ_decryptor_empty":
         return "Внешний Happ decryptor не вернул расшифрованный результат."
     if code == "happ_helper_empty":
@@ -1365,6 +1370,12 @@ def _happ_helper_error_message(reason: Any) -> str:
     if code == "happ_helper_unparsed_output":
         return "Панель не смогла разобрать вывод Happ helper."
     return "Не удалось обработать Happ deep-link."
+
+
+def _compact_happ_error_detail(code: str, prefix: str) -> str:
+    detail = str(code or "")[len(prefix) :].strip()
+    detail = re.sub(r"\s+", " ", detail)
+    return detail[:360]
 
 
 def _happ_subscription_headers(headers: Dict[str, str]) -> Dict[str, str] | None:

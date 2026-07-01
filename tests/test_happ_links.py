@@ -21,6 +21,21 @@ def test_decryptor_command_is_empty_without_dropin_or_env(monkeypatch):
     assert happ_links.decryptor_configured() is False
 
 
+def test_command_parts_from_path_uses_node_for_node_shebang(tmp_path, monkeypatch):
+    script = tmp_path / "happ-decrypt-universal"
+    script.write_text("#!/usr/bin/env node\nconsole.log('ok')\n", encoding="utf-8")
+
+    monkeypatch.setattr(happ_links.shutil, "which", lambda name: "/usr/bin/node" if name == "node" else None)
+
+    assert happ_links._command_parts_from_path(str(script)) == ["/usr/bin/node", str(script)]
+
+
+def test_normalize_helper_output_supports_decrypted_url_json():
+    parsed = happ_links._normalize_helper_output('{"decryptedUrl":"https://example.com/sub"}')
+
+    assert parsed == {"kind": "url", "value": "https://example.com/sub", "headers": {}}
+
+
 def test_resolve_source_uses_decryptor_for_raw_happ_link(monkeypatch):
     calls: list[str] = []
 
@@ -101,3 +116,51 @@ def test_resolve_source_falls_back_to_happ_link_when_http_helper_input_fails(mon
     assert resolved["via"] == "decryptor"
     assert helper_calls == ["https://example.com/sub"]
     assert decryptor_calls == ["happ://crypt5/demo-token"]
+
+
+def test_resolve_source_uses_remote_decryptor_after_local_failure(monkeypatch):
+    local_calls: list[str] = []
+    remote_calls: list[str] = []
+
+    def fake_run_decryptor(value):
+        local_calls.append(value)
+        raise RuntimeError("happ_decryptor_failed:segment length missing")
+
+    def fake_run_remote(value):
+        remote_calls.append(value)
+        return {"kind": "url", "value": "https://example.com/sub", "headers": {}}
+
+    monkeypatch.setattr(happ_links, "decryptor_configured", lambda: True)
+    monkeypatch.setattr(happ_links, "remote_decryptor_configured", lambda: True)
+    monkeypatch.setattr(happ_links, "run_decryptor", fake_run_decryptor)
+    monkeypatch.setattr(happ_links, "run_remote_decryptor", fake_run_remote)
+    monkeypatch.setattr(happ_links, "helper_env_configured", lambda: False)
+
+    resolved = happ_links.resolve_source("happ://crypt5/demo-token")
+
+    assert resolved["kind"] == "url"
+    assert resolved["value"] == "https://example.com/sub"
+    assert resolved["via"] == "decryptor-remote"
+    assert resolved["candidate"] == "happ://crypt5/demo-token"
+    assert local_calls == ["happ://crypt5/demo-token"]
+    assert remote_calls == ["happ://crypt5/demo-token"]
+
+
+def test_resolve_source_uses_remote_decryptor_when_local_is_missing(monkeypatch):
+    calls: list[str] = []
+
+    def fake_run_remote(value):
+        calls.append(value)
+        return {"kind": "text", "value": "vless://demo", "headers": {}}
+
+    monkeypatch.setattr(happ_links, "decryptor_configured", lambda: False)
+    monkeypatch.setattr(happ_links, "remote_decryptor_configured", lambda: True)
+    monkeypatch.setattr(happ_links, "run_remote_decryptor", fake_run_remote)
+    monkeypatch.setattr(happ_links, "helper_env_configured", lambda: False)
+
+    resolved = happ_links.resolve_source("happ://crypt5/demo-token")
+
+    assert resolved["kind"] == "text"
+    assert resolved["via"] == "decryptor-remote"
+    assert resolved["candidate"] == "happ://crypt5/demo-token"
+    assert calls == ["happ://crypt5/demo-token"]

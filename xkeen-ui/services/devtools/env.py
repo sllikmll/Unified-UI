@@ -34,6 +34,7 @@ ENV_WHITELIST: Tuple[str, ...] = (
     "XKEEN_MIHOMO_HWID",
     "XKEEN_HAPP_HELPER_CMD",
     "XKEEN_HAPP_DECRYPTOR_CMD",
+    "XKEEN_HAPP_DECRYPTOR_REMOTE_URL",
     "XKEEN_HAPP_HELPER_TIMEOUT",
     "XKEEN_HAPP_HELPER_HWID",
     "XKEEN_SUBSCRIPTION_HAPP_USER_AGENT",
@@ -297,6 +298,13 @@ def _default_effective_value(
             from services import happ_links
 
             return happ_links.decryptor_command()
+        except Exception:
+            return ""
+    if k == "XKEEN_HAPP_DECRYPTOR_REMOTE_URL":
+        try:
+            from services import happ_links
+
+            return happ_links.remote_decryptor_url()
         except Exception:
             return ""
     if k == "XKEEN_HAPP_HELPER_TIMEOUT":

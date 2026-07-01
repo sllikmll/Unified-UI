@@ -38,6 +38,23 @@ def test_happ_decryptor_aarch64_build_script_is_local_only():
     assert "/.tmp/leeeet-happ-decryptor/" in gitignore
 
 
+def test_happ_decryptor_node_build_script_uses_current_local_emulator_assets():
+    script = (ROOT / "scripts" / "build_happ_decryptor_node.py").read_text(encoding="utf-8")
+    gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+
+    assert "LeeeeT/happ-decryptor.git" in script
+    assert "public/emu/liberror-code.so" in script
+    assert "public/data/keytable.json" in script
+    assert "happ-decrypt-universal.assets" in script
+    assert "XKEEN_HAPP_DECRYPTOR_CMD" in script
+    assert "async function initRuntime()" in script
+    assert "import('node:fs')" in script
+    assert "createRequire" in script or "moduleMod.createRequire" in script
+    assert "pathToFileURL" in script
+    assert "import fs from 'node:fs';" not in script
+    assert "/xkeen-ui/bin/happ-decrypt*" in gitignore
+
+
 def test_package_json_exposes_local_user_archive_commands():
     package_json = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
     scripts = package_json.get("scripts") or {}

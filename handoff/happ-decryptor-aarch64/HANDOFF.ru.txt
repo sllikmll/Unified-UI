@@ -1,0 +1,102 @@
+Happ decryptor handoff для разработчика
+=======================================
+
+Что внутри
+----------
+
+- happ-decrypt-universal
+  Локальный launcher decryptor для Happ `happ://crypt...`.
+  Для запуска нужен `node` на машине, где работает UI.
+
+- happ-decrypt-universal.assets/
+  Локальные assets для актуального `happ://crypt5`: emulator, keytable и
+  `liberror-code.so`.
+
+- README.happ-decryptor.txt
+  Основная инструкция из проекта XKeen.
+
+Базовый коммит панели
+---------------------
+
+Интеграция внешнего decryptor уже есть в GitHub:
+
+```text
+2447854 Translate Happ decryptor README to Russian
+```
+
+Достаточно взять актуальный `main` из репозитория XKeen-UI. Готовый launcher и
+assets в GitHub не попадают намеренно: они локальные, могут содержать
+чувствительный ключевой материал и передаются отдельно или попадают в локальный
+пользовательский архив.
+
+Установка на роутер
+-------------------
+
+Скопировать launcher и assets на роутер:
+
+```sh
+scp happ-decrypt-universal root@192.168.1.1:/tmp/happ-decrypt-universal
+scp -r happ-decrypt-universal.assets root@192.168.1.1:/tmp/happ-decrypt-universal.assets
+```
+
+Выполнить на роутере:
+
+```sh
+mkdir -p /opt/etc/xkeen-ui/bin
+mv /tmp/happ-decrypt-universal /opt/etc/xkeen-ui/bin/happ-decrypt-universal
+rm -rf /opt/etc/xkeen-ui/bin/happ-decrypt-universal.assets
+mv /tmp/happ-decrypt-universal.assets /opt/etc/xkeen-ui/bin/happ-decrypt-universal.assets
+chmod 755 /opt/etc/xkeen-ui/bin/happ-decrypt-universal
+```
+
+Проверить запуск:
+
+```sh
+/opt/etc/xkeen-ui/bin/happ-decrypt-universal
+```
+
+Ожидаемый вывод без аргументов:
+
+```text
+usage: happ-decrypt-universal <happ://crypt...>
+```
+
+Проверка crypto-подписки вручную
+--------------------------------
+
+```sh
+/opt/etc/xkeen-ui/bin/happ-decrypt-universal 'happ://crypt...'
+```
+
+Если всё работает, decryptor выведет прямую подписку или расшифрованное тело
+подписки. После этого XKeen сможет обработать результат как обычную Xray или
+Mihomo подписку.
+
+Настройка в панели
+------------------
+
+Если launcher и assets лежат по путям ниже и launcher сохранил имя
+`happ-decrypt-universal`, панель должна найти его автоматически:
+
+```text
+/opt/etc/xkeen-ui/bin/happ-decrypt-universal
+/opt/etc/xkeen-ui/bin/happ-decrypt-universal.assets/
+```
+
+Если автообнаружение не сработало, в DevTools -> ENV можно задать:
+
+```sh
+XKEEN_HAPP_DECRYPTOR_CMD=/opt/bin/node /opt/etc/xkeen-ui/bin/happ-decrypt-universal %LINK%
+```
+
+Значение применяется к следующей попытке импорта или обновления подписки.
+Restart UI не нужен.
+
+Ограничения
+-----------
+
+- Это не старый Linux/aarch64 Go-бинарник, а локальный Node launcher.
+- На целевой машине должен быть доступен `node`.
+- Исходники decryptor, ключи и временные `.tmp`-checkout не включены в пакет.
+- В GitHub нужно коммитить только код интеграции панели и инструкции, но не этот
+  launcher и assets.
