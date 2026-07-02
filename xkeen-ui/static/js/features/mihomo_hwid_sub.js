@@ -51,6 +51,9 @@ let mihomoHwidSubModuleApi = null;
     diagDeviceNote: 'mihomo-hwid-diag-device-note',
     diagHeaders: 'mihomo-hwid-diag-headers',
     diagResponse: 'mihomo-hwid-diag-response',
+    diagCompare: 'mihomo-hwid-diag-compare',
+    diagCompareGrid: 'mihomo-hwid-diag-compare-grid',
+    diagCompareRelations: 'mihomo-hwid-diag-compare-relations',
 
     btnProbe: 'mihomo-hwid-probe-btn',
     btnInsert: 'mihomo-hwid-insert-btn',
@@ -187,6 +190,134 @@ let mihomoHwidSubModuleApi = null;
     return lines.filter(Boolean).join('\n') || 'Провайдер не вернул специальных HWID-заголовков.';
   }
 
+  function normalizeCompareValue(value) {
+    return String(value == null ? '' : value).trim();
+  }
+
+  function compareState(left, right) {
+    if (!left || !right) return { label: 'недоступно', tone: 'muted' };
+    return left === right
+      ? { label: 'совпадает', tone: 'match' }
+      : { label: 'отличается', tone: 'diff' };
+  }
+
+  function providerAcceptedValue(result) {
+    const direct = normalizeCompareValue(result && result.provider_hwid);
+    if (direct) return direct;
+    return normalizeCompareValue(
+      result &&
+      result.provider_hwid_diagnostics &&
+      result.provider_hwid_diagnostics.accepted_value
+    );
+  }
+
+  function providerAcceptanceNote(routerNative, manualOverride, accepted, hasProbe) {
+    if (!hasProbe) return 'Появится после «Проверить».';
+    if (!accepted) return 'Провайдер не подтвердил отдельное accepted HWID.';
+    if (manualOverride && accepted === manualOverride) {
+      return 'Провайдер подтвердил manual override.';
+    }
+    if (routerNative && accepted === routerNative) {
+      return 'Провайдер подтвердил router-native HWID.';
+    }
+    return 'Провайдер вернул значение, которое не совпадает с router-native и manual override.';
+  }
+
+  function compareMeta(value, emptyText, hintText) {
+    if (!value) return String(emptyText || 'Недоступно');
+    return String(hintText || '');
+  }
+
+  function clearCompareView() {
+    const wrap = $(IDS.diagCompare);
+    const grid = $(IDS.diagCompareGrid);
+    const rel = $(IDS.diagCompareRelations);
+    if (grid) grid.innerHTML = '';
+    if (rel) rel.innerHTML = '';
+    toggleBlock(wrap, false);
+  }
+
+  function renderCompareView(device, result) {
+    const wrap = $(IDS.diagCompare);
+    const grid = $(IDS.diagCompareGrid);
+    const rel = $(IDS.diagCompareRelations);
+    if (!wrap || !grid || !rel) return;
+
+    const hasProbe = !!(result && typeof result === 'object');
+    const routerNative = normalizeCompareValue(
+      (result && result.router_native_hwid) || (device && device.mac_hwid)
+    );
+    const manualOverride = normalizeCompareValue(
+      (result && result.manual_hwid_override) || ((device && device.has_env_override) ? device.hwid : '')
+    );
+    const accepted = providerAcceptedValue(result);
+
+    if (!routerNative && !manualOverride && !accepted && !hasProbe) {
+      clearCompareView();
+      return;
+    }
+
+    const cards = [
+      {
+        title: 'Router-native HWID',
+        value: routerNative || 'Недоступен',
+        note: compareMeta(
+          routerNative,
+          'Панель не смогла вычислить router-native HWID.',
+          'Кандидат, вычисленный из MAC роутера.'
+        ),
+      },
+      {
+        title: 'Manual override',
+        value: manualOverride || 'Не задан',
+        note: compareMeta(
+          manualOverride,
+          'Сейчас ручной override не задан.',
+          'Ручное значение, которое подменяет router-native HWID.'
+        ),
+      },
+      {
+        title: 'Provider-accepted response',
+        value: accepted || 'Не подтвержден',
+        note: providerAcceptanceNote(routerNative, manualOverride, accepted, hasProbe),
+      },
+    ];
+
+    const relations = [
+      {
+        label: 'Router-native vs manual override',
+        state: compareState(routerNative, manualOverride),
+      },
+      {
+        label: 'Manual override vs provider-accepted',
+        state: compareState(manualOverride, accepted),
+      },
+      {
+        label: 'Router-native vs provider-accepted',
+        state: compareState(routerNative, accepted),
+      },
+    ];
+
+    grid.innerHTML = cards.map((card) => (
+      '<article class="xk-hw-compare-card">' +
+        '<div class="xk-hw-compare-label">' + escapeHtml(card.title) + '</div>' +
+        '<div class="xk-hw-compare-value">' + escapeHtml(card.value) + '</div>' +
+        '<div class="xk-hw-compare-note">' + escapeHtml(card.note) + '</div>' +
+      '</article>'
+    )).join('');
+
+    rel.innerHTML = relations.map((item) => (
+      '<div class="xk-hw-compare-row">' +
+        '<span class="xk-hw-compare-row-label">' + escapeHtml(item.label) + '</span>' +
+        '<span class="xk-hw-compare-badge xk-hw-compare-badge--' + escapeHtml(item.state.tone) + '">' +
+          escapeHtml(item.state.label) +
+        '</span>' +
+      '</div>'
+    )).join('');
+
+    toggleBlock(wrap, true);
+  }
+
   function clearDiagnostics() {
     setDiagValue(IDS.diagActive, '—');
     setDiagValue(IDS.diagSource, '—');
@@ -198,6 +329,7 @@ let mihomoHwidSubModuleApi = null;
     setDiagNote(IDS.diagSourceNote, '');
     setDiagNote(IDS.diagRouterNote, '');
     setDiagNote(IDS.diagDeviceNote, '');
+    clearCompareView();
     toggleBlock($(IDS.diag), false);
   }
 
@@ -248,6 +380,7 @@ let mihomoHwidSubModuleApi = null;
     setDiagNote(IDS.diagDeviceNote, deviceNote);
     setDiagValue(IDS.diagHeaders, formatHeaderBlock(device.headers, 'Заголовки пока не собраны.'));
     setDiagValue(IDS.diagResponse, formatProviderResponseBlock(result));
+    renderCompareView(device, result);
     toggleBlock(wrap, true);
   }
 
