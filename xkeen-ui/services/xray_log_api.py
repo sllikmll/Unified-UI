@@ -163,10 +163,26 @@ def get_status() -> Dict[str, Any]:
     }
 
 
+def _call_restart(
+    restart_xray_core: Callable[..., Tuple[bool, str]],
+    *,
+    start_if_stopped: bool = False,
+) -> Tuple[bool, str]:
+    """Invoke the injected restart callable, forwarding ``start_if_stopped``.
+
+    Kept backward compatible: older wrappers (and some test stubs) expose a
+    zero-arg callable, so fall back to calling it without the keyword.
+    """
+    try:
+        return restart_xray_core(start_if_stopped=start_if_stopped)
+    except TypeError:
+        return restart_xray_core()
+
+
 def enable_logs(
     level: str = "warning",
     *,
-    restart_xray_core: Optional[Callable[[], Tuple[bool, str]]] = None,
+    restart_xray_core: Optional[Callable[..., Tuple[bool, str]]] = None,
 ) -> Tuple[bool, str, str, bool]:
     """Enable logs by setting loglevel and restarting Xray core.
 
@@ -190,7 +206,10 @@ def enable_logs(
     ok, detail = (True, "")
     xray_restarted = False
     if restart_xray_core is not None:
-        ok, detail = restart_xray_core()
+        # Enabling logs means the user wants a running core with the new loglevel,
+        # so bring xray up even if it was stopped (start_if_stopped=True). This also
+        # avoids leaving the core down when an earlier restart raced ahead of us.
+        ok, detail = _call_restart(restart_xray_core, start_if_stopped=True)
         xray_restarted = bool(ok)
 
     nonfatal = str(detail or "") == "xray not running"
@@ -200,7 +219,7 @@ def enable_logs(
 
 def disable_logs(
     *,
-    restart_xray_core: Optional[Callable[[], Tuple[bool, str]]] = None,
+    restart_xray_core: Optional[Callable[..., Tuple[bool, str]]] = None,
 ) -> Tuple[bool, str, bool]:
     """Disable logs (loglevel=none), snapshot current logs, restart Xray core.
 

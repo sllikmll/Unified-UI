@@ -1,42 +1,28 @@
-"""Service helpers for restarting Xray core without restarting xkeen-ui.
+"""Service helpers for restarting the Xray core without restarting xkeen-ui.
 
-The main goal is to apply Xray config changes (e.g. loglevel in 01_log.json)
-while keeping the web UI and its PTY/WebSocket sessions stable.
+The goal is to apply Xray config changes (e.g. loglevel in 01_log.json) while
+keeping the web UI and its PTY/WebSocket sessions stable.
 
-We intentionally *do not* call `xkeen -restart` here, because on some setups
-it restarts the whole stack (including the UI).
+Implementation note: we deliberately delegate the actual stop+start to the same
+verified service-control path that powers the manual "Restart" button
+(:func:`services.xkeen.control_xkeen_action`). That path prefers the init.d
+script and *verifies* that the managed core actually came back, falling back to
+the CLI form when needed.
+
+An earlier implementation SIGKILLed the ``xray`` process directly and then ran a
+bare ``xkeen -start``. On several routers that CLI start silently no-ops (xkeen's
+supervisor state is out of sync after an external kill), so the core stayed down
+and the user had to press "Restart" manually. Restarting through xkeen only
+touches the proxy core — the web UI is a separate service and keeps running.
 """
 
 from __future__ import annotations
 
-import os
-import signal
 import subprocess
-import time
+import threading
 from typing import List, Tuple
 
-try:
-    import shutil
-except Exception:  # pragma: no cover
-    shutil = None  # type: ignore
-
-from services.xkeen_commands_catalog import build_xkeen_cmd
-
-
-def _which(cmd: str) -> str | None:
-    try:
-        if shutil is not None and hasattr(shutil, "which"):
-            return shutil.which(cmd)  # type: ignore[arg-type]
-    except Exception:
-        pass
-    # Minimal fallback: check common locations
-    for p in (f"/opt/bin/{cmd}", f"/opt/sbin/{cmd}", f"/usr/bin/{cmd}", f"/bin/{cmd}"):
-        try:
-            if os.path.isfile(p) and os.access(p, os.X_OK):
-                return p
-        except Exception:
-            continue
-    return None
+from services.xkeen import control_xkeen_action
 
 
 def _pidof(name: str) -> List[int]:
@@ -64,79 +50,49 @@ def _pidof(name: str) -> List[int]:
         return []
 
 
-def _kill_pids(pids: List[int], sig: int) -> None:
-    for pid in pids:
-        try:
-            os.kill(pid, sig)
-        except Exception:
-            pass
+# Restarts must not overlap: the web UI can issue several enable/disable calls in
+# quick succession (e.g. a persisted-state restore racing with an explicit button
+# press). Serializing keeps the stop/start windows from stomping on each other.
+_RESTART_LOCK = threading.Lock()
 
 
 def restart_xray_core(
     *,
-    start_cmd: List[str] | None = None,
-    stop_cmd: List[str] | None = None,
+    start_cmd: List[str] | None = None,  # legacy, accepted for compatibility
+    stop_cmd: List[str] | None = None,   # legacy, accepted for compatibility
     timeout_sec: float = 6.0,
+    start_if_stopped: bool = False,
 ) -> Tuple[bool, str]:
-    """Restart only the Xray process.
+    """Restart the Xray core so a config change (loglevel) takes effect.
 
     Strategy:
-      1) If xray is not running, return (False, "not running").
-      2) Terminate xray (SIGTERM, then SIGKILL if needed).
-      3) Start it back via `xkeen -start` (preferred) or provided start_cmd.
-      4) Wait until pidof(xray) succeeds.
+      1) If xray is not running and ``start_if_stopped`` is False, bail out with
+         "xray not running" (used by "disable logs": a stopped core stays stopped).
+      2) Otherwise delegate to :func:`services.xkeen.control_xkeen_action` with a
+         proper stop+start (init.d preferred, CLI fallback) and verify the core
+         is running again afterwards.
+
+    ``start_if_stopped`` is meant for "enable logs": the user asked for a running
+    core with the new loglevel, so a stopped xray should be brought up.
+
+    Calls are serialized via a module-level lock.
 
     Returns:
         (ok, detail)
     """
-    pids = _pidof("xray")
-    if not pids:
-        return False, "xray not running"
+    with _RESTART_LOCK:
+        running = bool(_pidof("xray"))
 
-    # Stop: prefer explicit stop_cmd (if provided), otherwise kill the xray PIDs.
-    if stop_cmd:
-        try:
-            subprocess.check_call(stop_cmd)
-        except Exception:
-            # Fall back to kill.
-            _kill_pids(pids, signal.SIGTERM)
-    else:
-        _kill_pids(pids, signal.SIGTERM)
+        if not running and not start_if_stopped:
+            return False, "xray not running"
 
-    # Wait for exit
-    deadline = time.time() + max(1.0, float(timeout_sec) * 0.5)
-    while time.time() < deadline:
-        if not _pidof("xray"):
-            break
-        time.sleep(0.15)
-
-    # Force kill if still alive
-    still = _pidof("xray")
-    if still:
-        _kill_pids(still, signal.SIGKILL)
-        time.sleep(0.2)
-
-    # Start: prefer the resolved xkeen service command (new S05 / old S99).
-    cmd = start_cmd
-    if not cmd:
-        if _which("xkeen"):
-            cmd = build_xkeen_cmd("-start")
-
-    if not cmd:
-        # Last-resort: try to start xray directly with confdir.
-        # This may fail if the environment expects XRAY_LOCATION_* to be set.
-        return False, "no start command available"
-
-    try:
-        subprocess.check_call(cmd)
-    except Exception as e:
-        return False, f"start failed: {e}"
-
-    # Wait for xray to appear again
-    deadline = time.time() + max(2.0, float(timeout_sec))
-    while time.time() < deadline:
-        if _pidof("xray"):
-            return True, "restarted"
-        time.sleep(0.2)
-
-    return False, "xray did not start"
+        # Give the core enough time to come back; mirror the manual restart button.
+        settle = max(8.0, float(timeout_sec or 0))
+        ok = control_xkeen_action(
+            "restart",
+            prefer_init=True,
+            settle_timeout=settle,
+        )
+        if ok:
+            return True, ("restarted" if running else "started")
+        return False, "xray did not start"

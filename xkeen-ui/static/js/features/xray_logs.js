@@ -183,6 +183,19 @@ let xrayLogsModuleApi = null;
   // Идёт переустановка уровня на info (debounce, чтобы не рестартовать Xray
   // повторно в окне рестарта, пока статус ещё рапортует старый уровень).
   let _xrayResolveEnsurePending = false;
+  // Идёт запрос /api/xray-logs/enable (полный рестарт ядра). Пока он в полёте,
+  // повторные enable не запускаем параллельно (иначе второй рестарт видит
+  // полуубитый xray и оставляет ядро лежать). Отложенный вызов не теряем —
+  // ставим _enablePendingRerun, чтобы догнать после завершения текущего
+  // (нужно для авто-подъёма уровня warning→info под резолвинг доменов).
+  let _enableInFlight = false;
+  let _enablePendingRerun = false;
+  // Пользователь реально трогал управление логами на этой странице (кнопка
+  // «Включить», тумблер Live, смена loglevel, переключатель доменов). Пока
+  // взаимодействия не было — авто-подъём loglevel до info (полный рестарт Xray)
+  // не выполняем: восстановление состояния при переоткрытии вкладки НЕ должно
+  // молча рестартовать ядро. Поток логов при этом восстанавливается как обычно.
+  let _logsUserActivated = false;
   // Восстановленное при загрузке намерение Live (null = не трогали).
   let _xrayLiveWantedRestore = null;
   const _xrayLogUiStatus = {
@@ -891,13 +904,15 @@ let xrayLogsModuleApi = null;
     lamp.dataset.state = nextState;
 
     if (nextState === 'on') {
-      lamp.title = 'Автообновление логов включено';
+      lamp.title = 'Логи собираются в реальном времени';
+    } else if (nextState === 'armed') {
+      lamp.title = 'Онлайн включён, но сбор не идёт (логи выключены, пауза или нет новых строк)';
     } else if (nextState === 'off') {
-      lamp.title = 'Автообновление логов выключено';
+      lamp.title = 'Онлайн выключен';
     } else if (nextState === 'error') {
       lamp.title = 'Ошибка автообновления логов';
     } else {
-      lamp.title = 'Автообновление логов: неизвестно';
+      lamp.title = 'Статус логов Xray неизвестен';
     }
     syncTooltipText(lamp, lamp.getAttribute('title') || '');
   }
@@ -1045,6 +1060,7 @@ let xrayLogsModuleApi = null;
     const btn = $('xray-log-toggle-domains');
     if (btn) {
       btn.onclick = () => {
+        _logsUserActivated = true;
         // Чистое переключение отображения: мгновенно, без рестарта Xray.
         const next = !_xrayDomainsDisplay;
         try { persistXrayDomainsDisplay(next); } catch (e) {}
@@ -1055,6 +1071,9 @@ let xrayLogsModuleApi = null;
         // кеш наполнялся свежими доменами. При выключении уровень не трогаем.
         if (next) {
           try { ensureXrayResolveLoglevelForLive(); } catch (e) {}
+          // Если уровень уже info/debug (bump не нужен) — сразу свежий снимок,
+          // чтобы накопленные домены подтянулись без ручного stop+start.
+          try { rearmXrayDomainHintsForLive(); } catch (e) {}
         }
       };
     }
@@ -2116,6 +2135,12 @@ let xrayLogsModuleApi = null;
   // визуальное. Остановленные логи (none) не трогаем — их выключили намеренно.
   function ensureXrayResolveLoglevelForLive() {
     if (!_xrayDomainsDisplay) return;
+    // Не рестартуем Xray по факту восстановления состояния/переоткрытия вкладки.
+    // Подъём уровня до info (полный рестарт ядра) допустим только после явного
+    // действия пользователя с логами в этой сессии страницы. До этого держим
+    // текущий уровень: кешированные домены показываются, новые подтянутся, когда
+    // пользователь сам включит/переключит логи.
+    if (!_logsUserActivated) return;
     if (!_isAccessFileName(_currentFile)) return;
     if (!(_liveWanted || _streaming)) return;
     if (_xrayResolveEnsurePending) return;
@@ -2335,6 +2360,22 @@ let xrayLogsModuleApi = null;
       return;
     }
     ensureXrayDomainHintsPolling();
+  }
+
+  // Пере-взвести резолвинг доменов «начисто» — как при stop+start потока.
+  // ensureXrayDomainHintsPolling() рано выходит, если таймер уже жив, поэтому при
+  // подъёме уровня warning→info (ядро перезапускается, error.log пересоздаётся)
+  // без принудительного сброса курсора мы не делаем свежий полный снимок на новом
+  // уровне — и накопленные sniffed-домены не подтягиваются, пока пользователь не
+  // остановит и снова не запустит логи. Здесь останавливаем таймер, сбрасываем
+  // курсор и поднимаем поллинг заново с немедленным полным снимком.
+  function rearmXrayDomainHintsForLive() {
+    if (!_isAccessFileName(_currentFile)) return;
+    if (!(_liveWanted || _streaming)) return;
+    if (!_xrayLogLevelGivesDomains()) return;
+    try { stopXrayDomainHintsPolling(); } catch (e) {}
+    _xrayDomainHintsCursor = '';
+    try { ensureXrayDomainHintsPolling(); } catch (e) {}
   }
 
   async function refreshXrayLogDeviceNames(options) {
@@ -2568,10 +2609,28 @@ let xrayLogsModuleApi = null;
     renderXrayLogLampLayer(getXrayLogsDom(), state);
   }
 
+  // Трёхуровневая лампа у заголовка «Логи Xray онлайн»:
+  //   off   — тумблер «Онлайн» выключен (серая);
+  //   armed — «Онлайн» включён, но сбор не идёт (зелёная ровная):
+  //           поток не активен, loglevel=none или пауза;
+  //   on    — идёт сбор в реальном времени (зелёная мигает):
+  //           поток активен + логи включены + не на паузе.
+  function computeXrayLogLampState() {
+    if (!_liveWanted) return 'off';
+    const logging = String(_activeLogLevel || 'none').toLowerCase() !== 'none';
+    const collecting = !!_streaming && !_paused && logging;
+    return collecting ? 'on' : 'armed';
+  }
+
+  function updateXrayLogLampState() {
+    setXrayLogLampState(computeXrayLogLampState());
+  }
+
   function updateXrayLogStats() {
     const dom = getXrayLogsDom();
     const runtime = readXrayLogsRuntimeState();
     renderXrayLogStatsLayer(dom, runtime);
+    try { updateXrayLogLampState(); } catch (e) {}
     renderXrayLogsChrome(dom, runtime);
   }
 
@@ -2581,7 +2640,19 @@ let xrayLogsModuleApi = null;
       if (!res.ok) throw new Error('status http error');
       const data = await res.json().catch(() => ({}));
       const level = String(data.loglevel || 'none').toLowerCase();
+      const prevLevel = String(_activeLogLevel || 'none').toLowerCase();
+      const prevGaveDomains = prevLevel === 'info' || prevLevel === 'debug';
       _activeLogLevel = level;
+      const nowGivesDomains = level === 'info' || level === 'debug';
+      // Уровень только что поднялся до резолвящего (напр. warning→info после
+      // enable/рестарта ядра): делаем свежий полный снимок error.log, иначе
+      // накопленные домены не подтянутся до ручного stop+start (см. helper).
+      if (nowGivesDomains && !prevGaveDomains) {
+        try { rearmXrayDomainHintsForLive(); } catch (e) {}
+      }
+      // Лампа зависит от loglevel (сбор идёт только при loglevel≠none): при
+      // включении/выключении логов (⏹/▶) обновляем её состояние.
+      try { updateXrayLogLampState(); } catch (e) {}
       // Кеш доменов НЕ чистим на смене уровня: видимость доменов управляется
       // отдельным display-флагом (_xrayDomainsDisplay), а сам кеш персистентен.
       // Снятие галочки показа просто прячет бейджи (renderXrayDestinationDomainHtml),
@@ -3586,26 +3657,24 @@ let xrayLogsModuleApi = null;
     // (includes one-time migration from legacy localStorage)
     try { await ensureLogsViewPrefsLoadedForLogs(); } catch (e) {}
     try { void refreshXrayLogDeviceNames({ silent: true, staleMs: 0, router: true }); } catch (e) {}
-    try {
-      if (_isAccessFileName(_currentFile)) {
-        // Force a fresh full snapshot on live-start: clear cursor so we get 3000 lines,
-        // not just a tiny incremental tail that may contain no domain→IP pairs.
-        _xrayDomainHintsCursor = '';
-        ensureXrayDomainHintsPolling();
-      }
-    } catch (e) {}
 
     _liveWanted = true;
     _streaming = true;
     _paused = false;
     _pendingCount = 0;
+    // Свежий полный снимок error.log для резолвинга доменов (после того как флаги
+    // потока выставлены — rearm их проверяет). Если уровень уже info/debug —
+    // домены подтянутся сразу; если пока нет, поллинг взведётся при подъёме уровня
+    // (см. rearm в refreshXrayLogStatus и ensureXrayResolveLoglevelForLive ниже).
+    try { rearmXrayDomainHintsForLive(); } catch (e) {}
     // Если показ доменов включён — сразу поднимаем info для резолвинга, не дожидаясь
     // фонового опроса статуса (переключение показа потом мгновенное).
     try { ensureXrayResolveLoglevelForLive(); } catch (e) {}
     try { updatePauseButton(); } catch (e) {}
 
-    // UI: этот индикатор показывает только автообновление (stream), а не loglevel.
-    setXrayLogLampState('on');
+    // Лампа: серая (Онлайн выкл) / ровная зелёная (Онлайн вкл, сбора нет) /
+    // мигает (идёт сбор). Состояние вычисляется из _liveWanted/_streaming/уровня.
+    updateXrayLogLampState();
     try { setXrayHeaderBadgeState((_activeLogLevel && _activeLogLevel !== 'none') ? 'on' : 'off', _activeLogLevel || 'none'); } catch (e) {}
 
     // Sync UI toggle
@@ -3659,7 +3728,9 @@ let xrayLogsModuleApi = null;
     _paused = false;
     _pendingCount = 0;
     try { updatePauseButton(); } catch (e) {}
-    setXrayLogLampState('off');
+    // Поток остановлен: если тумблер «Онлайн» всё ещё включён (напр. после ⏹
+    // «Остановить логи») — лампа станет ровной зелёной (armed), а не погаснет.
+    updateXrayLogLampState();
     try { setXrayHeaderBadgeState((_activeLogLevel && _activeLogLevel !== 'none') ? 'on' : 'off', _activeLogLevel || 'none'); } catch (e) {}
 
     // IMPORTANT: do NOT force-toggle the "Live" checkbox here.
@@ -3786,6 +3857,18 @@ let xrayLogsModuleApi = null;
   }
 
   async function xrayLogsEnable() {
+    // In-flight guard: не запускаем второй рестарт ядра поверх текущего.
+    // Повторный запрос (в т.ч. авто-подъём warning→info из
+    // ensureXrayResolveLoglevelForLive) откладываем и выполняем один раз после
+    // завершения текущего enable, чтобы не потерять намерение.
+    if (_enableInFlight) {
+      _enablePendingRerun = true;
+      return;
+    }
+    _enableInFlight = true;
+    const enableBtn = $('xray-log-enable-btn');
+    if (enableBtn) enableBtn.disabled = true;
+
     const statusEl = $('xray-log-status');
     setXrayLogUiStatus({
       phase: 'loading',
@@ -3795,13 +3878,25 @@ let xrayLogsModuleApi = null;
       file: _currentFile || 'access',
     });
     try {
+      // Ensure we use the currently selected file.
+      try { syncCurrentFileFromUi(); } catch (e) {}
+
       // Pick the desired loglevel from the selector (UI preference).
       const lvlSel = $('xray-log-level');
       const selected = String((lvlSel && lvlSel.value) || 'warning').toLowerCase();
-      const loglevel = ALLOWED_LOGLEVELS.includes(selected) ? selected : 'warning';
+      let loglevel = ALLOWED_LOGLEVELS.includes(selected) ? selected : 'warning';
 
-      // Ensure we use the currently selected file.
-      try { syncCurrentFileFromUi(); } catch (e) {}
+      // Резолвинг доменов требует info. Если показ доменов включён и мы на
+      // access.log — включаем СРАЗУ на info одним рестартом. Иначе enable шёл бы
+      // на warning, а затем ensureXrayResolveLoglevelForLive делал бы ВТОРОЙ
+      // рестарт (warning→info): два быстрых `xkeen -restart` подряд конфликтуют,
+      // и xray остаётся на старом уровне — error.log пуст, домены молчат
+      // (см. диагностику: fetch error.log size=64/lines=0 при двойном рестарте).
+      if (_xrayDomainsDisplay && _isAccessFileName(_currentFile)
+          && (loglevel === 'warning' || loglevel === 'error')) {
+        loglevel = 'info';
+        try { if (lvlSel && lvlSel.value !== 'info') lvlSel.value = 'info'; } catch (e) {}
+      }
 
       const res = await fetch('/api/xray-logs/enable', {
         method: 'POST',
@@ -3810,17 +3905,31 @@ let xrayLogsModuleApi = null;
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error('http ' + res.status);
+
+      const levelLabel = data.loglevel || 'warning';
+      // Не рапортуем «Xray перезапущен» вслепую: бэкенд возвращает
+      // xray_restarted=false, если ядро не поднялось. Показываем честный статус,
+      // чтобы сбой рестарта был виден, а не маскировался «успехом».
+      const coreRestarted = data.xray_restarted !== false;
+      const okMessage = 'Логи включены (loglevel=' + levelLabel + '). Xray перезапущен.';
+      const warnDetail = String(data.detail || '').trim();
+      const warnMessage = 'Логи включены (loglevel=' + levelLabel + '), но перезапустить ядро Xray не удалось'
+        + (warnDetail ? (': ' + warnDetail) : '')
+        + '. Перезапустите ядро вручную.';
+
       setXrayLogUiStatus({
-        phase: 'ready',
-        tone: 'muted',
+        phase: coreRestarted ? 'ready' : 'error',
+        tone: coreRestarted ? 'muted' : 'error',
         transport: '',
-        message: 'Логи включены (loglevel=' + (data.loglevel || 'warning') + '). Xray перезапущен.',
+        message: coreRestarted ? okMessage : warnMessage,
         file: _currentFile || 'access',
       });
 
       if (statusEl) {
-        statusEl.textContent =
-          'Логи включены (loglevel=' + (data.loglevel || 'warning') + '). Xray перезапущен.';
+        statusEl.textContent = coreRestarted ? okMessage : warnMessage;
+      }
+      if (!coreRestarted) {
+        try { actionToast('xray-logs-enable-restart', warnMessage, 'error'); } catch (e) {}
       }
 
       // Persist current selectors (file/loglevel/...) right away.
@@ -3865,6 +3974,15 @@ let xrayLogsModuleApi = null;
     } catch (e) {
       console.error(e);
       if (statusEl) statusEl.textContent = 'Не удалось включить логи.';
+    } finally {
+      _enableInFlight = false;
+      if (enableBtn) enableBtn.disabled = false;
+      // Догоняем отложенный запрос (напр. warning→info для резолвинга доменов),
+      // вне текущего стека, чтобы рестарты не наслаивались.
+      if (_enablePendingRerun) {
+        _enablePendingRerun = false;
+        setTimeout(() => { try { void xrayLogsEnable(); } catch (e) {} }, 0);
+      }
     }
   }
 
@@ -4576,6 +4694,7 @@ function copyXrayContextModal() {
 	  if (enableBtn) {
 	    enableBtn.addEventListener('click', (e) => {
 	      e.preventDefault();
+	      _logsUserActivated = true;
 	      void xrayLogsEnable();
 	    });
 	  }
@@ -4611,6 +4730,7 @@ function copyXrayContextModal() {
 	  if (liveEl) {
 	    _liveWanted = !!liveEl.checked;
 	    liveEl.addEventListener('change', () => {
+	      _logsUserActivated = true;
 	      setXrayLogsLiveWanted(!!liveEl.checked, { skipRender: true });
       // Явный выбор пользователя — сохраняем намерение Live, чтобы оно
       // пережило перезагрузку страницы (поток восстановится на init).
@@ -4629,6 +4749,7 @@ function copyXrayContextModal() {
 	  }
 	  if (lvlSel) {
 	    lvlSel.addEventListener('change', () => {
+	      _logsUserActivated = true;
 	      try { scheduleSaveUiState(); } catch (e) {}
 	      // Re-apply view filters immediately when the threshold changes.
 	      try { flushXrayLogFilterApply('loglevel_change', { skipSave: true, skipWs2: true }); } catch (e) {}
@@ -5015,7 +5136,7 @@ function bindFilterUi() {
     try { loadPersistedXrayDomainsDisplay(); } catch (e) {}
     // Восстанавливаем намерение Live, чтобы поток после F5 не сбрасывался.
     try { loadPersistedXrayLiveWanted(); } catch (e) {}
-    try { setXrayLogLampState('off'); } catch (e) {}
+    try { updateXrayLogLampState(); } catch (e) {}
     try { setXrayHeaderBadgeState((_activeLogLevel && _activeLogLevel !== 'none') ? 'on' : 'off', _activeLogLevel || 'none'); } catch (e) {}
 
     // Restore UI preferences for this page (file/live/follow/interval/lines/filter/height)

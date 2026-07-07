@@ -488,9 +488,9 @@ def create_app(*, ws_runtime: bool = False):
     def restart_xkeen(source: str = "api"):
         return _svc_restart_xkeen(XKEEN_RESTART_CMD, RESTART_LOG_FILE, source=source)
 
-    def restart_xray_core() -> tuple[bool, str]:
+    def restart_xray_core(**kwargs) -> tuple[bool, str]:
         try:
-            return _svc_restart_xray_core()
+            return _svc_restart_xray_core(**kwargs)
         except Exception as e:  # noqa: BLE001
             return False, str(e)
 

@@ -7195,8 +7195,17 @@ html[data-theme="light"] body.xk-backups-page footer {
   background: var(--sem-success, #22c55e);
   box-shadow: 0 0 6px rgba(34, 197, 94, 0.85);
   box-shadow: 0 0 6px color-mix(in srgb, var(--sem-success, #22c55e) 70%, transparent);
-  /* Live logs stream enabled: blink like an LED (on/off). */
+  /* Logs are being collected in real time: blink like an LED (on/off). */
   animation: xray-log-blink 1s steps(1, end) infinite;
+}
+
+/* "Онлайн" включён, но сбор не идёт (логи выключены / пауза / нет строк):
+   ровный зелёный без мигания — просто индикация, что тумблер включён. */
+.xray-log-lamp[data-state="armed"] {
+  background: var(--sem-success, #22c55e);
+  box-shadow: 0 0 5px rgba(34, 197, 94, 0.5);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--sem-success, #22c55e) 50%, transparent);
+  animation: none;
 }
 
 
