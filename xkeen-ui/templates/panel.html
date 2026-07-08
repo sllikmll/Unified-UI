@@ -1285,6 +1285,22 @@
           </div>
         </div>
       </section>
+
+        <!-- Restart log (Ports & Exceptions) -->
+        <section class="card log-card xk-restart-log-card xk-xkeen-log-card">
+          <div class="log-header-row">
+            <h2>Журнал операций Xkeen</h2>
+            <div class="log-header-actions">
+              <button type="button" class="btn-secondary log-btn restart-log-filter-btn" data-xk-restart-log-filter="all" aria-pressed="true">Все</button>
+              <button type="button" class="btn-secondary log-btn restart-log-filter-btn" data-xk-restart-log-filter="errors" aria-pressed="false">Ошибки</button>
+              <button type="button" class="btn-secondary log-btn" data-xk-restart-log-action="refresh">Обновить</button>
+              <button type="button" class="btn-secondary log-btn" data-xk-restart-log-action="clear">Очистить</button>
+              <button type="button" class="btn-secondary log-btn" data-xk-restart-log-action="copy">Копировать</button>
+            </div>
+          </div>
+          <div class="restart-log-summary" data-xk-restart-log-summary="1" hidden></div>
+          <pre class="log-block" data-xk-restart-log="1"></pre>
+        </section>
 </div>
 
 <div id="view-commands" class="view-section" style="display:none;" data-xk-section="commands">
@@ -1644,6 +1660,22 @@
         <pre id="xray-log-output" class="log-block xray-log-block"></pre>
         <div id="xray-log-domain-hint" class="status xray-log-domain-hint hidden" role="status"></div>
         <div id="xray-log-status" class="status"></div>
+      </section>
+
+      <!-- Restart log (Xray logs online) -->
+      <section class="card log-card xk-restart-log-card xk-xray-logs-log-card">
+        <div class="log-header-row">
+          <h2>Журнал операций Xkeen</h2>
+          <div class="log-header-actions">
+            <button type="button" class="btn-secondary log-btn restart-log-filter-btn" data-xk-restart-log-filter="all" aria-pressed="true">Все</button>
+            <button type="button" class="btn-secondary log-btn restart-log-filter-btn" data-xk-restart-log-filter="errors" aria-pressed="false">Ошибки</button>
+            <button type="button" class="btn-secondary log-btn" data-xk-restart-log-action="refresh">Обновить</button>
+            <button type="button" class="btn-secondary log-btn" data-xk-restart-log-action="clear">Очистить</button>
+            <button type="button" class="btn-secondary log-btn" data-xk-restart-log-action="copy">Копировать</button>
+          </div>
+        </div>
+        <div class="restart-log-summary" data-xk-restart-log-summary="1" hidden></div>
+        <pre class="log-block" data-xk-restart-log="1"></pre>
       </section>
     </div>
 

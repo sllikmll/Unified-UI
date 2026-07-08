@@ -153,6 +153,7 @@ def register_blueprints(app, ctx: Optional[AppContext] = None):
             ws_debug=ctx.ws_debug,
             restart_xray_core=ctx.restart_xray_core,
             ui_state_dir=ctx.ui_state_dir,
+            append_restart_log=ctx.append_restart_log,
         )
     )
 

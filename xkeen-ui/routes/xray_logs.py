@@ -86,8 +86,22 @@ def create_xray_logs_blueprint(
     ws_debug: Any,
     restart_xray_core: Any,
     ui_state_dir: Optional[str] = None,
+    append_restart_log: Any = None,
 ) -> Blueprint:
     bp = Blueprint("xray_logs", __name__)
+
+    def _append_restart_log(ok: bool, source: str = "api", **meta: object) -> None:
+        if append_restart_log is None:
+            return
+        try:
+            append_restart_log(ok, source=source, **meta)
+        except TypeError:
+            try:
+                append_restart_log(ok, source=source)
+            except Exception:
+                pass
+        except Exception:
+            pass
 
     @bp.get("/api/xray-logs")
     def api_xray_logs():
@@ -268,6 +282,13 @@ def create_xray_logs_blueprint(
         level = str(data.get("loglevel") or "warning").strip().lower()
 
         resp_ok, detail, normalized_level, xray_restarted = enable_logs(level, restart_xray_core=restart_xray_core)
+        _append_restart_log(
+            resp_ok,
+            source="xray-logs-enable",
+            loglevel=normalized_level,
+            xray_restarted=bool(xray_restarted),
+            detail=detail,
+        )
         return (
             jsonify(
                 {
@@ -285,6 +306,12 @@ def create_xray_logs_blueprint(
     def api_xray_logs_disable():
         """Disable Xray logs (loglevel=none), snapshot logs, restart Xray core."""
         resp_ok, detail, xray_restarted = disable_logs(restart_xray_core=restart_xray_core)
+        _append_restart_log(
+            resp_ok,
+            source="xray-logs-disable",
+            xray_restarted=bool(xray_restarted),
+            detail=detail,
+        )
         return (
             jsonify(
                 {
