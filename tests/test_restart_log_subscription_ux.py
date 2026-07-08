@@ -121,7 +121,7 @@ def test_restart_log_renders_summary_above_block():
     restart_log_src = _read("xkeen-ui/static/js/features/restart_log.js")
     styles_src = _read("xkeen-ui/static/styles.css")
 
-    assert panel_src.count('data-xk-restart-log-summary="1"') == 3
+    assert panel_src.count('data-xk-restart-log-summary="1"') == 5
     assert "buildRestartLogSummary" in restart_log_src
     assert "renderAllSummary" in restart_log_src
     assert "Последний перезапуск" in restart_log_src
