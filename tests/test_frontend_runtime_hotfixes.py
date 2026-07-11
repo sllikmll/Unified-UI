@@ -41,6 +41,24 @@ def test_happ_deep_links_reach_backend_import_paths():
     assert "HTTP(S) URL или Happ deep-link" in outbounds
 
 
+def test_hwid_modal_handoffs_unsupported_inputs_to_general_import():
+    mihomo_import = Path('xkeen-ui/static/js/features/mihomo_import.js').read_text(encoding='utf-8')
+    hwid_modal = Path('xkeen-ui/static/js/features/mihomo_hwid_sub.js').read_text(encoding='utf-8')
+
+    assert 'MI.open = function open(options = {}) {' in mihomo_import
+    assert 'MI.openWithInput = async function openWithInput(input, options = {}) {' in mihomo_import
+    assert "return callMihomoImportApi('openWithInput', ...args);" in mihomo_import
+    assert 'openWithInput: openMihomoImportWithInput,' in mihomo_import
+
+    assert 'getXkeenLazyRuntimeApi' in hwid_modal
+    assert 'function isHwidSupportedUrl(value)' in hwid_modal
+    assert 'function shouldHandoffToImport(msg, hint)' in hwid_modal
+    assert "await lazy.ensureFeature('mihomoImport');" in hwid_modal
+    assert "const api = lazy.getFeatureApi('mihomoImport');" in hwid_modal
+    assert "await api.openWithInput(value, { mode: 'auto' });" in hwid_modal
+    assert 'HWID-модал принимает только http/https URL.' in hwid_modal
+
+
 def test_devtools_postjson_uses_single_request_path_and_keeps_csrf_on_raw_fallback():
     devtools_text = Path('xkeen-ui/static/js/features/devtools/shared.js').read_text(encoding='utf-8')
     ui_text = Path('xkeen-ui/static/js/ui/shared_primitives.js').read_text(encoding='utf-8')

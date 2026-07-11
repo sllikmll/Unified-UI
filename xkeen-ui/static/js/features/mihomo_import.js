@@ -2818,6 +2818,44 @@ let mihomoImportModuleApi = null;
       if (inp.dataset) inp.dataset.xkKeys = '1';
     }
   };
+
+  MI.open = function open(options = {}) {
+    const opts = options && typeof options === 'object' ? options : {};
+    try { MI.init(); } catch (e) {}
+    showModal(true);
+    if (typeof opts.mode === 'string' && String(opts.mode || '').trim()) {
+      try { setImportMode(opts.mode); } catch (e2) {}
+      try { updateModeUi(); } catch (e3) {}
+    }
+    if (opts.focus === false) return;
+    try {
+      const inp = $(IDS.input);
+      if (inp) inp.focus();
+    } catch (e4) {}
+  };
+
+  MI.openWithInput = async function openWithInput(input, options = {}) {
+    const opts = options && typeof options === 'object' ? options : {};
+    MI.open(opts);
+    try {
+      const inp = $(IDS.input);
+      if (inp) {
+        inp.value = String(input == null ? '' : input);
+        if (opts.focus !== false) {
+          inp.focus();
+          try {
+            const pos = inp.value.length;
+            inp.setSelectionRange(pos, pos);
+          } catch (e2) {}
+        }
+      }
+    } catch (e) {}
+    if (opts.parse === false) return null;
+    const parseOptions = opts.parseOptions && typeof opts.parseOptions === 'object'
+      ? opts.parseOptions
+      : {};
+    return parseInput(parseOptions);
+  };
 })();
 export function getMihomoImportApi() {
   try {
@@ -2837,6 +2875,14 @@ export function initMihomoImport(...args) {
   return callMihomoImportApi('init', ...args);
 }
 
+export function openMihomoImport(...args) {
+  return callMihomoImportApi('open', ...args);
+}
+
+export function openMihomoImportWithInput(...args) {
+  return callMihomoImportApi('openWithInput', ...args);
+}
+
 export function generateMihomoImportConfig(...args) {
   return callMihomoImportApi('generateConfigForMihomo', ...args);
 }
@@ -2848,6 +2894,8 @@ export function proxyYamlRawFromIndentedMihomo(...args) {
 export const mihomoImportApi = Object.freeze({
   get: getMihomoImportApi,
   init: initMihomoImport,
+  open: openMihomoImport,
+  openWithInput: openMihomoImportWithInput,
   generateConfigForMihomo: generateMihomoImportConfig,
   proxyYamlRawFromIndented: proxyYamlRawFromIndentedMihomo,
 });

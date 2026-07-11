@@ -7,7 +7,7 @@ import {
   refreshSharedMihomoEditor,
   syncMihomoModalBodyScrollLock,
 } from './mihomo_runtime.js';
-import { getXkeenFilePath } from './xkeen_runtime.js';
+import { getXkeenFilePath, getXkeenLazyRuntimeApi } from './xkeen_runtime.js';
 
 let mihomoHwidSubModuleApi = null;
 
@@ -100,6 +100,44 @@ let mihomoHwidSubModuleApi = null;
       if (window.toast) window.toast(String(msg || ''), kind || 'success');
       else if (window.showToast) window.showToast(String(msg || ''), kind === 'error');
     } catch (e) {}
+  }
+
+  function isHwidSupportedUrl(value) {
+    return /^https?:\/\//i.test(String(value || '').trim());
+  }
+
+  function shouldHandoffToImport(msg, hint) {
+    const combined = `${String(msg || '').trim()}\n${String(hint || '').trim()}`.toLowerCase();
+    if (!combined.trim()) return false;
+    if (combined.includes('only http/https urls are allowed')) return true;
+    if (combined.includes('обычную подписку')) return true;
+    if (combined.includes('лучше добавить как обычную подписку')) return true;
+    if (combined.includes('попробуйте добавить') && combined.includes('подписк')) return true;
+    return false;
+  }
+
+  async function handoffToImportModal(rawValue, options = {}) {
+    const value = String(rawValue || '').trim();
+    const opts = options && typeof options === 'object' ? options : {};
+    if (!value) return false;
+    try {
+      const lazy = getXkeenLazyRuntimeApi();
+      if (!lazy || typeof lazy.ensureFeature !== 'function' || typeof lazy.getFeatureApi !== 'function') {
+        return false;
+      }
+      await lazy.ensureFeature('mihomoImport');
+      const api = lazy.getFeatureApi('mihomoImport');
+      if (!api || typeof api.openWithInput !== 'function') return false;
+      showModal(false);
+      if (opts.toast !== false) {
+        toastMsg('Эта ссылка не подходит для HWID-подписки. Открываю обычный импорт узла.', 'warning');
+      }
+      await api.openWithInput(value, { mode: 'auto' });
+      return true;
+    } catch (e) {
+      try { console.error(e); } catch (e2) {}
+      return false;
+    }
   }
 
   function toggleBlock(el, show) {
@@ -1252,6 +1290,12 @@ let mihomoHwidSubModuleApi = null;
       setStatus('Введите URL подписки.', true);
       return;
     }
+    if (!isHwidSupportedUrl(url)) {
+      if (await handoffToImportModal(url)) return;
+      setStatus('HWID-модал принимает только http/https URL. Для happ://..., JSON и ссылок узлов откройте обычный импорт.', true);
+      setMeta('В обычном импорте доступны happ://crypt..., JSON-подписки и отдельные узлы.');
+      return;
+    }
 
     _busy = true;
     setInsertEnabled(false);
@@ -1270,6 +1314,7 @@ let mihomoHwidSubModuleApi = null;
         const errObj = (res && res.error) ? res.error : null;
         const msg = (errObj && errObj.message) ? String(errObj.message) : (res && res.error ? String(res.error) : 'Не удалось проверить подписку.');
         const hint = (errObj && errObj.hint) ? String(errObj.hint) : '';
+        if (shouldHandoffToImport(msg, hint) && await handoffToImportModal(url)) return;
         setStatus(msg, true);
         if (hint) setMeta(hint);
         try {
@@ -1414,6 +1459,12 @@ let mihomoHwidSubModuleApi = null;
       setStatus('Введите URL подписки.', true);
       return;
     }
+    if (!isHwidSupportedUrl(url)) {
+      if (await handoffToImportModal(url)) return;
+      setStatus('HWID-модал принимает только http/https URL. Для happ://..., JSON и ссылок узлов откройте обычный импорт.', true);
+      setMeta('В обычном импорте доступны happ://crypt..., JSON-подписки и отдельные узлы.');
+      return;
+    }
 
     const modeEl = $(IDS.mode);
     const mode = modeEl ? String(modeEl.value || 'add') : 'add';
@@ -1443,6 +1494,7 @@ let mihomoHwidSubModuleApi = null;
         if (!errObj && res && res.stage === 'probe' && res.probe && res.probe.error) errObj = res.probe.error;
         const msg = (errObj && errObj.message) ? String(errObj.message) : (res && res.error ? String(res.error) : 'Не удалось применить изменения.');
         const hint = (errObj && errObj.hint) ? String(errObj.hint) : '';
+        if (shouldHandoffToImport(msg, hint) && await handoffToImportModal(url)) return;
         setStatus(msg, true);
         if (hint) setMeta(hint);
         return;

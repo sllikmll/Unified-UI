@@ -102,6 +102,9 @@ def test_mihomo_menu_feature_flows_keep_editor_patch_integrations_and_single_sav
             "Распознана HWID-подписка:",
             "providerHeaders",
             "if (headers) provider.header = headers;",
+            "MI.open = function open(options = {}) {",
+            "MI.openWithInput = async function openWithInput(input, options = {}) {",
+            "openWithInput: openMihomoImportWithInput,",
         ],
         "xkeen-ui/static/js/features/mihomo_proxy_tools.js": [
             "const mi = getMihomoImportApi();",
@@ -129,6 +132,10 @@ def test_mihomo_menu_feature_flows_keep_editor_patch_integrations_and_single_sav
             "language: 'yaml'",
             "wordWrap: 'on'",
             "readOnly: 'nocursor'",
+            "getXkeenLazyRuntimeApi",
+            "await lazy.ensureFeature('mihomoImport');",
+            "const api = lazy.getFeatureApi('mihomoImport');",
+            "await api.openWithInput(value, { mode: 'auto' });",
         ],
     }
 
