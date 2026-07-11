@@ -35,6 +35,7 @@ package-root/
 !/xkeen-ui/bin/README.happ-decryptor.txt
 /.tmp/happ-decrypt-universal/
 /.tmp/leeeet-happ-decryptor/
+/handoff/
 
 # Playwright / e2e
 playwright-report/
