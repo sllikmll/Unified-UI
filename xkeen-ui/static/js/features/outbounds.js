@@ -5902,6 +5902,47 @@ let outboundsModuleApi = null;
       return raw.length > 42 ? raw.slice(0, 39) + '…' : raw;
     }
 
+    function subsTrimDiagnosticUrlToken(token) {
+      let url = String(token || '');
+      let trailing = '';
+      while (url && /[),.;!?]$/.test(url)) {
+        trailing = url.slice(-1) + trailing;
+        url = url.slice(0, -1);
+      }
+      return { url, trailing };
+    }
+
+    function subsRenderDiagnosticUrl(url) {
+      const full = String(url || '');
+      if (!full) return '';
+      const short = subsShortUrl(full) || full;
+      const fullEscaped = escapeHtml(full);
+      return `<span class="xk-sub-diag-url" title="${fullEscaped}" aria-label="${fullEscaped}" data-full-url="${fullEscaped}"><code title="${fullEscaped}" aria-label="${fullEscaped}">${escapeHtml(short)}</code></span>`;
+    }
+
+    function subsRenderDiagnosticLine(line) {
+      const raw = String(line || '');
+      if (!raw) return '';
+      const urlRe = /\b(?:[a-z][a-z0-9+.-]*):\/\/[^\s<>"']+/gi;
+      let html = '';
+      let lastIndex = 0;
+      let matched = false;
+      raw.replace(urlRe, (match, offset) => {
+        const index = Number(offset);
+        if (!Number.isFinite(index)) return match;
+        matched = true;
+        html += escapeHtml(raw.slice(lastIndex, index));
+        const token = subsTrimDiagnosticUrlToken(match);
+        html += token.url ? subsRenderDiagnosticUrl(token.url) : escapeHtml(match);
+        html += escapeHtml(token.trailing);
+        lastIndex = index + match.length;
+        return match;
+      });
+      if (!matched) return escapeHtml(raw);
+      html += escapeHtml(raw.slice(lastIndex));
+      return html;
+    }
+
     function subsGeneratedFilePath(file) {
       const name = String(file || '').trim();
       if (!name) return '';
@@ -6368,12 +6409,12 @@ let outboundsModuleApi = null;
       }
       if (snapshot.warnings.length) {
         groups.push(
-          `<div class="xk-sub-diag-group is-warning"><div class="xk-sub-diag-label">Предупреждения</div><ul class="xk-sub-diag-list">${snapshot.warnings.map((line) => `<li>${escapeHtml(String(line || ''))}</li>`).join('')}</ul></div>`
+          `<div class="xk-sub-diag-group is-warning"><div class="xk-sub-diag-label">Предупреждения</div><ul class="xk-sub-diag-list">${snapshot.warnings.map((line) => `<li>${subsRenderDiagnosticLine(line)}</li>`).join('')}</ul></div>`
         );
       }
       if (snapshot.errors.length) {
         groups.push(
-          `<div class="xk-sub-diag-group is-error-list"><div class="xk-sub-diag-label">Ошибки узлов</div><ul class="xk-sub-diag-list">${snapshot.errors.map((line) => `<li>${escapeHtml(String(line || ''))}</li>`).join('')}</ul></div>`
+          `<div class="xk-sub-diag-group is-error-list"><div class="xk-sub-diag-label">Ошибки узлов</div><ul class="xk-sub-diag-list">${snapshot.errors.map((line) => `<li>${subsRenderDiagnosticLine(line)}</li>`).join('')}</ul></div>`
         );
       }
       if (!snapshot.refreshError && !snapshot.warnings.length && !snapshot.errors.length) {
@@ -6452,17 +6493,17 @@ let outboundsModuleApi = null;
 
       if (plan.items.length) {
         groups.push(
-          `<div class="xk-sub-diag-group is-plan"><div class="xk-sub-diag-label">\u0427\u0442\u043e \u0438\u0437\u043c\u0435\u043d\u0438\u0442\u0441\u044f</div><ul class="xk-sub-diag-list">${plan.items.map((line) => `<li>${escapeHtml(String(line || ''))}</li>`).join('')}</ul></div>`
+          `<div class="xk-sub-diag-group is-plan"><div class="xk-sub-diag-label">\u0427\u0442\u043e \u0438\u0437\u043c\u0435\u043d\u0438\u0442\u0441\u044f</div><ul class="xk-sub-diag-list">${plan.items.map((line) => `<li>${subsRenderDiagnosticLine(line)}</li>`).join('')}</ul></div>`
         );
       }
       if (plan.warnings.length) {
         groups.push(
-          `<div class="xk-sub-diag-group is-warning"><div class="xk-sub-diag-label">\u0412\u043e\u0437\u043c\u043e\u0436\u043d\u044b\u0439 \u043a\u043e\u043d\u0444\u043b\u0438\u043a\u0442 routing</div><ul class="xk-sub-diag-list">${plan.warnings.map((line) => `<li>${escapeHtml(String(line || ''))}</li>`).join('')}</ul></div>`
+          `<div class="xk-sub-diag-group is-warning"><div class="xk-sub-diag-label">\u0412\u043e\u0437\u043c\u043e\u0436\u043d\u044b\u0439 \u043a\u043e\u043d\u0444\u043b\u0438\u043a\u0442 routing</div><ul class="xk-sub-diag-list">${plan.warnings.map((line) => `<li>${subsRenderDiagnosticLine(line)}</li>`).join('')}</ul></div>`
         );
       }
       if (snapshot.hwid && snapshot.hwid.active && Array.isArray(snapshot.hwid.lines) && snapshot.hwid.lines.length) {
         groups.push(
-          `<div class="xk-sub-diag-group is-warning"><div class="xk-sub-diag-label">HWID / лимит устройств</div><ul class="xk-sub-diag-list">${snapshot.hwid.lines.map((line) => `<li>${escapeHtml(String(line || ''))}</li>`).join('')}</ul></div>`
+          `<div class="xk-sub-diag-group is-warning"><div class="xk-sub-diag-label">HWID / лимит устройств</div><ul class="xk-sub-diag-list">${snapshot.hwid.lines.map((line) => `<li>${subsRenderDiagnosticLine(line)}</li>`).join('')}</ul></div>`
         );
       }
       if (snapshot.refreshError) {
@@ -6472,12 +6513,12 @@ let outboundsModuleApi = null;
       }
       if (snapshot.warnings.length) {
         groups.push(
-          `<div class="xk-sub-diag-group is-warning"><div class="xk-sub-diag-label">Предупреждения</div><ul class="xk-sub-diag-list">${snapshot.warnings.map((line) => `<li>${escapeHtml(String(line || ''))}</li>`).join('')}</ul></div>`
+          `<div class="xk-sub-diag-group is-warning"><div class="xk-sub-diag-label">Предупреждения</div><ul class="xk-sub-diag-list">${snapshot.warnings.map((line) => `<li>${subsRenderDiagnosticLine(line)}</li>`).join('')}</ul></div>`
         );
       }
       if (snapshot.errors.length) {
         groups.push(
-          `<div class="xk-sub-diag-group is-error-list"><div class="xk-sub-diag-label">\u041e\u0448\u0438\u0431\u043a\u0438 \u0443\u0437\u043b\u043e\u0432</div><ul class="xk-sub-diag-list">${snapshot.errors.map((line) => `<li>${escapeHtml(String(line || ''))}</li>`).join('')}</ul></div>`
+          `<div class="xk-sub-diag-group is-error-list"><div class="xk-sub-diag-label">\u041e\u0448\u0438\u0431\u043a\u0438 \u0443\u0437\u043b\u043e\u0432</div><ul class="xk-sub-diag-list">${snapshot.errors.map((line) => `<li>${subsRenderDiagnosticLine(line)}</li>`).join('')}</ul></div>`
         );
       }
       if (!groups.length) {

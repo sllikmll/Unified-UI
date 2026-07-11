@@ -54,7 +54,7 @@ function buildNodeLatency(nodes) {
   return map;
 }
 
-function buildDemoSubscription(nodes = buildDemoNodes()) {
+function buildDemoSubscription(nodes = buildDemoNodes(), overrides = {}) {
   return {
     id: 'demo-sub',
     name: 'cdn.pecan.run',
@@ -73,6 +73,7 @@ function buildDemoSubscription(nodes = buildDemoNodes()) {
     output_file: '04_outbounds.cdn.pecan.run.json',
     last_nodes: nodes,
     node_latency: buildNodeLatency(nodes),
+    ...overrides,
   };
 }
 
@@ -518,6 +519,56 @@ test('subscriptions modal fits three compact node columns on desktop width', asy
   expect(layout.columns).toBeGreaterThanOrEqual(3);
   expect(layout.minCardWidth).toBeGreaterThanOrEqual(250);
   expect(layout.overlaps).toEqual([]);
+});
+
+test('subscriptions diagnostics keep long source links compact without horizontal scroll', async ({ page }) => {
+  const nodes = buildDemoNodes();
+  const longSourceUrl = 'happ://crypt5/fzvdf6IVsHlFRwbbqoJGcN3Q96xpQiLGj3a2IAJF1PcBOQafyFLmnBB7JgOgXgyQCyUoemrxWpf9nw8ImicCMniTzOjk7tk6MZJxTFQFtlvIf8u36BlS8Kl4RPbkUUsy';
+  const subscription = buildDemoSubscription(nodes, {
+    last_warnings: [
+      `Подписка была получена через Happ helper-дешифратор. Источник: ${longSourceUrl}`,
+    ],
+  });
+
+  await page.route('**/api/xray/subscriptions', async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, subscriptions: [subscription] }),
+    });
+  });
+
+  await openSubscriptionsModal(page);
+  await page.locator('tr[data-sub-id="demo-sub"]').click();
+  await expect(page.locator('#outbounds-subscriptions-diagnostics-body')).toContainText('Источник:');
+  await expect(page.locator('#outbounds-subscriptions-diagnostics-body .xk-sub-diag-url code')).toBeVisible();
+  await page.waitForTimeout(200);
+
+  const diagnostics = await page.evaluate(() => {
+    const body = document.querySelector('#outbounds-subscriptions-diagnostics-body');
+    const groups = Array.from(document.querySelectorAll('#outbounds-subscriptions-diagnostics-body .xk-sub-diag-group'));
+    const urlChip = document.querySelector('#outbounds-subscriptions-diagnostics-body .xk-sub-diag-url');
+    const urlCode = urlChip ? urlChip.querySelector('code') : null;
+    const maxGroupOverflow = groups.reduce((max, node) => (
+      Math.max(max, Math.max(0, Math.round(node.scrollWidth - node.clientWidth)))
+    ), 0);
+    return {
+      bodyOverflow: body ? Math.max(0, Math.round(body.scrollWidth - body.clientWidth)) : 0,
+      maxGroupOverflow,
+      shortUrl: urlCode ? String(urlCode.textContent || '').trim() : '',
+      fullUrl: urlChip ? String(urlChip.getAttribute('data-full-url') || urlChip.getAttribute('title') || '') : '',
+    };
+  });
+
+  expect(diagnostics.bodyOverflow).toBeLessThanOrEqual(4);
+  expect(diagnostics.maxGroupOverflow).toBeLessThanOrEqual(4);
+  expect(diagnostics.shortUrl.length).toBeGreaterThan(0);
+  expect(diagnostics.shortUrl.length).toBeLessThan(diagnostics.fullUrl.length);
+  expect(diagnostics.shortUrl).toContain('crypt5');
 });
 
 test('subscriptions modal ping-all button shows compact spinner while probing', async ({ page }) => {

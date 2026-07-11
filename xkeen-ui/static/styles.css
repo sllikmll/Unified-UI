@@ -10231,6 +10231,7 @@ html[data-theme="light"] .xk-sub-draft-badge {
   border-radius: 10px;
   border: 1px solid rgba(148, 163, 184, 0.12);
   background: rgba(2, 6, 23, 0.24);
+  min-width: 0;
 }
 
 .xk-sub-diag-group.is-plan {
@@ -10268,10 +10269,41 @@ html[data-theme="light"] .xk-sub-draft-badge {
   color: #dbeafe;
   font-size: calc(12px * var(--xk-font-scale));
   line-height: 1.35;
+  min-width: 0;
 }
 
 .xk-sub-diag-list li + li {
   margin-top: 4px;
+}
+
+.xk-sub-diag-list li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.xk-sub-diag-url {
+  display: inline-flex;
+  width: min(100%, 34ch);
+  max-width: 100%;
+  min-width: 0;
+  vertical-align: bottom;
+}
+
+.xk-sub-diag-url code {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  background: rgba(8, 47, 73, 0.36);
+  color: #bae6fd;
+  font-size: 0.96em;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .xk-sub-diag-pre {
@@ -12023,6 +12055,12 @@ html[data-theme="light"] .xk-sub-diag-empty {
 
 html[data-theme="light"] .xk-sub-diag-list {
   color: #1d2b44;
+}
+
+html[data-theme="light"] .xk-sub-diag-url code {
+  border-color: rgba(59, 130, 246, 0.18);
+  background: rgba(239, 246, 255, 0.96);
+  color: #1d4ed8;
 }
 
 html[data-theme="light"] .xk-sub-diag-pre {
