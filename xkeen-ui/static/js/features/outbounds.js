@@ -5770,7 +5770,7 @@ let outboundsModuleApi = null;
         el.appendChild(wrap);
         return;
       }
-      el.textContent = text;
+      el.innerHTML = subsRenderStatusLine(text);
     }
 
     function subsSetStatus(msg, isErr, isOk, opts) {
@@ -5912,15 +5912,24 @@ let outboundsModuleApi = null;
       return { url, trailing };
     }
 
-    function subsRenderDiagnosticUrl(url) {
+    function subsRenderUrlToken(url, opts) {
       const full = String(url || '');
       if (!full) return '';
       const short = subsShortUrl(full) || full;
+      const className = String(opts && opts.className || 'xk-sub-diag-url').trim() || 'xk-sub-diag-url';
+      const withTooltip = !!(opts && opts.tooltip);
       const fullEscaped = escapeHtml(full);
-      return `<span class="xk-sub-diag-url" title="${fullEscaped}" aria-label="${fullEscaped}" data-full-url="${fullEscaped}"><code title="${fullEscaped}" aria-label="${fullEscaped}">${escapeHtml(short)}</code></span>`;
+      const shortEscaped = escapeHtml(short);
+      if (withTooltip) {
+        return `<span class="${escapeHtml(className)}" title="${fullEscaped}" aria-label="${fullEscaped}" data-full-url="${fullEscaped}"><code title="${fullEscaped}" aria-label="${fullEscaped}">${shortEscaped}</code></span>`;
+      }
+      return `<span class="${escapeHtml(className)}"><code>${shortEscaped}</code></span>`;
     }
 
-    function subsRenderDiagnosticLine(line) {
+    function subsRenderUrlLine(line, opts) {
+      const renderUrl = opts && typeof opts.renderUrl === 'function'
+        ? opts.renderUrl
+        : subsRenderDiagnosticUrl;
       const raw = String(line || '');
       if (!raw) return '';
       const urlRe = /\b(?:[a-z][a-z0-9+.-]*):\/\/[^\s<>"']+/gi;
@@ -5933,7 +5942,7 @@ let outboundsModuleApi = null;
         matched = true;
         html += escapeHtml(raw.slice(lastIndex, index));
         const token = subsTrimDiagnosticUrlToken(match);
-        html += token.url ? subsRenderDiagnosticUrl(token.url) : escapeHtml(match);
+        html += token.url ? renderUrl(token.url) : escapeHtml(match);
         html += escapeHtml(token.trailing);
         lastIndex = index + match.length;
         return match;
@@ -5941,6 +5950,22 @@ let outboundsModuleApi = null;
       if (!matched) return escapeHtml(raw);
       html += escapeHtml(raw.slice(lastIndex));
       return html;
+    }
+
+    function subsRenderDiagnosticUrl(url) {
+      return subsRenderUrlToken(url, { tooltip: true });
+    }
+
+    function subsRenderStatusUrl(url) {
+      return subsRenderUrlToken(url);
+    }
+
+    function subsRenderDiagnosticLine(line) {
+      return subsRenderUrlLine(line, { renderUrl: subsRenderDiagnosticUrl });
+    }
+
+    function subsRenderStatusLine(line) {
+      return subsRenderUrlLine(line, { renderUrl: subsRenderStatusUrl });
     }
 
     function subsGeneratedFilePath(file) {
