@@ -26,6 +26,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.FactCheck
@@ -39,6 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -392,7 +395,7 @@ private fun JsonEditor(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(WebPanelPalette.Background)
+            .background(JsonEditorPalette.Background)
             .verticalScroll(rememberScrollState())
             .padding(top = 8.dp, bottom = 24.dp),
         verticalAlignment = Alignment.Top,
@@ -402,7 +405,7 @@ private fun JsonEditor(
             modifier = Modifier
                 .width(45.dp)
                 .padding(end = 7.dp),
-            color = WebPanelPalette.MutedDeep,
+            color = JsonEditorPalette.LineNumber,
             fontFamily = FontFamily.Monospace,
             fontSize = 15.sp,
             lineHeight = 23.sp,
@@ -412,62 +415,188 @@ private fun JsonEditor(
             modifier = Modifier
                 .width(1.dp)
                 .heightIn(min = 640.dp)
-                .background(Color(0xFF1E293B)),
+                .background(JsonEditorPalette.IndentGuide),
         )
         Box(
             modifier = Modifier
                 .weight(1f)
                 .horizontalScroll(rememberScrollState()),
         ) {
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier
-                    .widthIn(min = 600.dp)
-                    .heightIn(min = 640.dp)
-                    .padding(start = 10.dp, end = 12.dp),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(
-                    color = WebPanelPalette.Text,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 15.sp,
-                    lineHeight = 23.sp,
-                ),
-                cursorBrush = SolidColor(WebPanelPalette.Border),
-                visualTransformation = JsonVisualTransformation,
-            )
+            CompositionLocalProvider(
+                LocalTextSelectionColors provides JsonEditorPalette.Selection,
+            ) {
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier
+                        .widthIn(min = 600.dp)
+                        .heightIn(min = 640.dp)
+                        .padding(start = 10.dp, end = 12.dp),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        color = JsonEditorPalette.Foreground,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 15.sp,
+                        lineHeight = 23.sp,
+                    ),
+                    cursorBrush = SolidColor(JsonEditorPalette.Cursor),
+                    visualTransformation = JsonVisualTransformation,
+                )
+            }
         }
     }
+}
+
+private object JsonEditorPalette {
+    // Mirrors the xkeen-dark Monaco theme from web ui/monaco_shared.js.
+    val Background = Color(0xFF01030A)
+    val Foreground = Color(0xFFD4D4D4)
+    val LineNumber = Color(0xFF64748B)
+    val Cursor = Color(0xFF60A5FA)
+    val IndentGuide = Color(0xFF172033)
+    val Comment = Color(0xFF6A9955)
+    val Keyword = Color(0xFF569CD6)
+    val String = Color(0xFFCE9178)
+    val Number = Color(0xFFB5CEA8)
+    val Property = Color(0xFF9CDCFE)
+    val Punctuation = Color(0xFFD4D4D4)
+    val BracketDepth = listOf(
+        Color(0xFFFFD700),
+        Color(0xFFC586C0),
+        Color(0xFF4FC1FF),
+    )
+    val Selection = TextSelectionColors(
+        handleColor = Cursor,
+        backgroundColor = Color(0x501D4ED8),
+    )
 }
 
 private object JsonVisualTransformation : VisualTransformation {
-    private val stringPattern = Regex("\"(?:\\\\.|[^\"\\\\])*\"")
-    private val keyPattern = Regex("\"(?:\\\\.|[^\"\\\\])*\"(?=\\s*:)")
-    private val numberPattern = Regex("(?<![A-Za-z])[-+]?\\d+(?:\\.\\d+)?")
-    private val keywordPattern = Regex("\\b(?:true|false|null)\\b")
-    private val commentPattern = Regex("//.*")
-
     override fun filter(text: AnnotatedString): TransformedText {
-        val styled = buildAnnotatedString {
-            append(text.text)
-            stringPattern.findAll(text.text).forEach { match ->
-                addStyle(SpanStyle(color = Color(0xFFA3E635)), match.range.first, match.range.last + 1)
-            }
-            keyPattern.findAll(text.text).forEach { match ->
-                addStyle(SpanStyle(color = WebPanelPalette.Border), match.range.first, match.range.last + 1)
-            }
-            numberPattern.findAll(text.text).forEach { match ->
-                addStyle(SpanStyle(color = Color(0xFFF97316)), match.range.first, match.range.last + 1)
-            }
-            keywordPattern.findAll(text.text).forEach { match ->
-                addStyle(SpanStyle(color = Color(0xFFFACC15)), match.range.first, match.range.last + 1)
-            }
-            commentPattern.findAll(text.text).forEach { match ->
-                addStyle(SpanStyle(color = WebPanelPalette.MutedDeep), match.range.first, match.range.last + 1)
-            }
-        }
-        return TransformedText(styled, OffsetMapping.Identity)
+        return TransformedText(highlightJsonc(text.text), OffsetMapping.Identity)
     }
 }
+
+internal fun highlightJsonc(source: String): AnnotatedString = buildAnnotatedString {
+    append(source)
+    var index = 0
+    var bracketDepth = 0
+
+    while (index < source.length) {
+        val keyword = source.jsonKeywordAt(index)
+        when {
+            source.startsWith("//", index) -> {
+                val end = source.indexOf('\n', index).takeIf { it >= 0 } ?: source.length
+                addJsonStyle(JsonEditorPalette.Comment, index, end)
+                index = end
+            }
+
+            source.startsWith("/*", index) -> {
+                val closing = source.indexOf("*/", index + 2)
+                val end = if (closing >= 0) closing + 2 else source.length
+                addJsonStyle(JsonEditorPalette.Comment, index, end)
+                index = end
+            }
+
+            source[index] == '"' -> {
+                val end = source.jsonStringEnd(index)
+                val nextToken = source.indexOfFirstNonWhitespace(end)
+                val color = if (nextToken < source.length && source[nextToken] == ':') {
+                    JsonEditorPalette.Property
+                } else {
+                    JsonEditorPalette.String
+                }
+                addJsonStyle(color, index, end)
+                index = end
+            }
+
+            source[index] == '-' || source[index].isDigit() -> {
+                val end = source.jsonNumberEnd(index)
+                val startsNumber = source[index].isDigit() ||
+                    (index + 1 < source.length && source[index] == '-' && source[index + 1].isDigit())
+                if (startsNumber) {
+                    addJsonStyle(JsonEditorPalette.Number, index, end)
+                    index = end
+                } else {
+                    index += 1
+                }
+            }
+
+            keyword != null -> {
+                addJsonStyle(JsonEditorPalette.Keyword, index, index + keyword.length)
+                index += keyword.length
+            }
+
+            source[index] == '{' || source[index] == '[' -> {
+                val color = JsonEditorPalette.BracketDepth[bracketDepth % JsonEditorPalette.BracketDepth.size]
+                addJsonStyle(color, index, index + 1)
+                bracketDepth += 1
+                index += 1
+            }
+
+            source[index] == '}' || source[index] == ']' -> {
+                bracketDepth = (bracketDepth - 1).coerceAtLeast(0)
+                val color = JsonEditorPalette.BracketDepth[bracketDepth % JsonEditorPalette.BracketDepth.size]
+                addJsonStyle(color, index, index + 1)
+                index += 1
+            }
+
+            source[index] == ':' || source[index] == ',' -> {
+                addJsonStyle(JsonEditorPalette.Punctuation, index, index + 1)
+                index += 1
+            }
+
+            else -> index += 1
+        }
+    }
+}
+
+private fun AnnotatedString.Builder.addJsonStyle(color: Color, start: Int, end: Int) {
+    addStyle(SpanStyle(color = color), start, end)
+}
+
+private fun String.jsonStringEnd(start: Int): Int {
+    var index = start + 1
+    var escaped = false
+    while (index < length) {
+        val char = this[index]
+        if (!escaped && char == '"') return index + 1
+        escaped = !escaped && char == '\\'
+        if (char != '\\') escaped = false
+        index += 1
+    }
+    return length
+}
+
+private fun String.indexOfFirstNonWhitespace(start: Int): Int {
+    var index = start
+    while (index < length && this[index].isWhitespace()) index += 1
+    return index
+}
+
+private fun String.jsonNumberEnd(start: Int): Int {
+    var index = start
+    if (index < length && this[index] == '-') index += 1
+    while (index < length && this[index].isDigit()) index += 1
+    if (index < length && this[index] == '.') {
+        index += 1
+        while (index < length && this[index].isDigit()) index += 1
+    }
+    if (index < length && (this[index] == 'e' || this[index] == 'E')) {
+        index += 1
+        if (index < length && (this[index] == '+' || this[index] == '-')) index += 1
+        while (index < length && this[index].isDigit()) index += 1
+    }
+    return index
+}
+
+private val JsonKeywords = listOf("true", "false", "null")
+
+private fun String.jsonKeywordAt(index: Int): String? =
+    JsonKeywords.firstOrNull { keyword ->
+        startsWith(keyword, index) &&
+            (index == 0 || !this[index - 1].isLetterOrDigit()) &&
+            (index + keyword.length == length || !this[index + keyword.length].isLetterOrDigit())
+    }
 
 @Composable
 private fun EditorStatusBar(
