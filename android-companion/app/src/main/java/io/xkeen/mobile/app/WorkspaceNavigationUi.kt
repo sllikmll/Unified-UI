@@ -73,11 +73,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import io.xkeen.mobile.ui.theme.WebPanelPalette
 import kotlinx.coroutines.launch
 
-private val DrawerAccent = Color(0xFF123E49)
-private val DrawerSelection = Color(0xFFDDECEF)
-private val CoreBlue = Color(0xFF244B86)
+private val DrawerAccent = WebPanelPalette.Panel
+private val DrawerSelection = WebPanelPalette.Accent
+private val CoreBlue = WebPanelPalette.Accent
 
 private data class WorkspaceDrawerEntry(
     val section: WorkspaceSection,
@@ -152,7 +153,7 @@ private fun WorkspaceDrawer(
         modifier = Modifier
             .fillMaxHeight()
             .widthIn(max = 324.dp),
-        drawerContainerColor = Color(0xFFF7F8F8),
+        drawerContainerColor = WebPanelPalette.BackgroundDeep,
         drawerShape = RoundedCornerShape(topEnd = 18.dp, bottomEnd = 18.dp),
         windowInsets = WindowInsets(0, 0, 0, 0),
     ) {
@@ -166,32 +167,32 @@ private fun WorkspaceDrawer(
         ) {
             Text(
                 text = "XKEEN MOBILE",
-                color = Color(0xFFA9DCE4),
+                color = Color(0xFF93C5FD),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp,
             )
             Text(
                 text = contextTitle,
-                color = Color.White,
+                color = WebPanelPalette.TextStrong,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
             )
             Text(
                 text = state.dashboard.instanceLabel,
-                color = Color(0xFFD6E5E8),
+                color = WebPanelPalette.Muted,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Surface(
-                color = Color.White.copy(alpha = 0.12f),
+                color = WebPanelPalette.SurfaceRaised.copy(alpha = 0.88f),
                 shape = RoundedCornerShape(999.dp),
             ) {
                 Text(
                     text = "Активное ядро · ${state.dashboard.activeCore}",
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                    color = Color.White,
+                    color = WebPanelPalette.TextBlue,
                     style = MaterialTheme.typography.labelMedium,
                 )
             }
@@ -218,10 +219,10 @@ private fun WorkspaceDrawer(
                     icon = { Icon(entry.icon, contentDescription = null) },
                     colors = NavigationDrawerItemDefaults.colors(
                         selectedContainerColor = DrawerSelection,
-                        selectedIconColor = DrawerAccent,
-                        selectedTextColor = DrawerAccent,
-                        unselectedIconColor = Color(0xFF58676B),
-                        unselectedTextColor = Color(0xFF26383D),
+                        selectedIconColor = WebPanelPalette.TextStrong,
+                        selectedTextColor = WebPanelPalette.TextStrong,
+                        unselectedIconColor = WebPanelPalette.Muted,
+                        unselectedTextColor = WebPanelPalette.Text,
                     ),
                     shape = RoundedCornerShape(10.dp),
                 )
@@ -255,12 +256,12 @@ private fun WorkspaceDrawer(
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.ExitToApp,
                 contentDescription = null,
-                tint = Color(0xFF718084),
+                tint = WebPanelPalette.Muted,
                 modifier = Modifier.size(18.dp),
             )
             Text(
                 text = state.dashboard.endpoint,
-                color = Color(0xFF718084),
+                color = WebPanelPalette.Muted,
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -310,7 +311,7 @@ private fun CoreSelectionDialog(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
                 .widthIn(max = 430.dp),
-            color = Color(0xFFF8FAFC),
+            color = Color(0xFF060E1E),
             shape = RoundedCornerShape(22.dp),
             tonalElevation = 8.dp,
             shadowElevation = 18.dp,
@@ -321,20 +322,20 @@ private fun CoreSelectionDialog(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Surface(
-                        color = Color(0xFFDDEBFF),
+                        color = Color(0xFF0D2340),
                         shape = RoundedCornerShape(10.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Memory,
                             contentDescription = null,
-                            tint = CoreBlue,
+                            tint = WebPanelPalette.Border,
                             modifier = Modifier.padding(9.dp),
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "XKEEN ENGINE",
-                            color = Color(0xFF3F6EAE),
+                            color = Color(0xFF93C5FD),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.7.sp,
@@ -352,9 +353,9 @@ private fun CoreSelectionDialog(
                     text = "RESTART ON APPLY",
                     modifier = Modifier
                         .align(Alignment.End)
-                        .background(Color(0xFFE6EDF7), RoundedCornerShape(999.dp))
+                        .background(WebPanelPalette.Surface, RoundedCornerShape(999.dp))
                         .padding(horizontal = 10.dp, vertical = 5.dp),
-                    color = Color(0xFF49617D),
+                    color = WebPanelPalette.Muted,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                 )
@@ -385,9 +386,9 @@ private fun CoreSelectionDialog(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFFF0F4F8), RoundedCornerShape(12.dp))
+                            .background(WebPanelPalette.Surface, RoundedCornerShape(12.dp))
                             .padding(12.dp),
-                        color = Color(0xFF526579),
+                        color = WebPanelPalette.Muted,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -422,8 +423,8 @@ private fun CoreEngineRow(
     current: Boolean,
     onClick: () -> Unit,
 ) {
-    val container = if (selected) CoreBlue else Color(0xFFF1F4F8)
-    val content = if (selected) Color.White else Color(0xFF1F2E3D)
+    val container = if (selected) CoreBlue else WebPanelPalette.Surface
+    val content = if (selected) WebPanelPalette.TextStrong else WebPanelPalette.Text
 
     Row(
         modifier = Modifier
@@ -443,7 +444,7 @@ private fun CoreEngineRow(
                 modifier = Modifier
                     .size(if (selected) 10.dp else 8.dp)
                     .background(
-                        color = if (selected) Color(0xFF8ED7FF) else Color(0xFFAAB5C0),
+                        color = if (selected) Color(0xFFBFDBFE) else WebPanelPalette.Muted,
                         shape = CircleShape,
                     ),
             )
@@ -458,7 +459,7 @@ private fun CoreEngineRow(
         )
         Text(
             text = if (current) "Активно" else "Доступно",
-            color = if (selected) Color(0xFFB8F3E1) else Color(0xFF657587),
+            color = if (selected) Color(0xFFDBEAFE) else WebPanelPalette.Muted,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
         )

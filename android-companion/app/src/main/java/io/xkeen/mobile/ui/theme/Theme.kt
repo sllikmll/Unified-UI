@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 
 private val LightColors = lightColorScheme(
     primary = Sky,
@@ -35,31 +36,31 @@ private val LightColors = lightColorScheme(
 )
 
 private val DarkColors = darkColorScheme(
-    primary = SkySoft,
-    onPrimary = Midnight,
-    primaryContainer = SkyStrong,
-    onPrimaryContainer = Snow,
-    secondary = TealSoft,
-    onSecondary = Midnight,
-    secondaryContainer = Teal,
-    onSecondaryContainer = Snow,
-    tertiary = AmberSoft,
-    onTertiary = Midnight,
-    tertiaryContainer = AmberDeep,
-    onTertiaryContainer = Snow,
-    error = DangerSoft,
-    onError = Midnight,
-    errorContainer = Danger,
-    onErrorContainer = Snow,
-    background = Midnight,
-    onBackground = Snow,
-    surface = Panel,
-    onSurface = Snow,
-    surfaceContainerLowest = Midnight,
-    surfaceContainerLow = Panel,
-    surfaceContainer = PanelRaised,
-    surfaceContainerHighest = PanelEdge,
-    onSurfaceVariant = Fog,
+    primary = WebPanelPalette.Border,
+    onPrimary = WebPanelPalette.Background,
+    primaryContainer = WebPanelPalette.Accent,
+    onPrimaryContainer = WebPanelPalette.TextStrong,
+    secondary = Color(0xFF7DD3FC),
+    onSecondary = WebPanelPalette.Background,
+    secondaryContainer = Color(0xFF0D2340),
+    onSecondaryContainer = WebPanelPalette.TextBlue,
+    tertiary = WebPanelPalette.Warning,
+    onTertiary = WebPanelPalette.Background,
+    tertiaryContainer = Color(0xFF713F12),
+    onTertiaryContainer = Color(0xFFFEF3C7),
+    error = WebPanelPalette.Error,
+    onError = WebPanelPalette.Background,
+    errorContainer = Color(0xFF7F1D1D),
+    onErrorContainer = Color(0xFFFEE2E2),
+    background = WebPanelPalette.Background,
+    onBackground = WebPanelPalette.Text,
+    surface = WebPanelPalette.Surface,
+    onSurface = WebPanelPalette.Text,
+    surfaceContainerLowest = WebPanelPalette.BackgroundDeep,
+    surfaceContainerLow = WebPanelPalette.Panel,
+    surfaceContainer = WebPanelPalette.Surface,
+    surfaceContainerHighest = WebPanelPalette.SurfaceRaised,
+    onSurfaceVariant = WebPanelPalette.Muted,
 )
 
 @Composable

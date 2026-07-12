@@ -1,6 +1,10 @@
 package io.xkeen.mobile.app
 
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DemoCompanionControllerTest {
@@ -50,5 +54,79 @@ class DemoCompanionControllerTest {
         controller.switchCore("sing-box")
 
         assertEquals(initialState, controller.state)
+    }
+
+    @Test
+    fun refreshRoutingUsesWebPanelFragmentContractAndLoadsCurrentFile() = runTest {
+        val source = FakeXrayConfigSource()
+        val controller = DemoCompanionController(
+            initialState = CompanionUiState(phase = AppPhase.Ready),
+            xrayConfigSource = source,
+        )
+
+        controller.refreshRoutingDocuments()
+
+        assertEquals(
+            listOf("03_inbounds.json", "05_routing.json", "06_bypass.jsonc"),
+            controller.state.routing.documents.map { it.title },
+        )
+        assertEquals("remote:05_routing.json", controller.state.routing.selectedDocumentId)
+        val selected = controller.state.routing.documents.first { it.id == controller.state.routing.selectedDocumentId }
+        assertTrue(selected.isLoaded)
+        assertTrue(selected.usesJsonc)
+        assertEquals("// from server\n{\"routing\":{\"rules\":[]}}", selected.draftContent)
+        assertEquals(listOf("05_routing.json"), source.loadedFiles)
+        assertNull(controller.state.routing.loadError)
+        assertFalse(controller.state.routing.isRefreshing)
+    }
+
+    @Test
+    fun selectingRemoteDocumentLoadsItLazily() = runTest {
+        val source = FakeXrayConfigSource()
+        val controller = DemoCompanionController(
+            initialState = CompanionUiState(phase = AppPhase.Ready),
+            xrayConfigSource = source,
+        )
+        controller.refreshRoutingDocuments()
+
+        controller.selectRoutingDocument("remote:06_bypass.jsonc")
+        controller.loadSelectedRoutingDocument()
+
+        val selected = controller.state.routing.documents.first { it.id == "remote:06_bypass.jsonc" }
+        assertTrue(selected.isLoaded)
+        assertEquals("{\"routing\":{\"rules\":[{\"type\":\"field\"}]}}", selected.draftContent)
+        assertEquals(listOf("05_routing.json", "06_bypass.jsonc"), source.loadedFiles)
+    }
+}
+
+private class FakeXrayConfigSource : XrayConfigSource {
+    val loadedFiles = mutableListOf<String>()
+
+    override suspend fun listFragments(baseUrl: String): XrayFragmentIndex =
+        XrayFragmentIndex(
+            directory = "/opt/etc/xray/configs",
+            currentName = "05_routing.json",
+            items = listOf(
+                XrayFragmentInfo("03_inbounds.json", 120, 1000, false),
+                XrayFragmentInfo("05_routing.json", 240, 1001, false),
+                XrayFragmentInfo("06_bypass.jsonc", 180, 1002, false),
+            ),
+        )
+
+    override suspend fun loadFragment(baseUrl: String, filename: String): XrayFragmentContent {
+        loadedFiles += filename
+        return when (filename) {
+            "05_routing.json" -> XrayFragmentContent(
+                text = "// from server\n{\"routing\":{\"rules\":[]}}",
+                hasJsoncSidecar = true,
+                usesJsoncSidecar = true,
+            )
+
+            else -> XrayFragmentContent(
+                text = "{\"routing\":{\"rules\":[{\"type\":\"field\"}]}}",
+                hasJsoncSidecar = false,
+                usesJsoncSidecar = false,
+            )
+        }
     }
 }

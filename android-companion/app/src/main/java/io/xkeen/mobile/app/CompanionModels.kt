@@ -151,6 +151,13 @@ data class RoutingDocument(
     val savedDraftContent: String,
     val lastSavedAt: String,
     val lastAppliedAt: String?,
+    val sizeBytes: Long? = null,
+    val modifiedAtEpochSeconds: Long? = null,
+    val usesJsonc: Boolean = false,
+    val isSensitive: Boolean = false,
+    val isLoaded: Boolean = true,
+    val isLoading: Boolean = false,
+    val loadError: String? = null,
 ) {
     val hasDraftChanges: Boolean
         get() = draftContent != publishedContent
@@ -180,6 +187,10 @@ data class RoutingState(
     val mode: RoutingMode = RoutingMode.Read,
     val validation: RoutingValidation = RoutingValidation(),
     val preview: RoutingPreview? = null,
+    val remoteDirectory: String? = null,
+    val isRefreshing: Boolean = false,
+    val hasAttemptedRemoteLoad: Boolean = false,
+    val loadError: String? = null,
 )
 
 data class LogEntry(

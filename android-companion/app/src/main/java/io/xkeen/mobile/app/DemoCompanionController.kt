@@ -23,8 +23,9 @@ private enum class SessionFlow(
     ),
 }
 
-class DemoCompanionController(
+class DemoCompanionController internal constructor(
     initialState: CompanionUiState = CompanionUiState(),
+    private val xrayConfigSource: XrayConfigSource = WebPanelXrayConfigSource(),
 ) {
     var state by mutableStateOf(initialState)
         private set
@@ -244,12 +245,156 @@ class DemoCompanionController(
         )
     }
 
+    suspend fun refreshRoutingDocuments(force: Boolean = false) {
+        val routing = state.routing
+        if (routing.isRefreshing || (!force && routing.hasAttemptedRemoteLoad)) {
+            return
+        }
+
+        state = state.copy(
+            routing = routing.copy(
+                isRefreshing = true,
+                hasAttemptedRemoteLoad = true,
+                loadError = null,
+            ),
+        )
+
+        val result = runCatching {
+            xrayConfigSource.listFragments(state.dashboard.endpoint)
+        }
+        result.onFailure { error ->
+            state = state.copy(
+                routing = state.routing.copy(
+                    isRefreshing = false,
+                    loadError = error.toRoutingLoadMessage(),
+                ),
+            )
+        }
+        result.onSuccess { index ->
+            if (index.items.isEmpty()) {
+                state = state.copy(
+                    routing = state.routing.copy(
+                        isRefreshing = false,
+                        loadError = "На сервере не найдены конфигурации Xray JSON/JSONC.",
+                    ),
+                )
+                return@onSuccess
+            }
+
+            val documents = index.items.map { item ->
+                RoutingDocument(
+                    id = "remote:${item.name}",
+                    title = item.name,
+                    path = joinRemotePath(index.directory, item.name),
+                    summary = item.sizeBytes?.let(::formatFileSize) ?: "Конфигурация Xray",
+                    revision = 0,
+                    publishedContent = "",
+                    draftContent = "",
+                    savedDraftContent = "",
+                    lastSavedAt = "server",
+                    lastAppliedAt = null,
+                    sizeBytes = item.sizeBytes,
+                    modifiedAtEpochSeconds = item.modifiedAtEpochSeconds,
+                    isSensitive = item.sensitive,
+                    isLoaded = false,
+                )
+            }
+            val selected = documents.firstOrNull {
+                it.title.equals(index.currentName, ignoreCase = true)
+            } ?: documents.first()
+
+            state = state.copy(
+                routing = state.routing.copy(
+                    documents = documents,
+                    selectedDocumentId = selected.id,
+                    mode = RoutingMode.Read,
+                    validation = RoutingValidation(message = "Загружаем ${selected.title} с Xkeen UI…"),
+                    preview = null,
+                    remoteDirectory = index.directory,
+                    isRefreshing = false,
+                    loadError = null,
+                ),
+            )
+            loadRoutingDocument(selected.id)
+        }
+    }
+
+    suspend fun loadSelectedRoutingDocument() {
+        loadRoutingDocument(state.routing.selectedDocumentId)
+    }
+
+    private suspend fun loadRoutingDocument(documentId: String) {
+        val document = state.routing.documents.firstOrNull { it.id == documentId } ?: return
+        if (document.isLoaded || document.isLoading) {
+            return
+        }
+
+        state = state.copy(
+            routing = state.routing.copy(
+                documents = state.routing.documents.replaceDocument(
+                    document.copy(isLoading = true, loadError = null),
+                ),
+                loadError = null,
+            ),
+        )
+
+        val result = runCatching {
+            xrayConfigSource.loadFragment(state.dashboard.endpoint, document.title)
+        }
+        result.onFailure { error ->
+            val message = error.toRoutingLoadMessage()
+            val current = state.routing.documents.firstOrNull { it.id == documentId } ?: return@onFailure
+            state = state.copy(
+                routing = state.routing.copy(
+                    documents = state.routing.documents.replaceDocument(
+                        current.copy(isLoading = false, loadError = message),
+                    ),
+                    loadError = message,
+                    validation = RoutingValidation(
+                        state = RoutingValidationState.Invalid,
+                        message = message,
+                    ),
+                ),
+            )
+        }
+        result.onSuccess { content ->
+            val current = state.routing.documents.firstOrNull { it.id == documentId } ?: return@onSuccess
+            val loaded = current.copy(
+                publishedContent = content.text,
+                draftContent = content.text,
+                savedDraftContent = content.text,
+                usesJsonc = content.usesJsoncSidecar,
+                isLoaded = true,
+                isLoading = false,
+                loadError = null,
+            )
+            state = state.copy(
+                routing = state.routing.copy(
+                    documents = state.routing.documents.replaceDocument(loaded),
+                    loadError = null,
+                    validation = RoutingValidation(
+                        message = if (content.usesJsoncSidecar) {
+                            "JSONC загружен с Xkeen UI. Комментарии сохранены."
+                        } else {
+                            "Конфигурация загружена с Xkeen UI."
+                        },
+                    ),
+                ),
+            )
+        }
+    }
+
     fun enterRoutingEditMode() {
         state = state.copy(routing = state.routing.copy(mode = RoutingMode.Edit))
     }
 
     fun updateRoutingDraft(value: String) {
-        val document = selectedRoutingDocument() ?: return
+        updateRoutingDraft(state.routing.selectedDocumentId, value)
+    }
+
+    fun updateRoutingDraft(documentId: String, value: String) {
+        val document = state.routing.documents.firstOrNull { it.id == documentId } ?: return
+        if (!document.isLoaded) return
         val updatedDocument = document.copy(draftContent = value)
         state = state.copy(
             routing = state.routing.copy(
@@ -530,6 +675,19 @@ private fun buildRoutingPreview(document: RoutingDocument): RoutingPreview {
 
 private fun List<RoutingDocument>.replaceDocument(updated: RoutingDocument): List<RoutingDocument> =
     map { document -> if (document.id == updated.id) updated else document }
+
+private fun Throwable.toRoutingLoadMessage(): String =
+    message?.takeIf { it.isNotBlank() } ?: "Не удалось загрузить конфигурации с Xkeen UI."
+
+private fun joinRemotePath(directory: String, filename: String): String =
+    if (directory.isBlank()) filename else "${directory.trimEnd('/')}/$filename"
+
+private fun formatFileSize(bytes: Long): String =
+    when {
+        bytes >= 1024 * 1024 -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
+        bytes >= 1024 -> "%.1f KB".format(bytes / 1024.0)
+        else -> "$bytes B"
+    }
 
 private fun LogsState.prepend(entry: LogEntry): LogsState =
     copy(entries = listOf(entry) + entries.take(19))

@@ -1,6 +1,7 @@
 package io.xkeen.mobile.app
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Http
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Lan
+import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Password
@@ -83,6 +85,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
@@ -95,6 +99,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.xkeen.mobile.ui.theme.XkeenMobileTheme
+import io.xkeen.mobile.ui.theme.WebPanelPalette
 import kotlinx.coroutines.delay
 
 @Composable
@@ -102,7 +107,7 @@ fun CompanionApp() {
     val controller = remember { DemoCompanionController() }
     val state = controller.state
 
-    XkeenMobileTheme(darkTheme = false) {
+    XkeenMobileTheme(darkTheme = true) {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background,
@@ -395,87 +400,126 @@ private fun WorkspaceHeader(
     onCore: () -> Unit,
     onServiceAction: (ServiceAction) -> Unit,
 ) {
-    val selectedDocument = state.routing.documents.firstOrNull {
-        it.id == state.routing.selectedDocumentId
-    }
-
-    val headerTitle = if (state.workspaceSection == WorkspaceSection.XrayRouting) {
-        selectedDocument?.title ?: state.workspaceSection.title
-    } else {
-        state.workspaceSection.title
-    }
-
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 3.dp,
-    ) {
+    Surface(color = Color.Transparent, shadowElevation = 8.dp) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            WebPanelPalette.Panel,
+                            WebPanelPalette.BackgroundDeep,
+                        ),
+                    ),
+                )
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .height(68.dp)
-                .padding(end = 6.dp),
+                .height(56.dp)
+                .padding(horizontal = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onMenu) {
-                Icon(Icons.Outlined.Menu, contentDescription = "Открыть меню раздела")
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(1.dp),
-            ) {
-                Text(
-                    text = headerTitle,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Row(
-                    modifier = Modifier.clickable(onClick = onCore),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(
-                        text = "Core",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = Color(0xFF123E49),
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = "· ${state.dashboard.activeCore}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color(0xFF64767B),
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    repeat(5) { index ->
-                        Box(
-                            modifier = Modifier
-                                .size(7.dp)
-                                .background(
-                                    color = if (index == 0) Color(0xFF244B86) else Color(0xFF8E9AB0),
-                                    shape = CircleShape,
-                                ),
-                        )
-                    }
-                }
-            }
+            GlassMenuButton(onClick = onMenu)
+            Spacer(Modifier.width(6.dp))
+            CoreGlassButton(
+                activeCore = state.dashboard.activeCore,
+                onClick = onCore,
+            )
+            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.width(5.dp))
             ServiceHeaderButton(
                 label = "Start",
-                color = Color(0xFF4B8B34),
+                color = WebPanelPalette.Success,
                 onClick = { onServiceAction(ServiceAction.Start) },
             )
+            Spacer(Modifier.width(4.dp))
             ServiceHeaderButton(
                 label = "Stop",
-                color = Color(0xFFB74332),
+                color = WebPanelPalette.Error,
                 onClick = { onServiceAction(ServiceAction.Stop) },
             )
+            Spacer(Modifier.width(4.dp))
             ServiceHeaderButton(
                 label = "Restart",
-                color = Color(0xFF50528D),
+                color = WebPanelPalette.Warning,
                 onClick = { onServiceAction(ServiceAction.Restart) },
             )
         }
+    }
+}
+
+@Composable
+private fun GlassMenuButton(onClick: () -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .shadow(4.dp, shape)
+            .background(
+                brush = Brush.verticalGradient(
+                    listOf(WebPanelPalette.SurfaceRaised, WebPanelPalette.Surface),
+                ),
+                shape = shape,
+            )
+            .border(
+                width = 1.dp,
+                brush = Brush.linearGradient(
+                    listOf(
+                        Color.White.copy(alpha = 0.10f),
+                        WebPanelPalette.Border.copy(alpha = 0.34f),
+                    ),
+                ),
+                shape = shape,
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Menu,
+            contentDescription = "Открыть меню раздела",
+            tint = WebPanelPalette.TextBlue,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+@Composable
+private fun CoreGlassButton(
+    activeCore: String,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        modifier = Modifier
+            .height(34.dp)
+            .shadow(3.dp, shape)
+            .background(
+                brush = Brush.horizontalGradient(
+                    listOf(
+                        WebPanelPalette.Surface.copy(alpha = 0.92f),
+                        Color(0xFF081436),
+                    ),
+                ),
+                shape = shape,
+            )
+            .border(1.dp, WebPanelPalette.Border.copy(alpha = 0.32f), shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Memory,
+            contentDescription = null,
+            tint = WebPanelPalette.Border,
+            modifier = Modifier.size(17.dp),
+        )
+        Text(
+            text = activeCore,
+            color = WebPanelPalette.TextStrong,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.ExtraBold,
+            lineHeight = 14.sp,
+            maxLines = 1,
+        )
     }
 }
 
@@ -485,15 +529,47 @@ private fun ServiceHeaderButton(
     color: Color,
     onClick: () -> Unit,
 ) {
-    TextButton(
-        onClick = onClick,
-        contentPadding = PaddingValues(horizontal = 5.dp, vertical = 0.dp),
+    val shape = RoundedCornerShape(11.dp)
+    Row(
+        modifier = Modifier
+            .height(30.dp)
+            .shadow(3.dp, shape)
+            .background(
+                brush = Brush.verticalGradient(
+                    listOf(
+                        color.copy(alpha = 0.18f),
+                        WebPanelPalette.Surface.copy(alpha = 0.96f),
+                    ),
+                ),
+                shape = shape,
+            )
+            .border(
+                width = 1.dp,
+                brush = Brush.linearGradient(
+                    listOf(
+                        Color.White.copy(alpha = 0.10f),
+                        color.copy(alpha = 0.58f),
+                        WebPanelPalette.Border.copy(alpha = 0.12f),
+                    ),
+                ),
+                shape = shape,
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        Box(
+            modifier = Modifier
+                .size(5.dp)
+                .background(color, CircleShape),
+        )
         Text(
             text = label,
             color = color,
             fontWeight = FontWeight.ExtraBold,
-            fontSize = 14.sp,
+            fontSize = 11.sp,
+            maxLines = 1,
         )
     }
 }
@@ -503,23 +579,57 @@ private fun ReadyBottomBar(
     selected: MainTab,
     onSelected: (MainTab) -> Unit,
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 6.dp,
-    ) {
-        Row(
+    Surface(color = Color.Transparent, shadowElevation = 12.dp) {
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            WebPanelPalette.BackgroundDeep.copy(alpha = 0.98f),
+                            WebPanelPalette.Background,
+                        ),
+                    ),
+                )
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .height(58.dp)
-                .padding(horizontal = 5.dp, vertical = 7.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                .padding(horizontal = 6.dp, vertical = 4.dp),
         ) {
-            WorkspaceTab(MainTab.Routing, selected, onSelected, "Xray")
-            WorkspaceTab(MainTab.Home, selected, onSelected, "Mihomo")
-            WorkspaceTab(MainTab.Logs, selected, onSelected, "Ports")
-            WorkspaceTab(MainTab.More, selected, onSelected, "Shell")
-            WorkspaceTab(MainTab.Generator, selected, onSelected, "Generator")
+            val panelShape = RoundedCornerShape(16.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+                    .shadow(6.dp, panelShape)
+                    .background(
+                        brush = Brush.linearGradient(
+                            listOf(
+                                WebPanelPalette.Surface.copy(alpha = 0.96f),
+                                Color(0xFF081436),
+                                WebPanelPalette.Surface.copy(alpha = 0.94f),
+                            ),
+                        ),
+                        shape = panelShape,
+                    )
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.linearGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.10f),
+                                WebPanelPalette.Border.copy(alpha = 0.28f),
+                                WebPanelPalette.Border.copy(alpha = 0.12f),
+                            ),
+                        ),
+                        shape = panelShape,
+                    )
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                WorkspaceTab(MainTab.Routing, selected, onSelected, "Xray")
+                WorkspaceTab(MainTab.Home, selected, onSelected, "Mihomo")
+                WorkspaceTab(MainTab.Logs, selected, onSelected, "Ports")
+                WorkspaceTab(MainTab.More, selected, onSelected, "Shell")
+                WorkspaceTab(MainTab.Generator, selected, onSelected, "Generator")
+            }
         }
     }
 }
@@ -532,24 +642,71 @@ private fun RowScope.WorkspaceTab(
     label: String,
 ) {
     val isSelected = tab == selected
+    val shape = RoundedCornerShape(11.dp)
+    val tabBackground = if (isSelected) {
+        Brush.linearGradient(
+            listOf(
+                WebPanelPalette.AccentDeep,
+                WebPanelPalette.AccentMiddle,
+                WebPanelPalette.AccentLight,
+            ),
+        )
+    } else {
+        Brush.verticalGradient(
+            listOf(
+                WebPanelPalette.Surface.copy(alpha = 0.78f),
+                WebPanelPalette.BackgroundDeep.copy(alpha = 0.92f),
+            ),
+        )
+    }
+    val border = if (isSelected) {
+        Brush.linearGradient(
+            listOf(
+                Color.White.copy(alpha = 0.22f),
+                WebPanelPalette.Border.copy(alpha = 0.52f),
+                Color(0xFF91B4FF).copy(alpha = 0.44f),
+            ),
+        )
+    } else {
+        Brush.linearGradient(
+            listOf(
+                Color.White.copy(alpha = 0.07f),
+                WebPanelPalette.Border.copy(alpha = 0.20f),
+            ),
+        )
+    }
     Box(
         modifier = Modifier
             .weight(if (tab == MainTab.Generator) 1.35f else 1f)
             .fillMaxHeight()
-            .background(
-                color = if (isSelected) Color(0xFF123E49) else Color.Transparent,
-                shape = RoundedCornerShape(5.dp),
-            )
+            .then(if (isSelected) Modifier.shadow(5.dp, shape) else Modifier)
+            .background(tabBackground, shape)
+            .border(1.dp, border, shape)
             .clickable { onSelected(tab) },
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = label,
-            color = if (isSelected) Color.White else Color(0xFF17333B),
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 13.sp,
-            maxLines = 1,
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = label,
+                color = if (isSelected) WebPanelPalette.TextStrong else WebPanelPalette.TextBlue,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 11.sp,
+                maxLines = 1,
+            )
+            Spacer(Modifier.height(1.dp))
+            Box(
+                modifier = Modifier
+                    .width(if (isSelected) 18.dp else 5.dp)
+                    .height(2.dp)
+                    .background(
+                        color = if (isSelected) Color(0xFFBFDBFE) else WebPanelPalette.MutedDeep,
+                        shape = CircleShape,
+                    ),
+            )
+        }
     }
 }
 
