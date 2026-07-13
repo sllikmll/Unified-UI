@@ -1,11 +1,7 @@
 package io.xkeen.mobile.app
 
-import java.net.HttpURLConnection
-import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 internal data class XrayFragmentInfo(
@@ -33,9 +29,11 @@ internal interface XrayConfigSource {
     suspend fun loadFragment(baseUrl: String, filename: String): XrayFragmentContent
 }
 
-internal class WebPanelXrayConfigSource : XrayConfigSource {
-    override suspend fun listFragments(baseUrl: String): XrayFragmentIndex = withContext(Dispatchers.IO) {
-        val response = get(baseUrl, "/api/routing/fragments")
+internal class WebPanelXrayConfigSource(
+    private val transport: CompanionHttpTransport = HttpUrlConnectionCompanionTransport(),
+) : XrayConfigSource {
+    override suspend fun listFragments(baseUrl: String): XrayFragmentIndex {
+        val response = request(baseUrl, "/api/routing/fragments")
         val payload = try {
             JSONObject(response.body)
         } catch (error: Exception) {
@@ -67,7 +65,7 @@ internal class WebPanelXrayConfigSource : XrayConfigSource {
             }
         }.sortedBy { it.name.lowercase() }
 
-        XrayFragmentIndex(
+        return XrayFragmentIndex(
             directory = payload.optString("dir"),
             currentName = payload.optString("current"),
             items = items,
@@ -75,10 +73,10 @@ internal class WebPanelXrayConfigSource : XrayConfigSource {
     }
 
     override suspend fun loadFragment(baseUrl: String, filename: String): XrayFragmentContent =
-        withContext(Dispatchers.IO) {
+        run {
             require(filename.isXrayConfigFilename()) { "Unsupported Xray config filename" }
             val encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8.name())
-            val response = get(baseUrl, "/api/routing?file=$encoded")
+            val response = request(baseUrl, "/api/routing?file=$encoded")
             XrayFragmentContent(
                 text = response.body,
                 hasJsoncSidecar = response.headers["x-xkeen-jsonc"] == "1",
@@ -86,60 +84,37 @@ internal class WebPanelXrayConfigSource : XrayConfigSource {
             )
         }
 
-    private fun get(baseUrl: String, endpoint: String): HttpResponse {
-        val url = resolveEndpoint(baseUrl, endpoint)
-        val connection = url.toURL().openConnection() as HttpURLConnection
-        return try {
-            connection.requestMethod = "GET"
-            connection.connectTimeout = 5_000
-            connection.readTimeout = 10_000
-            connection.useCaches = false
-            connection.setRequestProperty("Accept", "application/json, text/plain;q=0.9")
-            connection.setRequestProperty("Cache-Control", "no-cache")
-
-            val status = connection.responseCode
-            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-            val body = stream?.bufferedReader(StandardCharsets.UTF_8)?.use { it.readText() }.orEmpty()
-            if (status !in 200..299) {
-                throw XrayConfigException("HTTP $status при загрузке конфигураций Xray.")
+    private suspend fun request(baseUrl: String, endpoint: String): CompanionHttpResponse =
+        try {
+            val response = transport.get(
+                CompanionHttpRequest(
+                    baseUrl = baseUrl,
+                    endpoint = endpoint,
+                    headers = mapOf(
+                        "Accept" to "application/json, text/plain;q=0.9",
+                        "Cache-Control" to "no-cache",
+                    ),
+                ),
+            )
+            if (response.statusCode !in 200..299) {
+                throw XrayConfigException("HTTP ${response.statusCode} при загрузке конфигураций Xray.")
             }
-            if (connection.contentType.orEmpty().contains("text/html", ignoreCase = true)) {
+            if (response.contentType.contains("text/html", ignoreCase = true)) {
                 throw XrayConfigException(
                     "Xkeen UI вернул страницу входа. Подключите авторизованную сессию.",
                 )
             }
-            HttpResponse(
-                body = body,
-                headers = connection.headerFields
-                    .filterKeys { it != null }
-                    .mapKeys { (name, _) -> name.orEmpty().lowercase() }
-                    .mapValues { (_, values) -> values?.firstOrNull().orEmpty() },
+            response
+        } catch (error: CompanionTransportException) {
+            throw XrayConfigException(
+                error.message ?: "Не удалось выполнить запрос к Xkeen UI.",
+                error,
             )
-        } finally {
-            connection.disconnect()
         }
-    }
 }
 
 internal class XrayConfigException(message: String, cause: Throwable? = null) :
     Exception(message, cause)
-
-private data class HttpResponse(
-    val body: String,
-    val headers: Map<String, String>,
-)
-
-private fun resolveEndpoint(baseUrl: String, endpoint: String): URI {
-    val normalizedBase = baseUrl.trim().trimEnd('/')
-    if (normalizedBase.isBlank()) {
-        throw XrayConfigException("Не указан адрес Xkeen UI.")
-    }
-    return try {
-        URI.create("$normalizedBase/${endpoint.trimStart('/')}")
-    } catch (error: IllegalArgumentException) {
-        throw XrayConfigException("Некорректный адрес Xkeen UI.", error)
-    }
-}
 
 private fun String.isXrayConfigFilename(): Boolean {
     val normalized = trim().lowercase()

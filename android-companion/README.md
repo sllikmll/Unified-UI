@@ -39,7 +39,15 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 - `GET /api/xkeen/core` загружает список установленных ядер и автоматически скрывает недоступные вкладки и drawer-секции.
 - `GET /api/routing/fragments` загружает список Xray routing-документов.
 - `GET /api/routing?file=...` загружает содержимое выбранного routing-документа.
+- Эти read-only запросы уже идут через общий `CompanionHttpTransport`, поэтому `Core` и `Routing Xray` больше не держат разрозненный HTTP-код.
 - Если backend вместо JSON возвращает HTML-страницу логина, приложение показывает явную ошибку transport/auth, а не пытается тихо разобрать неверный ответ.
+
+## Архитектурный seam
+
+- `DemoCompanionController` заменен на `CompanionController`, который зависит от `CompanionControllerDependencies`, а не от жестко пришитых demo-side effects.
+- Для следующего слоя выделены отдельные порты: `ConnectionsPort`, `SessionPort`, `ServiceActionsPort`, `RoutingWritePort`, `CompanionJournalPort`.
+- Текущий UI все еще работает на demo-адаптерах этих портов, поэтому визуальное поведение не изменилось, но точки подключения для real transport/auth/persistence/write уже подготовлены.
+- Логика controller/reducer теперь тестируется отдельно от transport и storage seam.
 
 ## Routing Xray
 
@@ -48,7 +56,8 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 - Поддерживаются `.json` и `.jsonc`, а также заголовки `x-xkeen-jsonc` и `x-xkeen-jsonc-using`.
 - Длинные горизонтальные свайпы перелистывают документы; короткие движения остаются за редактированием и прокруткой.
 - Панель действий включает `edit`, `validate`, `revert`, `save`, `apply`.
-- `validate`, `save` и `apply` пока остаются локальной/demo-логикой. Реальная серверная запись ещё не подключена.
+- `save` и `apply` уже идут через отдельный `RoutingWritePort`, но пока закрыты demo-реализацией. Реальная серверная запись еще не подключена.
+- `validate` пока остается локальной проверкой редактора и еще не переведен на backend round-trip.
 
 ## Техническая база
 
@@ -81,15 +90,16 @@ cd android-companion
 
 ## Что пока остаётся demo-only
 
-- `Pair/Login` ещё не подключён к реальному auth/session слою.
+- `ConnectionsPort` пока создает подключения только в памяти процесса; persisted connections еще не подключены.
+- `Pair/Login` уже отделен в `SessionPort`, но сам порт пока работает через demo auth/session flow.
 - Данные подключений и секретов не сохраняются в secure storage.
-- `start`, `stop`, `restart` и переключение `Core` пока меняют только локальный state и не вызывают POST-endpoint'ы.
-- `Routing Xray` читает документы с сервера, но `validate`, `save`, `apply` пока не отправляют изменения обратно в backend.
+- `start`, `stop`, `restart` и переключение `Core` уже вынесены в `ServiceActionsPort`, но пока меняют только локальный state и не вызывают POST-endpoint'ы.
+- `Routing Xray` читает документы с сервера, но `validate` еще локальный, а `save/apply` пока работают через demo `RoutingWritePort`, а не через backend.
 - Нет настоящего logs streaming, PTY transport, reconnect behavior и offline persistence.
 - Большая часть разделов `Mihomo`, `Ports` и `Generator` пока остаётся placeholder-поверхностями.
 
 ## Следующий практический шаг
 
-- Заменить in-memory controller на реальный transport, auth/session layer и persisted connections.
-- Довести `Routing Xray` от read-only интеграции до backend-backed `validate` / `save` / `apply`.
-- Подключить write-safe контракты для service actions, core switch и журналов.
+- Подключить persisted connections и secure storage поверх уже выделенных `ConnectionsPort` и `SessionPort`.
+- Довести `Pair/Login` до реального auth/session transport и trusted session restore.
+- Заменить demo-адаптеры `ServiceActionsPort`, `RoutingWritePort` и журналов на backend-backed реализации.

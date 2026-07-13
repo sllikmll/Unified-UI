@@ -3,30 +3,10 @@ package io.xkeen.mobile.app
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
 
-private enum class SessionFlow(
-    val actionLabel: String,
-    val eventTitle: String,
-    val logLabel: String,
-) {
-    Pairing(
-        actionLabel = "Сопряжение",
-        eventTitle = "Сопряжение завершено",
-        logLabel = "сопряжение",
-    ),
-    Login(
-        actionLabel = "Вход",
-        eventTitle = "Вход выполнен",
-        logLabel = "вход",
-    ),
-}
-
-class DemoCompanionController internal constructor(
+internal class CompanionController(
     initialState: CompanionUiState = CompanionUiState(),
-    private val xrayConfigSource: XrayConfigSource = WebPanelXrayConfigSource(),
-    private val coreStatusSource: CoreStatusSource = WebPanelCoreStatusSource(),
+    private val dependencies: CompanionControllerDependencies = defaultCompanionControllerDependencies(),
 ) {
     var state by mutableStateOf(initialState)
         private set
@@ -67,13 +47,7 @@ class DemoCompanionController internal constructor(
             return
         }
 
-        val newConnection = Connection(
-            id = draft.name.lowercase().replace(" ", "-"),
-            name = draft.name.trim(),
-            baseUrl = draft.baseUrl.trim(),
-            status = ConnectionStatus.SetupRequired,
-            lastSeen = "Новый черновик",
-        )
+        val newConnection = dependencies.connections.createConnection(draft)
 
         state = state.copy(
             connections = listOf(newConnection) + state.connections,
@@ -125,11 +99,13 @@ class DemoCompanionController internal constructor(
     }
 
     fun pairDemoDevice() {
-        completeSession(SessionFlow.Pairing)
+        val connection = selectedConnection() ?: return
+        openSession(dependencies.session.pair(connection))
     }
 
     fun login() {
-        completeSession(SessionFlow.Login)
+        val connection = selectedConnection() ?: return
+        openSession(dependencies.session.login(connection, state.loginForm))
     }
 
     fun selectTab(tab: MainTab) {
@@ -160,27 +136,27 @@ class DemoCompanionController internal constructor(
             return
         }
 
-        val switchedAt = nowShort()
+        val switchedAt = dependencies.journal.shortTime()
+        val result = dependencies.serviceActions.switchCore(selectedCore)
         state = state.copy(
             dashboard = state.dashboard.copy(
-                activeCore = selectedCore,
-                serviceState = ServiceState.Running,
-                statusSummary = "Готов к безопасному управлению",
-                lastOperation = "Ядро изменено на $selectedCore",
+                activeCore = result.activeCore,
+                serviceState = result.serviceState,
+                statusSummary = result.statusSummary,
+                lastOperation = result.lastOperation,
                 recentEvents = listOf(
                     RecentEvent(
                         time = switchedAt,
-                        title = "Ядро изменено",
-                        subtitle = "$selectedCore активно после перезапуска xkeen",
+                        title = result.eventTitle,
+                        subtitle = result.eventSubtitle,
                     ),
                 ) + state.dashboard.recentEvents.take(2),
             ),
             logs = state.logs.prepend(
-                LogEntry(
-                    time = nowLong(),
+                dependencies.journal.createEntry(
                     source = "service",
                     level = LogLevel.Info,
-                    message = "Ядро изменено на $selectedCore; xkeen перезапущен",
+                    message = result.logMessage,
                 ),
             ),
         )
@@ -188,7 +164,7 @@ class DemoCompanionController internal constructor(
 
     suspend fun refreshCoreStatus() {
         val result = runCatching {
-            coreStatusSource.load(state.dashboard.endpoint)
+            dependencies.coreStatusSource.load(state.dashboard.endpoint)
         }
         result.onSuccess(::applyCoreStatus)
     }
@@ -277,7 +253,7 @@ class DemoCompanionController internal constructor(
         )
 
         val result = runCatching {
-            xrayConfigSource.listFragments(state.dashboard.endpoint)
+            dependencies.xrayConfigSource.listFragments(state.dashboard.endpoint)
         }
         result.onFailure { error ->
             state = state.copy(
@@ -356,7 +332,7 @@ class DemoCompanionController internal constructor(
         )
 
         val result = runCatching {
-            xrayConfigSource.loadFragment(state.dashboard.endpoint, document.title)
+            dependencies.xrayConfigSource.loadFragment(state.dashboard.endpoint, document.title)
         }
         result.onFailure { error ->
             val message = error.toRoutingLoadMessage()
@@ -470,26 +446,19 @@ class DemoCompanionController internal constructor(
 
     fun saveRouting() {
         val document = selectedRoutingDocument() ?: return
-        val savedAt = nowShort()
-        val updated = document.copy(
-            savedDraftContent = document.draftContent,
-            lastSavedAt = savedAt,
-        )
+        val result = dependencies.routingWrites.save(document)
         state = state.copy(
             routing = state.routing.copy(
-                documents = state.routing.documents.replaceDocument(updated),
-                validation = RoutingValidation(
-                    state = RoutingValidationState.Valid,
-                    message = "Черновик сохранен. Откройте превью или примените, когда будете готовы.",
-                    details = listOf(
-                        "Сохранено в $savedAt",
-                        "Опубликованная ревизия не изменится до применения.",
-                    ),
-                ),
+                documents = state.routing.documents.replaceDocument(result.document),
+                validation = result.validation,
             ),
-            dashboard = state.dashboard.copy(lastOperation = "Черновик маршрутов сохранен в $savedAt"),
+            dashboard = state.dashboard.copy(lastOperation = result.lastOperation),
             logs = state.logs.prepend(
-                LogEntry(nowLong(), "routing", LogLevel.Info, "Черновик сохранен для ${document.title}"),
+                dependencies.journal.createEntry(
+                    source = "routing",
+                    level = LogLevel.Info,
+                    message = result.logMessage,
+                ),
             ),
         )
     }
@@ -499,14 +468,9 @@ class DemoCompanionController internal constructor(
     }
 
     fun disconnect() {
-        val connectionId = state.selectedConnectionId ?: return
-        val updatedConnections = state.connections.map { connection ->
-            if (connection.id == connectionId) {
-                connection.copy(status = ConnectionStatus.NeedsAuth, lastSeen = "Сессия закрыта")
-            } else {
-                connection
-            }
-        }
+        val connection = selectedConnection() ?: return
+        val result = dependencies.session.disconnect(connection)
+        val updatedConnections = state.connections.replaceConnection(result.connection)
 
         state = state.copy(
             phase = AppPhase.Connections,
@@ -514,41 +478,30 @@ class DemoCompanionController internal constructor(
             connections = updatedConnections,
             mainTab = MainTab.Routing,
             workspaceSection = WorkspaceSection.XrayRouting,
-            dashboard = state.dashboard.copy(statusSummary = "Требуется вход"),
+            dashboard = state.dashboard.copy(statusSummary = result.statusSummary),
             logs = state.logs.prepend(
-                LogEntry(nowLong(), "auth", LogLevel.Warning, "Пользователь закрыл мобильную сессию"),
+                dependencies.journal.createEntry(
+                    source = "auth",
+                    level = LogLevel.Warning,
+                    message = result.logMessage,
+                ),
             ),
         )
     }
 
-    private fun completeSession(flow: SessionFlow) {
-        val connectionId = state.selectedConnectionId ?: return
-        val updatedConnections = state.connections.map { connection ->
-            if (connection.id == connectionId) {
-                connection.copy(status = ConnectionStatus.Configured, lastSeen = "Готово")
-            } else {
-                connection
-            }
-        }
-        val selected = updatedConnections.first { it.id == connectionId }
-        val eventTime = nowShort()
-        val authLog = LogEntry(
-            time = nowLong(),
-            source = "auth",
-            level = LogLevel.Info,
-            message = "${flow.logLabel.replaceFirstChar(Char::titlecase)} открыто для ${selected.name}",
-        )
-
+    private fun openSession(result: SessionOpenResult) {
+        val eventTime = dependencies.journal.shortTime()
+        val updatedConnections = state.connections.replaceConnection(result.connection)
         state = state.copy(
             phase = AppPhase.Ready,
             connections = updatedConnections,
             dashboard = state.dashboard.copy(
-                instanceLabel = selected.name,
-                endpoint = selected.baseUrl,
-                statusSummary = "Готов к безопасному управлению",
-                lastOperation = "${flow.actionLabel} завершено",
+                instanceLabel = result.connection.name,
+                endpoint = result.connection.baseUrl,
+                statusSummary = result.statusSummary,
+                lastOperation = result.lastOperation,
                 recentEvents = listOf(
-                    RecentEvent(eventTime, flow.eventTitle, "Сессия открыта без перехода в браузер"),
+                    RecentEvent(eventTime, result.eventTitle, result.eventSubtitle),
                 ) + state.dashboard.recentEvents.take(2),
             ),
             diagnostics = state.diagnostics.replaceDiagnostic(
@@ -556,79 +509,68 @@ class DemoCompanionController internal constructor(
                 status = "Готово",
                 severity = DiagnosticSeverity.Ok,
             ),
-            logs = state.logs.prepend(authLog),
+            logs = state.logs.prepend(
+                dependencies.journal.createEntry(
+                    source = "auth",
+                    level = LogLevel.Info,
+                    message = result.logMessage,
+                ),
+            ),
         )
     }
 
     private fun performServiceAction(action: ServiceAction) {
-        val actionTime = nowShort()
-        val serviceState = when (action) {
-            ServiceAction.Start -> ServiceState.Running
-            ServiceAction.Stop -> ServiceState.Stopped
-            ServiceAction.Restart -> ServiceState.Restarting
-        }
-        val finalState = if (action == ServiceAction.Restart) ServiceState.Running else serviceState
-        val summary = when (action) {
-            ServiceAction.Start -> "Запрошен запуск сервиса"
-            ServiceAction.Stop -> "Сервис безопасно остановлен"
-            ServiceAction.Restart -> "Среда выполнения успешно перезапущена"
-        }
+        val actionTime = dependencies.journal.shortTime()
+        val result = dependencies.serviceActions.perform(action)
 
         state = state.copy(
             dashboard = state.dashboard.copy(
-                serviceState = finalState,
-                statusSummary = if (finalState == ServiceState.Running) {
-                    "Готов к безопасному управлению"
-                } else {
-                    "Сервис остановлен"
-                },
-                lastOperation = summary,
+                serviceState = result.serviceState,
+                statusSummary = result.statusSummary,
+                lastOperation = result.lastOperation,
                 recentEvents = listOf(
-                    RecentEvent(actionTime, action.label, summary),
+                    RecentEvent(actionTime, result.eventTitle, result.eventSubtitle),
                 ) + state.dashboard.recentEvents.take(2),
             ),
             logs = state.logs.prepend(
-                LogEntry(nowLong(), "service", LogLevel.Info, "Подтверждено действие: ${action.label.lowercase()}"),
+                dependencies.journal.createEntry(
+                    source = "service",
+                    level = LogLevel.Info,
+                    message = result.logMessage,
+                ),
             ),
         )
     }
 
     private fun applyRouting() {
         val document = selectedRoutingDocument() ?: return
-        val appliedAt = nowShort()
-        val updated = document.copy(
-            revision = document.revision + 1,
-            publishedContent = document.savedDraftContent,
-            draftContent = document.savedDraftContent,
-            lastAppliedAt = appliedAt,
-        )
+        val result = dependencies.routingWrites.apply(document)
+        val appliedAt = result.document.lastAppliedAt ?: dependencies.journal.shortTime()
         state = state.copy(
             routing = state.routing.copy(
-                documents = state.routing.documents.replaceDocument(updated),
+                documents = state.routing.documents.replaceDocument(result.document),
                 mode = RoutingMode.Read,
-                validation = RoutingValidation(
-                    state = RoutingValidationState.Valid,
-                    message = "Применение завершено. Опубликованная ревизия уже активна.",
-                    details = listOf(
-                        "Ревизия r${updated.revision} опубликована в $appliedAt",
-                        "В демонстрационной оболочке конфликтов не найдено.",
-                    ),
-                ),
-                preview = buildRoutingPreview(updated).copy(
-                    headline = "Применено к ${updated.title}",
-                ),
+                validation = result.validation,
+                preview = result.preview,
             ),
             dashboard = state.dashboard.copy(
-                lastOperation = "Маршруты применены в $appliedAt",
+                lastOperation = result.lastOperation,
                 recentEvents = listOf(
-                    RecentEvent(appliedAt, "Маршруты применены", "${updated.title} переведен на ревизию r${updated.revision}"),
+                    RecentEvent(appliedAt, result.eventTitle, result.eventSubtitle),
                 ) + state.dashboard.recentEvents.take(2),
             ),
             logs = state.logs.prepend(
-                LogEntry(nowLong(), "routing", LogLevel.Info, "Применена ревизия r${updated.revision} для ${updated.title}"),
+                dependencies.journal.createEntry(
+                    source = "routing",
+                    level = LogLevel.Info,
+                    message = result.logMessage,
+                ),
             ),
         )
     }
+
+    private fun selectedConnection(): Connection? =
+        state.connections.firstOrNull { it.id == state.selectedConnectionId }
 
     private fun selectedRoutingDocument(): RoutingDocument? =
         state.routing.documents.firstOrNull { it.id == state.routing.selectedDocumentId }
@@ -655,12 +597,6 @@ class DemoCompanionController internal constructor(
             ),
         )
     }
-
-    private fun nowShort(): String =
-        LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
-
-    private fun nowLong(): String =
-        LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
 }
 
 private fun preferredCoreTab(activeCore: String, availableCores: List<String>): MainTab =
@@ -706,7 +642,7 @@ fun validateRoutingDraft(draft: String): RoutingValidation {
     }
 }
 
-private fun buildRoutingPreview(document: RoutingDocument): RoutingPreview {
+internal fun buildRoutingPreview(document: RoutingDocument): RoutingPreview {
     val outboundMentions = Regex("\"outboundTag\"").findAll(document.draftContent).count()
     val ruleMentions = Regex("\"type\"\\s*:\\s*\"field\"").findAll(document.draftContent).count()
 
@@ -723,6 +659,9 @@ private fun buildRoutingPreview(document: RoutingDocument): RoutingPreview {
 
 private fun List<RoutingDocument>.replaceDocument(updated: RoutingDocument): List<RoutingDocument> =
     map { document -> if (document.id == updated.id) updated else document }
+
+private fun List<Connection>.replaceConnection(updated: Connection): List<Connection> =
+    map { connection -> if (connection.id == updated.id) updated else connection }
 
 private fun Throwable.toRoutingLoadMessage(): String =
     message?.takeIf { it.isNotBlank() } ?: "Не удалось загрузить конфигурации с Xkeen UI."

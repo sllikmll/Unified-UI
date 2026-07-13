@@ -87,7 +87,7 @@ private data class WorkspaceDrawerEntry(
 @Composable
 internal fun WorkspaceNavigationFrame(
     state: CompanionUiState,
-    controller: DemoCompanionController,
+    controller: CompanionController,
     content: @Composable (
         openDrawer: () -> Unit,
         openCoreDialog: () -> Unit,
@@ -276,7 +276,7 @@ private fun WorkspaceDrawer(
 @Composable
 internal fun WorkspaceSectionContent(
     state: CompanionUiState,
-    controller: DemoCompanionController,
+    controller: CompanionController,
     modifier: Modifier = Modifier,
 ) {
     when (state.workspaceSection) {

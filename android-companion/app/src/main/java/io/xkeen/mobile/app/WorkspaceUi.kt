@@ -72,7 +72,7 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun RoutingWorkspaceScreen(
     state: CompanionUiState,
-    controller: DemoCompanionController,
+    controller: CompanionController,
     modifier: Modifier = Modifier,
 ) {
     val routing = state.routing

@@ -7,10 +7,10 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class DemoCompanionControllerTest {
+class CompanionControllerTest {
     @Test
     fun selectingBottomTabResetsItsContextSection() {
-        val controller = DemoCompanionController(
+        val controller = CompanionController(
             CompanionUiState(
                 phase = AppPhase.Ready,
                 workspaceSection = WorkspaceSection.XraySubscriptions,
@@ -30,7 +30,10 @@ class DemoCompanionControllerTest {
 
     @Test
     fun switchingCoreUpdatesDashboardAndRestartLog() {
-        val controller = DemoCompanionController(CompanionUiState(phase = AppPhase.Ready))
+        val controller = CompanionController(
+            initialState = CompanionUiState(phase = AppPhase.Ready),
+            dependencies = testDependencies(),
+        )
         val previousLogCount = controller.state.logs.entries.size
 
         controller.switchCore("mihomo")
@@ -47,7 +50,10 @@ class DemoCompanionControllerTest {
 
     @Test
     fun currentOrUnavailableCoreDoesNotChangeState() {
-        val controller = DemoCompanionController(CompanionUiState(phase = AppPhase.Ready))
+        val controller = CompanionController(
+            initialState = CompanionUiState(phase = AppPhase.Ready),
+            dependencies = testDependencies(),
+        )
         val initialState = controller.state
 
         controller.switchCore("xray")
@@ -58,14 +64,16 @@ class DemoCompanionControllerTest {
 
     @Test
     fun mihomoOnlyStatusMovesWorkspaceAwayFromXrayAndBlocksXrayNavigation() = runTest {
-        val controller = DemoCompanionController(
+        val controller = CompanionController(
             initialState = CompanionUiState(
                 phase = AppPhase.Ready,
                 mainTab = MainTab.Routing,
                 workspaceSection = WorkspaceSection.XraySubscriptions,
             ),
-            coreStatusSource = FakeCoreStatusSource(
-                CoreStatus(availableCores = listOf("Mihomo"), currentCore = "Mihomo"),
+            dependencies = testDependencies(
+                coreStatusSource = FakeCoreStatusSource(
+                    CoreStatus(availableCores = listOf("Mihomo"), currentCore = "Mihomo"),
+                ),
             ),
         )
 
@@ -85,14 +93,16 @@ class DemoCompanionControllerTest {
 
     @Test
     fun xrayOnlyStatusHidesAllMihomoBoundTabsAndSections() = runTest {
-        val controller = DemoCompanionController(
+        val controller = CompanionController(
             initialState = CompanionUiState(
                 phase = AppPhase.Ready,
                 mainTab = MainTab.Generator,
                 workspaceSection = WorkspaceSection.GeneratorTemplates,
             ),
-            coreStatusSource = FakeCoreStatusSource(
-                CoreStatus(availableCores = listOf("Xray"), currentCore = "Xray"),
+            dependencies = testDependencies(
+                coreStatusSource = FakeCoreStatusSource(
+                    CoreStatus(availableCores = listOf("Xray"), currentCore = "Xray"),
+                ),
             ),
         )
 
@@ -110,9 +120,9 @@ class DemoCompanionControllerTest {
     @Test
     fun refreshRoutingUsesWebPanelFragmentContractAndLoadsCurrentFile() = runTest {
         val source = FakeXrayConfigSource()
-        val controller = DemoCompanionController(
+        val controller = CompanionController(
             initialState = CompanionUiState(phase = AppPhase.Ready),
-            xrayConfigSource = source,
+            dependencies = testDependencies(xrayConfigSource = source),
         )
 
         controller.refreshRoutingDocuments()
@@ -134,9 +144,9 @@ class DemoCompanionControllerTest {
     @Test
     fun selectingRemoteDocumentLoadsItLazily() = runTest {
         val source = FakeXrayConfigSource()
-        val controller = DemoCompanionController(
+        val controller = CompanionController(
             initialState = CompanionUiState(phase = AppPhase.Ready),
-            xrayConfigSource = source,
+            dependencies = testDependencies(xrayConfigSource = source),
         )
         controller.refreshRoutingDocuments()
 
@@ -148,6 +158,61 @@ class DemoCompanionControllerTest {
         assertEquals("{\"routing\":{\"rules\":[{\"type\":\"field\"}]}}", selected.draftContent)
         assertEquals(listOf("05_routing.json", "06_bypass.jsonc"), source.loadedFiles)
     }
+
+    @Test
+    fun saveRoutingUsesRoutingWritePortResult() {
+        val original = demoRoutingState().documents.first()
+        val updated = original.copy(
+            savedDraftContent = original.draftContent + "\n// saved",
+            lastSavedAt = "18:10",
+        )
+        val routingWrites = FakeRoutingWritePort(
+            saveResult = RoutingSaveResult(
+                document = updated,
+                validation = RoutingValidation(
+                    state = RoutingValidationState.Valid,
+                    message = "Saved by test port",
+                ),
+                lastOperation = "Saved remotely",
+                logMessage = "Saved ${updated.title}",
+            ),
+        )
+        val controller = CompanionController(
+            initialState = CompanionUiState(phase = AppPhase.Ready),
+            dependencies = testDependencies(routingWrites = routingWrites),
+        )
+
+        controller.saveRouting()
+
+        assertEquals(original.id, routingWrites.savedDocument?.id)
+        val saved = controller.state.routing.documents.first { it.id == original.id }
+        assertEquals("18:10", saved.lastSavedAt)
+        assertEquals("Saved by test port", controller.state.routing.validation.message)
+        assertEquals("Saved remotely", controller.state.dashboard.lastOperation)
+    }
+}
+
+private fun testDependencies(
+    coreStatusSource: CoreStatusSource = FakeCoreStatusSource(
+        CoreStatus(availableCores = listOf("Xray", "Mihomo"), currentCore = "Xray"),
+    ),
+    xrayConfigSource: XrayConfigSource = FakeXrayConfigSource(),
+    connections: ConnectionsPort = DemoConnectionsPort(),
+    session: SessionPort = DemoSessionPort(),
+    serviceActions: ServiceActionsPort = DemoServiceActionsPort(),
+    routingWrites: RoutingWritePort? = null,
+    journal: CompanionJournalPort = FakeJournalPort(),
+): CompanionControllerDependencies {
+    val effectiveJournal = journal
+    return CompanionControllerDependencies(
+        connections = connections,
+        session = session,
+        serviceActions = serviceActions,
+        routingWrites = routingWrites ?: DemoRoutingWritePort(effectiveJournal),
+        journal = effectiveJournal,
+        xrayConfigSource = xrayConfigSource,
+        coreStatusSource = coreStatusSource,
+    )
 }
 
 private class FakeCoreStatusSource(
@@ -186,4 +251,41 @@ private class FakeXrayConfigSource : XrayConfigSource {
             )
         }
     }
+}
+
+private class FakeRoutingWritePort(
+    private val saveResult: RoutingSaveResult? = null,
+    private val applyResult: RoutingApplyResult? = null,
+) : RoutingWritePort {
+    var savedDocument: RoutingDocument? = null
+    var appliedDocument: RoutingDocument? = null
+
+    override fun save(document: RoutingDocument): RoutingSaveResult {
+        savedDocument = document
+        return saveResult ?: RoutingSaveResult(
+            document = document,
+            validation = RoutingValidation(state = RoutingValidationState.Valid, message = "Saved"),
+            lastOperation = "Saved",
+            logMessage = "Saved ${document.title}",
+        )
+    }
+
+    override fun apply(document: RoutingDocument): RoutingApplyResult {
+        appliedDocument = document
+        return applyResult ?: RoutingApplyResult(
+            document = document.copy(lastAppliedAt = "18:10"),
+            validation = RoutingValidation(state = RoutingValidationState.Valid, message = "Applied"),
+            preview = RoutingPreview(headline = "Applied", details = emptyList()),
+            lastOperation = "Applied",
+            eventTitle = "Applied",
+            eventSubtitle = document.title,
+            logMessage = "Applied ${document.title}",
+        )
+    }
+}
+
+private class FakeJournalPort : CompanionJournalPort {
+    override fun shortTime(): String = "18:10"
+
+    override fun longTime(): String = "18:10:42"
 }

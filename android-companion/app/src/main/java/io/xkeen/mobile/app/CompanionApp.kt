@@ -104,7 +104,7 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun CompanionApp() {
-    val controller = remember { DemoCompanionController() }
+    val controller = remember { CompanionController() }
     val state = controller.state
 
     XkeenMobileTheme(darkTheme = true) {
@@ -123,7 +123,7 @@ fun CompanionApp() {
 }
 
 @Composable
-private fun LaunchRoute(controller: DemoCompanionController) {
+private fun LaunchRoute(controller: CompanionController) {
     LaunchedEffect(Unit) {
         delay(1100)
         controller.finishLaunch()
@@ -185,7 +185,7 @@ private fun LaunchRoute(controller: DemoCompanionController) {
 @Composable
 private fun ConnectionsRoute(
     state: CompanionUiState,
-    controller: DemoCompanionController,
+    controller: CompanionController,
 ) {
     Column(
         modifier = Modifier
@@ -258,7 +258,7 @@ private fun ConnectionsRoute(
 @Composable
 private fun PairLoginRoute(
     state: CompanionUiState,
-    controller: DemoCompanionController,
+    controller: CompanionController,
 ) {
     val connection = state.connections.firstOrNull { it.id == state.selectedConnectionId }
 
@@ -358,7 +358,7 @@ private fun PairLoginRoute(
 @Composable
 private fun ReadyRoute(
     state: CompanionUiState,
-    controller: DemoCompanionController,
+    controller: CompanionController,
 ) {
     LaunchedEffect(state.dashboard.endpoint) {
         controller.refreshCoreStatus()
@@ -724,7 +724,7 @@ private fun RowScope.WorkspaceTab(
 @Composable
 private fun DashboardScreen(
     state: CompanionUiState,
-    controller: DemoCompanionController,
+    controller: CompanionController,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -801,7 +801,7 @@ private fun DashboardScreen(
 @Composable
 private fun RoutingScreen(
     state: CompanionUiState,
-    controller: DemoCompanionController,
+    controller: CompanionController,
     modifier: Modifier = Modifier,
 ) {
     val routing = state.routing
@@ -949,7 +949,7 @@ private fun RoutingScreen(
 @Composable
 private fun LogsScreen(
     state: CompanionUiState,
-    controller: DemoCompanionController,
+    controller: CompanionController,
     modifier: Modifier = Modifier,
 ) {
     val filteredEntries = state.logs.entries.filter { entry ->
@@ -1009,7 +1009,7 @@ private fun LogsScreen(
 @Composable
 private fun MoreScreen(
     state: CompanionUiState,
-    controller: DemoCompanionController,
+    controller: CompanionController,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -1758,7 +1758,7 @@ private fun ReadyPreview() {
     XkeenMobileTheme {
         ReadyRoute(
             state = CompanionUiState(phase = AppPhase.Ready),
-            controller = DemoCompanionController(CompanionUiState(phase = AppPhase.Ready)),
+            controller = CompanionController(CompanionUiState(phase = AppPhase.Ready)),
         )
     }
 }

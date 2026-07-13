@@ -1,10 +1,5 @@
 package io.xkeen.mobile.app
 
-import java.net.HttpURLConnection
-import java.net.URI
-import java.nio.charset.StandardCharsets
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 internal data class CoreStatus(
@@ -16,34 +11,37 @@ internal interface CoreStatusSource {
     suspend fun load(baseUrl: String): CoreStatus
 }
 
-internal class WebPanelCoreStatusSource : CoreStatusSource {
-    override suspend fun load(baseUrl: String): CoreStatus = withContext(Dispatchers.IO) {
-        val connection = resolveCoreEndpoint(baseUrl).toURL().openConnection() as HttpURLConnection
+internal class WebPanelCoreStatusSource(
+    private val transport: CompanionHttpTransport = HttpUrlConnectionCompanionTransport(),
+) : CoreStatusSource {
+    override suspend fun load(baseUrl: String): CoreStatus =
         try {
-            connection.requestMethod = "GET"
-            connection.connectTimeout = 5_000
-            connection.readTimeout = 10_000
-            connection.useCaches = false
-            connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("Cache-Control", "no-cache")
-
-            val status = connection.responseCode
-            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-            val body = stream?.bufferedReader(StandardCharsets.UTF_8)?.use { it.readText() }.orEmpty()
-            if (status !in 200..299) {
-                throw CoreStatusException("HTTP $status при загрузке списка ядер.")
+            val response = transport.get(
+                CompanionHttpRequest(
+                    baseUrl = baseUrl,
+                    endpoint = "/api/xkeen/core",
+                    headers = mapOf(
+                        "Accept" to "application/json",
+                        "Cache-Control" to "no-cache",
+                    ),
+                ),
+            )
+            if (response.statusCode !in 200..299) {
+                throw CoreStatusException("HTTP ${response.statusCode} при загрузке списка ядер.")
             }
-            if (connection.contentType.orEmpty().contains("text/html", ignoreCase = true)) {
+            if (response.contentType.contains("text/html", ignoreCase = true)) {
                 throw CoreStatusException(
                     "Xkeen UI вернул страницу входа. Подключите авторизованную сессию.",
                 )
             }
 
-            parseCoreStatus(body)
-        } finally {
-            connection.disconnect()
+            parseCoreStatus(response.body)
+        } catch (error: CompanionTransportException) {
+            throw CoreStatusException(
+                error.message ?: "Не удалось выполнить запрос к Xkeen UI.",
+                error,
+            )
         }
-    }
 }
 
 internal class CoreStatusException(message: String, cause: Throwable? = null) :
@@ -85,15 +83,3 @@ internal fun canonicalCoreName(value: String): String? =
         "mihomo" -> "Mihomo"
         else -> null
     }
-
-private fun resolveCoreEndpoint(baseUrl: String): URI {
-    val normalizedBase = baseUrl.trim().trimEnd('/')
-    if (normalizedBase.isBlank()) {
-        throw CoreStatusException("Не указан адрес Xkeen UI.")
-    }
-    return try {
-        URI.create("$normalizedBase/api/xkeen/core")
-    } catch (error: IllegalArgumentException) {
-        throw CoreStatusException("Некорректный адрес Xkeen UI.", error)
-    }
-}

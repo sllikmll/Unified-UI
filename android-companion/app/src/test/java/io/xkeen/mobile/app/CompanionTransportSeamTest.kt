@@ -1,0 +1,107 @@
+package io.xkeen.mobile.app
+
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class CompanionTransportSeamTest {
+    @Test
+    fun webPanelSourcesShareTransportSeamAndExpectedEndpoints() = runTest {
+        val transport = FakeCompanionHttpTransport(
+            responses = mapOf(
+                "/api/xkeen/core" to CompanionHttpResponse(
+                    statusCode = 200,
+                    body = "<html>login</html>",
+                    headers = emptyMap(),
+                    contentType = "text/html",
+                ),
+                "/api/routing/fragments" to CompanionHttpResponse(
+                    statusCode = 200,
+                    body = "<html>login</html>",
+                    headers = emptyMap(),
+                    contentType = "text/html",
+                ),
+                "/api/routing?file=05_routing.json" to CompanionHttpResponse(
+                    statusCode = 200,
+                    body = "// from server\n{\"routing\":{\"rules\":[]}}",
+                    headers = mapOf(
+                        "x-xkeen-jsonc" to "1",
+                        "x-xkeen-jsonc-using" to "1",
+                    ),
+                    contentType = "application/json",
+                ),
+            ),
+        )
+        val coreSource = WebPanelCoreStatusSource(transport)
+        val routingSource = WebPanelXrayConfigSource(transport)
+
+        val coreError = assertThrowsSuspend<CoreStatusException> {
+            coreSource.load("https://lab.lan:8443")
+        }
+        val routingError = assertThrowsSuspend<XrayConfigException> {
+            routingSource.listFragments("https://lab.lan:8443")
+        }
+        val fragment = routingSource.loadFragment("https://lab.lan:8443", "05_routing.json")
+
+        assertEquals(
+            "Xkeen UI вернул страницу входа. Подключите авторизованную сессию.",
+            coreError.message,
+        )
+        assertEquals(
+            "Xkeen UI вернул страницу входа. Подключите авторизованную сессию.",
+            routingError.message,
+        )
+        assertEquals("// from server\n{\"routing\":{\"rules\":[]}}", fragment.text)
+        assertTrue(fragment.hasJsoncSidecar)
+        assertTrue(fragment.usesJsoncSidecar)
+
+        assertEquals(
+            listOf(
+                "/api/xkeen/core",
+                "/api/routing/fragments",
+                "/api/routing?file=05_routing.json",
+            ),
+            transport.requests.map { it.endpoint },
+        )
+        assertTrue(transport.requests.all { it.baseUrl == "https://lab.lan:8443" })
+        assertEquals("application/json", transport.requests.first().headers["Accept"])
+        assertEquals(
+            "application/json, text/plain;q=0.9",
+            transport.requests[1].headers["Accept"],
+        )
+        assertEquals(
+            "application/json, text/plain;q=0.9",
+            transport.requests[2].headers["Accept"],
+        )
+    }
+}
+
+private suspend inline fun <reified T : Throwable> assertThrowsSuspend(
+    crossinline block: suspend () -> Unit,
+): T =
+    try {
+        block()
+        throw AssertionError("Expected ${T::class.java.simpleName} to be thrown.")
+    } catch (error: Throwable) {
+        if (error is T) {
+            error
+        } else {
+            throw AssertionError(
+                "Expected ${T::class.java.simpleName}, but got ${error::class.java.simpleName}.",
+                error,
+            )
+        }
+    }
+
+private class FakeCompanionHttpTransport(
+    private val responses: Map<String, CompanionHttpResponse>,
+) : CompanionHttpTransport {
+    val requests = mutableListOf<CompanionHttpRequest>()
+
+    override suspend fun get(request: CompanionHttpRequest): CompanionHttpResponse {
+        requests += request
+        return responses[request.endpoint]
+            ?: error("No fake transport response configured for ${request.endpoint}")
+    }
+}
