@@ -23,8 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -40,14 +38,16 @@ import androidx.compose.material.icons.outlined.SettingsBackupRestore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -83,39 +84,15 @@ internal fun RoutingWorkspaceScreen(
     val selectedDocument = routing.documents.firstOrNull {
         it.id == routing.selectedDocumentId
     } ?: return
-    val selectedIndex = routing.documents.indexOfFirst { it.id == selectedDocument.id }
-        .coerceAtLeast(0)
-    val pagerState = rememberPagerState(
-        initialPage = selectedIndex,
-        pageCount = { routing.documents.size },
-    )
     val scope = rememberCoroutineScope()
-    val currentRouting = rememberUpdatedState(routing)
-    val currentSelectedIndex = rememberUpdatedState(selectedIndex)
-    // Keep the gesture handler stable while first-load updates replace document models.
-    val onLongSwipe = remember(controller) {
-        swipe@{ pageDelta: Int ->
-            val targetIndex = currentSelectedIndex.value + pageDelta
-            val targetDocument = currentRouting.value.documents.getOrNull(targetIndex)
-                ?: return@swipe
-            controller.selectRoutingDocument(targetDocument.id)
-        }
-    }
+    val focusManager = LocalFocusManager.current
+    val showDocumentPicker = rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(state.dashboard.endpoint) {
         controller.refreshRoutingDocuments()
     }
     LaunchedEffect(routing.selectedDocumentId) {
         controller.loadSelectedRoutingDocument()
-    }
-    LaunchedEffect(selectedIndex, routing.documents.map { it.id }) {
-        // Selection is the single pager target; competing scroll jobs can bounce between pages.
-        if (
-            pagerState.currentPage != selectedIndex ||
-            pagerState.currentPageOffsetFraction != 0f
-        ) {
-            pagerState.animateScrollToPage(selectedIndex)
-        }
     }
 
     Column(
@@ -127,7 +104,10 @@ internal fun RoutingWorkspaceScreen(
         DocumentToolbar(
             document = selectedDocument,
             documents = routing.documents,
-            onSelectDocument = controller::selectRoutingDocument,
+            onOpenDocumentPicker = {
+                focusManager.clearFocus(force = true)
+                showDocumentPicker.value = true
+            },
             onEdit = controller::enterRoutingEditMode,
             onValidate = controller::validateRouting,
             onRevert = controller::revertRoutingDraft,
@@ -137,23 +117,16 @@ internal fun RoutingWorkspaceScreen(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth()
-                .longHorizontalSwipe(onSwipe = onLongSwipe),
+                .fillMaxWidth(),
         ) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-                userScrollEnabled = false,
-                key = { page -> routing.documents[page].id },
-            ) { page ->
-                val document = routing.documents[page]
+            key(selectedDocument.id) {
                 RoutingDocumentPage(
-                    document = document,
-                    onValueChange = { value -> controller.updateRoutingDraft(document.id, value) },
+                    document = selectedDocument,
+                    onValueChange = { value ->
+                        controller.updateRoutingDraft(selectedDocument.id, value)
+                    },
                     onRetry = {
-                        if (document.id == routing.selectedDocumentId) {
-                            scope.launch { controller.loadSelectedRoutingDocument() }
-                        }
+                        scope.launch { controller.loadSelectedRoutingDocument() }
                     },
                 )
             }
@@ -161,6 +134,18 @@ internal fun RoutingWorkspaceScreen(
         EditorStatusBar(
             document = selectedDocument,
             validation = routing.validation,
+        )
+    }
+
+    if (showDocumentPicker.value) {
+        RoutingDocumentPickerDialog(
+            documents = routing.documents,
+            selectedDocumentId = selectedDocument.id,
+            onDismiss = { showDocumentPicker.value = false },
+            onSelectDocument = { documentId ->
+                controller.selectRoutingDocument(documentId)
+                showDocumentPicker.value = false
+            },
         )
     }
 }
@@ -246,38 +231,11 @@ private fun DocumentLoadMessage(
     }
 }
 
-private fun Modifier.longHorizontalSwipe(onSwipe: (pageDelta: Int) -> Unit): Modifier =
-    pointerInput(onSwipe) {
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false)
-            var lastPosition = down.position
-            var pointerIsDown = true
-            while (pointerIsDown) {
-                val event = awaitPointerEvent(PointerEventPass.Final)
-                val tracked = event.changes.firstOrNull { it.id == down.id }
-                if (tracked != null) {
-                    lastPosition = tracked.position
-                    pointerIsDown = tracked.pressed
-                } else {
-                    pointerIsDown = event.changes.any { it.pressed }
-                }
-            }
-
-            val delta = lastPosition - down.position
-            val horizontalDistance = abs(delta.x)
-            val isLongSwipe = horizontalDistance >= size.width * 0.38f
-            val isClearlyHorizontal = horizontalDistance > abs(delta.y) * 1.35f
-            if (isLongSwipe && isClearlyHorizontal) {
-                onSwipe(if (delta.x < 0f) 1 else -1)
-            }
-        }
-    }
-
 @Composable
 private fun DocumentToolbar(
     document: RoutingDocument,
     documents: List<RoutingDocument>,
-    onSelectDocument: (String) -> Unit,
+    onOpenDocumentPicker: () -> Unit,
     onEdit: () -> Unit,
     onValidate: () -> Unit,
     onRevert: () -> Unit,
@@ -285,7 +243,6 @@ private fun DocumentToolbar(
     onApply: () -> Unit,
 ) {
     val currentIndex = documents.indexOfFirst { it.id == document.id }.coerceAtLeast(0)
-    val nextDocument = documents.getOrNull((currentIndex + 1) % documents.size)
 
     Surface(color = Color.Transparent, shadowElevation = 5.dp) {
         Row(
@@ -304,7 +261,7 @@ private fun DocumentToolbar(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .clickable { nextDocument?.let { onSelectDocument(it.id) } }
+                    .clickable(onClick = onOpenDocumentPicker)
                     .padding(start = 9.dp, end = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -315,13 +272,11 @@ private fun DocumentToolbar(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (documents.size > 1) {
-                    Text(
-                        text = "  ${currentIndex + 1}/${documents.size}  ↔",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = WebPanelPalette.Muted,
-                    )
-                }
+                Text(
+                    text = "  ${currentIndex + 1}/${documents.size}  ▾",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = WebPanelPalette.Muted,
+                )
             }
             EditorToolbarButton(Icons.Outlined.Edit, "Редактировать", onEdit)
             EditorToolbarButton(Icons.AutoMirrored.Outlined.FactCheck, "Проверить", onValidate)
@@ -338,6 +293,125 @@ private fun DocumentToolbar(
                 onClick = onApply,
                 accent = document.hasDraftChanges,
             )
+        }
+    }
+}
+
+@Composable
+private fun RoutingDocumentPickerDialog(
+    documents: List<RoutingDocument>,
+    selectedDocumentId: String,
+    onDismiss: () -> Unit,
+    onSelectDocument: (String) -> Unit,
+) {
+    XkeenDialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "РОУТИНГ XRAY",
+                color = WebPanelPalette.Border,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.7.sp,
+            )
+            Text(
+                text = "Выберите файл",
+                color = WebPanelPalette.TextStrong,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = "Доступно файлов: ${documents.size}",
+                color = WebPanelPalette.Muted,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 380.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                documents.forEachIndexed { index, item ->
+                    val selected = item.id == selectedDocumentId
+                    val shape = RoundedCornerShape(12.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = if (selected) {
+                                    WebPanelPalette.Accent
+                                } else {
+                                    WebPanelPalette.Surface
+                                },
+                                shape = shape,
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = if (selected) {
+                                    WebPanelPalette.Border.copy(alpha = 0.72f)
+                                } else {
+                                    WebPanelPalette.AccentMiddle.copy(alpha = 0.28f)
+                                },
+                                shape = shape,
+                            )
+                            .clickable { onSelectDocument(item.id) }
+                            .padding(horizontal = 13.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(11.dp),
+                    ) {
+                        Text(
+                            text = (index + 1).toString().padStart(2, '0'),
+                            color = if (selected) {
+                                WebPanelPalette.TextStrong
+                            } else {
+                                WebPanelPalette.Muted
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            fontFamily = FontFamily.Monospace,
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = item.title,
+                                color = WebPanelPalette.TextStrong,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = item.path,
+                                color = if (selected) {
+                                    WebPanelPalette.TextBlue
+                                } else {
+                                    WebPanelPalette.Muted
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (selected) {
+                            Text(
+                                text = "ОТКРЫТ",
+                                color = WebPanelPalette.TextStrong,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                OutlinedButton(onClick = onDismiss) {
+                    Text("Закрыть")
+                }
+            }
         }
     }
 }

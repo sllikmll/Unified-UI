@@ -397,6 +397,7 @@ private fun ReadyRoute(
     WorkspaceNavigationFrame(state, controller) { openDrawer, openCoreDialog ->
         Scaffold(
             modifier = Modifier.fillMaxSize(),
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 WorkspaceHeader(
                     state = state,
