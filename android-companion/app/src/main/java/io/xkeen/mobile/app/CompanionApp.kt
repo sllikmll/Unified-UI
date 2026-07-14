@@ -59,8 +59,8 @@ import androidx.compose.material.icons.outlined.SettingsBackupRestore
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.Verified
 import androidx.compose.material.icons.outlined.VpnKey
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -1113,25 +1113,70 @@ private fun PendingActionDialog(
 
     dialog ?: return
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("Подтвердить")
+    XkeenDialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ReportProblem,
+                        contentDescription = null,
+                        tint = WebPanelPalette.Border,
+                        modifier = Modifier.padding(10.dp),
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "ПОДТВЕРЖДЕНИЕ",
+                        color = WebPanelPalette.Border,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.7.sp,
+                    )
+                    Text(
+                        text = dialog.title,
+                        color = WebPanelPalette.TextStrong,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Отмена")
+            Text(
+                text = dialog.body,
+                color = WebPanelPalette.Muted,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedButton(onClick = onDismiss) {
+                    Text("Отмена")
+                }
+                Spacer(Modifier.width(10.dp))
+                Button(
+                    onClick = onConfirm,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = WebPanelPalette.Accent,
+                        contentColor = WebPanelPalette.TextStrong,
+                    ),
+                ) {
+                    Text("Подтвердить")
+                }
             }
-        },
-        title = {
-            Text(dialog.title)
-        },
-        text = {
-            Text(dialog.body)
-        },
-    )
+        }
+    }
 }
 
 @Composable

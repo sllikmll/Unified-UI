@@ -70,8 +70,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import io.xkeen.mobile.ui.theme.WebPanelPalette
 import kotlinx.coroutines.launch
 
@@ -306,113 +304,100 @@ private fun CoreSelectionDialog(
     var selectedCore by remember(activeCore, available) { mutableStateOf(initialSelection) }
     val canApply = selectedCore.isNotBlank() && !selectedCore.equals(activeCore, ignoreCase = true)
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .widthIn(max = 430.dp),
-            color = Color(0xFF060E1E),
-            shape = RoundedCornerShape(22.dp),
-            tonalElevation = 8.dp,
-            shadowElevation = 18.dp,
-        ) {
-            Column(modifier = Modifier.padding(18.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+    XkeenDialog(onDismissRequest = onDismiss) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Surface(
+                    color = Color(0xFF0D2340),
+                    shape = RoundedCornerShape(10.dp),
                 ) {
-                    Surface(
-                        color = Color(0xFF0D2340),
-                        shape = RoundedCornerShape(10.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Memory,
-                            contentDescription = null,
-                            tint = WebPanelPalette.Border,
-                            modifier = Modifier.padding(9.dp),
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "XKEEN ENGINE",
-                            color = Color(0xFF93C5FD),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.7.sp,
-                        )
-                        Text(
-                            text = "Управление ядром",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Outlined.Memory,
+                        contentDescription = null,
+                        tint = WebPanelPalette.Border,
+                        modifier = Modifier.padding(9.dp),
+                    )
                 }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "XKEEN ENGINE",
+                        color = Color(0xFF93C5FD),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.7.sp,
+                    )
+                    Text(
+                        text = "Управление ядром",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-                Text(
-                    text = "RESTART ON APPLY",
-                    modifier = Modifier
-                        .align(Alignment.End)
-                        .background(WebPanelPalette.Surface, RoundedCornerShape(999.dp))
-                        .padding(horizontal = 10.dp, vertical = 5.dp),
-                    color = WebPanelPalette.Muted,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+            Text(
+                text = "RESTART ON APPLY",
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .background(WebPanelPalette.Surface, RoundedCornerShape(999.dp))
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                color = WebPanelPalette.Muted,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.size(12.dp))
+
+            available.forEach { core ->
+                CoreEngineRow(
+                    name = core,
+                    selected = core.equals(selectedCore, ignoreCase = true),
+                    current = core.equals(activeCore, ignoreCase = true),
+                    onClick = { selectedCore = core },
                 )
-                Spacer(Modifier.size(12.dp))
+                Spacer(Modifier.size(9.dp))
+            }
 
-                available.forEach { core ->
-                    CoreEngineRow(
-                        name = core,
-                        selected = core.equals(selectedCore, ignoreCase = true),
-                        current = core.equals(activeCore, ignoreCase = true),
-                        onClick = { selectedCore = core },
-                    )
-                    Spacer(Modifier.size(9.dp))
+            if (available.isEmpty()) {
+                Text(
+                    text = "Доступные ядра не найдены.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            } else {
+                Text(
+                    text = if (canApply) {
+                        "После применения xkeen перезапустится с ядром $selectedCore."
+                    } else {
+                        "Сейчас активно ядро $activeCore. Выберите другой вариант для переключения."
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(WebPanelPalette.Surface, RoundedCornerShape(12.dp))
+                        .padding(12.dp),
+                    color = WebPanelPalette.Muted,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedButton(onClick = onDismiss) {
+                    Text("Отмена")
                 }
-
-                if (available.isEmpty()) {
-                    Text(
-                        text = "Доступные ядра не найдены.",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                } else {
-                    Text(
-                        text = if (canApply) {
-                            "После применения xkeen перезапустится с ядром $selectedCore."
-                        } else {
-                            "Сейчас активно ядро $activeCore. Выберите другой вариант для переключения."
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(WebPanelPalette.Surface, RoundedCornerShape(12.dp))
-                            .padding(12.dp),
-                        color = WebPanelPalette.Muted,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically,
+                Spacer(Modifier.size(10.dp))
+                Button(
+                    onClick = { onApply(selectedCore) },
+                    enabled = canApply,
+                    colors = ButtonDefaults.buttonColors(containerColor = CoreBlue),
                 ) {
-                    OutlinedButton(onClick = onDismiss) {
-                        Text("Отмена")
-                    }
-                    Spacer(Modifier.size(10.dp))
-                    Button(
-                        onClick = { onApply(selectedCore) },
-                        enabled = canApply,
-                        colors = ButtonDefaults.buttonColors(containerColor = CoreBlue),
-                    ) {
-                        Text("Применить")
-                    }
+                    Text("Применить")
                 }
             }
         }

@@ -43,7 +43,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -86,6 +88,17 @@ internal fun RoutingWorkspaceScreen(
         pageCount = { routing.documents.size },
     )
     val scope = rememberCoroutineScope()
+    val currentRouting = rememberUpdatedState(routing)
+    val currentSelectedIndex = rememberUpdatedState(selectedIndex)
+    // Keep the gesture handler stable while first-load updates replace document models.
+    val onLongSwipe = remember(controller) {
+        swipe@{ pageDelta: Int ->
+            val targetIndex = currentSelectedIndex.value + pageDelta
+            val targetDocument = currentRouting.value.documents.getOrNull(targetIndex)
+                ?: return@swipe
+            controller.selectRoutingDocument(targetDocument.id)
+        }
+    }
 
     LaunchedEffect(state.dashboard.endpoint) {
         controller.refreshRoutingDocuments()
@@ -94,8 +107,12 @@ internal fun RoutingWorkspaceScreen(
         controller.loadSelectedRoutingDocument()
     }
     LaunchedEffect(selectedIndex, routing.documents.map { it.id }) {
-        if (pagerState.currentPage != selectedIndex) {
-            pagerState.scrollToPage(selectedIndex)
+        // Selection is the single pager target; competing scroll jobs can bounce between pages.
+        if (
+            pagerState.currentPage != selectedIndex ||
+            pagerState.currentPageOffsetFraction != 0f
+        ) {
+            pagerState.animateScrollToPage(selectedIndex)
         }
     }
 
@@ -118,15 +135,7 @@ internal fun RoutingWorkspaceScreen(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .longHorizontalSwipe { pageDelta ->
-                    val targetPage = pagerState.currentPage + pageDelta
-                    val targetDocument = routing.documents.getOrNull(targetPage)
-                        ?: return@longHorizontalSwipe
-                    scope.launch {
-                        pagerState.animateScrollToPage(targetPage)
-                        controller.selectRoutingDocument(targetDocument.id)
-                    }
-                },
+                .longHorizontalSwipe(onSwipe = onLongSwipe),
         ) {
             HorizontalPager(
                 state = pagerState,
