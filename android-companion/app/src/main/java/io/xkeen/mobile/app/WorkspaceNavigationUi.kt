@@ -64,8 +64,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -93,6 +95,7 @@ internal fun WorkspaceNavigationFrame(
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
     var showCoreDialog by rememberSaveable { mutableStateOf(false) }
 
     fun closeDrawer(afterClose: (() -> Unit)? = null) {
@@ -118,8 +121,14 @@ internal fun WorkspaceNavigationFrame(
         },
     ) {
         content(
-            { scope.launch { drawerState.open() } },
-            { showCoreDialog = true },
+            {
+                focusManager.clearEditorFocus()
+                scope.launch { drawerState.open() }
+            },
+            {
+                focusManager.clearEditorFocus()
+                showCoreDialog = true
+            },
         )
     }
 
@@ -134,6 +143,10 @@ internal fun WorkspaceNavigationFrame(
             },
         )
     }
+}
+
+private fun FocusManager.clearEditorFocus() {
+    clearFocus(force = true)
 }
 
 @Composable

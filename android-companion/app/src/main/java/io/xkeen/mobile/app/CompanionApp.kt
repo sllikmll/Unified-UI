@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -90,6 +91,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -385,6 +388,9 @@ private fun ReadyRoute(
     state: CompanionUiState,
     controller: CompanionController,
 ) {
+    val density = LocalDensity.current
+    val isImeVisible = WindowInsets.ime.getBottom(density) > 0
+
     LaunchedEffect(state.dashboard.endpoint) {
         controller.refreshCoreStatus()
     }
@@ -400,11 +406,13 @@ private fun ReadyRoute(
                 )
             },
             bottomBar = {
-                ReadyBottomBar(
-                    selected = state.mainTab,
-                    availableCores = state.dashboard.availableCores,
-                    onSelected = controller::selectTab,
-                )
+                if (!isImeVisible) {
+                    ReadyBottomBar(
+                        selected = state.mainTab,
+                        availableCores = state.dashboard.availableCores,
+                        onSelected = controller::selectTab,
+                    )
+                }
             },
         ) { innerPadding ->
             WorkspaceSectionContent(
@@ -1096,6 +1104,7 @@ private fun PendingActionDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
+    val focusManager = LocalFocusManager.current
     val dialog = when (pendingAction) {
         is PendingAction.Service -> when (pendingAction.action) {
             ServiceAction.Start -> DialogModel("Запустить сервис?", "Подтвердите запрос на запуск из мобильного клиента.")
@@ -1112,6 +1121,10 @@ private fun PendingActionDialog(
     }
 
     dialog ?: return
+
+    LaunchedEffect(dialog) {
+        focusManager.clearFocus(force = true)
+    }
 
     XkeenDialog(onDismissRequest = onDismiss) {
         Column(

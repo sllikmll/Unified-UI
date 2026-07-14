@@ -1,5 +1,6 @@
 package io.xkeen.mobile.app
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -119,7 +121,8 @@ internal fun RoutingWorkspaceScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(WebPanelPalette.Background),
+            .background(WebPanelPalette.Background)
+            .imePadding(),
     ) {
         DocumentToolbar(
             document = selectedDocument,
@@ -400,12 +403,14 @@ private fun JsonEditor(
     modifier: Modifier = Modifier,
 ) {
     val lineCount = value.count { it == '\n' } + 1
+    val verticalScrollState = rememberScrollState()
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .background(JsonEditorPalette.Background)
-            .verticalScroll(rememberScrollState())
+            .editorVerticalScroll(verticalScrollState)
+            .verticalScroll(verticalScrollState)
             .padding(top = 8.dp, bottom = 24.dp),
         verticalAlignment = Alignment.Top,
     ) {
@@ -454,6 +459,53 @@ private fun JsonEditor(
         }
     }
 }
+
+private fun Modifier.editorVerticalScroll(scrollState: ScrollState): Modifier =
+    pointerInput(scrollState) {
+        awaitEachGesture {
+            val down = awaitFirstDown(
+                requireUnconsumed = false,
+                pass = PointerEventPass.Initial,
+            )
+            var lastPosition = down.position
+            var accumulatedX = 0f
+            var accumulatedY = 0f
+            var isVerticalScroll = false
+
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                val delta = change.position - lastPosition
+                lastPosition = change.position
+
+                if (isVerticalScroll) {
+                    change.consume()
+                    scrollState.dispatchRawDelta(-delta.y)
+                } else {
+                    accumulatedX += delta.x
+                    accumulatedY += delta.y
+                    val verticalDistance = abs(accumulatedY)
+                    val horizontalDistance = abs(accumulatedX)
+
+                    if (
+                        verticalDistance > viewConfiguration.touchSlop &&
+                        verticalDistance > horizontalDistance * 1.15f
+                    ) {
+                        isVerticalScroll = true
+                        change.consume()
+                        scrollState.dispatchRawDelta(-accumulatedY)
+                    } else if (
+                        horizontalDistance > viewConfiguration.touchSlop &&
+                        horizontalDistance > verticalDistance
+                    ) {
+                        break
+                    }
+                }
+
+                if (!change.pressed) break
+            }
+        }
+    }
 
 private object JsonEditorPalette {
     // Mirrors the xkeen-dark Monaco theme from web ui/monaco_shared.js.
