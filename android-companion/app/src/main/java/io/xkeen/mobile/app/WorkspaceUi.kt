@@ -44,13 +44,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
@@ -58,20 +61,33 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalTextToolbar
+import androidx.compose.ui.platform.TextToolbar
+import androidx.compose.ui.platform.TextToolbarStatus
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import io.xkeen.mobile.ui.theme.WebPanelPalette
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 @Composable
@@ -478,6 +494,22 @@ private fun JsonEditor(
 ) {
     val lineCount = value.count { it == '\n' } + 1
     val verticalScrollState = rememberScrollState()
+    val editorValue = remember { mutableStateOf(TextFieldValue(value)) }
+    val textMenu = remember { mutableStateOf<EditorTextMenuState?>(null) }
+    val textToolbar = remember { RussianEditorTextToolbar(textMenu) }
+
+    LaunchedEffect(value) {
+        if (value != editorValue.value.text) {
+            val selection = editorValue.value.selection
+            editorValue.value = TextFieldValue(
+                text = value,
+                selection = TextRange(
+                    start = selection.start.coerceIn(0, value.length),
+                    end = selection.end.coerceIn(0, value.length),
+                ),
+            )
+        }
+    }
 
     Row(
         modifier = modifier
@@ -512,10 +544,16 @@ private fun JsonEditor(
         ) {
             CompositionLocalProvider(
                 LocalTextSelectionColors provides JsonEditorPalette.Selection,
+                LocalTextToolbar provides textToolbar,
             ) {
                 BasicTextField(
-                    value = value,
-                    onValueChange = onValueChange,
+                    value = editorValue.value,
+                    onValueChange = { updated ->
+                        editorValue.value = updated
+                        if (updated.text != value) {
+                            onValueChange(updated.text)
+                        }
+                    },
                     modifier = Modifier
                         .widthIn(min = 600.dp)
                         .heightIn(min = 640.dp)
@@ -530,7 +568,150 @@ private fun JsonEditor(
                     visualTransformation = JsonVisualTransformation,
                 )
             }
+            textMenu.value?.let { menu ->
+                RussianEditorTextMenu(
+                    menu = menu,
+                    onDismiss = textToolbar::hide,
+                )
+            }
         }
+    }
+}
+
+private data class EditorTextMenuState(
+    val anchor: Rect,
+    val onCopy: (() -> Unit)?,
+    val onPaste: (() -> Unit)?,
+    val onCut: (() -> Unit)?,
+    val onSelectAll: (() -> Unit)?,
+)
+
+private class RussianEditorTextToolbar(
+    private val menu: MutableState<EditorTextMenuState?>,
+) : TextToolbar {
+    override val status: TextToolbarStatus
+        get() = if (menu.value == null) {
+            TextToolbarStatus.Hidden
+        } else {
+            TextToolbarStatus.Shown
+        }
+
+    override fun showMenu(
+        rect: Rect,
+        onCopyRequested: (() -> Unit)?,
+        onPasteRequested: (() -> Unit)?,
+        onCutRequested: (() -> Unit)?,
+        onSelectAllRequested: (() -> Unit)?,
+    ) {
+        menu.value = EditorTextMenuState(
+            anchor = rect,
+            onCopy = onCopyRequested,
+            onPaste = onPasteRequested,
+            onCut = onCutRequested,
+            onSelectAll = onSelectAllRequested,
+        )
+    }
+
+    override fun hide() {
+        menu.value = null
+    }
+}
+
+@Composable
+private fun RussianEditorTextMenu(
+    menu: EditorTextMenuState,
+    onDismiss: () -> Unit,
+) {
+    val positionProvider = remember(menu.anchor) {
+        EditorTextMenuPositionProvider(menu.anchor)
+    }
+
+    Popup(
+        popupPositionProvider = positionProvider,
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(focusable = false),
+    ) {
+        Surface(
+            modifier = Modifier
+                .widthIn(min = 190.dp, max = 270.dp)
+                .border(
+                    width = 1.dp,
+                    color = WebPanelPalette.AccentMiddle.copy(alpha = 0.68f),
+                    shape = RoundedCornerShape(12.dp),
+                ),
+            color = WebPanelPalette.BackgroundDeep,
+            contentColor = WebPanelPalette.TextStrong,
+            shape = RoundedCornerShape(12.dp),
+            shadowElevation = 12.dp,
+        ) {
+            Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                menu.onCut?.let { action ->
+                    EditorTextMenuAction("Вырезать") {
+                        onDismiss()
+                        action()
+                    }
+                }
+                menu.onCopy?.let { action ->
+                    EditorTextMenuAction("Копировать") {
+                        onDismiss()
+                        action()
+                    }
+                }
+                menu.onPaste?.let { action ->
+                    EditorTextMenuAction("Вставить") {
+                        onDismiss()
+                        action()
+                    }
+                }
+                menu.onSelectAll?.let { action ->
+                    EditorTextMenuAction("Выделить всё") {
+                        onDismiss()
+                        action()
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EditorTextMenuAction(
+    label: String,
+    onClick: () -> Unit,
+) {
+    Text(
+        text = label,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 11.dp),
+        color = WebPanelPalette.TextStrong,
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.Medium,
+    )
+}
+
+private class EditorTextMenuPositionProvider(
+    private val anchor: Rect,
+) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset {
+        val margin = 12
+        val maxX = (windowSize.width - popupContentSize.width - margin).coerceAtLeast(margin)
+        val x = anchor.left.roundToInt().coerceIn(margin, maxX)
+        val belowSelection = anchor.bottom.roundToInt() + margin
+        val aboveSelection = anchor.top.roundToInt() - popupContentSize.height - margin
+        val maxY = (windowSize.height - popupContentSize.height - margin).coerceAtLeast(margin)
+        val y = if (belowSelection <= maxY) {
+            belowSelection
+        } else {
+            aboveSelection.coerceIn(margin, maxY)
+        }
+        return IntOffset(x, y)
     }
 }
 
