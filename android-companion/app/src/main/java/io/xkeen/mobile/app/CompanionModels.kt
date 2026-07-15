@@ -270,6 +270,8 @@ data class CompanionUiState(
     val connectionDraft: ConnectionDraft = ConnectionDraft(),
     val selectedConnectionId: String? = null,
     val loginForm: LoginForm = LoginForm(),
+    val isSessionBusy: Boolean = false,
+    val sessionMessage: String? = null,
     val mainTab: MainTab = MainTab.Routing,
     val workspaceSection: WorkspaceSection = WorkspaceSection.XrayRouting,
     val dashboard: DashboardState = demoDashboardState(),

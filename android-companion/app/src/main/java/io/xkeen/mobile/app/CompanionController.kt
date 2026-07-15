@@ -11,22 +11,51 @@ internal class CompanionController(
     var state by mutableStateOf(initialState)
         private set
 
-    fun finishLaunch() {
-        if (state.phase == AppPhase.Launching) {
-            val stored = dependencies.connections.load().sanitized()
-            val selectedConnection = stored.connections.firstOrNull {
-                it.id == stored.selectedConnectionId
+    suspend fun finishLaunch() {
+        if (state.phase != AppPhase.Launching) return
+
+        val stored = dependencies.connections.load().sanitized()
+        val selectedConnection = stored.connections.firstOrNull {
+            it.id == stored.selectedConnectionId
+        }
+        state = state.copy(
+            connections = stored.connections,
+            selectedConnectionId = selectedConnection?.id,
+            isSessionBusy = selectedConnection != null,
+            sessionMessage = null,
+            dashboard = selectedConnection?.let { selected ->
+                state.dashboard.copy(
+                    instanceLabel = selected.name,
+                    endpoint = selected.baseUrl,
+                )
+            } ?: state.dashboard,
+        )
+        if (selectedConnection == null) {
+            state = state.copy(phase = AppPhase.Connections, isSessionBusy = false)
+            return
+        }
+
+        try {
+            when (val restored = dependencies.session.restore(selectedConnection)) {
+                SessionRestoreResult.NotAvailable -> state = state.copy(
+                    phase = AppPhase.Connections,
+                    isSessionBusy = false,
+                )
+
+                is SessionRestoreResult.Open -> openSession(restored.result)
+
+                is SessionRestoreResult.AuthRequired -> closeSession(
+                    result = restored.result,
+                    phase = AppPhase.PairLogin,
+                    message = "Срок мобильной сессии истек. Войдите снова.",
+                )
             }
+        } catch (error: Exception) {
             state = state.copy(
-                phase = AppPhase.Connections,
-                connections = stored.connections,
-                selectedConnectionId = selectedConnection?.id,
-                dashboard = selectedConnection?.let { selected ->
-                    state.dashboard.copy(
-                        instanceLabel = selected.name,
-                        endpoint = selected.baseUrl,
-                    )
-                } ?: state.dashboard,
+                phase = AppPhase.PairLogin,
+                isSessionBusy = false,
+                sessionMessage = "Не удалось подтвердить сохраненную сессию: ${sessionErrorMessage(error)}",
+                dashboard = state.dashboard.copy(statusSummary = "Не удалось восстановить сессию"),
             )
         }
     }
@@ -87,6 +116,8 @@ internal class CompanionController(
             phase = AppPhase.PairLogin,
             selectedConnectionId = connectionId,
             loginForm = state.loginForm.copy(username = "admin", password = ""),
+            isSessionBusy = false,
+            sessionMessage = null,
             dashboard = state.dashboard.copy(
                 instanceLabel = selected.name,
                 endpoint = selected.baseUrl,
@@ -104,6 +135,8 @@ internal class CompanionController(
         state = state.copy(
             phase = AppPhase.Connections,
             pendingAction = null,
+            isSessionBusy = false,
+            sessionMessage = null,
         )
     }
 
@@ -111,6 +144,8 @@ internal class CompanionController(
         state = state.copy(
             phase = AppPhase.Connections,
             pendingAction = null,
+            isSessionBusy = false,
+            sessionMessage = null,
         )
     }
 
@@ -122,14 +157,31 @@ internal class CompanionController(
         state = state.copy(loginForm = state.loginForm.copy(password = value))
     }
 
-    fun pairDemoDevice() {
+    suspend fun pair() {
         val connection = selectedConnection() ?: return
-        openSession(dependencies.session.pair(connection))
+        if (state.isSessionBusy) return
+        state = state.copy(isSessionBusy = true, sessionMessage = null)
+
+        try {
+            when (val result = dependencies.session.pair(connection)) {
+                is SessionPairResult.Open -> openSession(result.result)
+                is SessionPairResult.Status -> updateSessionStatus(result)
+            }
+        } catch (error: Exception) {
+            sessionFailed(error, "Не удалось проверить узел")
+        }
     }
 
-    fun login() {
+    suspend fun login() {
         val connection = selectedConnection() ?: return
-        openSession(dependencies.session.login(connection, state.loginForm))
+        if (state.isSessionBusy) return
+        state = state.copy(isSessionBusy = true, sessionMessage = null)
+
+        try {
+            openSession(dependencies.session.login(connection, state.loginForm))
+        } catch (error: Exception) {
+            sessionFailed(error, "Не удалось выполнить вход")
+        }
     }
 
     fun selectTab(tab: MainTab) {
@@ -190,7 +242,11 @@ internal class CompanionController(
                 dashboard = state.dashboard.copy(lastError = null),
             )
         }
-        result.onFailure(::applyCoreStatusLoadFailure)
+        result.onFailure { error ->
+            if (!returnToLoginForExpiredSession(error)) {
+                applyCoreStatusLoadFailure(error)
+            }
+        }
     }
 
     fun requestServiceAction(action: ServiceAction) {
@@ -280,6 +336,9 @@ internal class CompanionController(
             dependencies.xrayConfigSource.listFragments(state.dashboard.endpoint)
         }
         result.onFailure { error ->
+            if (returnToLoginForExpiredSession(error)) {
+                return@onFailure
+            }
             state = state.copy(
                 routing = state.routing.copy(
                     isRefreshing = false,
@@ -359,6 +418,9 @@ internal class CompanionController(
             dependencies.xrayConfigSource.loadFragment(state.dashboard.endpoint, document.title)
         }
         result.onFailure { error ->
+            if (returnToLoginForExpiredSession(error)) {
+                return@onFailure
+            }
             val message = error.toRoutingLoadMessage()
             val current = state.routing.documents.firstOrNull { it.id == documentId } ?: return@onFailure
             state = state.copy(
@@ -485,19 +547,22 @@ internal class CompanionController(
         state = state.copy(logs = state.logs.copy(filter = filter))
     }
 
-    fun disconnect() {
+    suspend fun disconnect() {
         val connection = selectedConnection() ?: return
-        val result = dependencies.session.disconnect(connection)
-        val updatedConnections = state.connections.replaceConnection(result.connection)
-        dependencies.connections.update(result.connection)
-
-        state = state.copy(
+        if (state.isSessionBusy) return
+        state = state.copy(isSessionBusy = true)
+        val result = try {
+            dependencies.session.disconnect(connection)
+        } catch (_: Exception) {
+            dependencies.session.expire(connection).copy(
+                statusSummary = "Сессия удалена с устройства",
+                logMessage = "Локальная мобильная сессия удалена после ошибки выхода на сервере",
+            )
+        }
+        closeSession(
+            result = result,
             phase = AppPhase.Connections,
-            connections = updatedConnections,
-            mainTab = MainTab.Routing,
-            workspaceSection = WorkspaceSection.XrayRouting,
-            dashboard = state.dashboard.copy(statusSummary = result.statusSummary),
-            logs = recordLog("auth", LogLevel.Warning, result.logMessage),
+            message = null,
         )
     }
 
@@ -509,6 +574,8 @@ internal class CompanionController(
             phase = AppPhase.Ready,
             connections = updatedConnections,
             loginForm = state.loginForm.copy(password = ""),
+            isSessionBusy = false,
+            sessionMessage = null,
             dashboard = state.dashboard.copy(
                 instanceLabel = result.connection.name,
                 endpoint = result.connection.baseUrl,
@@ -525,6 +592,78 @@ internal class CompanionController(
             ),
             logs = recordLog("auth", LogLevel.Info, result.logMessage),
         )
+    }
+
+    private fun updateSessionStatus(result: SessionPairResult.Status) {
+        val updatedConnections = state.connections.replaceConnection(result.connection)
+        dependencies.connections.update(result.connection)
+        state = state.copy(
+            phase = AppPhase.PairLogin,
+            connections = updatedConnections,
+            isSessionBusy = false,
+            sessionMessage = result.message,
+            dashboard = state.dashboard.copy(statusSummary = result.statusSummary),
+            diagnostics = state.diagnostics.replaceDiagnostic(
+                label = "Мобильная сессия",
+                status = result.statusSummary,
+                severity = DiagnosticSeverity.Warning,
+            ),
+            logs = recordLog("auth", LogLevel.Warning, result.message),
+        )
+    }
+
+    private fun closeSession(
+        result: SessionCloseResult,
+        phase: AppPhase,
+        message: String?,
+    ) {
+        val updatedConnections = state.connections.replaceConnection(result.connection)
+        dependencies.connections.update(result.connection)
+        state = state.copy(
+            phase = phase,
+            connections = updatedConnections,
+            loginForm = state.loginForm.copy(password = ""),
+            isSessionBusy = false,
+            sessionMessage = message,
+            mainTab = MainTab.Routing,
+            workspaceSection = WorkspaceSection.XrayRouting,
+            dashboard = state.dashboard.copy(statusSummary = result.statusSummary),
+            diagnostics = state.diagnostics.replaceDiagnostic(
+                label = "Мобильная сессия",
+                status = result.statusSummary,
+                severity = DiagnosticSeverity.Warning,
+            ),
+            logs = recordLog("auth", LogLevel.Warning, result.logMessage),
+        )
+    }
+
+    private fun sessionFailed(error: Exception, action: String) {
+        val message = "$action: ${sessionErrorMessage(error)}"
+        state = state.copy(
+            isSessionBusy = false,
+            sessionMessage = message,
+            dashboard = state.dashboard.copy(statusSummary = action),
+            logs = recordLog("auth", LogLevel.Warning, message),
+        )
+    }
+
+    /**
+     * A 401 from an authenticated workspace endpoint means the stored server session no longer
+     * exists.  Clear only this node's material and make the required re-login explicit instead of
+     * leaving the user in a superficially ready workspace with failing reads.
+     */
+    private fun returnToLoginForExpiredSession(error: Throwable): Boolean {
+        val failure = (error as? CompanionTransportException)?.failure ?: return false
+        if (failure.kind != CompanionTransportFailureKind.AuthenticationRequired) {
+            return false
+        }
+        val connection = selectedConnection() ?: return false
+        closeSession(
+            result = dependencies.session.expire(connection),
+            phase = AppPhase.PairLogin,
+            message = "Сессия на Xkeen UI истекла. Войдите снова.",
+        )
+        return true
     }
 
     private fun performServiceAction(action: ServiceAction) {
@@ -578,6 +717,18 @@ internal class CompanionController(
 
     private fun selectedConnection(): Connection? =
         state.connections.firstOrNull { it.id == state.selectedConnectionId }
+
+    private fun sessionErrorMessage(error: Exception): String = when (error) {
+        is MobileSessionException -> error.message.orEmpty()
+        is IllegalArgumentException -> error.message.orEmpty()
+        is CompanionTransportException -> when (error.failure.kind) {
+            CompanionTransportFailureKind.AuthenticationRequired -> "Проверьте логин и пароль."
+            else -> error.failure.userMessage
+        }
+
+        else -> error.message?.takeIf(String::isNotBlank)
+            ?: "Повторите попытку позже."
+    }
 
     private fun selectedRoutingDocument(): RoutingDocument? =
         state.routing.documents.firstOrNull { it.id == state.routing.selectedDocumentId }

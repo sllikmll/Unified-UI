@@ -98,4 +98,10 @@ private class FakeCompanionHttpTransport(
                 ?: error("No fake transport response configured for ${request.endpoint}"),
         )
     }
+
+    override suspend fun post(request: CompanionHttpRequest): CompanionHttpResponse =
+        error("POST is not configured for this read-only seam test")
+
+    override suspend fun delete(request: CompanionHttpRequest): CompanionHttpResponse =
+        error("DELETE is not configured for this read-only seam test")
 }

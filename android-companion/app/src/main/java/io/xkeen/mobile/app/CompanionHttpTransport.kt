@@ -16,6 +16,7 @@ internal data class CompanionHttpRequest(
     val baseUrl: String,
     val endpoint: String,
     val headers: Map<String, String> = emptyMap(),
+    val body: String? = null,
 )
 
 internal data class CompanionHttpResponse(
@@ -23,6 +24,7 @@ internal data class CompanionHttpResponse(
     val body: String,
     val headers: Map<String, String>,
     val contentType: String,
+    val setCookieHeaders: List<String> = emptyList(),
 )
 
 /**
@@ -31,6 +33,10 @@ internal data class CompanionHttpResponse(
  */
 internal interface CompanionHttpTransport {
     suspend fun get(request: CompanionHttpRequest): CompanionHttpResponse
+
+    suspend fun post(request: CompanionHttpRequest): CompanionHttpResponse
+
+    suspend fun delete(request: CompanionHttpRequest): CompanionHttpResponse
 }
 
 /**
@@ -62,18 +68,40 @@ internal class HttpUrlConnectionCompanionTransport(
     private val authHook: CompanionHttpAuthHook = NoOpCompanionHttpAuthHook,
 ) : CompanionHttpTransport {
     override suspend fun get(request: CompanionHttpRequest): CompanionHttpResponse =
+        execute("GET", request)
+
+    override suspend fun post(request: CompanionHttpRequest): CompanionHttpResponse =
+        execute("POST", request)
+
+    override suspend fun delete(request: CompanionHttpRequest): CompanionHttpResponse =
+        execute("DELETE", request)
+
+    private suspend fun execute(
+        method: String,
+        request: CompanionHttpRequest,
+    ): CompanionHttpResponse =
         withContext(Dispatchers.IO) {
             val url = resolveCompanionEndpoint(request.baseUrl, request.endpoint)
             try {
                 val connection = url.toURL().openConnection() as HttpURLConnection
                 try {
-                    connection.requestMethod = "GET"
+                    connection.requestMethod = method
                     connection.connectTimeout = config.connectTimeoutMillis
                     connection.readTimeout = config.readTimeoutMillis
                     connection.useCaches = false
                     connection.instanceFollowRedirects = true
-                    mergedCompanionHeaders(config, authHook, request).forEach { (name, value) ->
+                    val headers = mergedCompanionHeaders(config, authHook, request)
+                    headers.forEach { (name, value) ->
                         connection.setRequestProperty(name, value)
+                    }
+                    request.body?.let { body ->
+                        connection.doOutput = true
+                        if (headers.keys.none { it.equals("Content-Type", ignoreCase = true) }) {
+                            connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                        }
+                        connection.outputStream.bufferedWriter(StandardCharsets.UTF_8).use { writer ->
+                            writer.write(body)
+                        }
                     }
 
                     val status = connection.responseCode
@@ -86,6 +114,10 @@ internal class HttpUrlConnectionCompanionTransport(
                             .mapKeys { (name, _) -> name.orEmpty().lowercase() }
                             .mapValues { (_, values) -> values?.firstOrNull().orEmpty() },
                         contentType = connection.contentType.orEmpty(),
+                        setCookieHeaders = connection.headerFields
+                            .entries
+                            .filter { (name, _) -> name.equals("Set-Cookie", ignoreCase = true) }
+                            .flatMap { (_, values) -> values.orEmpty() },
                     )
                     requireSuccessfulCompanionResponse(response)
                 } finally {

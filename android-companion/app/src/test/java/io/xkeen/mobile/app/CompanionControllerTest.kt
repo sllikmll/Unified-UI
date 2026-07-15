@@ -9,7 +9,7 @@ import org.junit.Test
 
 class CompanionControllerTest {
     @Test
-    fun finishLaunchLoadsPersistedConnectionsAndKeepsLastSelection() {
+    fun finishLaunchLoadsPersistedConnectionsAndKeepsLastSelection() = runTest {
         val selected = Connection(
             id = "saved-node",
             name = "Сохраненный узел",
@@ -75,7 +75,7 @@ class CompanionControllerTest {
     }
 
     @Test
-    fun successfulLoginClearsPasswordFromUiState() {
+    fun successfulLoginClearsPasswordFromUiState() = runTest {
         val connection = Connection(
             id = "login-node",
             name = "Узел входа",
@@ -264,6 +264,67 @@ class CompanionControllerTest {
         )
         assertEquals("transport", controller.state.logs.entries.first().source)
         assertEquals("Требуется вход в Xkeen UI.", controller.state.logs.entries.first().message)
+    }
+
+    @Test
+    fun expiredWorkspaceSessionReturnsToLoginAndClearsItsMaterial() = runTest {
+        val connection = Connection(
+            id = "expired-node",
+            name = "Узел с истекшей сессией",
+            baseUrl = "https://expired.lan",
+            status = ConnectionStatus.Configured,
+            lastSeen = "Готово",
+        )
+        val sessionMaterials = InMemorySessionMaterialStore(
+            listOf(
+                StoredSessionMaterial(
+                    connectionId = connection.id,
+                    material = SessionMaterial(cookieHeader = "session=expired", csrfToken = "csrf"),
+                    trustedForRestore = true,
+                ),
+            ),
+        )
+        val controller = CompanionController(
+            initialState = CompanionUiState(
+                phase = AppPhase.Ready,
+                connections = listOf(connection),
+                selectedConnectionId = connection.id,
+            ),
+            dependencies = testDependencies(
+                connections = InMemoryConnectionsPort(
+                    StoredConnections(listOf(connection), connection.id),
+                ),
+                session = MobileSessionPort(
+                    sessionMaterials,
+                    object : CompanionHttpTransport {
+                        override suspend fun get(request: CompanionHttpRequest): CompanionHttpResponse =
+                            error("The session adapter is not used while expiring.")
+
+                        override suspend fun post(request: CompanionHttpRequest): CompanionHttpResponse =
+                            error("The session adapter is not used while expiring.")
+
+                        override suspend fun delete(request: CompanionHttpRequest): CompanionHttpResponse =
+                            error("The session adapter is not used while expiring.")
+                    },
+                ),
+                coreStatusSource = object : CoreStatusSource {
+                    override suspend fun load(baseUrl: String): CoreStatus = throw CompanionTransportException(
+                        CompanionTransportFailure(
+                            kind = CompanionTransportFailureKind.AuthenticationRequired,
+                            userMessage = "Требуется вход в Xkeen UI.",
+                            statusCode = 401,
+                        ),
+                    )
+                },
+            ),
+        )
+
+        controller.refreshCoreStatus()
+
+        assertEquals(AppPhase.PairLogin, controller.state.phase)
+        assertEquals(ConnectionStatus.NeedsAuth, controller.state.connections.single().status)
+        assertEquals("Сессия на Xkeen UI истекла. Войдите снова.", controller.state.sessionMessage)
+        assertNull(sessionMaterials.load(connection.id))
     }
 
     @Test

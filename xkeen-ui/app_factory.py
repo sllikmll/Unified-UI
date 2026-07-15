@@ -293,11 +293,13 @@ def _init_auth_and_pages(
     from services import devtools as _svc_devtools
     from routes.ui_assets import init_ui_assets_helpers, register_ui_assets_routes
     from routes.auth import register_auth_routes
+    from routes.mobile import register_mobile_routes
     from routes.pages import register_pages_routes
 
     init_ui_assets_helpers(app)
     register_ui_assets_routes(app, UI_STATE_DIR=ui_state_dir, devtools_service=_svc_devtools)
     register_auth_routes(app)
+    register_mobile_routes(app)
     register_pages_routes(
         app,
         ROUTING_FILE=routing_file,

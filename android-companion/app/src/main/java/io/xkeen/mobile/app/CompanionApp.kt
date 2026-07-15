@@ -84,6 +84,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -105,6 +106,7 @@ import androidx.compose.ui.unit.sp
 import io.xkeen.mobile.ui.theme.XkeenMobileTheme
 import io.xkeen.mobile.ui.theme.WebPanelPalette
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun CompanionApp() {
@@ -290,6 +292,7 @@ private fun PairLoginRoute(
     controller: CompanionController,
 ) {
     val connection = state.connections.firstOrNull { it.id == state.selectedConnectionId }
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
@@ -325,6 +328,14 @@ private fun PairLoginRoute(
                     connectionStatusChip(connection?.status ?: ConnectionStatus.NeedsAuth),
                 ),
             )
+            state.sessionMessage?.let { message ->
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Spacer(Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -337,6 +348,7 @@ private fun PairLoginRoute(
                     label = "Логин",
                     labelMode = CompactFieldLabelMode.Above,
                     leadingIcon = { Icon(Icons.Outlined.Key, contentDescription = null) },
+                    enabled = !state.isSessionBusy,
                 )
                 CompactField(
                     modifier = Modifier.weight(1f),
@@ -346,6 +358,7 @@ private fun PairLoginRoute(
                     labelMode = CompactFieldLabelMode.Above,
                     leadingIcon = { Icon(Icons.Outlined.Password, contentDescription = null) },
                     visualTransformation = PasswordVisualTransformation(),
+                    enabled = !state.isSessionBusy,
                 )
             }
             Spacer(Modifier.height(8.dp))
@@ -354,17 +367,19 @@ private fun PairLoginRoute(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 CompactActionButton(
-                    label = "Демо-сопряжение",
+                    label = if (state.isSessionBusy) "Проверяем…" else "Проверить узел",
                     icon = Icons.Outlined.VpnKey,
-                    onClick = controller::pairDemoDevice,
+                    onClick = { scope.launch { controller.pair() } },
                     modifier = Modifier.weight(1f),
+                    enabled = !state.isSessionBusy,
                 )
                 CompactActionButton(
-                    label = "Войти",
+                    label = if (state.isSessionBusy) "Выполняется…" else "Войти",
                     icon = Icons.Outlined.Verified,
-                    onClick = controller::login,
+                    onClick = { scope.launch { controller.login() } },
                     modifier = Modifier.weight(1f),
                     style = CompactButtonStyle.Outlined,
+                    enabled = !state.isSessionBusy,
                 )
             }
         }
@@ -1047,6 +1062,7 @@ private fun MoreScreen(
     controller: CompanionController,
     modifier: Modifier = Modifier,
 ) {
+    val scope = rememberCoroutineScope()
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -1080,8 +1096,9 @@ private fun MoreScreen(
                 CompactActionButton(
                     label = "Отключить",
                     icon = Icons.AutoMirrored.Outlined.ArrowBack,
-                    onClick = controller::disconnect,
+                    onClick = { scope.launch { controller.disconnect() } },
                     style = CompactButtonStyle.Outlined,
+                    enabled = !state.isSessionBusy,
                 )
             }
         }
@@ -1459,11 +1476,13 @@ private fun CompactField(
     leadingIcon: @Composable (() -> Unit)? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
     visualTransformation: androidx.compose.ui.text.input.VisualTransformation = androidx.compose.ui.text.input.VisualTransformation.None,
+    enabled: Boolean = true,
 ) {
     val field: @Composable (Modifier, @Composable (() -> Unit)?) -> Unit = { fieldModifier, labelContent ->
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
+            enabled = enabled,
             modifier = fieldModifier.height(52.dp),
             label = labelContent,
             leadingIcon = leadingIcon,

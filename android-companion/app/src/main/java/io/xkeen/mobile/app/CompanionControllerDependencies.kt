@@ -24,11 +24,33 @@ internal data class StoredConnections(
 )
 
 internal interface SessionPort {
-    fun pair(connection: Connection): SessionOpenResult
+    suspend fun pair(connection: Connection): SessionPairResult
 
-    fun login(connection: Connection, credentials: LoginForm): SessionOpenResult
+    suspend fun login(connection: Connection, credentials: LoginForm): SessionOpenResult
 
-    fun disconnect(connection: Connection): SessionCloseResult
+    suspend fun restore(connection: Connection): SessionRestoreResult
+
+    suspend fun disconnect(connection: Connection): SessionCloseResult
+
+    fun expire(connection: Connection): SessionCloseResult
+}
+
+internal sealed interface SessionPairResult {
+    data class Open(val result: SessionOpenResult) : SessionPairResult
+
+    data class Status(
+        val connection: Connection,
+        val statusSummary: String,
+        val message: String,
+    ) : SessionPairResult
+}
+
+internal sealed interface SessionRestoreResult {
+    data object NotAvailable : SessionRestoreResult
+
+    data class Open(val result: SessionOpenResult) : SessionRestoreResult
+
+    data class AuthRequired(val result: SessionCloseResult) : SessionRestoreResult
 }
 
 internal interface ServiceActionsPort {
@@ -131,18 +153,21 @@ internal data class CompanionControllerDependencies(
 internal fun defaultCompanionControllerDependencies(
     connections: ConnectionsPort = InMemoryConnectionsPort(),
     sessionMaterials: SessionMaterialStore = InMemorySessionMaterialStore(),
-    transport: CompanionHttpTransport = HttpUrlConnectionCompanionTransport(),
+    transport: CompanionHttpTransport? = null,
 ): CompanionControllerDependencies {
     val journal = SystemCompanionJournalPort()
+    val effectiveTransport = transport ?: HttpUrlConnectionCompanionTransport(
+        authHook = SessionMaterialAuthHook(connections, sessionMaterials),
+    )
     return CompanionControllerDependencies(
         connections = connections,
-        session = DemoSessionPort(sessionMaterials),
+        session = MobileSessionPort(sessionMaterials, effectiveTransport),
         serviceActions = DemoServiceActionsPort(),
         routingWrites = DemoRoutingWritePort(journal),
         logs = DemoLogsPort(journal),
         journal = journal,
-        xrayConfigSource = WebPanelXrayConfigSource(transport),
-        coreStatusSource = WebPanelCoreStatusSource(transport),
+        xrayConfigSource = WebPanelXrayConfigSource(effectiveTransport),
+        coreStatusSource = WebPanelCoreStatusSource(effectiveTransport),
     )
 }
 
@@ -218,15 +243,15 @@ internal class DemoSessionPort(
     private val sessionMaterials: SessionMaterialStore = InMemorySessionMaterialStore(),
     private val demoSessionSecretFactory: () -> String = ::newDemoSessionSecret,
 ) : SessionPort {
-    override fun pair(connection: Connection): SessionOpenResult =
-        openSession(
+    override suspend fun pair(connection: Connection): SessionPairResult =
+        SessionPairResult.Open(openSession(
             connection = connection,
             lastOperation = "Сопряжение завершено",
             eventTitle = "Сопряжение завершено",
             logMessage = "Сопряжение открыто для ${connection.name}",
-        )
+        ))
 
-    override fun login(connection: Connection, credentials: LoginForm): SessionOpenResult =
+    override suspend fun login(connection: Connection, credentials: LoginForm): SessionOpenResult =
         openSession(
             connection = connection,
             lastOperation = "Вход завершен",
@@ -234,7 +259,13 @@ internal class DemoSessionPort(
             logMessage = "Вход открыт для ${connection.name}",
         )
 
-    override fun disconnect(connection: Connection): SessionCloseResult {
+    override suspend fun restore(connection: Connection): SessionRestoreResult =
+        SessionRestoreResult.NotAvailable
+
+    override suspend fun disconnect(connection: Connection): SessionCloseResult =
+        expire(connection)
+
+    override fun expire(connection: Connection): SessionCloseResult {
         sessionMaterials.clear(connection.id)
         return SessionCloseResult(
             connection = connection.copy(

@@ -190,7 +190,10 @@ def init_auth(app) -> None:
         ):
             return None
 
-        # Auth endpoints must be reachable
+        # Auth endpoints and the unauthenticated half of the mobile session
+        # handshake must be reachable.  DELETE /api/mobile/v1/session remains
+        # below this block so it still requires the regular session + CSRF
+        # protection.
         auth_open_paths = {
             "/login",
             "/logout",
@@ -200,7 +203,10 @@ def init_auth(app) -> None:
             "/api/auth/logout",
             "/api/auth/setup",
         }
-        if path in auth_open_paths:
+        mobile_session_handshake = path == "/api/mobile/v1/bootstrap" or (
+            path == "/api/mobile/v1/session" and request.method == "POST"
+        )
+        if path in auth_open_paths or mobile_session_handshake:
             return None
 
         # If first-run setup is not done yet – force setup

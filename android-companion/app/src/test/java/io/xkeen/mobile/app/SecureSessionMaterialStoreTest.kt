@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlinx.coroutines.test.runTest
 
 class SecureSessionMaterialStoreTest {
     @Test
@@ -81,7 +82,7 @@ class SecureSessionMaterialStoreTest {
     }
 
     @Test
-    fun demoLoginPersistsSyntheticSecretButNeverThePasswordOrTrustedMarker() {
+    fun demoLoginPersistsSyntheticSecretButNeverThePasswordOrTrustedMarker() = runTest {
         val storage = FakeSecureSessionMaterialStorage()
         val materials = PersistedSessionMaterialStore(storage)
         val session = DemoSessionPort(
