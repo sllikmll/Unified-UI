@@ -1,12 +1,8 @@
 package io.xkeen.mobile.app
 
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,8 +21,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.selection.LocalTextSelectionColors
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -36,15 +32,15 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.SettingsBackupRestore
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,41 +49,23 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalTextToolbar
-import androidx.compose.ui.platform.TextToolbar
-import androidx.compose.ui.platform.TextToolbarStatus
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntRect
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupPositionProvider
-import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.viewinterop.AndroidView
 import io.xkeen.mobile.ui.theme.WebPanelPalette
-import kotlin.math.abs
-import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 @Composable
@@ -103,6 +81,11 @@ internal fun RoutingWorkspaceScreen(
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val showDocumentPicker = rememberSaveable { mutableStateOf(false) }
+    val editorMetrics = remember(selectedDocument.id) {
+        mutableStateOf(
+            EditorDocumentIndex.build(selectedDocument.draftContent).metricsAt(0),
+        )
+    }
 
     LaunchedEffect(state.dashboard.endpoint) {
         controller.refreshRoutingDocuments()
@@ -141,6 +124,7 @@ internal fun RoutingWorkspaceScreen(
                     onValueChange = { value ->
                         controller.updateRoutingDraft(selectedDocument.id, value)
                     },
+                    onMetricsChange = { metrics -> editorMetrics.value = metrics },
                     onRetry = {
                         scope.launch { controller.loadSelectedRoutingDocument() }
                     },
@@ -150,6 +134,7 @@ internal fun RoutingWorkspaceScreen(
         EditorStatusBar(
             document = selectedDocument,
             validation = routing.validation,
+            metrics = editorMetrics.value,
         )
     }
 
@@ -170,6 +155,7 @@ internal fun RoutingWorkspaceScreen(
 private fun RoutingDocumentPage(
     document: RoutingDocument,
     onValueChange: (String) -> Unit,
+    onMetricsChange: (EditorMetrics) -> Unit,
     onRetry: () -> Unit,
 ) {
     when {
@@ -189,6 +175,7 @@ private fun RoutingDocumentPage(
         else -> JsonEditor(
             value = document.draftContent,
             onValueChange = onValueChange,
+            onMetricsChange = onMetricsChange,
             modifier = Modifier.fillMaxSize(),
         )
     }
@@ -490,279 +477,118 @@ private fun EditorToolbarButton(
 private fun JsonEditor(
     value: String,
     onValueChange: (String) -> Unit,
+    onMetricsChange: (EditorMetrics) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val lineCount = value.count { it == '\n' } + 1
-    val verticalScrollState = rememberScrollState()
-    val editorValue = remember { mutableStateOf(TextFieldValue(value)) }
-    val textMenu = remember { mutableStateOf<EditorTextMenuState?>(null) }
-    val textToolbar = remember { RussianEditorTextToolbar(textMenu) }
+    val editorView = remember { mutableStateOf<AdvancedJsonEditorView?>(null) }
+    val showGoToLine = rememberSaveable { mutableStateOf(false) }
+    val requestedLine = rememberSaveable { mutableStateOf(1) }
+    val requestedLineCount = rememberSaveable { mutableStateOf(1) }
 
-    LaunchedEffect(value) {
-        if (value != editorValue.value.text) {
-            val selection = editorValue.value.selection
-            editorValue.value = TextFieldValue(
-                text = value,
-                selection = TextRange(
-                    start = selection.start.coerceIn(0, value.length),
-                    end = selection.end.coerceIn(0, value.length),
-                ),
-            )
-        }
-    }
-
-    Row(
+    AndroidView(
+        factory = { context ->
+            AdvancedJsonEditorView(context).also { view ->
+                editorView.value = view
+            }
+        },
+        update = { view ->
+            view.onTextChanged = onValueChange
+            view.onMetricsChanged = onMetricsChange
+            view.onRequestGoToLine = { currentLine, totalLines ->
+                requestedLine.value = currentLine
+                requestedLineCount.value = totalLines
+                showGoToLine.value = true
+            }
+            view.setDocumentText(value)
+        },
         modifier = modifier
             .fillMaxWidth()
-            .background(JsonEditorPalette.Background)
-            .editorVerticalScroll(verticalScrollState)
-            .verticalScroll(verticalScrollState)
-            .padding(top = 8.dp, bottom = 24.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Text(
-            text = (1..lineCount).joinToString("\n"),
-            modifier = Modifier
-                .width(45.dp)
-                .padding(end = 7.dp),
-            color = JsonEditorPalette.LineNumber,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 15.sp,
-            lineHeight = 23.sp,
-            textAlign = TextAlign.End,
-        )
-        Box(
-            modifier = Modifier
-                .width(1.dp)
-                .heightIn(min = 640.dp)
-                .background(JsonEditorPalette.IndentGuide),
-        )
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .horizontalScroll(rememberScrollState()),
-        ) {
-            CompositionLocalProvider(
-                LocalTextSelectionColors provides JsonEditorPalette.Selection,
-                LocalTextToolbar provides textToolbar,
-            ) {
-                BasicTextField(
-                    value = editorValue.value,
-                    onValueChange = { updated ->
-                        editorValue.value = updated
-                        if (updated.text != value) {
-                            onValueChange(updated.text)
-                        }
-                    },
-                    modifier = Modifier
-                        .widthIn(min = 600.dp)
-                        .heightIn(min = 640.dp)
-                        .padding(start = 10.dp, end = 12.dp),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        color = JsonEditorPalette.Foreground,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 15.sp,
-                        lineHeight = 23.sp,
-                    ),
-                    cursorBrush = SolidColor(JsonEditorPalette.Cursor),
-                    visualTransformation = JsonVisualTransformation,
-                )
-            }
-            textMenu.value?.let { menu ->
-                RussianEditorTextMenu(
-                    menu = menu,
-                    onDismiss = textToolbar::hide,
-                )
-            }
-        }
-    }
-}
-
-private data class EditorTextMenuState(
-    val anchor: Rect,
-    val onCopy: (() -> Unit)?,
-    val onPaste: (() -> Unit)?,
-    val onCut: (() -> Unit)?,
-    val onSelectAll: (() -> Unit)?,
-)
-
-private class RussianEditorTextToolbar(
-    private val menu: MutableState<EditorTextMenuState?>,
-) : TextToolbar {
-    override val status: TextToolbarStatus
-        get() = if (menu.value == null) {
-            TextToolbarStatus.Hidden
-        } else {
-            TextToolbarStatus.Shown
-        }
-
-    override fun showMenu(
-        rect: Rect,
-        onCopyRequested: (() -> Unit)?,
-        onPasteRequested: (() -> Unit)?,
-        onCutRequested: (() -> Unit)?,
-        onSelectAllRequested: (() -> Unit)?,
-    ) {
-        menu.value = EditorTextMenuState(
-            anchor = rect,
-            onCopy = onCopyRequested,
-            onPaste = onPasteRequested,
-            onCut = onCutRequested,
-            onSelectAll = onSelectAllRequested,
-        )
-    }
-
-    override fun hide() {
-        menu.value = null
-    }
-}
-
-@Composable
-private fun RussianEditorTextMenu(
-    menu: EditorTextMenuState,
-    onDismiss: () -> Unit,
-) {
-    val positionProvider = remember(menu.anchor) {
-        EditorTextMenuPositionProvider(menu.anchor)
-    }
-
-    Popup(
-        popupPositionProvider = positionProvider,
-        onDismissRequest = onDismiss,
-        properties = PopupProperties(focusable = false),
-    ) {
-        Surface(
-            modifier = Modifier
-                .widthIn(min = 190.dp, max = 270.dp)
-                .border(
-                    width = 1.dp,
-                    color = WebPanelPalette.AccentMiddle.copy(alpha = 0.68f),
-                    shape = RoundedCornerShape(12.dp),
-                ),
-            color = WebPanelPalette.BackgroundDeep,
-            contentColor = WebPanelPalette.TextStrong,
-            shape = RoundedCornerShape(12.dp),
-            shadowElevation = 12.dp,
-        ) {
-            Column(modifier = Modifier.padding(vertical = 6.dp)) {
-                menu.onCut?.let { action ->
-                    EditorTextMenuAction("Вырезать") {
-                        onDismiss()
-                        action()
-                    }
-                }
-                menu.onCopy?.let { action ->
-                    EditorTextMenuAction("Копировать") {
-                        onDismiss()
-                        action()
-                    }
-                }
-                menu.onPaste?.let { action ->
-                    EditorTextMenuAction("Вставить") {
-                        onDismiss()
-                        action()
-                    }
-                }
-                menu.onSelectAll?.let { action ->
-                    EditorTextMenuAction("Выделить всё") {
-                        onDismiss()
-                        action()
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EditorTextMenuAction(
-    label: String,
-    onClick: () -> Unit,
-) {
-    Text(
-        text = label,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 11.dp),
-        color = WebPanelPalette.TextStrong,
-        style = MaterialTheme.typography.bodyMedium,
-        fontWeight = FontWeight.Medium,
+            .background(JsonEditorPalette.Background),
     )
-}
 
-private class EditorTextMenuPositionProvider(
-    private val anchor: Rect,
-) : PopupPositionProvider {
-    override fun calculatePosition(
-        anchorBounds: IntRect,
-        windowSize: IntSize,
-        layoutDirection: LayoutDirection,
-        popupContentSize: IntSize,
-    ): IntOffset {
-        val margin = 12
-        val maxX = (windowSize.width - popupContentSize.width - margin).coerceAtLeast(margin)
-        val x = anchor.left.roundToInt().coerceIn(margin, maxX)
-        val belowSelection = anchor.bottom.roundToInt() + margin
-        val aboveSelection = anchor.top.roundToInt() - popupContentSize.height - margin
-        val maxY = (windowSize.height - popupContentSize.height - margin).coerceAtLeast(margin)
-        val y = if (belowSelection <= maxY) {
-            belowSelection
-        } else {
-            aboveSelection.coerceIn(margin, maxY)
-        }
-        return IntOffset(x, y)
+    if (showGoToLine.value) {
+        GoToLineDialog(
+            currentLine = requestedLine.value,
+            totalLines = requestedLineCount.value,
+            onDismiss = { showGoToLine.value = false },
+            onGoToLine = { line ->
+                showGoToLine.value = false
+                editorView.value?.goToLine(line)
+            },
+        )
     }
 }
 
-private fun Modifier.editorVerticalScroll(scrollState: ScrollState): Modifier =
-    pointerInput(scrollState) {
-        awaitEachGesture {
-            val down = awaitFirstDown(
-                requireUnconsumed = false,
-                pass = PointerEventPass.Initial,
+@Composable
+private fun GoToLineDialog(
+    currentLine: Int,
+    totalLines: Int,
+    onDismiss: () -> Unit,
+    onGoToLine: (Int) -> Unit,
+) {
+    val input = rememberSaveable(currentLine, totalLines) {
+        mutableStateOf(currentLine.toString())
+    }
+    val requestedLine = input.value.toIntOrNull()
+    val isValid = requestedLine != null && requestedLine in 1..totalLines
+    val submit: () -> Unit = {
+        if (isValid) onGoToLine(requireNotNull(requestedLine))
+    }
+
+    XkeenDialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "Переход по документу",
+                color = WebPanelPalette.TextStrong,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
             )
-            var lastPosition = down.position
-            var accumulatedX = 0f
-            var accumulatedY = 0f
-            var isVerticalScroll = false
-
-            while (true) {
-                val event = awaitPointerEvent(PointerEventPass.Initial)
-                val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                val delta = change.position - lastPosition
-                lastPosition = change.position
-
-                if (isVerticalScroll) {
-                    change.consume()
-                    scrollState.dispatchRawDelta(-delta.y)
+            Text(
+                text = "Введите номер строки от 1 до $totalLines.",
+                color = WebPanelPalette.Muted,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            OutlinedTextField(
+                value = input.value,
+                onValueChange = { value -> input.value = value.filter(Char::isDigit).take(9) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Строка") },
+                supportingText = if (input.value.isNotEmpty() && !isValid) {
+                    { Text("Допустимый диапазон: 1–$totalLines") }
                 } else {
-                    accumulatedX += delta.x
-                    accumulatedY += delta.y
-                    val verticalDistance = abs(accumulatedY)
-                    val horizontalDistance = abs(accumulatedX)
-
-                    if (
-                        verticalDistance > viewConfiguration.touchSlop &&
-                        verticalDistance > horizontalDistance * 1.15f
-                    ) {
-                        isVerticalScroll = true
-                        change.consume()
-                        scrollState.dispatchRawDelta(-accumulatedY)
-                    } else if (
-                        horizontalDistance > viewConfiguration.touchSlop &&
-                        horizontalDistance > verticalDistance
-                    ) {
-                        break
-                    }
+                    null
+                },
+                isError = input.value.isNotEmpty() && !isValid,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Go,
+                ),
+                keyboardActions = KeyboardActions(onGo = { submit() }),
+                singleLine = true,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                OutlinedButton(onClick = onDismiss) {
+                    Text("Отмена")
                 }
-
-                if (!change.pressed) break
+                Spacer(Modifier.width(10.dp))
+                Button(
+                    onClick = submit,
+                    enabled = isValid,
+                ) {
+                    Text("Перейти")
+                }
             }
         }
     }
+}
 
-private object JsonEditorPalette {
+internal object JsonEditorPalette {
     // Mirrors the xkeen-dark Monaco theme from web ui/monaco_shared.js.
     val Background = Color(0xFF01030A)
     val Foreground = Color(0xFFD4D4D4)
@@ -784,12 +610,6 @@ private object JsonEditorPalette {
         handleColor = Cursor,
         backgroundColor = Color(0x501D4ED8),
     )
-}
-
-private object JsonVisualTransformation : VisualTransformation {
-    override fun filter(text: AnnotatedString): TransformedText {
-        return TransformedText(highlightJsonc(text.text), OffsetMapping.Identity)
-    }
 }
 
 internal fun highlightJsonc(source: String): AnnotatedString = buildAnnotatedString {
@@ -918,6 +738,7 @@ private fun String.jsonKeywordAt(index: Int): String? =
 private fun EditorStatusBar(
     document: RoutingDocument,
     validation: RoutingValidation,
+    metrics: EditorMetrics,
 ) {
     val statusText = when {
         document.isLoading -> "Загрузка с Xkeen UI…"
@@ -972,9 +793,12 @@ private fun EditorStatusBar(
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = "Ln ${document.draftContent.lines().size}",
-            style = MaterialTheme.typography.labelMedium,
+            text = "${metrics.characterCount} зн · ${metrics.wordCount} сл · " +
+                "${metrics.cursor.line}:${metrics.cursor.column}/${metrics.lineCount}",
+            style = MaterialTheme.typography.labelSmall,
             color = WebPanelPalette.Muted,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
         )
     }
 }

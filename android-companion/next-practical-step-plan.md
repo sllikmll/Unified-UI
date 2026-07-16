@@ -153,6 +153,12 @@ Post-stage hotfix 2026-07-16:
 - `MobileSessionPort` теперь распознает именно отсутствие открытого mobile handshake и безопасно переключается на существующий web auth API с получением CSRF/cookie; явная ошибка `invalid_credentials` не запускает второй запрос и не расходует лишнюю попытку rate limit.
 - `Pair/Login` упрощен до автоматической проверки подключения и одной кнопки входа; добавлены вертикальные поля, показ пароля и keyboard submit.
 
+Post-stage editor UX hardening 2026-07-16:
+
+- Compose `BasicTextField`, полный список номеров строк и ручной drag-scroll заменены внутренней нативной Android text surface без изменения палитры и общего layout рабочего экрана.
+- Большие routing-документы получили виртуализированный gutter, инерционный скроллинг, быстрый скроллбар и подсветку только видимой области с буфером.
+- Нативные двойной/длинный тап сохраняют системные cut/copy/paste/select-all; добавлены ограниченная incremental undo/redo history, выделение и дублирование строки, прямой переход к строке и расширенный cursor status.
+
 ## Этап 6. Backend-backed service actions и core switch
 
 Что делаем:
