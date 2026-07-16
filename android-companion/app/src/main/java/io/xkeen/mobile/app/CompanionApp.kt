@@ -100,7 +100,6 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontFamily
@@ -123,16 +122,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun CompanionApp() {
-    val applicationContext = LocalContext.current.applicationContext
-    val controller = remember(applicationContext) {
-        CompanionController(
-            dependencies = defaultCompanionControllerDependencies(
-                connections = persistedConnectionsPort(applicationContext),
-                sessionMaterials = secureSessionMaterialStore(applicationContext),
-            ),
-        )
-    }
+internal fun CompanionApp(controller: CompanionController) {
     val state = controller.state
 
     XkeenMobileTheme(darkTheme = true) {
