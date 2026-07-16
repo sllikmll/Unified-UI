@@ -1,7 +1,7 @@
 # Xkeen Mobile Companion Next Practical Step Plan
 
-Status: stages 1-3 completed, stage 4 next
-Updated: 2026-07-15
+Status: stages 1-5 completed, stage 6 next
+Updated: 2026-07-16
 
 ## Зачем нужен этот план
 
@@ -92,7 +92,7 @@ cd android-companion
 
 Политика восстановления:
 
-- Этап 5 сможет попытаться восстановить только запись выбранного узла, которую вернул `loadTrusted()`; затем он обязан подтвердить или refresh-нуть ее на backend.
+- Этап 5 пытается восстановить только запись выбранного узла, которую вернул `loadTrusted()`, и подтверждает ее на backend.
 - Повторный вход нужен при отсутствии записи, `trustedForRestore = false`, повреждении ciphertext/сбросе Android Keystore, а также при истекшей или отозванной серверной авторизации.
 - Обычное сохраненное подключение и сохраненный статус `Configured` не являются доказательством действующей сессии.
 
@@ -129,16 +129,23 @@ cd android-companion
 
 ## Этап 5. Реальный Pair/Login и восстановление сессии
 
-Что делаем:
+Статус: завершено 2026-07-16
 
-- Подключить `Pair/Login` к реальному session bootstrap flow.
-- На старте проверять, можно ли восстановить последнюю trusted session без показа demo-сценария.
-- Добавить предсказуемый выход из сессии и обработку истечения авторизации.
+Детальная точка приемки: [stage-5-closure-checklist.md](stage-5-closure-checklist.md).
 
-Готово, когда:
+Этап закрывается только после выполнения всех пунктов:
 
-- `Launching -> Ready` проходит через реальную сессию, если она еще валидна;
-- при истекшей авторизации пользователь получает явный возврат в auth flow, а не тихую поломку.
+- [x] Backend mobile session contract предоставляет `GET /api/mobile/v1/bootstrap`, `POST /api/mobile/v1/session` и `DELETE /api/mobile/v1/session` с browser-compatible cookie + CSRF session.
+- [x] Реальный `MobileSessionPort` заменяет demo session flow; `Pair/Login` вызывает suspend-методы из coroutine и не использует `pairDemoDevice`.
+- [x] Cookie и CSRF лежат только в Android Keystore-backed per-connection storage; пароль не сохраняется.
+- [x] Только server-validated trusted restore переводит `Launching -> Ready`; `Configured` metadata не является авторизацией.
+- [x] Logout предсказуемо удаляет local material выбранного узла, а `401` из `Ready` очищает его и возвращает пользователя в `Pair/Login`.
+- [x] Session material выбирается по `connectionId`, а auth hook дополнительно сверяет normalised `baseUrl`, поэтому два профиля с одинаковым URL изолированы.
+- [x] Добавлены backend contract tests и Android unit tests для session contract, restore, logout, expiry/401 и connection isolation.
+- [x] При отсутствии, повреждении или недоверенности session material у выбранного узла `Launching` сразу делает явный fallback в `Pair/Login` (не в общий `Connections` list); при отсутствии выбранного узла открывается `Connections`.
+- [x] Обязательная verification green: на 2026-07-16 backend contract suite прошел (`3 passed`), а `testDebugUnitTest assembleDebug` завершился успешно.
+
+Ограничение alpha: используется browser-compatible cookie+CSRF session. Device pairing, refresh-token lifecycle и полноценный mobile-native auth contract намеренно остаются последующими этапами.
 
 ## Этап 6. Backend-backed service actions и core switch
 

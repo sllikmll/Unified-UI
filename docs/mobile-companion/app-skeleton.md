@@ -1,7 +1,7 @@
 # Xkeen-UI Mobile Companion App Skeleton
 
 Status: implementation baseline active
-Updated: 2026-07-13
+Updated: 2026-07-16
 
 ## Зачем нужен этот документ
 
@@ -9,13 +9,14 @@ Updated: 2026-07-13
 
 ## Текущий статус реализации
 
-`android-companion/` уже является работающим Android Studio / Gradle проектом. Локальная проверка `.\gradlew.bat testDebugUnitTest assembleDebug` снова прошла успешно `2026-07-13`.
+`android-companion/` уже является работающим Android Studio / Gradle проектом. Локальная проверка `.\gradlew.bat testDebugUnitTest assembleDebug` снова прошла успешно `2026-07-16`.
 
 Что реально реализовано в baseline:
 
 - `Launching` с загрузкой persisted списка подключений и последнего выбранного узла;
 - `Connections` с ручным добавлением, повторным выбором и редактированием инстанса по `name` и `baseUrl`;
 - `Pair/Login` как отдельная фаза приложения;
+- Реальный alpha session flow: `/api/mobile/v1/bootstrap`, login/logout, Keystore-only cookie+CSRF storage, server-validated restore в `Ready` и explicit fallback в `Pair/Login` для отсутствующей, истекшей или невалидной сессии;
 - `Ready`-workspace с компактной верхней панелью, confirm-based `start` / `stop` / `restart` и кнопкой `Core`;
 - capability-aware нижняя навигация `Xray`, `Mihomo`, `Ports`, `Shell`, `Generator`;
 - capability-aware drawer с разделами под каждую рабочую зону;
@@ -26,8 +27,6 @@ Updated: 2026-07-13
 
 Что пока сознательно не завершено:
 
-- реальный auth/session transport;
-- secure storage для session material и trusted session restore;
 - backend-backed `start`, `stop`, `restart` и `Core` switch;
 - backend-backed `Routing Xray` write/apply flow;
 - настоящий logs streaming, PTY transport и reconnect behavior;
@@ -82,8 +81,8 @@ Updated: 2026-07-13
 - Загрузка списка, metadata и последнего выбранного узла из app-private storage после cold start.
 - Выбор и редактирование уже добавленного узла со стабильным `id`.
 - Переход в `Pair/Login`.
-- Понятная граница между persisted видимыми данными и ещё не подключёнными secure storage/auth/session transport.
-- Сохраненный `Configured` status не дает автоматический вход без будущего trusted-restore marker.
+- Понятная граница между persisted видимыми данными и готовыми Keystore-only cookie/CSRF session material.
+- Сохраненный `Configured` status не дает автоматический вход: trusted record подтверждается серверным bootstrap; отсутствие, повреждение, expiry или server-invalid session material явно возвращают в `Pair/Login`.
 
 ### 2. Ready workspace
 
@@ -148,6 +147,6 @@ Updated: 2026-07-13
 - первый editor-like модуль с локальной валидацией и управлением draft state;
 - persisted connections с повторным выбором и безопасным редактированием.
 
-Следующий рубеж теперь не в добавлении новых экранов как таковых, а в secure session storage, настоящем mobile contract и write-safe backend operations.
+Следующий рубеж теперь не в добавлении новых экранов как таковых, а в write-safe backend operations и real logs/terminal transport.
 
 Если этот набор не работает удобно с телефона, остальные advanced-модули переносить рано.

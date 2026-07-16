@@ -41,7 +41,7 @@ internal interface CompanionHttpTransport {
 
 /**
  * Supplies session headers without coupling the transport to a particular auth implementation.
- * Stage 5 will attach the real restored-session implementation here.
+ * SessionMaterialAuthHook attaches the restored mobile session in the production composition.
  */
 internal fun interface CompanionHttpAuthHook {
     fun headersFor(baseUrl: String): Map<String, String>

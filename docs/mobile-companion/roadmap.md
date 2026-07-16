@@ -1,7 +1,7 @@
 # Xkeen-UI Mobile Companion Roadmap
 
 Status: phase 2 active
-Updated: 2026-07-15
+Updated: 2026-07-16
 
 Даты намеренно не проставлены. Сначала нам нужно закрыть product scope, security assumptions и backend contract, а уже потом оценивать сроки.
 
@@ -14,7 +14,8 @@ Updated: 2026-07-15
 - Уже подключены первые read-only backend flows: `GET /api/xkeen/core`, `GET /api/routing/fragments`, `GET /api/routing?file=...`; они используют единый transport с `baseUrl` normalization, timeout, common headers/auth hook и typed error states для `401/403/428`, login HTML, offline и timeout.
 - Уже подключен app-private persistence списка узлов, базового metadata и последнего выбранного подключения; cold start больше не зависит от demo-списка.
 - Уже подключен per-connection secure storage session material: AES-GCM payload с ключом Android Keystore, encrypted trusted-restore marker и очистка выбранного record при logout. Обычный `Configured` node не является trusted session.
-- Следующий главный узкий участок остается на стыке `Phase 1` и `Phase 2`: mobile contract, реальный auth/session bootstrap с backend-validated restore, backend-backed write/apply actions и реальный logs/terminal transport.
+- Этап 5 закрыт: real alpha session slice включает `/api/mobile/v1/bootstrap`, login и logout, `MobileSessionPort`, cookie+CSRF auth hook, server-validated trusted restore, явный `Pair/Login` fallback и обработку `401` из `Ready`; backend contract и Android unit/build verification green.
+- Главные оставшиеся работы Phase 2 — backend-backed write/apply actions и реальный logs/terminal transport.
 
 ## Phase 0 - Discovery and scope freeze
 
@@ -85,7 +86,9 @@ Updated: 2026-07-15
 - Уже сделано: реализовано локальное хранение списка подключений, последнего выбора и базового metadata с безопасным редактированием.
 - Уже сделано: реализован secure storage для session material и trusted-restore marker на Android Keystore; password не попадает в storage, а demo session не помечается trusted.
 - Уже сделано: read-only network client переведен на единый transport/error-semantics path.
-- Еще осталось: реализовать реальный auth/session layer, server-side session validation/refresh и reconnect behavior.
+- Уже сделано: реализован real alpha auth/session layer с backend bootstrap, login/logout и server-side validation trusted cookie+CSRF session.
+- Уже сделано: этап 5 закрыт с явным `Launching -> Pair/Login` fallback при отсутствии/повреждении trusted material и green Android unit suite.
+- Еще осталось: закрыть reconnect behavior.
 - Еще осталось: довести backend-backed `save/apply/service actions`, logs transport и terminal transport.
 - Еще осталось: проверить подход к оберткам над open-source editor/log/terminal компонентами без ранней жесткой привязки.
 
@@ -93,10 +96,11 @@ Updated: 2026-07-15
 
 - Приложение собирается и запускается на целевых Android-устройствах.
 - Можно добавить Xkeen-UI инстанс и дойти до состояния `Ready` без браузерного fallback.
+- Этап 5 считается выполненным только после всех критериев [session closure checklist](../../android-companion/stage-5-closure-checklist.md): versioned backend bootstrap/login/logout, Keystore-only cookie+CSRF storage без пароля, coroutine UI, server-validated `Launching -> Ready`, явный `Pair/Login` fallback для отсутствующей/невалидной/истекшей сессии и `401` из `Ready`, изоляция по выбранному `connectionId` даже при одинаковом `baseUrl`, backend contract tests и Android unit tests.
 - Сессия и данные подключения переживают перезапуск приложения корректно.
 - Базовые состояния UI выглядят предсказуемо и не требуют web fallback.
 
-Первый критерий, persistence данных подключения и secure storage уже закрыты; phase нельзя считать завершенной до появления реального session/network слоя и backend-backed write/stream flows.
+Первый критерий, persistence данных подключения, secure storage и весь checklist этапа 5 уже закрыты. Phase нельзя считать завершенной, пока не появились backend-backed write/stream flows.
 
 ## Phase 3 - MVP feature slices
 

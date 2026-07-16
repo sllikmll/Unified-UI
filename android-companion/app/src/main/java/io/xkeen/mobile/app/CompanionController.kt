@@ -37,9 +37,10 @@ internal class CompanionController(
 
         try {
             when (val restored = dependencies.session.restore(selectedConnection)) {
-                SessionRestoreResult.NotAvailable -> state = state.copy(
-                    phase = AppPhase.Connections,
-                    isSessionBusy = false,
+                SessionRestoreResult.NotAvailable -> closeSession(
+                    result = dependencies.session.expire(selectedConnection),
+                    phase = AppPhase.PairLogin,
+                    message = "Сохраненная мобильная сессия не найдена. Войдите снова.",
                 )
 
                 is SessionRestoreResult.Open -> openSession(restored.result)
@@ -880,10 +881,11 @@ private fun List<DiagnosticItem>.replaceDiagnostic(
     label: String,
     status: String,
     severity: DiagnosticSeverity,
-): List<DiagnosticItem> = map { item ->
-    if (item.label == label) {
-        item.copy(status = status, severity = severity)
+): List<DiagnosticItem> {
+    val replacement = DiagnosticItem(label, status, severity)
+    return if (any { it.label == label }) {
+        map { item -> if (item.label == label) replacement else item }
     } else {
-        item
+        this + replacement
     }
 }

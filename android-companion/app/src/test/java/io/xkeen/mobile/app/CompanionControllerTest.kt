@@ -9,7 +9,7 @@ import org.junit.Test
 
 class CompanionControllerTest {
     @Test
-    fun finishLaunchLoadsPersistedConnectionsAndKeepsLastSelection() = runTest {
+    fun finishLaunchWithoutTrustedMaterialOpensPairLoginForLastSelectedConnection() = runTest {
         val selected = Connection(
             id = "saved-node",
             name = "Сохраненный узел",
@@ -31,11 +31,57 @@ class CompanionControllerTest {
 
         controller.finishLaunch()
 
-        assertEquals(AppPhase.Connections, controller.state.phase)
-        assertEquals(listOf(selected), controller.state.connections)
+        assertEquals(AppPhase.PairLogin, controller.state.phase)
+        assertEquals(ConnectionStatus.NeedsAuth, controller.state.connections.single().status)
         assertEquals(selected.id, controller.state.selectedConnectionId)
         assertEquals(selected.name, controller.state.dashboard.instanceLabel)
         assertEquals(selected.baseUrl, controller.state.dashboard.endpoint)
+        assertEquals("Сохраненная мобильная сессия не найдена. Войдите снова.", controller.state.sessionMessage)
+    }
+
+    @Test
+    fun finishLaunchOpensReadyAfterTrustedServerValidatedRestore() = runTest {
+        val selected = Connection(
+            id = "trusted-node",
+            name = "Доверенный узел",
+            baseUrl = "https://trusted.lan:8443",
+            status = ConnectionStatus.Configured,
+            lastSeen = "Готово",
+        )
+        val controller = CompanionController(
+            initialState = CompanionUiState(phase = AppPhase.Launching),
+            dependencies = testDependencies(
+                connections = InMemoryConnectionsPort(
+                    StoredConnections(
+                        connections = listOf(selected),
+                        selectedConnectionId = selected.id,
+                    ),
+                ),
+                session = object : SessionPort by DemoSessionPort() {
+                    override suspend fun restore(connection: Connection): SessionRestoreResult =
+                        SessionRestoreResult.Open(
+                            SessionOpenResult(
+                                connection = connection.copy(
+                                    status = ConnectionStatus.Configured,
+                                    lastSeen = "Сессия восстановлена",
+                                ),
+                                statusSummary = "Готов к безопасному управлению",
+                                lastOperation = "Мобильная сессия восстановлена",
+                                eventTitle = "Сессия восстановлена",
+                                eventSubtitle = "Авторизован: admin",
+                                logMessage = "Доверенная мобильная сессия подтверждена сервером",
+                            ),
+                        )
+                },
+            ),
+        )
+
+        controller.finishLaunch()
+
+        assertEquals(AppPhase.Ready, controller.state.phase)
+        assertEquals(selected.id, controller.state.selectedConnectionId)
+        assertEquals("Сессия восстановлена", controller.state.connections.single().lastSeen)
+        assertTrue(controller.state.sessionMessage == null)
     }
 
     @Test

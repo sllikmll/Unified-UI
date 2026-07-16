@@ -287,8 +287,8 @@ internal class DemoSessionPort(
             StoredSessionMaterial(
                 connectionId = connection.id,
                 material = SessionMaterial(accessToken = demoSessionSecretFactory()),
-                // A demo credential must never authorize automatic restore. Stage 5 will only set
-                // this marker after a real backend bootstrap has returned a valid session.
+                // A demo credential must never authorize automatic restore. Only MobileSessionPort
+                // sets this marker after a real backend bootstrap has returned a valid session.
                 trustedForRestore = false,
             ),
         )

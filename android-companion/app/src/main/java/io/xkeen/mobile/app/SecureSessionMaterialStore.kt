@@ -21,11 +21,11 @@ private const val GCM_IV_LENGTH_BYTES = 12
 private const val GCM_TAG_LENGTH_BITS = 128
 
 /**
- * Sensitive values returned by a future mobile session bootstrap.
+ * Sensitive values returned by the mobile session contract.
  *
  * Passwords deliberately do not belong here: they are used only for the login request and are
- * never persisted. The current demo adapter stores a synthetic access token only to exercise the
- * same persistence boundary as the future transport adapter.
+ * never persisted. The demo adapter stores a synthetic access token only to exercise the
+ * same persistence boundary as the real transport adapter.
  */
 internal data class SessionMaterial(
     val accessToken: String? = null,

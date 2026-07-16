@@ -2,14 +2,16 @@
 
 Android companion-приложение для Xkeen-UI. Каталог `android-companion/` уже является рабочим implementation baseline, а не пустым skeleton: проект собирается, проходит unit tests и содержит живой Compose shell с частичной backend-интеграцией.
 
-## Текущее состояние на 2026-07-15
+## Текущее состояние на 2026-07-16
 
 - Приложение проходит через фазы `Launching`, `Connections`, `Pair/Login` и `Ready`.
-- На `Launching` приложение загружает из app-private storage список узлов, их базовый metadata state и последний выбранный узел, после чего открывает `Connections`.
+- На `Launching` приложение загружает из app-private storage список узлов, их базовый metadata state и последний выбранный узел; trusted material выбранного узла проверяется server bootstrap до открытия `Ready`.
 - `Connections` поддерживает ручное добавление инстанса по `name` и `baseUrl`, повторный выбор и безопасное редактирование уже сохраненного узла без смены его `id` и metadata.
-- Сохраненный `Configured` status сам по себе не открывает `Ready`: marker доверенного восстановления хранится отдельно и сможет использоваться только после backend-проверки на этапе 5.
-- `Pair/Login` уже существует как экран и часть основного потока, но пока работает в demo-режиме без реального auth/session transport.
+- Сохраненный `Configured` status сам по себе не открывает `Ready`: marker доверенного восстановления хранится отдельно, а авторизация подтверждается backend bootstrap.
+- `Pair/Login` работает через реальный `MobileSessionPort`: проверка узла — `GET /api/mobile/v1/bootstrap`, вход — `POST /api/mobile/v1/session`, выход — CSRF-protected `DELETE /api/mobile/v1/session`. В alpha это browser-compatible cookie+CSRF session без сохранения пароля.
 - `Ready`-состояние построено как capability-aware workspace с компактной верхней панелью, отдельной кнопкой `Core` и безопасными действиями `start`, `stop`, `restart` через confirm dialog.
+
+Этап 5 закрыт 2026-07-16; подробная приемка зафиксирована в [stage-5-closure-checklist.md](stage-5-closure-checklist.md). Cold start выбранного узла без trusted material сразу открывает `Pair/Login`, а backend contract и Android unit/build verification проходят.
 
 ## Текущая навигация
 
@@ -105,7 +107,7 @@ cd android-companion
 .\gradlew.bat testDebugUnitTest assembleDebug
 ```
 
-Эта команда завершилась успешно в текущем репозитории `2026-07-13`.
+Эта команда завершилась успешно в текущем репозитории `2026-07-16`.
 
 ## Осознанно не переносим из веб-панели
 
@@ -113,8 +115,6 @@ cd android-companion
 
 ## Что пока остаётся demo-only
 
-- `Pair/Login` уже отделен в `SessionPort`, но сам порт пока работает через demo auth/session flow.
-- Secure storage готов, но `Pair/Login` пока не получает реальные token/cookie от backend и не запускает automatic restore: это следующий auth/session этап.
 - `start`, `stop`, `restart` и переключение `Core` уже вынесены в `ServiceActionsPort`, но пока меняют только локальный state и не вызывают POST-endpoint'ы.
 - `Routing Xray` читает документы с сервера, но `validate` еще локальный, а `save/apply` пока работают через demo `RoutingWritePort`, а не через backend.
 - Controller-события уже проходят через `LogsPort`, но настоящего logs streaming, PTY transport, reconnect behavior и offline persistence пока нет.
@@ -122,5 +122,5 @@ cd android-companion
 
 ## Следующий практический шаг
 
-- Довести `Pair/Login` до реального auth/session transport и trusted session restore поверх уже готового storage.
-- Заменить demo-адаптеры `ServiceActionsPort`, `RoutingWritePort` и `LogsPort` на backend-backed реализации.
+- Этап 6: заменить demo `ServiceActionsPort` на backend-backed service actions и core switch с server-confirmed result.
+- Затем заменить demo-адаптеры `RoutingWritePort` и `LogsPort` на backend-backed реализации.
