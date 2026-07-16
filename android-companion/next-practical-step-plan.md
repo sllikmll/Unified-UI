@@ -158,6 +158,7 @@ Post-stage editor UX hardening 2026-07-16:
 - Compose `BasicTextField`, полный список номеров строк и ручной drag-scroll заменены внутренней нативной Android text surface без изменения палитры и общего layout рабочего экрана.
 - Большие routing-документы получили виртуализированный gutter, инерционный скроллинг, быстрый скроллбар и подсветку только видимой области с буфером.
 - Нативные двойной/длинный тап сохраняют системные cut/copy/paste/select-all; добавлены ограниченная incremental undo/redo history, выделение и дублирование строки, прямой переход к строке и расширенный cursor status.
+- Follow-up по проверке на реальном устройстве: включен soft wrap без горизонтального скроллинга, gutter и tab stop уплотнены, а нижний editor padding при открытой клавиатуре уменьшен без изменения общей палитры/layout.
 
 ## Этап 6. Backend-backed service actions и core switch
 

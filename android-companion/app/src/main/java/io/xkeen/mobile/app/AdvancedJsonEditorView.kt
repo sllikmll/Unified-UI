@@ -9,9 +9,11 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.text.Editable
 import android.text.InputType
+import android.text.Layout
 import android.text.Spannable
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
+import android.text.style.TabStopSpan
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.ActionMode
@@ -29,6 +31,7 @@ import android.widget.TextView
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -41,13 +44,14 @@ internal class AdvancedJsonEditorView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
 ) : FrameLayout(context, attrs) {
-    private val gutterWidth = context.dp(46f)
+    private var gutterWidth = context.dp(MinGutterWidthDp)
     private val fastScrollerWidth = context.dp(24f)
     private val editor = SelectionAwareEditText(context)
     private val gutter = EditorGutterView(context, editor)
     private val fastScroller = NativeEditorFastScroller(context, editor)
     private val history = EditorHistory()
     private val syntaxSpans = mutableListOf<ForegroundColorSpan>()
+    private val tabStopSpans = mutableListOf<TabStopSpan.Standard>()
     private var documentIndex = EditorDocumentIndex.build("")
     private var beforeChange: TextFieldValue? = null
     private var suppressCallbacks = false
@@ -119,7 +123,8 @@ internal class AdvancedJsonEditorView @JvmOverloads constructor(
         editor.setSelection(offset)
         editor.post {
             val layout = editor.layout ?: return@post
-            editor.smoothScrollToY(layout.getLineTop(safeLine - 1))
+            val visualLine = layout.getLineForOffset(offset)
+            editor.smoothScrollToY(layout.getLineTop(visualLine))
         }
     }
 
@@ -155,17 +160,19 @@ internal class AdvancedJsonEditorView @JvmOverloads constructor(
             includeFontPadding = false
             gravity = Gravity.TOP or Gravity.START
             setPadding(
-                context.dp(10f),
-                context.dp(8f),
-                fastScrollerWidth + context.dp(12f),
-                context.dp(24f),
+                context.dp(2f),
+                context.dp(2f),
+                fastScrollerWidth + context.dp(2f),
+                context.dp(2f),
             )
             inputType = InputType.TYPE_CLASS_TEXT or
                 InputType.TYPE_TEXT_FLAG_MULTI_LINE or
                 InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
             setSingleLine(false)
-            setHorizontallyScrolling(true)
-            isHorizontalScrollBarEnabled = true
+            setHorizontallyScrolling(false)
+            isHorizontalScrollBarEnabled = false
+            breakStrategy = Layout.BREAK_STRATEGY_SIMPLE
+            hyphenationFrequency = Layout.HYPHENATION_FREQUENCY_NONE
             isVerticalScrollBarEnabled = false
             scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
             overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
@@ -225,8 +232,8 @@ internal class AdvancedJsonEditorView @JvmOverloads constructor(
                 beforeChange?.let { previous -> history.record(previous, updated) }
                 beforeChange = null
                 lastKnownText = updatedText
-                documentIndex = EditorDocumentIndex.build(updatedText)
-                gutter.lineCount = documentIndex.lineCount
+                updateDocumentIndex(updatedText)
+                ensureCompactTabStops(editable)
                 onTextChanged(updatedText)
                 notifyMetrics()
                 scheduleSyntaxHighlight(delayMillis = SyntaxHighlightDelayMillis)
@@ -307,11 +314,12 @@ internal class AdvancedJsonEditorView @JvmOverloads constructor(
     }
 
     private fun applyValue(value: TextFieldValue, notifyTextChanged: Boolean) {
-        val scrollX = editor.scrollX
         val scrollY = editor.scrollY
         suppressCallbacks = true
         try {
+            tabStopSpans.clear()
             editor.setText(value.text, TextView.BufferType.EDITABLE)
+            ensureCompactTabStops(editor.editableText)
             editor.setSelection(
                 value.selection.start.coerceIn(0, value.text.length),
                 value.selection.end.coerceIn(0, value.text.length),
@@ -320,9 +328,8 @@ internal class AdvancedJsonEditorView @JvmOverloads constructor(
             suppressCallbacks = false
         }
         lastKnownText = value.text
-        documentIndex = EditorDocumentIndex.build(value.text)
-        gutter.lineCount = documentIndex.lineCount
-        editor.post { editor.scrollTo(scrollX, scrollY) }
+        updateDocumentIndex(value.text)
+        editor.post { editor.scrollTo(0, scrollY) }
         if (notifyTextChanged) onTextChanged(value.text)
         notifyMetrics()
         scheduleSyntaxHighlight(delayMillis = 0L)
@@ -330,6 +337,38 @@ internal class AdvancedJsonEditorView @JvmOverloads constructor(
 
     private fun notifyMetrics() {
         onMetricsChanged(documentIndex.metricsAt(editor.selectionEnd.coerceAtLeast(0)))
+    }
+
+    private fun updateDocumentIndex(source: String) {
+        documentIndex = EditorDocumentIndex.build(source)
+        gutter.documentIndex = documentIndex
+        val wantedWidth = gutter.requiredWidth()
+        if (wantedWidth == gutterWidth) return
+        gutterWidth = wantedWidth
+        (editor.layoutParams as? LayoutParams)?.let { params ->
+            params.marginStart = wantedWidth
+            editor.layoutParams = params
+        }
+        (gutter.layoutParams as? LayoutParams)?.let { params ->
+            params.width = wantedWidth
+            gutter.layoutParams = params
+        }
+        requestLayout()
+    }
+
+    private fun ensureCompactTabStops(editable: Editable?) {
+        if (editable == null || editable.isEmpty() || tabStopSpans.isNotEmpty()) return
+        val tabWidth = editor.paint.measureText(" ").roundToInt().coerceAtLeast(1)
+        repeat(MaxCompactTabStops) { index ->
+            val span = TabStopSpan.Standard(tabWidth * (index + 1))
+            tabStopSpans += span
+            editable.setSpan(
+                span,
+                0,
+                editable.length,
+                Spannable.SPAN_INCLUSIVE_INCLUSIVE,
+            )
+        }
     }
 
     private fun scheduleSyntaxHighlight(delayMillis: Long) {
@@ -387,12 +426,15 @@ internal class AdvancedJsonEditorView @JvmOverloads constructor(
         val firstBuffered = (firstVisible - SyntaxHighlightLineBuffer).coerceAtLeast(0)
         val lastBuffered = (lastVisible + SyntaxHighlightLineBuffer)
             .coerceAtMost(layout.lineCount - 1)
-        return layout.getLineStart(firstBuffered)..layout.getLineEnd(lastBuffered)
+        val firstLogicalLine = documentIndex.cursorAt(layout.getLineStart(firstBuffered)).line
+        return documentIndex.offsetForLine(firstLogicalLine)..layout.getLineEnd(lastBuffered)
     }
 
     private companion object {
         const val EditorTextSizeSp = 15f
         const val EditorLineHeightSp = 23f
+        const val MinGutterWidthDp = 36f
+        const val MaxCompactTabStops = 16
         const val SyntaxHighlightDelayMillis = 220L
         const val VisibleSyntaxHighlightDelayMillis = 90L
         const val SyntaxHighlightLineBuffer = 24
@@ -503,7 +545,7 @@ private class SelectionAwareEditText(context: Context) : EditText(context) {
         ValueAnimator.ofInt(scrollY, target.coerceAtLeast(0)).apply {
             duration = 240L
             addUpdateListener { animator ->
-                scrollTo(scrollX, animator.animatedValue as Int)
+                scrollTo(0, animator.animatedValue as Int)
             }
             start()
         }
@@ -517,12 +559,12 @@ private class SelectionAwareEditText(context: Context) : EditText(context) {
         val maxScroll = (verticalScrollRange() - verticalScrollExtent()).coerceAtLeast(0)
         if (maxScroll <= 0) return
         flingScroller.fling(
-            scrollX,
+            0,
             scrollY,
             0,
             velocityY,
-            scrollX,
-            scrollX,
+            0,
+            0,
             0,
             maxScroll,
         )
@@ -534,9 +576,9 @@ private class EditorGutterView(
     context: Context,
     private val editor: SelectionAwareEditText,
 ) : View(context) {
-    var lineCount: Int = 1
+    var documentIndex: EditorDocumentIndex = EditorDocumentIndex.build("")
         set(value) {
-            field = value.coerceAtLeast(1)
+            field = value
             invalidate()
         }
 
@@ -557,25 +599,35 @@ private class EditorGutterView(
         contentDescription = "Перейти к строке"
     }
 
+    fun requiredWidth(): Int = max(
+        context.dp(36f),
+        ceil(numberPaint.measureText(documentIndex.lineCount.toString())).toInt() + context.dp(8f),
+    )
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val layout = editor.layout ?: return
         if (layout.lineCount <= 0) return
-        val firstLine = layout.getLineForVertical(editor.scrollY.coerceAtLeast(0))
-        val lastLine = layout.getLineForVertical((editor.scrollY + height).coerceAtLeast(0))
-        val selectedLine = layout.getLineForOffset(
+        val firstVisualLine = layout.getLineForVertical(editor.scrollY.coerceAtLeast(0))
+        val lastVisualLine = layout.getLineForVertical((editor.scrollY + height).coerceAtLeast(0))
+        val selectedLogicalLine = documentIndex.cursorAt(
             editor.selectionStart.coerceIn(0, editor.text?.length ?: 0),
-        )
-        val right = width - context.dp(7f)
+        ).line
+        val right = width - context.dp(4f)
 
-        for (line in firstLine..lastLine.coerceAtMost(lineCount - 1)) {
-            numberPaint.color = if (line == selectedLine) {
+        for (visualLine in firstVisualLine..lastVisualLine) {
+            val lineStart = layout.getLineStart(visualLine)
+            val logicalLine = documentIndex.cursorAt(lineStart).line
+            if (documentIndex.offsetForLine(logicalLine) != lineStart) continue
+            numberPaint.color = if (logicalLine == selectedLogicalLine) {
                 JsonEditorPalette.Cursor.toArgb()
             } else {
                 JsonEditorPalette.LineNumber.toArgb()
             }
-            val baseline = editor.totalPaddingTop + layout.getLineBaseline(line) - editor.scrollY
-            canvas.drawText((line + 1).toString(), right.toFloat(), baseline.toFloat(), numberPaint)
+            val baseline = editor.totalPaddingTop +
+                layout.getLineBaseline(visualLine) -
+                editor.scrollY
+            canvas.drawText(logicalLine.toString(), right.toFloat(), baseline.toFloat(), numberPaint)
         }
         canvas.drawLine(width - 1f, 0f, width - 1f, height.toFloat(), dividerPaint)
     }
