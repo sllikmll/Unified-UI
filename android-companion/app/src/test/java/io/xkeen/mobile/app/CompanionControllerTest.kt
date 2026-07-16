@@ -90,6 +90,73 @@ class CompanionControllerTest {
     }
 
     @Test
+    fun restoredSessionClearsPreviousWorkspaceBeforeConfirmedServerSnapshot() = runTest {
+        val connection = Connection(
+            id = "new-node",
+            name = "Новый узел",
+            baseUrl = "https://new.lan",
+            status = ConnectionStatus.Configured,
+            lastSeen = "Готово",
+        )
+        val restored = SessionOpenResult(
+            connection = connection,
+            statusSummary = "Готово",
+            lastOperation = "Сессия восстановлена",
+            eventTitle = "Сессия восстановлена",
+            eventSubtitle = "Новый узел",
+            logMessage = "Сессия восстановлена",
+        )
+        val source = FakeXrayConfigSource()
+        val controller = CompanionController(
+            initialState = CompanionUiState(
+                phase = AppPhase.Launching,
+                dashboard = demoDashboardState(),
+                routing = demoRoutingState(),
+            ),
+            dependencies = testDependencies(
+                connections = InMemoryConnectionsPort(
+                    StoredConnections(listOf(connection), connection.id),
+                ),
+                xrayConfigSource = source,
+                session = object : SessionPort {
+                    override suspend fun pair(connection: Connection): SessionPairResult = error("Not used")
+
+                    override suspend fun login(connection: Connection, credentials: LoginForm): SessionOpenResult =
+                        error("Not used")
+
+                    override suspend fun restore(connection: Connection): SessionRestoreResult =
+                        SessionRestoreResult.Open(restored)
+
+                    override suspend fun disconnect(connection: Connection): SessionCloseResult = error("Not used")
+
+                    override fun expire(connection: Connection): SessionCloseResult = error("Not used")
+                },
+            ),
+        )
+
+        controller.finishLaunch()
+
+        assertEquals(AppPhase.Ready, controller.state.phase)
+        assertEquals("https://new.lan", controller.state.dashboard.endpoint)
+        assertEquals(ServiceState.Unknown, controller.state.dashboard.serviceState)
+        assertTrue(controller.state.dashboard.availableCores.isEmpty())
+        assertTrue(controller.state.routing.documents.isEmpty())
+        assertEquals("", controller.state.routing.selectedDocumentId)
+        assertEquals(listOf("Сессия восстановлена"), controller.state.dashboard.recentEvents.map { it.title })
+
+        controller.refreshWorkspaceSnapshot()
+
+        assertEquals(ServiceState.Running, controller.state.dashboard.serviceState)
+        assertEquals("Xray", controller.state.dashboard.activeCore)
+        assertTrue(controller.state.dashboard.availableCores.hasCore("xray"))
+
+        controller.refreshRoutingDocuments()
+
+        assertEquals("remote:05_routing.json", controller.state.routing.selectedDocumentId)
+        assertEquals(listOf("05_routing.json"), source.loadedFiles)
+    }
+
+    @Test
     fun editingConnectionKeepsStableIdAndMetadata() {
         val original = Connection(
             id = "stable-id",
@@ -445,6 +512,45 @@ class CompanionControllerTest {
     }
 
     @Test
+    fun initialWorkspaceOfflineFailureKeepsReadyAndIsRetryable() = runTest {
+        val offline = CompanionTransportException(
+            CompanionTransportFailure(
+                kind = CompanionTransportFailureKind.Offline,
+                userMessage = "Не удалось подключиться к Xkeen UI. Проверьте адрес, сеть или VPN.",
+            ),
+        )
+        val controller = CompanionController(
+            initialState = CompanionUiState(
+                phase = AppPhase.Ready,
+                dashboard = unloadedDashboardState().copy(endpoint = "https://offline.lan"),
+                routing = unloadedRoutingState(),
+            ),
+            dependencies = testDependencies(
+                serviceActions = object : ServiceActionsPort {
+                    override suspend fun switchCore(baseUrl: String, core: String): CoreSwitchResult =
+                        error("Not used")
+
+                    override suspend fun perform(baseUrl: String, action: ServiceAction): ServiceActionResult =
+                        error("Not used")
+
+                    override suspend fun load(baseUrl: String): ConfirmedServiceSnapshot = throw offline
+                },
+            ),
+        )
+
+        controller.refreshWorkspaceSnapshot()
+
+        assertEquals(AppPhase.Ready, controller.state.phase)
+        assertEquals(ServiceState.Unknown, controller.state.dashboard.serviceState)
+        assertEquals(offline.failure.userMessage, controller.state.dashboard.lastError)
+        assertEquals(
+            DiagnosticSeverity.Error,
+            controller.state.diagnostics.first { it.label == "Сеть и доступ" }.severity,
+        )
+        assertEquals("transport", controller.state.logs.entries.first().source)
+    }
+
+    @Test
     fun expiredWorkspaceSessionReturnsToLoginAndClearsItsMaterial() = runTest {
         val connection = Connection(
             id = "expired-node",
@@ -485,8 +591,14 @@ class CompanionControllerTest {
                             error("The session adapter is not used while expiring.")
                     },
                 ),
-                coreStatusSource = object : CoreStatusSource {
-                    override suspend fun load(baseUrl: String): CoreStatus = throw CompanionTransportException(
+                serviceActions = object : ServiceActionsPort {
+                    override suspend fun switchCore(baseUrl: String, core: String): CoreSwitchResult =
+                        error("Not used")
+
+                    override suspend fun perform(baseUrl: String, action: ServiceAction): ServiceActionResult =
+                        error("Not used")
+
+                    override suspend fun load(baseUrl: String): ConfirmedServiceSnapshot = throw CompanionTransportException(
                         CompanionTransportFailure(
                             kind = CompanionTransportFailureKind.AuthenticationRequired,
                             userMessage = "Требуется вход в Xkeen UI.",
@@ -497,7 +609,7 @@ class CompanionControllerTest {
             ),
         )
 
-        controller.refreshCoreStatus()
+        controller.refreshWorkspaceSnapshot()
 
         assertEquals(AppPhase.PairLogin, controller.state.phase)
         assertEquals(ConnectionStatus.NeedsAuth, controller.state.connections.single().status)

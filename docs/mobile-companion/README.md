@@ -28,6 +28,8 @@ Updated: 2026-07-16
 Этап 8 закрыл backend write/conflict contract для Routing Xray: load возвращает published/saved revisions, save хранит отдельный server draft, apply атомарно публикует exact saved revision и подтверждает restart, а stale/external updates возвращают отдельный conflict state.
 Этап 9 закрыл первый stream transport: `GET /api/mobile/v1/logs` отдает Xray history и cursor-based incremental updates. Android запускает foreground-scoped transport, явно показывает `connected/reconnecting/auth required/disconnected` и сохраняет UI/history при background -> foreground. Детальная приемка: [stage-9-closure-checklist.md](../../android-companion/stage-9-closure-checklist.md). Controller использует dependency seam через `ConnectionsPort`, `SessionPort`, `ServiceActionsPort`, `RoutingValidationPort`, `RoutingWritePort`, `LogsPort` и `LogsTransportPort`; production implementation теперь есть и у logs transport.
 
+Этап 10 закрыл repository hardening: новая или восстановленная сессия сначала показывает нейтральное состояние, затем получает service/core/routing только из server snapshot; cached routing другого узла не переносится. Итоговая acceptance matrix и честно отделённый real-device rollout: [stage-10-closure-checklist.md](../../android-companion/stage-10-closure-checklist.md).
+
 ## Связанные документы
 
 - [App skeleton](app-skeleton.md)

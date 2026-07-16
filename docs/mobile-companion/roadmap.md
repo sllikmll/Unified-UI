@@ -18,7 +18,7 @@ Updated: 2026-07-16
 - Этап 6 закрыт: service actions и core switch backend-backed, CSRF-protected и server-confirmed; UI имеет pending/success/failure и repeat guard.
 - Реализация и пакет этапа 7 готовы: `Routing Xray validate` использует versioned mobile endpoint, temporary-confdir Xray preflight с отключенным DAT-asset sync, structured server diagnostics и repeat/stale guard без persistent save/restart side effect. Закрытие ожидает повторного device smoke-test после согласованного обновления backend и APK.
 - Этап 8 закрыт: routing load/validate/save/apply backend-backed, server drafts и published state имеют независимые SHA-256 revisions, а конфликты и restart rollback покрыты contract tests.
-- Этап 9 закрыт: `Логи Xray` используют authenticated history/live cursor contract, bounded reconnect и foreground lifecycle. Главная оставшаяся stream-работа Phase 2 — terminal/PTY transport и device smoke-test.
+- Этапы 9–10 закрыты в репозитории: `Логи Xray` используют authenticated history/live cursor contract, а fresh `Ready` принимает service/core/routing данные только из server snapshot. Главная оставшаяся stream-работа Phase 2 — terminal/PTY transport; отдельным operational follow-up остаётся device smoke-test.
 
 ## Phase 0 - Discovery and scope freeze
 
@@ -95,7 +95,7 @@ Updated: 2026-07-16
 - Уже сделано: этап 7 закрыл real Xray routing validate через `POST /api/mobile/v1/xray/routing/validate`; local JSONC syntax feedback отделен от authoritative server diagnostics.
 - Уже сделано: real Xray logs history/live transport с `connected/reconnecting/auth required/disconnected`, bounded reconnect и lifecycle pause/resume.
 - Уже сделано: routing `save/apply` использует отдельный server draft, optimistic concurrency и server-confirmed apply/restart; HTTP `409` отображается отдельным conflict state.
-- Еще осталось: terminal transport и device smoke-test logs reconnect.
+- Еще осталось: terminal transport и объединённый device acceptance текущего блока.
 - Еще осталось: проверить подход к оберткам над open-source editor/log/terminal компонентами без ранней жесткой привязки.
 
 ### Exit criteria
@@ -106,7 +106,7 @@ Updated: 2026-07-16
 - Сессия и данные подключения переживают перезапуск приложения корректно.
 - Базовые состояния UI выглядят предсказуемо и не требуют web fallback.
 
-Persistence данных подключения, secure storage, session flow и service actions уже закрыты. Phase нельзя считать завершенной, пока не появились backend-backed routing write и stream flows.
+Persistence данных подключения, secure storage, session flow, service actions, backend-backed routing write и Xray stream flow уже закрыты в репозитории. До product sign-off остаётся device acceptance на согласованных backend archive/APK.
 
 ## Phase 3 - MVP feature slices
 
@@ -120,7 +120,7 @@ Persistence данных подключения, secure storage, session flow и
 - Готово: service actions slice — `start`, `stop`, `restart` и core switch с подтверждением, backend round-trip и server-confirmed result.
 - Готово: Logs slice — просмотр Xray history/live с фильтрацией, cursor polling и надежным reconnect behavior.
 - Готово: Routing Xray `validate` slice — selected document, raw JSONC round-trip, real Xray preflight и structured diagnostics.
-- Routing Xray дальше: controlled server `preview`, `save`, `apply` и conflict handling поверх уже работающего read/edit/validate baseline.
+- Готово: controlled Routing Xray `load/validate/save/apply` и conflict handling поверх server draft/revision contract.
 - Read-only diagnostics slice там, где это повышает предсказуемость быстрых действий.
 - Подготовка UX и contract foundations для следующих routing/editor модулей без попытки сразу повторить desktop layout.
 

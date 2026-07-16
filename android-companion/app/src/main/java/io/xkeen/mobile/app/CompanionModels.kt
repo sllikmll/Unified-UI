@@ -104,6 +104,7 @@ enum class ConnectionStatus {
 }
 
 enum class ServiceState {
+    Unknown,
     Running,
     Stopped,
     Restarting,
@@ -310,8 +311,8 @@ data class RoutingValidation(
     val localSyntaxIssues: List<RoutingDiagnostic> = emptyList(),
     val serverDiagnostics: List<RoutingDiagnostic> = emptyList(),
     /**
-     * Compatibility notes used by the still-demo save/apply flow.  New validation code must use
-     * the structured source-specific lists above instead of putting backend output here.
+     * Supplementary non-authoritative notes. Backend validation results stay in the structured
+     * source-specific lists above so UI code never mistakes a local note for server acceptance.
      */
     val details: List<String> = emptyList(),
 ) {
@@ -392,9 +393,40 @@ data class CompanionUiState(
     val dashboard: DashboardState = demoDashboardState(),
     val routing: RoutingState = demoRoutingState(),
     val logs: LogsState = LogsState(),
-    val diagnostics: List<DiagnosticItem> = defaultDiagnostics(),
+    val diagnostics: List<DiagnosticItem> = initialDiagnostics(),
     val pendingAction: PendingAction? = null,
     val serviceOperation: ServiceOperationState = ServiceOperationState(),
+)
+
+/**
+ * Freshly opened sessions must not inherit a previous node's runtime, routing metadata or demo
+ * fixtures.  The controller replaces this state only after server reads have confirmed it.
+ */
+fun unloadedDashboardState(): DashboardState = DashboardState(
+    instanceLabel = "Xkeen UI",
+    endpoint = "",
+    statusSummary = "Ожидание подключения к Xkeen UI",
+    serviceState = ServiceState.Unknown,
+    activeCore = "Не определено",
+    version = "Не загружено",
+    lastOperation = "Ожидание server snapshot",
+    lastError = null,
+    capabilities = emptyList(),
+    recentEvents = emptyList(),
+    availableCores = emptyList(),
+)
+
+fun unloadedRoutingState(): RoutingState = RoutingState(
+    documents = emptyList(),
+    selectedDocumentId = "",
+    validation = RoutingValidation(message = "Ожидаем список routing-конфигураций с Xkeen UI…"),
+)
+
+fun initialDiagnostics(): List<DiagnosticItem> = listOf(
+    DiagnosticItem("Мобильная сессия", "Ожидает входа", DiagnosticSeverity.Warning),
+    DiagnosticItem("Поток логов", "Ожидает подключения к узлу", DiagnosticSeverity.Warning),
+    DiagnosticItem("Защищенное хранилище", "Готово", DiagnosticSeverity.Ok),
+    DiagnosticItem("API мобильного клиента", "Доступен после входа", DiagnosticSeverity.Ok),
 )
 
 fun demoDashboardState(): DashboardState = DashboardState(
@@ -502,12 +534,3 @@ fun demoLogsState(): LogsState = LogsState(
         LogEntry("17:35:28", "routing", LogLevel.Error, "Черновик 13 не прошел проверку: нет правил"),
     ),
 )
-
-fun demoDiagnostics(): List<DiagnosticItem> = listOf(
-    DiagnosticItem("Мобильная сессия", "Ожидает входа", DiagnosticSeverity.Warning),
-    DiagnosticItem("Поток логов", "Ожидает подключения к узлу", DiagnosticSeverity.Warning),
-    DiagnosticItem("Защищенное хранилище", "Готово", DiagnosticSeverity.Ok),
-    DiagnosticItem("API мобильного клиента", "Доступен после входа", DiagnosticSeverity.Ok),
-)
-
-fun defaultDiagnostics(): List<DiagnosticItem> = demoDiagnostics()

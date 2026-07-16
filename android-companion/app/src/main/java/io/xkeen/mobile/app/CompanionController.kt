@@ -298,6 +298,7 @@ internal class CompanionController(
     }
 
     suspend fun refreshCoreStatus() {
+        if (state.dashboard.endpoint.isBlank()) return
         val result = runCatching {
             dependencies.coreStatusSource.load(state.dashboard.endpoint)
         }
@@ -305,6 +306,29 @@ internal class CompanionController(
             applyCoreStatus(coreStatus)
             state = state.copy(
                 dashboard = state.dashboard.copy(lastError = null),
+            )
+        }
+        result.onFailure { error ->
+            if (!returnToLoginForExpiredSession(error)) {
+                applyCoreStatusLoadFailure(error)
+            }
+        }
+    }
+
+    /** Loads the only runtime state shown after opening a real mobile session. */
+    suspend fun refreshWorkspaceSnapshot() {
+        val endpoint = state.dashboard.endpoint
+        if (endpoint.isBlank()) return
+        val result = runCatching {
+            dependencies.serviceActions.load(endpoint)
+        }
+        result.onSuccess { snapshot ->
+            applyConfirmedServiceSnapshot(snapshot)
+            state = state.copy(
+                dashboard = state.dashboard.copy(
+                    statusSummary = snapshot.serviceState.workspaceStatusSummary(),
+                    lastError = null,
+                ),
             )
         }
         result.onFailure { error ->
@@ -423,6 +447,9 @@ internal class CompanionController(
     }
 
     suspend fun refreshRoutingDocuments(force: Boolean = false) {
+        if (state.dashboard.endpoint.isBlank()) {
+            return
+        }
         if (!state.dashboard.availableCores.hasCore("xray")) {
             return
         }
@@ -945,22 +972,24 @@ internal class CompanionController(
             level = LogLevel.Info,
             message = result.logMessage,
         )
+        val workspaceDashboard = unloadedDashboardState().copy(
+            instanceLabel = result.connection.name,
+            endpoint = result.connection.baseUrl,
+            statusSummary = "Сессия открыта; загружаем подтверждённое состояние узла…",
+            lastOperation = result.lastOperation,
+            recentEvents = listOf(
+                RecentEvent(eventTime, result.eventTitle, result.eventSubtitle),
+            ),
+        )
         state = state.copy(
             phase = AppPhase.Ready,
             connections = updatedConnections,
             loginForm = state.loginForm.copy(password = ""),
             isSessionBusy = false,
             sessionMessage = null,
-            dashboard = state.dashboard.copy(
-                instanceLabel = result.connection.name,
-                endpoint = result.connection.baseUrl,
-                statusSummary = result.statusSummary,
-                lastOperation = result.lastOperation,
-                recentEvents = listOf(
-                    RecentEvent(eventTime, result.eventTitle, result.eventSubtitle),
-                ) + state.dashboard.recentEvents.take(2),
-            ),
-            diagnostics = state.diagnostics.replaceDiagnostic(
+            dashboard = workspaceDashboard,
+            routing = unloadedRoutingState(),
+            diagnostics = initialDiagnostics().replaceDiagnostic(
                 label = "Мобильная сессия",
                 status = "Готово",
                 severity = DiagnosticSeverity.Ok,
@@ -1575,6 +1604,14 @@ private fun Throwable.toCompanionLoadMessage(fallback: String): String =
     (this as? CompanionTransportException)?.failure?.userMessage
         ?: message?.takeIf { it.isNotBlank() }
         ?: fallback
+
+private fun ServiceState.workspaceStatusSummary(): String =
+    when (this) {
+        ServiceState.Unknown -> "Состояние сервиса ещё не подтверждено сервером"
+        ServiceState.Running -> "Сервис работает; состояние подтверждено сервером"
+        ServiceState.Stopped -> "Сервис остановлен; состояние подтверждено сервером"
+        ServiceState.Restarting -> "Сервер выполняет перезапуск"
+    }
 
 private const val LOGS_POLL_INTERVAL_MILLIS = 2_000L
 private const val LOGS_ENTRY_LIMIT = 600

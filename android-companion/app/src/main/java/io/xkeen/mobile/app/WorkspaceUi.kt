@@ -78,23 +78,38 @@ internal fun RoutingWorkspaceScreen(
     modifier: Modifier = Modifier,
 ) {
     val routing = state.routing
-    val selectedDocument = routing.documents.firstOrNull {
-        it.id == routing.selectedDocumentId
-    } ?: return
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val showDocumentPicker = rememberSaveable { mutableStateOf(false) }
-    val editorMetrics = remember(selectedDocument.id) {
-        mutableStateOf(
-            EditorDocumentIndex.build(selectedDocument.draftContent).metricsAt(0),
-        )
-    }
 
-    LaunchedEffect(state.dashboard.endpoint) {
+    LaunchedEffect(state.dashboard.endpoint, state.dashboard.availableCores) {
         controller.refreshRoutingDocuments()
     }
     LaunchedEffect(routing.selectedDocumentId) {
         controller.loadSelectedRoutingDocument()
+    }
+
+    val selectedDocument = routing.documents.firstOrNull {
+        it.id == routing.selectedDocumentId
+    }
+    if (selectedDocument == null) {
+        RoutingWorkspaceLoading(
+            isLoading = routing.isRefreshing,
+            error = routing.loadError ?: state.dashboard.lastError,
+            onRetry = {
+                scope.launch {
+                    controller.refreshWorkspaceSnapshot()
+                    controller.refreshRoutingDocuments(force = true)
+                }
+            },
+            modifier = modifier,
+        )
+        return
+    }
+    val editorMetrics = remember(selectedDocument.id) {
+        mutableStateOf(
+            EditorDocumentIndex.build(selectedDocument.draftContent).metricsAt(0),
+        )
     }
 
     Column(
@@ -160,6 +175,46 @@ internal fun RoutingWorkspaceScreen(
                 showDocumentPicker.value = false
             },
         )
+    }
+}
+
+@Composable
+private fun RoutingWorkspaceLoading(
+    isLoading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(WebPanelPalette.Background)
+            .padding(24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(color = WebPanelPalette.Accent)
+            }
+            Text(
+                text = error ?: if (isLoading) {
+                    "Загружаем routing-конфигурации с Xkeen UI…"
+                } else {
+                    "Ожидаем подтверждённое состояние Xkeen UI…"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (error != null) WebPanelPalette.Error else WebPanelPalette.Text,
+                textAlign = TextAlign.Center,
+            )
+            if (error != null) {
+                OutlinedButton(onClick = onRetry) {
+                    Text("Повторить")
+                }
+            }
+        }
     }
 }
 

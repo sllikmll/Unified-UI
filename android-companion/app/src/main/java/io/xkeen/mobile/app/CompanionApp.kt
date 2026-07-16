@@ -459,7 +459,7 @@ private fun ReadyRoute(
     LogsTransportLifecycle(controller, state.dashboard.endpoint)
 
     LaunchedEffect(state.dashboard.endpoint) {
-        controller.refreshCoreStatus()
+        controller.refreshWorkspaceSnapshot()
     }
     LaunchedEffect(state.serviceOperation.phase, state.serviceOperation.message) {
         if (state.serviceOperation.phase == ServiceOperationPhase.Success) {
@@ -1957,6 +1957,7 @@ private fun connectionStatusChip(status: ConnectionStatus): StatusChipModel =
 @Composable
 private fun serviceStateChip(state: ServiceState): StatusChipModel =
     when (state) {
+        ServiceState.Unknown -> statusChip("уточняется")
         ServiceState.Running -> StatusChipModel(
             "работает",
             MaterialTheme.colorScheme.secondaryContainer,
@@ -2007,6 +2008,7 @@ private fun validationChip(state: RoutingValidationState): StatusChipModel =
 
 private fun serviceStateLabel(state: ServiceState): String =
     when (state) {
+        ServiceState.Unknown -> "Уточняется"
         ServiceState.Running -> "Работает"
         ServiceState.Stopped -> "Остановлен"
         ServiceState.Restarting -> "Перезапуск"

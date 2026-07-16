@@ -1,6 +1,6 @@
 # Xkeen Mobile Companion Next Practical Step Plan
 
-Status: stages 1-9 completed, stage 10 next
+Status: stages 1-10 completed in repository; real-device rollout acceptance remains
 Updated: 2026-07-16
 
 ## Зачем нужен этот план
@@ -297,6 +297,25 @@ Rollout dependency: APK этого этапа требует backend с новы
 - reconnect ведет себя предсказуемо и не требует ручного "перезапуска экрана".
 
 ## Этап 10. Финальная шлифовка и приемка текущего блока
+
+Статус: завершено в репозитории 2026-07-16; device rollout acceptance остаётся внешней проверкой.
+
+Детальная точка приемки: [stage-10-closure-checklist.md](stage-10-closure-checklist.md).
+
+Что сделано:
+
+- Проведён итоговый automated acceptance для transport parsing, trusted session restore, persisted connections, server-confirmed service actions, routing conflicts и logs reconnect; regression-наборы backend и Android собраны в одном closure checklist.
+- После успешного login/restore `Ready` больше не наследует предыдущий узел или демонстрационные dashboard/routing данные: service/core snapshot стартует с явного `Unknown` и заменяется только серверным подтверждением.
+- Смена узла очищает cached routing state; список документов заново загружается только после подтверждённого наличия Xray на новом узле. Пока snapshot/list загружается или запрос упал, экран показывает понятный loading/retry state вместо пустой или старой editor surface.
+- README и документы mobile companion синхронизированы с фактическим backend-backed scope. Остаточные device smoke-tests, PTY transport и placeholder-модули обозначены как внешние/следующие работы, а не как demo-only реализации текущего ядра.
+
+Критерии закрытия:
+
+- [x] Unit/contract coverage охватывает transport, session restore, persistence, action failure/success, routing conflicts и logs reconnect.
+- [x] `Ready` не публикует локальное предположение о service/core/routing state до server snapshot.
+- [x] `README` не описывает `Pair/Login`, service actions или `Routing Xray load/validate/save/apply` как demo-only.
+- [x] Backend contract/lint и полный Android unit/build набор прошли 2026-07-16.
+- [ ] Выполнить зависимую от окружения device acceptance из stage 7–9 checklist на согласованных APK и backend archive.
 
 Что делаем:
 

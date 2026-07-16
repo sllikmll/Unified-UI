@@ -195,12 +195,14 @@ internal fun requireAcceptedServiceCommand(body: String, operation: String) {
 }
 
 private fun ServiceState.displayName(): String = when (this) {
+    ServiceState.Unknown -> "ещё не подтверждено"
     ServiceState.Running -> "работает"
     ServiceState.Stopped -> "остановлен"
     ServiceState.Restarting -> "перезапускается"
 }
 
 private fun ServiceState.statusSummary(): String = when (this) {
+    ServiceState.Unknown -> "Состояние сервиса ещё не подтверждено сервером"
     ServiceState.Running -> "Сервис работает; состояние подтверждено сервером"
     ServiceState.Stopped -> "Сервис остановлен; состояние подтверждено сервером"
     ServiceState.Restarting -> "Сервер выполняет перезапуск"

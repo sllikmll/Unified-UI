@@ -21,7 +21,7 @@ Updated: 2026-07-16
 
 Клиент больше не является demo-only: подключены auth/session bootstrap, `GET /api/xkeen/core`, `GET /api/routing/fragments`, revision-aware `GET /api/mobile/v1/xray/routing/document`, real service actions, полный routing `validate/save/apply` и `GET /api/mobile/v1/logs`. После service write Android перечитывает runtime state. После routing write Android принимает published/saved document state только из backend response; independent SHA-256 revisions защищают внешний edit и stale server draft. Logs используют отдельный cursor-based mobile contract; terminal пока не опирается на полноценный mobile contract.
 
-Это делает backend gap очень конкретным: следующий рабочий шаг не в новых экранах, а в доведении текущего shell до реального mobile contract со следующими минимальными slices:
+Первый practical block теперь закрыт в репозитории. Следующая работа — не расширять старый shell случайными web adapters, а выбирать следующий отдельный mobile contract slice:
 
 - закрыто: `bootstrap` и alpha session bootstrap/login/restore;
 - частично закрыто compatibility adapter'ом: safe service actions; агрегированный ready-workspace/action contract всё еще нужен;
@@ -236,7 +236,7 @@ Updated: 2026-07-16
 }
 ```
 
-Если операция асинхронная, ответ должен либо сразу содержать terminal state, либо возвращать `operation_id` с понятным способом узнать дальнейший прогресс.
+Если следующая операция будет асинхронной, ответ должен либо сразу содержать terminal state, либо возвращать `operation_id` с понятным способом узнать дальнейший прогресс.
 
 ## Что не нужно делать
 
@@ -249,6 +249,6 @@ Updated: 2026-07-16
 
 ## Практический итог для реализации
 
-Backend уже достаточно богат по возможностям, чтобы мобильное приложение не начиналось с нуля. Более того, Android уже переиспользует часть web API для чтения active core и Xray routing documents. Но для устойчивого клиента нам нужен именно новый слой контракта, а не просто список уже существующих маршрутов. Причем этот слой должен сразу учитывать не только auth, ready summary, service actions и logs, но и стартовый controlled сценарий `Routing Xray`, а затем будущие editor/devtools/terminal/files expansion waves. Чем раньше мы введем mobile namespace, capability granularity и contract tests, тем дешевле будет дальнейшая разработка приложения.
+Backend уже достаточно богат по возможностям, чтобы мобильное приложение не начиналось с нуля. Первый устойчивый mobile contract теперь покрывает auth, service actions, controlled `Routing Xray` и Xray logs. Дальше нужно сохранять тот же подход: не превращать Android в набор browser-route adapters, а вводить editor/devtools/terminal/files отдельными versioned slices с capability granularity и contract tests.
 
-С учетом уже поднятого `android-companion` это означает следующее: UI baseline уже не нулевой, первые read-only integrations доказали пригодность backend surface, а главным блокером для перехода к настоящему MVP теперь стал целостный mobile contract для auth, writes и streams.
+С учетом `android-companion` это означает следующее: UI baseline и mobile contract для auth, writes и Xray streams уже проверены автоматизированно; product sign-off ждёт согласованный backend/APK device rollout, а дальнейшее расширение начинается с отдельного safety-reviewed slice.

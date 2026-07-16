@@ -20,6 +20,8 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 
 Этап 9 реализован и документирован в [stage-9-closure-checklist.md](stage-9-closure-checklist.md). `Логи Xray` используют authenticated mobile history/live contract с cursor-based reconnect; финальная operational отметка требует device smoke-test согласованных backend archive и APK.
 
+Этап 10 завершил repository hardening и automated acceptance: после login/restore workspace начинает с нейтрального состояния и принимает service/core/routing metadata только после server reads. Итоговая матрица проверок и оставшийся device rollout описаны в [stage-10-closure-checklist.md](stage-10-closure-checklist.md).
+
 ## Текущая навигация
 
 - Нижняя панель использует пользовательские вкладки `Xray`, `Mihomo`, `Ports`, `Shell`, `Generator`.
@@ -132,12 +134,13 @@ cd android-companion
 
 - Карточка **«Сценарий маршрутизации»** остаётся только в веб-панели. В мобильном приложении для неё не планируются отдельный экран, пункт меню или отдельный API-flow.
 
-## Что пока остаётся demo-only
+## За границами закрытого блока
 
 - `Routing Xray` полностью backend-backed для `load/validate/save/apply`; для device rollout одновременно нужны актуальный backend archive и APK.
 - Реальный Xray logs history/live transport и reconnect behavior уже подключены. PTY transport и durable offline persistence логов пока не входят в scope.
 - Большая часть разделов `Mihomo`, `Ports` и `Generator` пока остаётся placeholder-поверхностями.
 
-## Следующий практический шаг
+## После текущего блока
 
-- Этап 10: финальная шлифовка, device smoke-tests и приемка текущего блока.
+- На согласованных backend archive и APK пройти device acceptance из [stage-10-closure-checklist.md](stage-10-closure-checklist.md).
+- Следующий новый product slice после acceptance: controlled PTY/terminal transport или отдельный Mihomo workflow — оба требуют отдельного mobile contract и safety scope.

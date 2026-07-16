@@ -5,7 +5,7 @@ Updated: 2026-07-16
 
 ## Зачем нужен этот документ
 
-Этот файл фиксирует фактический shell Android-приложения: какие состояния и поверхности уже существуют, как сейчас устроена навигация, и где проходит граница между рабочими backend-чтениями и demo-only поведением.
+Этот файл фиксирует фактический shell Android-приложения: какие состояния и поверхности уже существуют, как сейчас устроена навигация, и где проходит граница между рабочими backend-backed сценариями и будущими placeholder-модулями.
 
 ## Текущий статус реализации
 
@@ -148,6 +148,6 @@ Updated: 2026-07-16
 - первый editor-like модуль с server-backed Xray validate, structured diagnostics и управлением draft state;
 - persisted connections с повторным выбором и безопасным редактированием.
 
-Routing write/conflict и real Xray logs transport уже закрыты. Следующий рубеж — финальная приемка текущего блока и отдельный PTY/terminal transport.
+Routing write/conflict, real Xray logs transport и финальная repository acceptance уже закрыты. Следующий рубеж — device rollout на согласованных APK/backend archive и отдельный PTY/terminal transport.
 
 Если этот набор не работает удобно с телефона, остальные advanced-модули переносить рано.
