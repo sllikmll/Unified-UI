@@ -54,9 +54,11 @@ internal sealed interface SessionRestoreResult {
 }
 
 internal interface ServiceActionsPort {
-    fun switchCore(core: String): CoreSwitchResult
+    suspend fun switchCore(baseUrl: String, core: String): CoreSwitchResult
 
-    fun perform(action: ServiceAction): ServiceActionResult
+    suspend fun perform(baseUrl: String, action: ServiceAction): ServiceActionResult
+
+    suspend fun load(baseUrl: String): ConfirmedServiceSnapshot
 }
 
 internal interface RoutingWritePort {
@@ -104,8 +106,7 @@ internal data class SessionCloseResult(
 )
 
 internal data class CoreSwitchResult(
-    val activeCore: String,
-    val serviceState: ServiceState,
+    val snapshot: ConfirmedServiceSnapshot,
     val statusSummary: String,
     val lastOperation: String,
     val eventTitle: String,
@@ -114,12 +115,18 @@ internal data class CoreSwitchResult(
 )
 
 internal data class ServiceActionResult(
-    val serviceState: ServiceState,
+    val snapshot: ConfirmedServiceSnapshot,
     val statusSummary: String,
     val lastOperation: String,
     val eventTitle: String,
     val eventSubtitle: String,
     val logMessage: String,
+)
+
+internal data class ConfirmedServiceSnapshot(
+    val serviceState: ServiceState,
+    val activeCore: String,
+    val availableCores: List<String>,
 )
 
 internal data class RoutingSaveResult(
@@ -156,13 +163,16 @@ internal fun defaultCompanionControllerDependencies(
     transport: CompanionHttpTransport? = null,
 ): CompanionControllerDependencies {
     val journal = SystemCompanionJournalPort()
-    val effectiveTransport = transport ?: HttpUrlConnectionCompanionTransport(
-        authHook = SessionMaterialAuthHook(connections, sessionMaterials),
+    val authHook = SessionMaterialAuthHook(connections, sessionMaterials)
+    val effectiveTransport = transport ?: HttpUrlConnectionCompanionTransport(authHook = authHook)
+    val serviceTransport = transport ?: HttpUrlConnectionCompanionTransport(
+        config = CompanionHttpTransportConfig(readTimeoutMillis = 90_000),
+        authHook = authHook,
     )
     return CompanionControllerDependencies(
         connections = connections,
         session = MobileSessionPort(sessionMaterials, effectiveTransport),
-        serviceActions = DemoServiceActionsPort(),
+        serviceActions = WebPanelServiceActionsPort(serviceTransport),
         routingWrites = DemoRoutingWritePort(journal),
         logs = DemoLogsPort(journal),
         journal = journal,
@@ -313,10 +323,9 @@ private fun newDemoSessionSecret(): String {
 }
 
 internal class DemoServiceActionsPort : ServiceActionsPort {
-    override fun switchCore(core: String): CoreSwitchResult =
+    override suspend fun switchCore(baseUrl: String, core: String): CoreSwitchResult =
         CoreSwitchResult(
-            activeCore = core,
-            serviceState = ServiceState.Running,
+            snapshot = demoSnapshot(activeCore = core, serviceState = ServiceState.Running),
             statusSummary = "Готов к безопасному управлению",
             lastOperation = "Ядро изменено на $core",
             eventTitle = "Ядро изменено",
@@ -324,7 +333,7 @@ internal class DemoServiceActionsPort : ServiceActionsPort {
             logMessage = "Ядро изменено на $core; xkeen перезапущен",
         )
 
-    override fun perform(action: ServiceAction): ServiceActionResult {
+    override suspend fun perform(baseUrl: String, action: ServiceAction): ServiceActionResult {
         val serviceState = when (action) {
             ServiceAction.Start -> ServiceState.Running
             ServiceAction.Stop -> ServiceState.Stopped
@@ -338,7 +347,7 @@ internal class DemoServiceActionsPort : ServiceActionsPort {
         }
 
         return ServiceActionResult(
-            serviceState = finalState,
+            snapshot = demoSnapshot(serviceState = finalState),
             statusSummary = if (finalState == ServiceState.Running) {
                 "Готов к безопасному управлению"
             } else {
@@ -350,6 +359,17 @@ internal class DemoServiceActionsPort : ServiceActionsPort {
             logMessage = "Подтверждено действие: ${action.label.lowercase()}",
         )
     }
+
+    override suspend fun load(baseUrl: String): ConfirmedServiceSnapshot = demoSnapshot()
+
+    private fun demoSnapshot(
+        activeCore: String = "Xray",
+        serviceState: ServiceState = ServiceState.Running,
+    ): ConfirmedServiceSnapshot = ConfirmedServiceSnapshot(
+        serviceState = serviceState,
+        activeCore = canonicalCoreName(activeCore) ?: activeCore,
+        availableCores = listOf("Xray", "Mihomo"),
+    )
 }
 
 internal class DemoRoutingWritePort(

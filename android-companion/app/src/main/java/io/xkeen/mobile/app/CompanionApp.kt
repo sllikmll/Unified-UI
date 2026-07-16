@@ -41,6 +41,7 @@ import androidx.compose.material.icons.automirrored.outlined.FactCheck
 import androidx.compose.material.icons.automirrored.outlined.Subject
 import androidx.compose.material.icons.outlined.AccountTree
 import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Home
@@ -447,9 +448,16 @@ private fun ReadyRoute(
 ) {
     val density = LocalDensity.current
     val isImeVisible = WindowInsets.ime.getBottom(density) > 0
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(state.dashboard.endpoint) {
         controller.refreshCoreStatus()
+    }
+    LaunchedEffect(state.serviceOperation.phase, state.serviceOperation.message) {
+        if (state.serviceOperation.phase == ServiceOperationPhase.Success) {
+            delay(4_000)
+            controller.dismissServiceOperationResult()
+        }
     }
     WorkspaceNavigationFrame(state, controller) { openDrawer, openCoreDialog ->
         Scaffold(
@@ -473,16 +481,30 @@ private fun ReadyRoute(
                 }
             },
         ) { innerPadding ->
-            WorkspaceSectionContent(
-                state = state,
-                controller = controller,
-                modifier = Modifier.padding(innerPadding),
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+            ) {
+                WorkspaceSectionContent(
+                    state = state,
+                    controller = controller,
+                    modifier = Modifier.fillMaxSize(),
+                )
+
+                ServiceOperationBanner(
+                    operation = state.serviceOperation,
+                    onDismiss = controller::dismissServiceOperationResult,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
 
             PendingActionDialog(
                 pendingAction = state.pendingAction,
                 onDismiss = controller::dismissPendingAction,
-                onConfirm = controller::confirmPendingAction,
+                onConfirm = { scope.launch { controller.confirmPendingAction() } },
             )
         }
     }
@@ -517,6 +539,7 @@ private fun WorkspaceHeader(
             CoreGlassButton(
                 activeCore = state.dashboard.activeCore,
                 onClick = onCore,
+                enabled = !state.serviceOperation.isPending,
             )
             Spacer(Modifier.weight(1f))
             Spacer(Modifier.width(5.dp))
@@ -524,18 +547,21 @@ private fun WorkspaceHeader(
                 label = "Start",
                 color = WebPanelPalette.Success,
                 onClick = { onServiceAction(ServiceAction.Start) },
+                enabled = !state.serviceOperation.isPending,
             )
             Spacer(Modifier.width(4.dp))
             ServiceHeaderButton(
                 label = "Stop",
                 color = WebPanelPalette.Error,
                 onClick = { onServiceAction(ServiceAction.Stop) },
+                enabled = !state.serviceOperation.isPending,
             )
             Spacer(Modifier.width(4.dp))
             ServiceHeaderButton(
                 label = "Restart",
                 color = WebPanelPalette.Warning,
                 onClick = { onServiceAction(ServiceAction.Restart) },
+                enabled = !state.serviceOperation.isPending,
             )
         }
     }
@@ -580,6 +606,7 @@ private fun GlassMenuButton(onClick: () -> Unit) {
 private fun CoreGlassButton(
     activeCore: String,
     onClick: () -> Unit,
+    enabled: Boolean,
 ) {
     val shape = RoundedCornerShape(12.dp)
     Row(
@@ -596,7 +623,7 @@ private fun CoreGlassButton(
                 shape = shape,
             )
             .border(1.dp, WebPanelPalette.Border.copy(alpha = 0.32f), shape)
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -623,7 +650,9 @@ private fun ServiceHeaderButton(
     label: String,
     color: Color,
     onClick: () -> Unit,
+    enabled: Boolean,
 ) {
+    val effectiveColor = if (enabled) color else WebPanelPalette.Muted
     val shape = RoundedCornerShape(11.dp)
     Row(
         modifier = Modifier
@@ -632,7 +661,7 @@ private fun ServiceHeaderButton(
             .background(
                 brush = Brush.verticalGradient(
                     listOf(
-                        color.copy(alpha = 0.18f),
+                        effectiveColor.copy(alpha = 0.18f),
                         WebPanelPalette.Surface.copy(alpha = 0.96f),
                     ),
                 ),
@@ -643,13 +672,13 @@ private fun ServiceHeaderButton(
                 brush = Brush.linearGradient(
                     listOf(
                         Color.White.copy(alpha = 0.10f),
-                        color.copy(alpha = 0.58f),
+                        effectiveColor.copy(alpha = 0.58f),
                         WebPanelPalette.Border.copy(alpha = 0.12f),
                     ),
                 ),
                 shape = shape,
             )
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -657,11 +686,11 @@ private fun ServiceHeaderButton(
         Box(
             modifier = Modifier
                 .size(5.dp)
-                .background(color, CircleShape),
+                .background(effectiveColor, CircleShape),
         )
         Text(
             text = label,
-            color = color,
+            color = effectiveColor,
             fontWeight = FontWeight.ExtraBold,
             fontSize = 11.sp,
             maxLines = 1,
@@ -861,17 +890,20 @@ private fun DashboardScreen(
                         icon = Icons.Outlined.PlayArrow,
                         tone = if (state.dashboard.serviceState == ServiceState.Stopped) ActionTone.Accent else ActionTone.Neutral,
                         onClick = { controller.requestServiceAction(ServiceAction.Start) },
+                        enabled = !state.serviceOperation.isPending,
                     ),
                     GridAction(
                         label = ServiceAction.Stop.label,
                         icon = Icons.Outlined.Stop,
                         tone = if (state.dashboard.serviceState == ServiceState.Running) ActionTone.Accent else ActionTone.Neutral,
                         onClick = { controller.requestServiceAction(ServiceAction.Stop) },
+                        enabled = !state.serviceOperation.isPending,
                     ),
                     GridAction(
                         label = ServiceAction.Restart.label,
                         icon = Icons.Outlined.Refresh,
                         onClick = { controller.requestServiceAction(ServiceAction.Restart) },
+                        enabled = !state.serviceOperation.isPending,
                     ),
                 ),
             )
@@ -1428,6 +1460,86 @@ private fun DiagnosticRow(item: DiagnosticItem) {
 }
 
 @Composable
+private fun ServiceOperationBanner(
+    operation: ServiceOperationState,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (operation.phase == ServiceOperationPhase.Idle) return
+
+    val isFailure = operation.phase == ServiceOperationPhase.Failure
+    val isSuccess = operation.phase == ServiceOperationPhase.Success
+    val containerColor = when {
+        isFailure -> MaterialTheme.colorScheme.errorContainer
+        isSuccess -> WebPanelPalette.Success.copy(alpha = 0.20f)
+        else -> MaterialTheme.colorScheme.secondaryContainer
+    }
+    val contentColor = if (isFailure) {
+        MaterialTheme.colorScheme.onErrorContainer
+    } else {
+        WebPanelPalette.TextStrong
+    }
+    val title = when (operation.phase) {
+        ServiceOperationPhase.Idle -> return
+        ServiceOperationPhase.Pending -> "ОПЕРАЦИЯ ВЫПОЛНЯЕТСЯ"
+        ServiceOperationPhase.Success -> "СЕРВЕР ПОДТВЕРДИЛ РЕЗУЛЬТАТ"
+        ServiceOperationPhase.Failure -> "ОПЕРАЦИЯ НЕ ВЫПОЛНЕНА"
+    }
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = containerColor,
+        shadowElevation = 8.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (operation.phase == ServiceOperationPhase.Pending) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = WebPanelPalette.Accent,
+                )
+            } else {
+                Icon(
+                    imageVector = if (isSuccess) Icons.Outlined.DoneAll else Icons.Outlined.ReportProblem,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = contentColor,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp,
+                )
+                Text(
+                    text = operation.message.orEmpty(),
+                    color = contentColor,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (!operation.isPending) {
+                IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "Скрыть результат операции",
+                        tint = contentColor,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun WarningBanner(message: String) {
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -1588,6 +1700,7 @@ private data class GridAction(
     val icon: ImageVector,
     val onClick: () -> Unit,
     val tone: ActionTone = ActionTone.Neutral,
+    val enabled: Boolean = true,
 )
 
 @Composable
@@ -1697,6 +1810,7 @@ private fun RowScope.ActionGridButton(
 
     FilledTonalButton(
         onClick = action.onClick,
+        enabled = action.enabled,
         modifier = modifier.height(52.dp),
         shape = RoundedCornerShape(14.dp),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),

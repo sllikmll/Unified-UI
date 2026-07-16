@@ -1,6 +1,6 @@
 # Xkeen Mobile Companion Next Practical Step Plan
 
-Status: stages 1-5 completed, stage 6 next
+Status: stages 1-6 completed, stage 7 next
 Updated: 2026-07-16
 
 ## Зачем нужен этот план
@@ -161,6 +161,20 @@ Post-stage editor UX hardening 2026-07-16:
 - Follow-up по проверке на реальном устройстве: включен soft wrap без горизонтального скроллинга, gutter и tab stop уплотнены, а нижний editor padding при открытой клавиатуре уменьшен без изменения общей палитры/layout.
 
 ## Этап 6. Backend-backed service actions и core switch
+
+Статус: завершено 2026-07-16
+
+Детальная точка приемки: [stage-6-closure-checklist.md](stage-6-closure-checklist.md).
+
+Что сделано:
+
+- Production composition переведен с `DemoServiceActionsPort` на `WebPanelServiceActionsPort`: `start`, `stop`, `restart` и смена ядра вызывают реальные CSRF-protected backend endpoint'ы.
+- Успешный POST больше не меняет dashboard сам по себе: клиент перечитывает `GET /api/xkeen/status` и `GET /api/xkeen/core`, проверяет ожидаемый runtime state и только затем публикует `Success`.
+- Добавлено единое состояние `Idle / Pending / Success / Failure`, глобальная result surface, явная ошибка в dashboard/diagnostics/logs и блокировка повторных service/core действий во время запроса.
+- Confirm dialog запускает suspend-operation из coroutine; core dialog остается в pending/error flow и закрывается автоматически только после server-confirmed success.
+- Для потенциально долгого core switch используется отдельный action transport с read timeout 90 секунд; обычные read/session запросы сохраняют прежние timeout'ы.
+- Если write завершается ошибкой, controller по возможности перечитывает service/core snapshot с сервера, но не превращает этот refresh в ложный success исходной операции.
+- Добавлены unit tests на endpoint/payload contract, parsing, mismatch между принятым POST и runtime state, pending/repeat guard, success/failure и server-backed dashboard refresh.
 
 Что делаем:
 

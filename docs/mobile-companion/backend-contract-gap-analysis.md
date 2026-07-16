@@ -1,7 +1,7 @@
 # Xkeen-UI Mobile Companion Backend Contract Gap Analysis
 
 Status: working analysis
-Updated: 2026-07-13
+Updated: 2026-07-16
 
 ## Цель
 
@@ -11,20 +11,20 @@ Updated: 2026-07-13
 
 ## Краткий вывод
 
-Текущий backend уже дает почти все необходимые доменные возможности, а Android-клиент начал переиспользовать часть существующих read-only endpoint'ов напрямую. Но удобного мобильного контракта "из коробки" все еще нет. Главные проблемы не в отсутствии логики, а в форме доступа к ней: browser-style auth, смешанная гранулярность эндпоинтов, отсутствие versioned mobile namespace и неоднородный формат ответов для быстрых мобильных сценариев.
+Текущий backend уже дает почти все необходимые доменные возможности, а Android-клиент переиспользует read-only и service-control endpoint'ы напрямую. Для auth/session уже есть минимальный versioned namespace `/api/mobile/v1`, но агрегированного ready/actions контракта всё еще нет. Главные проблемы теперь в смешанной гранулярности endpoint'ов, неоднородном формате ответов и отсутствии единой модели долгих операций.
 
 Рекомендуемое направление: оставить существующие web endpoints как есть и добавить тонкий adapter layer наподобие `/api/mobile/v1/*`, который агрегирует текущие сервисы в мобильные use cases.
 
-## Практический статус на 2026-07-13
+## Практический статус на 2026-07-16
 
 Этот gap analysis теперь опирается на уже существующий Android baseline в `android-companion/`. На стороне клиента уже есть рабочий Compose shell с фазами `Launching`, `Connections`, `Pair/Login`, `Ready`, capability-aware вкладками `Xray`, `Mihomo`, `Ports`, `Shell`, `Generator` и контекстными drawer-разделами.
 
-Клиент больше не является чисто demo-only: уже подключены read-only запросы `GET /api/xkeen/core`, `GET /api/routing/fragments`, `GET /api/routing?file=...`, а `Routing Xray` умеет читать fragment list и содержимое документов. Но write/apply/service actions, auth/session transport, logs и terminal пока не опираются на полноценный backend contract.
+Клиент больше не является demo-only: подключены auth/session bootstrap, read-only запросы `GET /api/xkeen/core`, `GET /api/routing/fragments`, `GET /api/routing?file=...` и реальные service actions через `POST /api/xkeen/start`, `POST /api/xkeen/stop`, `POST /api/restart`, `POST /api/xkeen/core`. После write Android перечитывает `/api/xkeen/status` и `/api/xkeen/core` и публикует success только при совпадении подтвержденного runtime state. Routing validate/write, logs и terminal пока не опираются на полноценный mobile contract.
 
 Это делает backend gap очень конкретным: следующий рабочий шаг не в новых экранах, а в доведении текущего shell до реального mobile contract со следующими минимальными slices:
 
-- `bootstrap` и session bootstrap/pairing;
-- ready-workspace summary и safe service actions;
+- закрыто: `bootstrap` и alpha session bootstrap/login/restore;
+- частично закрыто compatibility adapter'ом: safe service actions; агрегированный ready-workspace/action contract всё еще нужен;
 - logs history/live transport с reconnect semantics;
 - `Routing Xray` document, `validate`, `preview`, `save`, `apply` flow.
 
@@ -34,7 +34,7 @@ Updated: 2026-07-13
 | --- | --- | --- | --- |
 | Auth and setup | `GET /api/auth/status`, `POST /api/auth/login`, `POST /api/auth/logout`, `POST /api/auth/setup` | Логика есть, но UX browser-oriented | Переиспользовать backend auth services, но не тащить текущую cookie+CSRF схему в UI без адаптера |
 | Capabilities | `GET /api/capabilities` | Хорошая база для feature gating | Сохранить и встроить в mobile bootstrap/dashboard |
-| Service control | `GET /api/xkeen/status`, `GET /api/xkeen/core`, `GET /api/cores/status`, `GET /api/cores/versions`, `GET /api/cores/updates`, `POST /api/xkeen/start`, `POST /api/xkeen/stop`, `POST /api/xkeen/core`, `POST /api/restart`, `POST /api/restart-xkeen` | Сильная база для quick actions; `GET /api/xkeen/core` уже читается Android-клиентом | Обернуть в агрегированный ready summary и action endpoints |
+| Service control | `GET /api/xkeen/status`, `GET /api/xkeen/core`, `GET /api/cores/status`, `GET /api/cores/versions`, `GET /api/cores/updates`, `POST /api/xkeen/start`, `POST /api/xkeen/stop`, `POST /api/xkeen/core`, `POST /api/restart`, `POST /api/restart-xkeen` | Quick actions уже используются Android-клиентом через единый port и server reread | Сохранить compatibility adapter; позже обернуть в агрегированный ready summary/action contract с operation semantics |
 | Logs and streams | `GET /api/xray-logs`, `GET /api/xray-logs/status`, `GET /api/restart-log`, `POST /api/ws-token`, `/ws/xray-logs`, `/ws/xray-logs2`, `/ws/devtools-logs` | Пригодно частично, но потоковая модель заточена под web | Вынести мобильный streaming contract и единый reconnect-friendly protocol |
 | Xray routing workflows | Xray routing/config endpoints и связанные backend services | Высокая ценность для первого editor-like mobile модуля; read-only fragments/content уже переиспользуются, но current shape все еще web-oriented | Вынести отдельные mobile use cases для `Routing Xray`: documents, validate, preview, save, apply, conflict detection |
 | Mihomo workflows | Группы `/api/mihomo/profiles*`, `/api/mihomo/subscriptions*`, `/api/mihomo/generate*`, `/api/mihomo/backups*` | Полезная логика есть, но слишком широкая поверхность | Для V1 выделить quick profile/status actions, затем отдельными slices переносить `Routing Mihomo` и части `Mihomo Generator` |

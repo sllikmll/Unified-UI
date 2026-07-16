@@ -3,6 +3,7 @@ package io.xkeen.mobile.app
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.CancellationException
 
 internal class CompanionController(
     initialState: CompanionUiState = CompanionUiState(),
@@ -51,6 +52,8 @@ internal class CompanionController(
                     message = "Срок мобильной сессии истек. Войдите снова.",
                 )
             }
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Exception) {
             state = state.copy(
                 phase = AppPhase.PairLogin,
@@ -133,6 +136,7 @@ internal class CompanionController(
     }
 
     fun backToConnections() {
+        if (state.serviceOperation.isPending) return
         state = state.copy(
             phase = AppPhase.Connections,
             pendingAction = null,
@@ -142,6 +146,7 @@ internal class CompanionController(
     }
 
     fun openConnections() {
+        if (state.serviceOperation.isPending) return
         state = state.copy(
             phase = AppPhase.Connections,
             pendingAction = null,
@@ -171,6 +176,8 @@ internal class CompanionController(
                 is SessionPairResult.Open -> openSession(result.result)
                 is SessionPairResult.Status -> updateSessionStatus(result)
             }
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Exception) {
             sessionFailed(error, "Не удалось проверить узел")
         }
@@ -186,6 +193,8 @@ internal class CompanionController(
 
         try {
             openSession(dependencies.session.login(connection, state.loginForm))
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Exception) {
             sessionFailed(error, "Не удалось выполнить вход")
         }
@@ -211,7 +220,8 @@ internal class CompanionController(
         )
     }
 
-    fun switchCore(core: String) {
+    suspend fun switchCore(core: String) {
+        if (state.serviceOperation.isPending) return
         val selectedCore = state.dashboard.availableCores.firstOrNull {
             it.equals(core, ignoreCase = true)
         } ?: return
@@ -219,24 +229,55 @@ internal class CompanionController(
             return
         }
 
-        val switchedAt = dependencies.journal.shortTime()
-        val result = dependencies.serviceActions.switchCore(selectedCore)
+        val endpoint = state.dashboard.endpoint
         state = state.copy(
-            dashboard = state.dashboard.copy(
-                activeCore = result.activeCore,
-                serviceState = result.serviceState,
-                statusSummary = result.statusSummary,
-                lastOperation = result.lastOperation,
-                recentEvents = listOf(
-                    RecentEvent(
-                        time = switchedAt,
-                        title = result.eventTitle,
-                        subtitle = result.eventSubtitle,
-                    ),
-                ) + state.dashboard.recentEvents.take(2),
+            pendingAction = null,
+            serviceOperation = ServiceOperationState(
+                phase = ServiceOperationPhase.Pending,
+                targetCore = selectedCore,
+                message = "Переключаем ядро на $selectedCore и ждём подтверждение сервера…",
             ),
-            logs = recordLog("service", LogLevel.Info, result.logMessage),
+            dashboard = state.dashboard.copy(
+                statusSummary = "Переключение ядра выполняется",
+                lastOperation = "Ожидаем подтверждение ядра $selectedCore",
+                lastError = null,
+            ),
         )
+
+        try {
+            val result = dependencies.serviceActions.switchCore(endpoint, selectedCore)
+            val switchedAt = dependencies.journal.shortTime()
+            applyConfirmedServiceSnapshot(result.snapshot)
+            state = state.copy(
+                serviceOperation = ServiceOperationState(
+                    phase = ServiceOperationPhase.Success,
+                    targetCore = result.snapshot.activeCore,
+                    message = result.statusSummary,
+                ),
+                dashboard = state.dashboard.copy(
+                    statusSummary = result.statusSummary,
+                    lastOperation = result.lastOperation,
+                    lastError = null,
+                    recentEvents = listOf(
+                        RecentEvent(
+                            time = switchedAt,
+                            title = result.eventTitle,
+                            subtitle = result.eventSubtitle,
+                        ),
+                    ) + state.dashboard.recentEvents.take(2),
+                ),
+                logs = recordLog("service", LogLevel.Info, result.logMessage),
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            serviceOperationFailed(
+                endpoint = endpoint,
+                error = error,
+                fallback = "Не удалось переключить ядро на $selectedCore.",
+                targetCore = selectedCore,
+            )
+        }
     }
 
     suspend fun refreshCoreStatus() {
@@ -257,6 +298,7 @@ internal class CompanionController(
     }
 
     fun requestServiceAction(action: ServiceAction) {
+        if (state.serviceOperation.isPending || state.pendingAction != null) return
         state = state.copy(pendingAction = PendingAction.Service(action))
     }
 
@@ -287,11 +329,17 @@ internal class CompanionController(
         state = state.copy(pendingAction = null)
     }
 
-    fun confirmPendingAction() {
+    fun dismissServiceOperationResult() {
+        if (!state.serviceOperation.isPending) {
+            state = state.copy(serviceOperation = ServiceOperationState())
+        }
+    }
+
+    suspend fun confirmPendingAction() {
         when (val action = state.pendingAction) {
             is PendingAction.Service -> {
-                performServiceAction(action.action)
                 state = state.copy(pendingAction = null)
+                performServiceAction(action.action)
             }
 
             PendingAction.ApplyRouting -> {
@@ -556,7 +604,7 @@ internal class CompanionController(
 
     suspend fun disconnect() {
         val connection = selectedConnection() ?: return
-        if (state.isSessionBusy) return
+        if (state.isSessionBusy || state.serviceOperation.isPending) return
         state = state.copy(isSessionBusy = true)
         val result = try {
             dependencies.session.disconnect(connection)
@@ -598,6 +646,8 @@ internal class CompanionController(
                 severity = DiagnosticSeverity.Ok,
             ),
             logs = recordLog("auth", LogLevel.Info, result.logMessage),
+            serviceOperation = ServiceOperationState(),
+            pendingAction = null,
         )
     }
 
@@ -641,6 +691,8 @@ internal class CompanionController(
                 severity = DiagnosticSeverity.Warning,
             ),
             logs = recordLog("auth", LogLevel.Warning, result.logMessage),
+            serviceOperation = ServiceOperationState(),
+            pendingAction = null,
         )
     }
 
@@ -673,20 +725,103 @@ internal class CompanionController(
         return true
     }
 
-    private fun performServiceAction(action: ServiceAction) {
-        val actionTime = dependencies.journal.shortTime()
-        val result = dependencies.serviceActions.perform(action)
-
+    private suspend fun performServiceAction(action: ServiceAction) {
+        if (state.serviceOperation.isPending) return
+        val endpoint = state.dashboard.endpoint
+        val pendingMessage = when (action) {
+            ServiceAction.Start -> "Запускаем xkeen и ждём подтверждение сервера…"
+            ServiceAction.Stop -> "Останавливаем xkeen и ждём подтверждение сервера…"
+            ServiceAction.Restart -> "Перезапускаем xkeen и ждём подтверждение сервера…"
+        }
         state = state.copy(
-            dashboard = state.dashboard.copy(
-                serviceState = result.serviceState,
-                statusSummary = result.statusSummary,
-                lastOperation = result.lastOperation,
-                recentEvents = listOf(
-                    RecentEvent(actionTime, result.eventTitle, result.eventSubtitle),
-                ) + state.dashboard.recentEvents.take(2),
+            serviceOperation = ServiceOperationState(
+                phase = ServiceOperationPhase.Pending,
+                action = action,
+                message = pendingMessage,
             ),
-            logs = recordLog("service", LogLevel.Info, result.logMessage),
+            dashboard = state.dashboard.copy(
+                statusSummary = pendingMessage,
+                lastOperation = "Выполняется: ${action.label.lowercase()}",
+                lastError = null,
+            ),
+        )
+
+        try {
+            val result = dependencies.serviceActions.perform(endpoint, action)
+            val actionTime = dependencies.journal.shortTime()
+            applyConfirmedServiceSnapshot(result.snapshot)
+            state = state.copy(
+                serviceOperation = ServiceOperationState(
+                    phase = ServiceOperationPhase.Success,
+                    action = action,
+                    message = result.statusSummary,
+                ),
+                dashboard = state.dashboard.copy(
+                    statusSummary = result.statusSummary,
+                    lastOperation = result.lastOperation,
+                    lastError = null,
+                    recentEvents = listOf(
+                        RecentEvent(actionTime, result.eventTitle, result.eventSubtitle),
+                    ) + state.dashboard.recentEvents.take(2),
+                ),
+                logs = recordLog("service", LogLevel.Info, result.logMessage),
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            serviceOperationFailed(
+                endpoint = endpoint,
+                error = error,
+                fallback = "Не удалось выполнить действие «${action.label}».",
+                action = action,
+            )
+        }
+    }
+
+    private suspend fun serviceOperationFailed(
+        endpoint: String,
+        error: Exception,
+        fallback: String,
+        action: ServiceAction? = null,
+        targetCore: String? = null,
+    ) {
+        if (returnToLoginForExpiredSession(error)) return
+
+        val refreshed = try {
+            Result.success(dependencies.serviceActions.load(endpoint))
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
+        refreshed.onSuccess(::applyConfirmedServiceSnapshot)
+        val refreshError = refreshed.exceptionOrNull()
+        if (refreshError != null && returnToLoginForExpiredSession(refreshError)) return
+
+        val detail = error.toCompanionLoadMessage(fallback = "Повторите попытку позже.")
+        val message = if (detail.trimEnd('.', ' ') == fallback.trimEnd('.', ' ')) {
+            fallback
+        } else {
+            "$fallback $detail"
+        }
+        state = state.copy(
+            serviceOperation = ServiceOperationState(
+                phase = ServiceOperationPhase.Failure,
+                action = action,
+                targetCore = targetCore,
+                message = message,
+            ),
+            dashboard = state.dashboard.copy(
+                statusSummary = "Ошибка управления сервисом",
+                lastOperation = fallback,
+                lastError = message,
+            ),
+            diagnostics = state.diagnostics.replaceDiagnostic(
+                label = "Управление сервисом",
+                status = message,
+                severity = DiagnosticSeverity.Error,
+            ),
+            logs = recordLog("service", LogLevel.Error, message),
         )
     }
 
@@ -757,6 +892,18 @@ internal class CompanionController(
                 activeCore = activeCore,
                 availableCores = availableCores,
             ),
+        )
+    }
+
+    private fun applyConfirmedServiceSnapshot(snapshot: ConfirmedServiceSnapshot) {
+        applyCoreStatus(
+            CoreStatus(
+                availableCores = snapshot.availableCores,
+                currentCore = snapshot.activeCore,
+            ),
+        )
+        state = state.copy(
+            dashboard = state.dashboard.copy(serviceState = snapshot.serviceState),
         )
     }
 

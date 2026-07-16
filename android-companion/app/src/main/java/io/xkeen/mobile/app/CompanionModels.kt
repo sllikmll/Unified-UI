@@ -109,6 +109,13 @@ enum class ServiceState {
     Restarting,
 }
 
+enum class ServiceOperationPhase {
+    Idle,
+    Pending,
+    Success,
+    Failure,
+}
+
 enum class LogLevel {
     Info,
     Warning,
@@ -144,6 +151,16 @@ enum class ServiceAction(val label: String) {
     Start("Старт"),
     Stop("Стоп"),
     Restart("Перезапуск"),
+}
+
+data class ServiceOperationState(
+    val phase: ServiceOperationPhase = ServiceOperationPhase.Idle,
+    val action: ServiceAction? = null,
+    val targetCore: String? = null,
+    val message: String? = null,
+) {
+    val isPending: Boolean
+        get() = phase == ServiceOperationPhase.Pending
 }
 
 data class Connection(
@@ -279,6 +296,7 @@ data class CompanionUiState(
     val logs: LogsState = demoLogsState(),
     val diagnostics: List<DiagnosticItem> = demoDiagnostics(),
     val pendingAction: PendingAction? = null,
+    val serviceOperation: ServiceOperationState = ServiceOperationState(),
 )
 
 fun demoDashboardState(): DashboardState = DashboardState(

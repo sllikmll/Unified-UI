@@ -11,8 +11,9 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 - `Pair/Login` работает через реальный `MobileSessionPort`: сначала используется `GET /api/mobile/v1/bootstrap` и `POST/DELETE /api/mobile/v1/session`. Если установленный Xkeen UI еще закрывает mobile handshake ответом старой версии, приложение автоматически и без перехода в браузер использует совместимый `/api/auth/status` + CSRF-protected `/api/auth/login` flow.
 - Экран входа проверяет узел автоматически и оставляет пользователю одно основное действие: ввести данные веб-панели и нажать `Войти`. Логин и пароль расположены вертикально, пароль можно показать, а клавиша `Done` запускает вход.
 - `Ready`-состояние построено как capability-aware workspace с компактной верхней панелью, отдельной кнопкой `Core` и безопасными действиями `start`, `stop`, `restart` через confirm dialog.
+- `start`, `stop`, `restart` и смена `Core` выполняются реальным `WebPanelServiceActionsPort`; успех показывается только после повторного чтения runtime/core state с сервера.
 
-Этап 5 закрыт 2026-07-16; подробная приемка зафиксирована в [stage-5-closure-checklist.md](stage-5-closure-checklist.md). Cold start выбранного узла без trusted material сразу открывает `Pair/Login`, а backend contract и Android unit/build verification проходят.
+Этапы 5 и 6 закрыты 2026-07-16; приемка зафиксирована в [stage-5-closure-checklist.md](stage-5-closure-checklist.md) и [stage-6-closure-checklist.md](stage-6-closure-checklist.md). Service/core actions теперь backend-backed и server-confirmed.
 
 ## Текущая навигация
 
@@ -43,6 +44,7 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 - `GET /api/xkeen/core` загружает список установленных ядер и автоматически скрывает недоступные вкладки и drawer-секции.
 - `GET /api/routing/fragments` загружает список Xray routing-документов.
 - `GET /api/routing?file=...` загружает содержимое выбранного routing-документа.
+- `POST /api/xkeen/start`, `POST /api/xkeen/stop`, `POST /api/restart` и `POST /api/xkeen/core` выполняют service/core actions; после каждого принятого POST приложение сверяет результат через `GET /api/xkeen/status` и `GET /api/xkeen/core`.
 - Эти read-only запросы идут через единый `CompanionHttpTransport`: он нормализует безопасный `baseUrl`, добавляет common headers, применяет timeout и оставляет seam для session auth headers.
 - `401`, `403`, `428`, HTML login page, offline и timeout переводятся в типизированные app-level ошибки. `Core` отражает их в dashboard, diagnostics и logs, а `Routing Xray` — в retryable load state.
 
@@ -51,7 +53,7 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 - `DemoCompanionController` заменен на `CompanionController`, который зависит от `CompanionControllerDependencies`, а не от жестко пришитых demo-side effects.
 - Для следующего слоя выделены отдельные порты: `ConnectionsPort`, `SessionPort`, `ServiceActionsPort`, `RoutingWritePort`, `LogsPort`; time/journal helper живет отдельно в `CompanionJournalPort`.
 - `CompanionController` больше не собирает `LogEntry` вручную: запись controller-событий идет через `LogsPort`, поэтому транспорт логов и policy хранения можно будет заменить без роста reducer-логики.
-- `ConnectionsPort` уже переведен на реальный app-private persistence; demo `SessionPort` уже проходит через `SessionMaterialStore`, а `ServiceActionsPort`, `RoutingWritePort` и `LogsPort` пока используют demo-адаптеры.
+- `ConnectionsPort`, `SessionPort` и production `ServiceActionsPort` уже имеют реальные реализации; `RoutingWritePort` и `LogsPort` пока используют demo-адаптеры.
 - Логика controller/reducer теперь тестируется отдельно от transport и storage seam.
 
 ## Локальное хранение подключений
@@ -73,7 +75,7 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 
 ### Политика automatic restore
 
-На этапе 5 приложение сможет попытаться восстановить только `loadTrusted()`-record выбранного узла и обязано подтвердить либо refresh-нуть его на backend. Повторный вход потребуется при отсутствии marker, поврежденном payload/сбросе Keystore, а также при истекшей или отозванной серверной сессии. Само наличие сохраненного подключения или статуса `Configured` не является доверенной сессией.
+Приложение пытается восстановить только `loadTrusted()`-record выбранного узла и подтверждает его на backend. Повторный вход требуется при отсутствии marker, поврежденном payload/сбросе Keystore, а также при истекшей или отозванной серверной сессии. Само наличие сохраненного подключения или статуса `Configured` не является доверенной сессией.
 
 ## Routing Xray
 
@@ -118,12 +120,11 @@ cd android-companion
 
 ## Что пока остаётся demo-only
 
-- `start`, `stop`, `restart` и переключение `Core` уже вынесены в `ServiceActionsPort`, но пока меняют только локальный state и не вызывают POST-endpoint'ы.
 - `Routing Xray` читает документы с сервера, но `validate` еще локальный, а `save/apply` пока работают через demo `RoutingWritePort`, а не через backend.
 - Controller-события уже проходят через `LogsPort`, но настоящего logs streaming, PTY transport, reconnect behavior и offline persistence пока нет.
 - Большая часть разделов `Mihomo`, `Ports` и `Generator` пока остаётся placeholder-поверхностями.
 
 ## Следующий практический шаг
 
-- Этап 6: заменить demo `ServiceActionsPort` на backend-backed service actions и core switch с server-confirmed result.
-- Затем заменить demo-адаптеры `RoutingWritePort` и `LogsPort` на backend-backed реализации.
+- Этап 7: подключить реальный backend round-trip для `Routing Xray validate` и разделить локальные syntax issues от server diagnostics.
+- Затем выполнить backend-backed `Routing Xray save/apply` с conflict handling и подключить logs transport/reconnect.

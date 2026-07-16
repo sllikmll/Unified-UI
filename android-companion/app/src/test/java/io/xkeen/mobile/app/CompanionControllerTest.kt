@@ -216,7 +216,7 @@ class CompanionControllerTest {
     }
 
     @Test
-    fun switchingCoreUpdatesDashboardAndRestartLog() {
+    fun switchingCoreUpdatesDashboardAndRestartLog() = runTest {
         val controller = CompanionController(
             initialState = CompanionUiState(phase = AppPhase.Ready),
             dependencies = testDependencies(),
@@ -236,7 +236,7 @@ class CompanionControllerTest {
     }
 
     @Test
-    fun switchingCoreUsesLogsPortSeam() {
+    fun switchingCoreUsesLogsPortSeam() = runTest {
         val logsPort = FakeLogsPort(
             resultingState = LogsState(
                 entries = listOf(
@@ -259,7 +259,7 @@ class CompanionControllerTest {
     }
 
     @Test
-    fun currentOrUnavailableCoreDoesNotChangeState() {
+    fun currentOrUnavailableCoreDoesNotChangeState() = runTest {
         val controller = CompanionController(
             initialState = CompanionUiState(phase = AppPhase.Ready),
             dependencies = testDependencies(),
@@ -270,6 +270,87 @@ class CompanionControllerTest {
         controller.switchCore("sing-box")
 
         assertEquals(initialState, controller.state)
+    }
+
+    @Test
+    fun confirmedServiceActionExposesPendingBlocksRepeatsAndUsesServerSnapshot() = runTest {
+        lateinit var controller: CompanionController
+        var performCalls = 0
+        val serviceActions = object : ServiceActionsPort {
+            override suspend fun switchCore(baseUrl: String, core: String): CoreSwitchResult =
+                error("Not used")
+
+            override suspend fun perform(baseUrl: String, action: ServiceAction): ServiceActionResult {
+                performCalls += 1
+                assertEquals(ServiceOperationPhase.Pending, controller.state.serviceOperation.phase)
+                assertEquals(ServiceAction.Start, controller.state.serviceOperation.action)
+                controller.requestServiceAction(ServiceAction.Stop)
+                assertNull(controller.state.pendingAction)
+                return ServiceActionResult(
+                    snapshot = ConfirmedServiceSnapshot(
+                        serviceState = ServiceState.Running,
+                        activeCore = "Mihomo",
+                        availableCores = listOf("Xray", "Mihomo"),
+                    ),
+                    statusSummary = "Сервер подтвердил запуск",
+                    lastOperation = "Сервис запущен сервером",
+                    eventTitle = "Старт",
+                    eventSubtitle = "Подтверждено",
+                    logMessage = "server-confirmed start",
+                )
+            }
+
+            override suspend fun load(baseUrl: String): ConfirmedServiceSnapshot = error("Not used")
+        }
+        controller = CompanionController(
+            initialState = CompanionUiState(phase = AppPhase.Ready),
+            dependencies = testDependencies(serviceActions = serviceActions),
+        )
+
+        controller.requestServiceAction(ServiceAction.Start)
+        assertEquals(PendingAction.Service(ServiceAction.Start), controller.state.pendingAction)
+        controller.confirmPendingAction()
+
+        assertEquals(1, performCalls)
+        assertEquals(ServiceOperationPhase.Success, controller.state.serviceOperation.phase)
+        assertEquals("Сервер подтвердил запуск", controller.state.serviceOperation.message)
+        assertEquals(ServiceState.Running, controller.state.dashboard.serviceState)
+        assertEquals("Mihomo", controller.state.dashboard.activeCore)
+        assertEquals("Сервис запущен сервером", controller.state.dashboard.lastOperation)
+        assertNull(controller.state.dashboard.lastError)
+    }
+
+    @Test
+    fun failedServiceActionIsExplicitAndStillRefreshesDashboardFromServer() = runTest {
+        val serviceActions = object : ServiceActionsPort {
+            override suspend fun switchCore(baseUrl: String, core: String): CoreSwitchResult =
+                error("Not used")
+
+            override suspend fun perform(baseUrl: String, action: ServiceAction): ServiceActionResult {
+                throw ServiceActionException("Команда отклонена сервером.")
+            }
+
+            override suspend fun load(baseUrl: String): ConfirmedServiceSnapshot =
+                ConfirmedServiceSnapshot(
+                    serviceState = ServiceState.Stopped,
+                    activeCore = "Mihomo",
+                    availableCores = listOf("Xray", "Mihomo"),
+                )
+        }
+        val controller = CompanionController(
+            initialState = CompanionUiState(phase = AppPhase.Ready),
+            dependencies = testDependencies(serviceActions = serviceActions),
+        )
+
+        controller.requestServiceAction(ServiceAction.Restart)
+        controller.confirmPendingAction()
+
+        assertEquals(ServiceOperationPhase.Failure, controller.state.serviceOperation.phase)
+        assertTrue(controller.state.serviceOperation.message.orEmpty().contains("Команда отклонена сервером"))
+        assertEquals(ServiceState.Stopped, controller.state.dashboard.serviceState)
+        assertEquals("Mihomo", controller.state.dashboard.activeCore)
+        assertEquals(controller.state.serviceOperation.message, controller.state.dashboard.lastError)
+        assertEquals(LogLevel.Error, controller.state.logs.entries.first().level)
     }
 
     @Test

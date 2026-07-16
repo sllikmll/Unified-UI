@@ -43,6 +43,7 @@ import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -115,7 +116,11 @@ internal fun WorkspaceNavigationFrame(
                     controller.selectWorkspaceSection(section)
                     closeDrawer()
                 },
-                onCore = { closeDrawer { showCoreDialog = true } },
+                onCore = {
+                    closeDrawer {
+                        if (!state.serviceOperation.isPending) showCoreDialog = true
+                    }
+                },
                 onConnections = { closeDrawer(controller::openConnections) },
             )
         },
@@ -127,7 +132,9 @@ internal fun WorkspaceNavigationFrame(
             },
             {
                 focusManager.clearEditorFocus()
-                showCoreDialog = true
+                if (!state.serviceOperation.isPending) {
+                    showCoreDialog = true
+                }
             },
         )
     }
@@ -136,10 +143,21 @@ internal fun WorkspaceNavigationFrame(
         CoreSelectionDialog(
             activeCore = state.dashboard.activeCore,
             availableCores = state.dashboard.availableCores,
-            onDismiss = { showCoreDialog = false },
+            operation = state.serviceOperation,
+            onDismiss = {
+                if (!state.serviceOperation.isPending) showCoreDialog = false
+            },
             onApply = { core ->
-                controller.switchCore(core)
-                showCoreDialog = false
+                scope.launch {
+                    controller.switchCore(core)
+                    val completed = controller.state.serviceOperation
+                    if (
+                        completed.phase == ServiceOperationPhase.Success &&
+                        completed.targetCore.equals(core, ignoreCase = true)
+                    ) {
+                        showCoreDialog = false
+                    }
+                }
             },
         )
     }
@@ -308,6 +326,7 @@ internal fun WorkspaceSectionContent(
 private fun CoreSelectionDialog(
     activeCore: String,
     availableCores: List<String>,
+    operation: ServiceOperationState,
     onDismiss: () -> Unit,
     onApply: (String) -> Unit,
 ) {
@@ -315,9 +334,12 @@ private fun CoreSelectionDialog(
     val initialSelection = available.firstOrNull { it.equals(activeCore, ignoreCase = true) }
         ?: available.firstOrNull().orEmpty()
     var selectedCore by remember(activeCore, available) { mutableStateOf(initialSelection) }
-    val canApply = selectedCore.isNotBlank() && !selectedCore.equals(activeCore, ignoreCase = true)
+    val isPending = operation.isPending
+    val canApply = selectedCore.isNotBlank() &&
+        !selectedCore.equals(activeCore, ignoreCase = true) &&
+        !isPending
 
-    XkeenDialog(onDismissRequest = onDismiss) {
+    XkeenDialog(onDismissRequest = { if (!isPending) onDismiss() }) {
         Column(modifier = Modifier.padding(18.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -368,6 +390,7 @@ private fun CoreSelectionDialog(
                     name = core,
                     selected = core.equals(selectedCore, ignoreCase = true),
                     current = core.equals(activeCore, ignoreCase = true),
+                    enabled = !isPending,
                     onClick = { selectedCore = core },
                 )
                 Spacer(Modifier.size(9.dp))
@@ -395,13 +418,51 @@ private fun CoreSelectionDialog(
                 )
             }
 
+            if (operation.targetCore.equals(selectedCore, ignoreCase = true)) {
+                operation.message?.takeIf(String::isNotBlank)?.let { message ->
+                    Spacer(Modifier.size(10.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = if (operation.phase == ServiceOperationPhase.Failure) {
+                                    MaterialTheme.colorScheme.errorContainer
+                                } else {
+                                    WebPanelPalette.SurfaceRaised
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                            )
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (isPending) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        }
+                        Text(
+                            text = message,
+                            modifier = Modifier.weight(1f),
+                            color = if (operation.phase == ServiceOperationPhase.Failure) {
+                                MaterialTheme.colorScheme.onErrorContainer
+                            } else {
+                                WebPanelPalette.Text
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            }
+
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                OutlinedButton(onClick = onDismiss) {
+                OutlinedButton(onClick = onDismiss, enabled = !isPending) {
                     Text("Отмена")
                 }
                 Spacer(Modifier.size(10.dp))
@@ -410,7 +471,7 @@ private fun CoreSelectionDialog(
                     enabled = canApply,
                     colors = ButtonDefaults.buttonColors(containerColor = CoreBlue),
                 ) {
-                    Text("Применить")
+                    Text(if (isPending) "Ожидаем сервер" else "Применить")
                 }
             }
         }
@@ -422,6 +483,7 @@ private fun CoreEngineRow(
     name: String,
     selected: Boolean,
     current: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
 ) {
     val container = if (selected) CoreBlue else WebPanelPalette.Surface
@@ -431,7 +493,7 @@ private fun CoreEngineRow(
         modifier = Modifier
             .fillMaxWidth()
             .background(container, RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 17.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

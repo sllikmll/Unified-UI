@@ -5,7 +5,7 @@ Updated: 2026-07-16
 
 Даты намеренно не проставлены. Сначала нам нужно закрыть product scope, security assumptions и backend contract, а уже потом оценивать сроки.
 
-## Текущее состояние на 2026-07-15
+## Текущее состояние на 2026-07-16
 
 - `Phase 0` по сути закрыла стартовую документацию, screen map и compact-mobile guardrails.
 - `Phase 2` идет фактически: в репозитории есть `android-companion/` с рабочим Compose baseline и экранным циклом `Launching -> Connections -> Pair/Login -> Ready`.
@@ -15,7 +15,8 @@ Updated: 2026-07-16
 - Уже подключен app-private persistence списка узлов, базового metadata и последнего выбранного подключения; cold start больше не зависит от demo-списка.
 - Уже подключен per-connection secure storage session material: AES-GCM payload с ключом Android Keystore, encrypted trusted-restore marker и очистка выбранного record при logout. Обычный `Configured` node не является trusted session.
 - Этап 5 закрыт: real alpha session slice включает `/api/mobile/v1/bootstrap`, login и logout, `MobileSessionPort`, cookie+CSRF auth hook, server-validated trusted restore, явный `Pair/Login` fallback и обработку `401` из `Ready`; backend contract и Android unit/build verification green.
-- Главные оставшиеся работы Phase 2 — backend-backed write/apply actions и реальный logs/terminal transport.
+- Этап 6 закрыт: service actions и core switch backend-backed, CSRF-protected и server-confirmed; UI имеет pending/success/failure и repeat guard.
+- Главные оставшиеся работы Phase 2 — backend-backed routing validate/save/apply и реальный logs/terminal transport.
 
 ## Phase 0 - Discovery and scope freeze
 
@@ -88,19 +89,20 @@ Updated: 2026-07-16
 - Уже сделано: read-only network client переведен на единый transport/error-semantics path.
 - Уже сделано: реализован real alpha auth/session layer с backend bootstrap, login/logout и server-side validation trusted cookie+CSRF session.
 - Уже сделано: этап 5 закрыт с явным `Launching -> Pair/Login` fallback при отсутствии/повреждении trusted material и green Android unit suite.
+- Уже сделано: этап 6 закрыл реальные `start/stop/restart/core` POST-вызовы, server reread runtime/core state и явный action lifecycle.
 - Еще осталось: закрыть reconnect behavior.
-- Еще осталось: довести backend-backed `save/apply/service actions`, logs transport и terminal transport.
+- Еще осталось: довести backend-backed routing `validate/save/apply`, logs transport и terminal transport.
 - Еще осталось: проверить подход к оберткам над open-source editor/log/terminal компонентами без ранней жесткой привязки.
 
 ### Exit criteria
 
 - Приложение собирается и запускается на целевых Android-устройствах.
 - Можно добавить Xkeen-UI инстанс и дойти до состояния `Ready` без браузерного fallback.
-- Этап 5 считается выполненным только после всех критериев [session closure checklist](../../android-companion/stage-5-closure-checklist.md): versioned backend bootstrap/login/logout, Keystore-only cookie+CSRF storage без пароля, coroutine UI, server-validated `Launching -> Ready`, явный `Pair/Login` fallback для отсутствующей/невалидной/истекшей сессии и `401` из `Ready`, изоляция по выбранному `connectionId` даже при одинаковом `baseUrl`, backend contract tests и Android unit tests.
+- Этапы 5 и 6 закрыты по [session closure checklist](../../android-companion/stage-5-closure-checklist.md) и [service actions closure checklist](../../android-companion/stage-6-closure-checklist.md).
 - Сессия и данные подключения переживают перезапуск приложения корректно.
 - Базовые состояния UI выглядят предсказуемо и не требуют web fallback.
 
-Первый критерий, persistence данных подключения, secure storage и весь checklist этапа 5 уже закрыты. Phase нельзя считать завершенной, пока не появились backend-backed write/stream flows.
+Persistence данных подключения, secure storage, session flow и service actions уже закрыты. Phase нельзя считать завершенной, пока не появились backend-backed routing write и stream flows.
 
 ## Phase 3 - MVP feature slices
 
@@ -111,7 +113,7 @@ Updated: 2026-07-16
 ### Работы
 
 - Ready workspace summary slice: сводка статуса, capabilities, core/runtime indicators.
-- Service actions slice: `start`, `stop`, `restart`, restart related actions с подтверждениями и результатом.
+- Готово: service actions slice — `start`, `stop`, `restart` и core switch с подтверждением, backend round-trip и server-confirmed result.
 - Logs slice: просмотр live/log history с фильтрацией и надежным reconnect behavior.
 - Routing Xray slice: список routing entry points, active document state, `validate`, `preview`, `save`, `apply` для ограниченного безопасного сценария поверх уже работающего read/edit baseline.
 - Read-only diagnostics slice там, где это повышает предсказуемость быстрых действий.
