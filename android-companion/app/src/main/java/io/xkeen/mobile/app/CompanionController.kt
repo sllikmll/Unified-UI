@@ -1208,6 +1208,343 @@ internal class CompanionController(
         }
     }
 
+    suspend fun refreshXraySubscriptions(force: Boolean = false) {
+        val endpoint = state.dashboard.endpoint
+        val current = state.xraySubscriptions
+        if (endpoint.isBlank() || !state.dashboard.availableCores.hasCore("xray")) return
+        if (current.isBusy || (!force && current.hasLoaded)) return
+        state = state.copy(
+            xraySubscriptions = current.copy(
+                isLoading = true,
+                message = "Загружаем подписки Xray…",
+                error = null,
+            ),
+        )
+        try {
+            val snapshot = dependencies.xraySubscriptions.list(endpoint)
+            if (state.dashboard.endpoint != endpoint) return
+            state = state.copy(
+                xraySubscriptions = state.xraySubscriptions.copy(
+                    items = snapshot.subscriptions.sortedBy { it.name.lowercase() },
+                    routingBalancers = snapshot.routingBalancers,
+                    hasLoaded = true,
+                    isLoading = false,
+                    message = subscriptionListMessage(snapshot.subscriptions),
+                    error = null,
+                ),
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            if (returnToLoginForExpiredSession(error)) return
+            publishXraySubscriptionsFailure(error, "Не удалось загрузить подписки Xray.")
+        }
+    }
+
+    fun openNewXraySubscription() {
+        val current = state.xraySubscriptions
+        if (current.isBusy) return
+        val draft = XraySubscriptionDraft()
+        state = state.copy(
+            xraySubscriptions = current.copy(
+                editor = XraySubscriptionEditorState(
+                    isOpen = true,
+                    draft = draft,
+                    savedDraft = draft,
+                    message = "Добавьте URL и выполните безопасный preview перед сохранением.",
+                ),
+            ),
+        )
+    }
+
+    fun openXraySubscription(id: String) {
+        val current = state.xraySubscriptions
+        if (current.isBusy) return
+        val record = current.items.firstOrNull { it.id == id } ?: return
+        val draft = record.toSubscriptionDraft()
+        state = state.copy(
+            xraySubscriptions = current.copy(
+                editor = XraySubscriptionEditorState(
+                    isOpen = true,
+                    draft = draft,
+                    savedDraft = draft,
+                    refreshAfterSave = false,
+                    message = "Настройки загружены. Полный URL показывается только в редакторе.",
+                ),
+            ),
+        )
+    }
+
+    fun updateXraySubscriptionDraft(transform: (XraySubscriptionDraft) -> XraySubscriptionDraft) {
+        val editor = state.xraySubscriptions.editor
+        if (!editor.isOpen || editor.isPreviewing || editor.isSaving) return
+        state = state.copy(
+            xraySubscriptions = state.xraySubscriptions.copy(
+                editor = editor.copy(
+                    draft = transform(editor.draft),
+                    message = null,
+                    error = null,
+                ),
+            ),
+        )
+    }
+
+    fun toggleXraySubscriptionAdvanced() {
+        val editor = state.xraySubscriptions.editor
+        if (!editor.isOpen || editor.isPreviewing || editor.isSaving) return
+        state = state.copy(
+            xraySubscriptions = state.xraySubscriptions.copy(
+                editor = editor.copy(advancedExpanded = !editor.advancedExpanded),
+            ),
+        )
+    }
+
+    fun updateXraySubscriptionRefreshAfterSave(enabled: Boolean) {
+        val editor = state.xraySubscriptions.editor
+        if (!editor.isOpen || editor.isSaving) return
+        state = state.copy(
+            xraySubscriptions = state.xraySubscriptions.copy(editor = editor.copy(refreshAfterSave = enabled)),
+        )
+    }
+
+    fun updateXraySubscriptionRestart(enabled: Boolean) {
+        val editor = state.xraySubscriptions.editor
+        if (!editor.isOpen || editor.isSaving) return
+        state = state.copy(
+            xraySubscriptions = state.xraySubscriptions.copy(editor = editor.copy(restartAfterMutation = enabled)),
+        )
+    }
+
+    fun toggleXraySubscriptionNode(nodeKey: String) {
+        val editor = state.xraySubscriptions.editor
+        if (!editor.isOpen || editor.isPreviewing || editor.isSaving || nodeKey.isBlank()) return
+        val excluded = editor.draft.excludedNodeKeys.toMutableSet().apply {
+            if (!add(nodeKey)) remove(nodeKey)
+        }
+        state = state.copy(
+            xraySubscriptions = state.xraySubscriptions.copy(
+                editor = editor.copy(
+                    draft = editor.draft.copy(excludedNodeKeys = excluded.sorted()),
+                    message = "Состав изменён. Повторите preview перед сохранением.",
+                    error = null,
+                ),
+            ),
+        )
+    }
+
+    fun closeXraySubscriptionEditor() {
+        if (state.xraySubscriptions.editor.isSaving) return
+        state = state.copy(
+            xraySubscriptions = state.xraySubscriptions.copy(editor = XraySubscriptionEditorState()),
+        )
+    }
+
+    suspend fun previewXraySubscription() {
+        val endpoint = state.dashboard.endpoint
+        val editor = state.xraySubscriptions.editor
+        val draft = editor.draft
+        if (endpoint.isBlank() || !editor.isOpen || editor.isPreviewing || editor.isSaving || draft.validationError != null) return
+        state = state.copy(
+            xraySubscriptions = state.xraySubscriptions.copy(
+                editor = editor.copy(isPreviewing = true, message = "Проверяем подписку без сохранения…", error = null),
+            ),
+        )
+        try {
+            val preview = dependencies.xraySubscriptions.preview(endpoint, draft.toSubscriptionSaveRequest())
+            if (state.dashboard.endpoint != endpoint || state.xraySubscriptions.editor.draft != draft) return
+            state = state.copy(
+                xraySubscriptions = state.xraySubscriptions.copy(
+                    editor = state.xraySubscriptions.editor.copy(
+                        isPreviewing = false,
+                        preview = preview,
+                        previewSignature = draft.previewSignature(),
+                        message = "Preview: ${preview.count} из ${preview.sourceCount.coerceAtLeast(preview.count)} узлов.",
+                        error = null,
+                    ),
+                ),
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            if (returnToLoginForExpiredSession(error)) return
+            publishXraySubscriptionEditorFailure(error, "Не удалось получить preview подписки.")
+        }
+    }
+
+    suspend fun saveXraySubscription() {
+        val endpoint = state.dashboard.endpoint
+        val editor = state.xraySubscriptions.editor
+        val draft = editor.draft
+        if (endpoint.isBlank() || !editor.isOpen || !editor.canSave) return
+        state = state.copy(
+            xraySubscriptions = state.xraySubscriptions.copy(
+                editor = editor.copy(isSaving = true, message = "Проверяем актуальность настроек…", error = null),
+            ),
+        )
+        try {
+            if (draft.id.isNotBlank()) {
+                val fresh = dependencies.xraySubscriptions.list(endpoint)
+                val serverRecord = fresh.subscriptions.firstOrNull { it.id == draft.id }
+                    ?: throw XraySubscriptionsException("Подписка была удалена в веб-панели. Обновите список.")
+                if (serverRecord.toSubscriptionDraft() != editor.savedDraft) {
+                    throw XraySubscriptionsException(
+                        "Подписка изменилась в веб-панели после открытия. Закройте редактор и откройте её заново.",
+                    )
+                }
+            }
+            val saved = dependencies.xraySubscriptions.upsert(endpoint, draft.toSubscriptionSaveRequest())
+            val savedRecord = saved.subscription
+                ?: throw XraySubscriptionsException("Сервер сохранил подписку без актуального snapshot.")
+            var refreshError: String? = null
+            var refreshed = false
+            if (editor.refreshAfterSave) {
+                try {
+                    dependencies.xraySubscriptions.refresh(endpoint, savedRecord.id, editor.restartAfterMutation)
+                    refreshed = true
+                } catch (error: Exception) {
+                    if (returnToLoginForExpiredSession(error)) return
+                    refreshError = error.message?.takeIf(String::isNotBlank) ?: "Не удалось обновить подписку."
+                }
+            }
+            val snapshot = dependencies.xraySubscriptions.list(endpoint)
+            if (state.dashboard.endpoint != endpoint) return
+            val message = when {
+                refreshError != null -> "Подписка сохранена, но обновление не выполнено: $refreshError"
+                refreshed -> "Подписка сохранена и generated-фрагмент обновлён."
+                else -> "Подписка сохранена. Generated-фрагмент обновится по расписанию или вручную."
+            }
+            state = state.copy(
+                xraySubscriptions = state.xraySubscriptions.copy(
+                    items = snapshot.subscriptions.sortedBy { it.name.lowercase() },
+                    routingBalancers = snapshot.routingBalancers,
+                    hasLoaded = true,
+                    editor = XraySubscriptionEditorState(),
+                    message = message,
+                    error = refreshError,
+                ),
+                dashboard = state.dashboard.copy(
+                    lastOperation = "Сохранена подписка ${savedRecord.name}",
+                    lastError = refreshError,
+                ),
+                logs = recordLog(
+                    "subscriptions",
+                    if (refreshError == null) LogLevel.Info else LogLevel.Warning,
+                    message,
+                ),
+            )
+            if (refreshed) refreshOutbounds(force = true)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            if (returnToLoginForExpiredSession(error)) return
+            publishXraySubscriptionEditorFailure(error, "Не удалось сохранить подписку Xray.")
+        }
+    }
+
+    suspend fun refreshXraySubscription(id: String, restart: Boolean = true) {
+        val endpoint = state.dashboard.endpoint
+        val current = state.xraySubscriptions
+        if (endpoint.isBlank() || current.isBusy || current.items.none { it.id == id }) return
+        state = state.copy(
+            xraySubscriptions = current.copy(
+                refreshingIds = setOf(id),
+                message = "Обновляем подписку…",
+                error = null,
+            ),
+        )
+        try {
+            val result = dependencies.xraySubscriptions.refresh(endpoint, id, restart)
+            val snapshot = dependencies.xraySubscriptions.list(endpoint)
+            if (state.dashboard.endpoint != endpoint) return
+            state = state.copy(
+                xraySubscriptions = state.xraySubscriptions.copy(
+                    items = snapshot.subscriptions.sortedBy { it.name.lowercase() },
+                    routingBalancers = snapshot.routingBalancers,
+                    refreshingIds = emptySet(),
+                    hasLoaded = true,
+                    message = if (result.changed) "Подписка обновлена: ${result.count} узлов." else "Подписка проверена: изменений нет.",
+                    error = null,
+                ),
+            )
+            refreshOutbounds(force = true)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            if (returnToLoginForExpiredSession(error)) return
+            publishXraySubscriptionsFailure(error, "Не удалось обновить подписку Xray.")
+        }
+    }
+
+    suspend fun refreshDueXraySubscriptions(restart: Boolean = true) {
+        val endpoint = state.dashboard.endpoint
+        val current = state.xraySubscriptions
+        if (endpoint.isBlank() || current.isBusy) return
+        state = state.copy(
+            xraySubscriptions = current.copy(isRefreshingDue = true, message = "Проверяем due-подписки…", error = null),
+        )
+        try {
+            val result = dependencies.xraySubscriptions.refreshDue(endpoint, restart)
+            val snapshot = dependencies.xraySubscriptions.list(endpoint)
+            if (state.dashboard.endpoint != endpoint) return
+            val failed = result.updated - result.okCount
+            val message = when {
+                result.updated == 0 -> "Просроченных подписок нет."
+                failed > 0 -> "Due обновлены: ${result.okCount} из ${result.updated}; ошибок: $failed."
+                else -> "Due-подписки обновлены: ${result.okCount}."
+            }
+            state = state.copy(
+                xraySubscriptions = state.xraySubscriptions.copy(
+                    items = snapshot.subscriptions.sortedBy { it.name.lowercase() },
+                    routingBalancers = snapshot.routingBalancers,
+                    isRefreshingDue = false,
+                    hasLoaded = true,
+                    message = message,
+                    error = message.takeIf { failed > 0 },
+                ),
+            )
+            if (result.updated > 0) refreshOutbounds(force = true)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            if (returnToLoginForExpiredSession(error)) return
+            publishXraySubscriptionsFailure(error, "Не удалось обновить due-подписки.")
+        }
+    }
+
+    suspend fun deleteXraySubscription(id: String, restart: Boolean = true) {
+        val endpoint = state.dashboard.endpoint
+        val current = state.xraySubscriptions
+        if (endpoint.isBlank() || current.isBusy || current.items.none { it.id == id }) return
+        state = state.copy(
+            xraySubscriptions = current.copy(
+                deletingIds = setOf(id),
+                message = "Удаляем подписку и generated-фрагмент…",
+                error = null,
+            ),
+        )
+        try {
+            dependencies.xraySubscriptions.delete(endpoint, id, restart = restart, removeFile = true)
+            val snapshot = dependencies.xraySubscriptions.list(endpoint)
+            if (state.dashboard.endpoint != endpoint) return
+            state = state.copy(
+                xraySubscriptions = state.xraySubscriptions.copy(
+                    items = snapshot.subscriptions.sortedBy { it.name.lowercase() },
+                    routingBalancers = snapshot.routingBalancers,
+                    deletingIds = emptySet(),
+                    hasLoaded = true,
+                    message = "Подписка и generated-фрагмент удалены.",
+                    error = null,
+                ),
+            )
+            refreshOutbounds(force = true)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            if (returnToLoginForExpiredSession(error)) return
+            publishXraySubscriptionsFailure(error, "Не удалось удалить подписку Xray.")
+        }
+    }
+
     suspend fun saveOutboundLink() {
         val endpoint = state.dashboard.endpoint
         val current = state.outbounds
@@ -1752,6 +2089,7 @@ internal class CompanionController(
             routing = unloadedRoutingState(),
             inbounds = unloadedInboundsState(),
             outbounds = unloadedOutboundsState(),
+            xraySubscriptions = unloadedXraySubscriptionsState(),
             diagnostics = initialDiagnostics().replaceDiagnostic(
                 label = "Мобильная сессия",
                 status = "Готово",
@@ -1819,6 +2157,7 @@ internal class CompanionController(
             dashboard = state.dashboard.copy(statusSummary = result.statusSummary),
             inbounds = unloadedInboundsState(),
             outbounds = unloadedOutboundsState(),
+            xraySubscriptions = unloadedXraySubscriptionsState(),
             diagnostics = state.diagnostics.replaceDiagnostic(
                 label = "Мобильная сессия",
                 status = result.statusSummary,
@@ -2115,6 +2454,38 @@ internal class CompanionController(
         )
     }
 
+    private fun publishXraySubscriptionsFailure(error: Exception, fallback: String) {
+        val message = error.message?.takeIf(String::isNotBlank) ?: fallback
+        state = state.copy(
+            xraySubscriptions = state.xraySubscriptions.copy(
+                isLoading = false,
+                refreshingIds = emptySet(),
+                deletingIds = emptySet(),
+                isRefreshingDue = false,
+                message = message,
+                error = message,
+            ),
+            dashboard = state.dashboard.copy(lastError = message),
+            logs = recordLog("subscriptions", LogLevel.Warning, message),
+        )
+    }
+
+    private fun publishXraySubscriptionEditorFailure(error: Exception, fallback: String) {
+        val message = error.message?.takeIf(String::isNotBlank) ?: fallback
+        state = state.copy(
+            xraySubscriptions = state.xraySubscriptions.copy(
+                editor = state.xraySubscriptions.editor.copy(
+                    isPreviewing = false,
+                    isSaving = false,
+                    message = null,
+                    error = message,
+                ),
+            ),
+            dashboard = state.dashboard.copy(lastError = message),
+            logs = recordLog("subscriptions", LogLevel.Warning, message),
+        )
+    }
+
     private suspend fun loadActiveOutboundOrNull(
         endpoint: String,
         filename: String,
@@ -2350,6 +2721,52 @@ private fun OutboundsSnapshot.outboundsStatusMessage(): String = when (nodes.siz
     1 -> "Один proxy-узел из текущего outbounds-фрагмента."
     else -> "Пул proxy-узлов: ${nodes.size}."
 }
+
+private fun subscriptionListMessage(items: List<XraySubscriptionRecord>): String {
+    val nodes = items.sumOf(XraySubscriptionRecord::lastCount)
+    return when (items.size) {
+        0 -> "Подписки Xray ещё не добавлены."
+        1 -> "Одна подписка · $nodes узлов."
+        else -> "Подписок: ${items.size} · узлов: $nodes."
+    }
+}
+
+private fun XraySubscriptionRecord.toSubscriptionDraft(): XraySubscriptionDraft = XraySubscriptionDraft(
+    id = id,
+    name = name,
+    tag = tag,
+    url = url,
+    nameFilter = nameFilter,
+    typeFilter = typeFilter,
+    transportFilter = transportFilter,
+    excludedNodeKeys = excludedNodeKeys,
+    enabled = enabled,
+    pingEnabled = pingEnabled,
+    routingMode = XraySubscriptionRoutingMode.fromApi(routingMode),
+    routingAutoRule = routingAutoRule,
+    routingBalancerTags = routingBalancerTags,
+    sockoptMark255 = sockoptMark255,
+    intervalHours = intervalHours.toString(),
+)
+
+private fun XraySubscriptionDraft.toSubscriptionSaveRequest(): XraySubscriptionSaveRequest =
+    XraySubscriptionSaveRequest(
+        id = id,
+        name = name,
+        tag = tag,
+        url = url,
+        nameFilter = nameFilter,
+        typeFilter = typeFilter,
+        transportFilter = transportFilter,
+        excludedNodeKeys = excludedNodeKeys,
+        enabled = enabled,
+        pingEnabled = pingEnabled,
+        routingMode = routingMode.apiValue,
+        routingAutoRule = routingAutoRule,
+        routingBalancerTags = routingBalancerTags,
+        sockoptMark255 = sockoptMark255,
+        intervalHours = intervalHours.toIntOrNull()?.coerceIn(1, 168) ?: 24,
+    )
 
 private fun List<OutboundNode>.sortWithActiveFirst(active: ActiveOutboundSnapshot?): List<OutboundNode> =
     sortedByDescending { node ->

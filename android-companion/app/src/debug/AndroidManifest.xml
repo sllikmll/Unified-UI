@@ -9,5 +9,9 @@
             android:name=".OutboundsPoolPreviewActivity"
             android:exported="true"
             android:theme="@style/Theme.XkeenMobile" />
+        <activity
+            android:name=".XraySubscriptionsPreviewActivity"
+            android:exported="true"
+            android:theme="@style/Theme.XkeenMobile" />
     </application>
 </manifest>

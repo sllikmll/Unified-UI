@@ -41,6 +41,7 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 По факту интерактивны уже сейчас:
 
 - `Routing Xray`
+- `Подписки Xray`
 - `Прокси / Outbounds`
 - `Shell -> Команды`
 - `Shell -> Терминал`
@@ -54,6 +55,9 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 - `GET /api/mobile/v1/xray/routing/document?document=...` загружает единый server-authoritative snapshot выбранного routing-документа: published content/revision, сохранённый server draft и conflict metadata.
 - `POST /api/mobile/v1/xray/routing/validate` принимает raw JSONC draft выбранного документа и запускает read-only server Xray preflight; invalid draft возвращает structured diagnostics без persistent config save, restart или DAT-asset sync side effect.
 - `POST /api/mobile/v1/xray/routing/save` сохраняет проверенный draft отдельно от live Xray fragment; `POST /api/mobile/v1/xray/routing/apply` применяет exact saved revision и подтверждает restart xkeen.
+- `GET/POST /api/xray/subscriptions` загружает список подписок Xray и сохраняет новую или изменённую запись; `POST /api/xray/subscriptions/preview` получает серверный preview узлов без сохранения, записи fragment, изменения routing/observatory или restart.
+- `POST /api/xray/subscriptions/<id>/refresh` и `POST /api/xray/subscriptions/refresh-due` явно обновляют одну подписку или только просроченные; `DELETE /api/xray/subscriptions/<id>` удаляет managed fragment и безопасно пересобирает связанный runtime state.
+- `POST /api/xray/subscriptions/<id>/nodes/ping` проверяет отдельный узел подписки. Параметры restart и удаления managed-файла передаются явно, а разрушительные действия подтверждаются в приложении.
 - `GET /api/mobile/v1/logs` возвращает Xray `error`/`access` history и инкрементальные записи по per-source opaque cursor. Android пользуется этим контрактом для live logs, а не web WebSocket endpoint'ами.
 - `POST /api/xkeen/start`, `POST /api/xkeen/stop`, `POST /api/restart` и `POST /api/xkeen/core` выполняют service/core actions; после каждого принятого POST приложение сверяет результат через `GET /api/xkeen/status` и `GET /api/xkeen/core`.
 - Эти read-only запросы идут через единый `CompanionHttpTransport`: он нормализует безопасный `baseUrl`, добавляет common headers, применяет timeout и оставляет seam для session auth headers. Validate и service actions используют отдельный `90 s` transport, потому что server Xray preflight может быть долгим.
@@ -121,7 +125,20 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 - Мобильный экран поддерживает создание proxy-пула из готовых одиночных `vless://`, `trojan://`, `vmess://`, `ss://` и `hy2://`-ссылок.
 - Ввод принимает форматы `url`, `tag | url` и `tag = url`. Каждая строка локально проходит preview и normalize до отправки на сервер; чувствительные данные не сохраняются на устройстве.
 - Сохранение использует серверный safe flow с backup и атомарной записью. По умолчанию новые tag добавляются или обновляются; полная замена текущего пула требует отдельного явного переключателя и подтверждения.
-- Подписки и автоматическая генерация пула остаются отдельным последующим этапом.
+
+## Подписки Xray
+
+- Мобильный экран служит компактной оперативной поверхностью: показывает список и состояние подписок, позволяет создать или изменить источник, выполнить preview, обновить одну подписку или все просроченные, проверить узел и удалить подписку с подтверждением.
+- Поддерживаются HTTP(S)-источники с share-ссылками, base64 payload и Xray JSON outbounds. Preview выполняется на сервере без сохранения подписки, изменения конфигурации или restart.
+- Сохранение и генерация разделены: сначала сохраняется запись подписки, а managed fragment `04_outbounds.<tag>.json` создаётся только при явном обновлении либо по расписанию. Интервал по умолчанию — `24` часа; рекомендация провайдера показывается отдельно и не заменяет выбранное значение.
+- Generated fragment управляется backend и будет пересобран при следующем refresh. Удаление может удалить fragment и пересобрать routing/observatory, поэтому приложение всегда запрашивает подтверждение.
+- Ссылка подписки остаётся только в оперативном состоянии экрана и backend-запросе: приложение не сохраняет её в локальном storage и не выводит целиком в журнал.
+
+### Мобильная граница
+
+- Android не повторяет desktop-модальное окно и его постоянные справочные блоки. На экране остаются короткие подписи, компактные карточки и основные безопасные действия.
+- Краткие пояснения к интервалу, generated fragment, ping и влиянию удаления открываются через кнопки справки во всплывающем окне.
+- Подробная диагностика refresh, большой обзор состава fragment и редкие экспертные настройки routing/balancers остаются в веб-панели. Полная справка по workflow подписок находится в корневом `README.md` проекта.
 
 ## Как открыть
 

@@ -558,6 +558,121 @@ data class OutboundsState(
             node.tag.isNotBlank() && node.tag == activeNodeTag
 }
 
+enum class XraySubscriptionRoutingMode(
+    val apiValue: String,
+    val displayName: String,
+) {
+    Safe("safe-fallback", "Безопасно"),
+    Migrate("migrate-vless-rules", "Жёстко"),
+    SubscriptionOnly("subscription-only", "Только подписка"),
+    ;
+
+    companion object {
+        fun fromApi(value: String): XraySubscriptionRoutingMode =
+            entries.firstOrNull { it.apiValue == value } ?: Safe
+    }
+}
+
+data class XraySubscriptionDraft(
+    val id: String = "",
+    val name: String = "",
+    val tag: String = "",
+    val url: String = "",
+    val nameFilter: String = "",
+    val typeFilter: String = "",
+    val transportFilter: String = "",
+    val excludedNodeKeys: List<String> = emptyList(),
+    val enabled: Boolean = true,
+    val pingEnabled: Boolean = true,
+    val routingMode: XraySubscriptionRoutingMode = XraySubscriptionRoutingMode.Safe,
+    val routingAutoRule: Boolean = true,
+    val routingBalancerTags: List<String> = emptyList(),
+    val sockoptMark255: Boolean = false,
+    val intervalHours: String = "24",
+) {
+    val validationError: String?
+        get() {
+            val source = url.trim()
+            if (source.isBlank()) return "URL подписки обязателен."
+            val supported = source.startsWith("https://", ignoreCase = true) ||
+                source.startsWith("http://", ignoreCase = true) ||
+                Regex("^happ://crypt[0-9]*/", RegexOption.IGNORE_CASE).containsMatchIn(source)
+            if (!supported) return "Нужен HTTP(S) URL или happ://crypt…"
+            val interval = intervalHours.trim().toIntOrNull()
+            if (interval !in 1..168) return "Интервал должен быть от 1 до 168 часов."
+            listOf(
+                "фильтр имени" to nameFilter,
+                "фильтр типа" to typeFilter,
+                "фильтр транспорта" to transportFilter,
+            ).forEach { (label, expression) ->
+                if (expression.isNotBlank()) {
+                    try {
+                        Regex(expression, RegexOption.IGNORE_CASE)
+                    } catch (_: Exception) {
+                        return "Некорректный $label."
+                    }
+                }
+            }
+            return null
+        }
+
+    fun previewSignature(): String = listOf(
+        url.trim(),
+        tag.trim().ifBlank { name.trim() },
+        nameFilter.trim(),
+        typeFilter.trim(),
+        transportFilter.trim(),
+        excludedNodeKeys.sorted().joinToString("|"),
+    ).joinToString("\u0000")
+}
+
+data class XraySubscriptionEditorState(
+    val isOpen: Boolean = false,
+    val isPreviewing: Boolean = false,
+    val isSaving: Boolean = false,
+    val draft: XraySubscriptionDraft = XraySubscriptionDraft(),
+    val savedDraft: XraySubscriptionDraft = XraySubscriptionDraft(),
+    val preview: XraySubscriptionPreview? = null,
+    val previewSignature: String = "",
+    val advancedExpanded: Boolean = false,
+    val refreshAfterSave: Boolean = true,
+    val restartAfterMutation: Boolean = true,
+    val message: String? = null,
+    val error: String? = null,
+) {
+    val hasChanges: Boolean
+        get() = draft != savedDraft
+
+    val previewIsCurrent: Boolean
+        get() = preview != null && previewSignature == draft.previewSignature()
+
+    val previewAffectingChanges: Boolean
+        get() = draft.previewSignature() != savedDraft.previewSignature()
+
+    val requiresPreview: Boolean
+        get() = draft.id.isBlank() || previewAffectingChanges
+
+    val canSave: Boolean
+        get() = draft.validationError == null && !isPreviewing && !isSaving && (!requiresPreview || previewIsCurrent)
+}
+
+data class XraySubscriptionsState(
+    val items: List<XraySubscriptionRecord> = emptyList(),
+    val routingBalancers: List<XraySubscriptionRoutingBalancer> = emptyList(),
+    val hasLoaded: Boolean = false,
+    val isLoading: Boolean = false,
+    val refreshingIds: Set<String> = emptySet(),
+    val deletingIds: Set<String> = emptySet(),
+    val isRefreshingDue: Boolean = false,
+    val editor: XraySubscriptionEditorState = XraySubscriptionEditorState(),
+    val message: String = "Откройте раздел, чтобы загрузить подписки Xray.",
+    val error: String? = null,
+) {
+    val isBusy: Boolean
+        get() = isLoading || refreshingIds.isNotEmpty() || deletingIds.isNotEmpty() || isRefreshingDue ||
+            editor.isPreviewing || editor.isSaving
+}
+
 data class LogEntry(
     val time: String,
     val source: String,
@@ -600,6 +715,7 @@ data class CompanionUiState(
     val routing: RoutingState = demoRoutingState(),
     val inbounds: InboundsState = InboundsState(),
     val outbounds: OutboundsState = OutboundsState(),
+    val xraySubscriptions: XraySubscriptionsState = XraySubscriptionsState(),
     val logs: LogsState = LogsState(),
     val diagnostics: List<DiagnosticItem> = initialDiagnostics(),
     val pendingAction: PendingAction? = null,
@@ -636,6 +752,10 @@ fun unloadedInboundsState(): InboundsState = InboundsState(
 
 fun unloadedOutboundsState(): OutboundsState = OutboundsState(
     message = "Ожидаем загрузку proxy-узлов с Xkeen UI…",
+)
+
+fun unloadedXraySubscriptionsState(): XraySubscriptionsState = XraySubscriptionsState(
+    message = "Ожидаем загрузку подписок Xray с Xkeen UI…",
 )
 
 fun initialDiagnostics(): List<DiagnosticItem> = listOf(

@@ -1234,6 +1234,73 @@ class CompanionControllerTest {
         assertTrue(changedController.state.outbounds.poolEditor.isOpen)
         assertTrue(changedController.state.outbounds.poolEditor.error.orEmpty().contains("изменился на сервере"))
     }
+
+    @Test
+    fun xraySubscriptionsRequireCurrentPreviewThenSaveAndRefreshExplicitly() = runTest {
+        val port = FakeXraySubscriptionsPort()
+        val controller = CompanionController(
+            initialState = CompanionUiState(phase = AppPhase.Ready),
+            dependencies = testDependencies(xraySubscriptions = port),
+        )
+
+        controller.refreshXraySubscriptions()
+        controller.openNewXraySubscription()
+        controller.updateXraySubscriptionDraft {
+            it.copy(
+                name = "Mobile provider",
+                tag = "mobile",
+                url = "https://provider.example/subscription",
+            )
+        }
+
+        assertFalse(controller.state.xraySubscriptions.editor.canSave)
+        controller.previewXraySubscription()
+        assertTrue(controller.state.xraySubscriptions.editor.previewIsCurrent)
+        assertTrue(controller.state.xraySubscriptions.editor.canSave)
+
+        controller.saveXraySubscription()
+
+        assertEquals("mobile", port.saved?.tag)
+        assertEquals("mobile", port.refreshedId)
+        assertFalse(controller.state.xraySubscriptions.editor.isOpen)
+        assertTrue(controller.state.xraySubscriptions.message.contains("generated-фрагмент"))
+    }
+
+    @Test
+    fun xraySubscriptionEditStopsWhenWebPanelChangedSavedRecord() = runTest {
+        val port = FakeXraySubscriptionsPort()
+        val controller = CompanionController(
+            initialState = CompanionUiState(phase = AppPhase.Ready),
+            dependencies = testDependencies(xraySubscriptions = port),
+        )
+        controller.refreshXraySubscriptions()
+        controller.openXraySubscription("provider")
+        controller.updateXraySubscriptionDraft { it.copy(name = "Mobile edit") }
+        port.record = port.record.copy(intervalHours = 12)
+
+        controller.saveXraySubscription()
+
+        assertNull(port.saved)
+        assertTrue(controller.state.xraySubscriptions.editor.isOpen)
+        assertTrue(controller.state.xraySubscriptions.editor.error.orEmpty().contains("веб-панели"))
+    }
+
+    @Test
+    fun xraySubscriptionNodeExclusionInvalidatesPreview() = runTest {
+        val port = FakeXraySubscriptionsPort()
+        val controller = CompanionController(
+            initialState = CompanionUiState(phase = AppPhase.Ready),
+            dependencies = testDependencies(xraySubscriptions = port),
+        )
+        controller.openNewXraySubscription()
+        controller.updateXraySubscriptionDraft { it.copy(url = "https://provider.example/sub") }
+        controller.previewXraySubscription()
+
+        controller.toggleXraySubscriptionNode("node-1")
+
+        assertFalse(controller.state.xraySubscriptions.editor.previewIsCurrent)
+        assertFalse(controller.state.xraySubscriptions.editor.canSave)
+    }
 }
 
 private fun testDependencies(
@@ -1248,6 +1315,7 @@ private fun testDependencies(
     routingWrites: RoutingWritePort? = null,
     inbounds: InboundsPort = DemoInboundsPort(),
     outbounds: OutboundsPort = DemoOutboundsPort(),
+    xraySubscriptions: XraySubscriptionsPort = DemoXraySubscriptionsPort(),
     logs: LogsPort? = null,
     logsTransport: LogsTransportPort = FakeLogsTransportPort(),
     journal: CompanionJournalPort = FakeJournalPort(),
@@ -1261,12 +1329,110 @@ private fun testDependencies(
         routingWrites = routingWrites ?: DemoRoutingWritePort(effectiveJournal),
         inbounds = inbounds,
         outbounds = outbounds,
+        xraySubscriptions = xraySubscriptions,
         logs = logs ?: DemoLogsPort(effectiveJournal),
         logsTransport = logsTransport,
         journal = effectiveJournal,
         xrayConfigSource = xrayConfigSource,
         coreStatusSource = coreStatusSource,
     )
+}
+
+private class FakeXraySubscriptionsPort : XraySubscriptionsPort {
+    var record = XraySubscriptionRecord(
+        id = "provider",
+        name = "Provider",
+        tag = "provider",
+        url = "https://provider.example/sub",
+        enabled = true,
+        pingEnabled = true,
+        routingMode = "safe-fallback",
+        routingAutoRule = true,
+        routingBalancerTags = emptyList(),
+        sockoptMark255 = false,
+        intervalHours = 24,
+        outputFile = "04_outbounds.provider.json",
+    )
+    var saved: XraySubscriptionSaveRequest? = null
+    var refreshedId: String? = null
+
+    override suspend fun list(baseUrl: String): XraySubscriptionsSnapshot =
+        XraySubscriptionsSnapshot(listOf(record))
+
+    override suspend fun preview(
+        baseUrl: String,
+        request: XraySubscriptionSaveRequest,
+    ): XraySubscriptionPreview = XraySubscriptionPreview(
+        nodes = listOf(
+            OutboundNode(
+                key = "node-1",
+                tag = "${request.tag.ifBlank { "sub" }}--node",
+                name = "Amsterdam",
+                protocol = "vless",
+                transport = "xhttp",
+                security = "reality",
+                host = "nl.example.net",
+                port = "443",
+                sni = "cdn.example.net",
+                detail = "",
+            ),
+        ),
+        count = 1,
+        sourceCount = 1,
+        filteredOutCount = 0,
+        warnings = emptyList(),
+        errors = emptyList(),
+        sourceFormat = "links",
+        fetchMode = "direct",
+        profileUpdateIntervalHours = 12,
+        tagPrefix = request.tag.ifBlank { "sub" },
+    )
+
+    override suspend fun upsert(
+        baseUrl: String,
+        request: XraySubscriptionSaveRequest,
+    ): XraySubscriptionMutationResult {
+        saved = request
+        val id = request.id.ifBlank { request.tag.ifBlank { "mobile" } }
+        record = record.copy(
+            id = id,
+            name = request.name.ifBlank { id },
+            tag = request.tag.ifBlank { id },
+            url = request.url,
+            enabled = request.enabled,
+            pingEnabled = request.pingEnabled,
+            routingMode = request.routingMode,
+            routingAutoRule = request.routingAutoRule,
+            routingBalancerTags = request.routingBalancerTags,
+            sockoptMark255 = request.sockoptMark255,
+            intervalHours = request.intervalHours,
+            nameFilter = request.nameFilter,
+            typeFilter = request.typeFilter,
+            transportFilter = request.transportFilter,
+            excludedNodeKeys = request.excludedNodeKeys,
+        )
+        return XraySubscriptionMutationResult(ok = true, id = id, subscription = record)
+    }
+
+    override suspend fun refresh(
+        baseUrl: String,
+        id: String,
+        restart: Boolean,
+    ): XraySubscriptionMutationResult {
+        refreshedId = id
+        record = record.copy(lastOk = true, lastCount = 1, sourceCount = 1)
+        return XraySubscriptionMutationResult(ok = true, id = id, changed = true, count = 1)
+    }
+
+    override suspend fun refreshDue(baseUrl: String, restart: Boolean): XraySubscriptionsDueResult =
+        XraySubscriptionsDueResult(0, 0, emptyList())
+
+    override suspend fun delete(
+        baseUrl: String,
+        id: String,
+        restart: Boolean,
+        removeFile: Boolean,
+    ): XraySubscriptionMutationResult = XraySubscriptionMutationResult(ok = true, id = id, changed = true)
 }
 
 private class FakeInboundsPort : InboundsPort {
