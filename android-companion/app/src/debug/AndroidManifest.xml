@@ -17,5 +17,9 @@
             android:name=".XrayDatPreviewActivity"
             android:exported="true"
             android:theme="@style/Theme.XkeenMobile" />
+        <activity
+            android:name=".XrayLogsPreviewActivity"
+            android:exported="true"
+            android:theme="@style/Theme.XkeenMobile" />
     </application>
 </manifest>

@@ -45,6 +45,7 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 - `Подписки Xray`
 - `Прокси / Outbounds`
 - `DAT-файлы GeoIP / GeoSite`
+- `Логи Xray`
 - `Shell -> Команды`
 - `Shell -> Терминал`
 
@@ -62,6 +63,7 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 - `POST /api/xray/subscriptions/<id>/nodes/ping` проверяет отдельный узел подписки. Параметры restart и удаления managed-файла передаются явно, а разрушительные действия подтверждаются в приложении.
 - `GET /api/fs/list`, `GET /api/routing/dat/tags`, `GET /api/routing/dat/tag`, `GET /api/routing/dat/search` и `POST /api/routing/dat/lookup` образуют read-only мобильный DAT Explorer. Он автоматически находит GeoIP / GeoSite файлы, показывает теги, страницы элементов и серверный поиск, но не обновляет файлы и не меняет routing.
 - `GET /api/mobile/v1/logs` возвращает Xray `error`/`access` history и инкрементальные записи по per-source opaque cursor. Android пользуется этим контрактом для live logs, а не web WebSocket endpoint'ами.
+- Нативный просмотрщик логов разделяет `access.log` и `error.log`, фильтрует уровни, поддерживает локальный текстовый/RE2 Regex-поиск, паузу, follow-tail, ограниченное копирование и компактный раскрываемый список. Polling работает только пока открыт раздел логов; история и cursor сохраняются при уходе с экрана.
 - `POST /api/xkeen/start`, `POST /api/xkeen/stop`, `POST /api/restart` и `POST /api/xkeen/core` выполняют service/core actions; после каждого принятого POST приложение сверяет результат через `GET /api/xkeen/status` и `GET /api/xkeen/core`.
 - Эти read-only запросы идут через единый `CompanionHttpTransport`: он нормализует безопасный `baseUrl`, добавляет common headers, применяет timeout и оставляет seam для session auth headers. Validate и service actions используют отдельный `90 s` transport, потому что server Xray preflight может быть долгим.
 - Keenetic Digest challenge, `401`, `403`, `428`, HTML login page, offline и timeout переводятся в отдельные типизированные app-level состояния. `Core` отражает их в dashboard, diagnostics и logs, а `Routing Xray` — в retryable load state.

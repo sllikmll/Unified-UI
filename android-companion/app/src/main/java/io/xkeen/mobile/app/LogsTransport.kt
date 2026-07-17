@@ -2,6 +2,8 @@ package io.xkeen.mobile.app
 
 import org.json.JSONArray
 import org.json.JSONObject
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 internal const val MOBILE_LOGS_PATH = "/api/mobile/v1/logs"
 
@@ -27,6 +29,7 @@ internal interface LogsTransportPort {
     suspend fun read(
         baseUrl: String,
         cursors: Map<String, String>,
+        limit: Int = 200,
     ): LogsTransportUpdate
 }
 
@@ -36,13 +39,19 @@ internal class WebPanelLogsTransport(
     override suspend fun read(
         baseUrl: String,
         cursors: Map<String, String>,
+        limit: Int,
     ): LogsTransportUpdate {
-        val query = cursors
+        val cursorQuery = cursors
             .filterKeys { it in mobileLogSources }
             .mapNotNull { (source, cursor) ->
-                cursor.takeIf { it.isNotBlank() }?.let { "$source-cursor=$it" }
+                cursor.takeIf { it.isNotBlank() }?.let {
+                    "$source-cursor=${URLEncoder.encode(it, StandardCharsets.UTF_8.name())}"
+                }
             }
-            .joinToString("&")
+        val query = buildList {
+            if (limit != 200) add("limit=${limit.coerceIn(50, 500)}")
+            addAll(cursorQuery)
+        }.joinToString("&")
         val response = transport.get(
             CompanionHttpRequest(
                 baseUrl = baseUrl,
@@ -64,8 +73,13 @@ internal fun parseLogsTransportEnvelope(body: String): LogsTransportUpdate {
                 ?: "Xkeen UI вернул некорректный ответ логов.",
         )
     }
-    val streams = root.optJSONObject("data")
-        ?.optJSONArray("streams")
+    val data = root.optJSONObject("data")
+        ?: throw IllegalStateException("В ответе Xkeen UI отсутствуют данные логов.")
+    val contractVersion = data.optInt("contract_version", 1)
+    if (contractVersion != 1) {
+        throw IllegalStateException("Версия контракта логов $contractVersion пока не поддерживается.")
+    }
+    val streams = data.optJSONArray("streams")
         ?: throw IllegalStateException("В ответе Xkeen UI отсутствуют потоки логов.")
     return LogsTransportUpdate(
         streams = buildList {
@@ -92,7 +106,7 @@ private fun JSONArray?.toLogEntries(): List<LogEntry> {
     return buildList {
         for (index in 0 until length()) {
             val item = optJSONObject(index) ?: continue
-            val message = item.optString("message").trim()
+            val message = item.optString("message").trimEnd()
             if (message.isBlank()) continue
             add(
                 LogEntry(

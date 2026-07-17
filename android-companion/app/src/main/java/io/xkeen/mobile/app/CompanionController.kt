@@ -2349,13 +2349,83 @@ internal class CompanionController(
         state = state.copy(logs = state.logs.copy(filter = filter))
     }
 
+    fun updateXrayLogStreamFilter(filter: XrayLogStreamFilter) {
+        state = state.copy(logs = state.logs.copy(streamFilter = filter))
+    }
+
+    fun updateXrayLogLevelFilter(filter: XrayLogLevelFilter) {
+        state = state.copy(logs = state.logs.copy(levelFilter = filter))
+    }
+
+    fun updateXrayLogSearchQuery(value: String) {
+        state = state.copy(logs = state.logs.copy(searchQuery = value.take(LOGS_SEARCH_LIMIT)))
+    }
+
+    fun setXrayLogRegexEnabled(enabled: Boolean) {
+        state = state.copy(logs = state.logs.copy(useRegex = enabled))
+    }
+
+    fun setXrayLogsFollowNewest(enabled: Boolean) {
+        state = state.copy(logs = state.logs.copy(followNewest = enabled))
+    }
+
+    fun setXrayLogsCompactRows(enabled: Boolean) {
+        state = state.copy(logs = state.logs.copy(compactRows = enabled))
+    }
+
+    fun updateXrayLogsDisplayLimit(limit: Int) {
+        val normalized = limit.coerceIn(MIN_LOGS_ENTRY_LIMIT, LOGS_ENTRY_LIMIT)
+        val current = state.logs
+        if (current.displayLimit == normalized) return
+        if (normalized > current.displayLimit) {
+            logCursors.clear()
+        }
+        logsTransportGeneration += 1
+        state = state.copy(
+            logs = current.copy(
+                displayLimit = normalized,
+                entries = current.entries.cappedLogsBuffer(normalized),
+            ),
+        )
+    }
+
+    fun setXrayLogsPausedByUser(paused: Boolean) {
+        val current = state.logs
+        if (current.isPausedByUser == paused) return
+        logsTransportGeneration += 1
+        state = state.copy(
+            logs = current.copy(
+                isPausedByUser = paused,
+                connection = LogsConnectionState.Disconnected,
+                statusMessage = if (paused) {
+                    "Обновление приостановлено. Загруженная история сохранена."
+                } else {
+                    "Возобновляем поток логов…"
+                },
+                reconnectAttempt = 0,
+            ),
+        )
+        updateLogsDiagnostic()
+    }
+
+    /** Clears only the native viewer. Server log files and their cursors are left untouched. */
+    fun clearXrayLogsView() {
+        state = state.copy(
+            logs = state.logs.copy(
+                entries = state.logs.entries.filterNot { entry ->
+                    entry.isXrayLogEntry()
+                },
+            ),
+        )
+    }
+
     /**
      * Starts one cursor-polling ownership generation.  Compose cancels this suspend call while
      * the process is backgrounded; the generation also makes a late response from the old
      * foreground harmless when a new lifecycle pass begins.
      */
     suspend fun runLogsTransport() {
-        if (state.phase != AppPhase.Ready) return
+        if (state.phase != AppPhase.Ready || state.logs.isPausedByUser) return
         val generation = ++logsTransportGeneration
         var reconnectAttempt = 0
         state = state.copy(
@@ -2380,6 +2450,7 @@ internal class CompanionController(
                 val update = dependencies.logsTransport.read(
                     baseUrl = state.dashboard.endpoint,
                     cursors = logCursors.toMap(),
+                    limit = state.logs.displayLimit.coerceAtMost(500),
                 )
                 if (generation != logsTransportGeneration || state.phase != AppPhase.Ready) return
                 applyLogsTransportUpdate(update)
@@ -2417,11 +2488,18 @@ internal class CompanionController(
     /** Pause only the transport.  Buffered history and the rest of the workspace stay intact. */
     fun pauseLogsTransport() {
         logsTransportGeneration += 1
-        if (state.phase != AppPhase.Ready || state.logs.connection == LogsConnectionState.AuthRequired) return
+        if (
+            state.phase != AppPhase.Ready ||
+            state.logs.connection == LogsConnectionState.AuthRequired ||
+            state.logs.isPausedByUser ||
+            (state.logs.connection == LogsConnectionState.Disconnected && !state.logs.hasLoadedHistory)
+        ) {
+            return
+        }
         state = state.copy(
             logs = state.logs.copy(
                 connection = LogsConnectionState.Disconnected,
-                statusMessage = "Поток логов приостановлен, пока приложение в фоне.",
+                statusMessage = "Поток логов приостановлен. Загруженная история сохранена.",
                 reconnectAttempt = 0,
             ),
         )
@@ -2942,6 +3020,7 @@ internal class CompanionController(
             } else {
                 logCursors.remove(stream.source)
             }
+            if (!stream.available) return@forEach
             val entryPrefix = "${stream.source}:"
             val incoming = stream.entries
                 .asReversed()
@@ -2955,19 +3034,25 @@ internal class CompanionController(
                 else -> (incoming + entries).deduplicateLogEntries()
             }
         }
-        val unavailable = update.streams.filterNot(RemoteLogStream::available)
+        val availability = mobileLogSources.associateWith { source ->
+            update.streams.firstOrNull { stream -> stream.source == source }?.available == true
+        }
+        val unavailableCount = availability.count { (_, available) -> !available }
         val message = when {
-            unavailable.isEmpty() -> "Поток логов подключён и обновляется автоматически."
-            unavailable.size == update.streams.size -> "Подключено, но Xray log-файлы пока недоступны."
+            unavailableCount == 0 -> "Поток логов подключён и обновляется автоматически."
+            unavailableCount == availability.size -> "Подключено, но Xray log-файлы пока недоступны."
             else -> "Поток подключён; часть Xray log-файлов пока недоступна."
         }
         state = state.copy(
             logs = state.logs.copy(
-                entries = entries.take(LOGS_ENTRY_LIMIT),
+                entries = entries.cappedLogsBuffer(
+                    state.logs.displayLimit.coerceIn(MIN_LOGS_ENTRY_LIMIT, LOGS_ENTRY_LIMIT),
+                ),
                 connection = LogsConnectionState.Connected,
                 statusMessage = message,
                 reconnectAttempt = 0,
                 hasLoadedHistory = true,
+                streamAvailability = availability,
             ),
         )
         updateLogsDiagnostic()
@@ -3376,7 +3461,19 @@ private fun ServiceState.workspaceStatusSummary(): String =
     }
 
 private const val LOGS_POLL_INTERVAL_MILLIS = 2_000L
+private const val LOGS_SEARCH_LIMIT = 240
+private const val MIN_LOGS_ENTRY_LIMIT = 50
 private const val LOGS_ENTRY_LIMIT = 600
+private const val LOCAL_LOGS_RESERVE = 20
+
+private fun List<LogEntry>.cappedLogsBuffer(limit: Int): List<LogEntry> {
+    val localEntries = filterNot(LogEntry::isXrayLogEntry).take(LOCAL_LOGS_RESERVE)
+    val remoteEntries = filter(LogEntry::isXrayLogEntry)
+        .sortedXrayLogsChronologically()
+        .asReversed()
+        .take(limit)
+    return (localEntries + remoteEntries).deduplicateLogEntries()
+}
 
 internal fun logReconnectDelayMillis(attempt: Int): Long =
     when (attempt.coerceAtLeast(1)) {

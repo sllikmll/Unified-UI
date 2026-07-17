@@ -1819,6 +1819,7 @@ private class FakeLogsTransportPort : LogsTransportPort {
     override suspend fun read(
         baseUrl: String,
         cursors: Map<String, String>,
+        limit: Int,
     ): LogsTransportUpdate = LogsTransportUpdate(emptyList())
 }
 

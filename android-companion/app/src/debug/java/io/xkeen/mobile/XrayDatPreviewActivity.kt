@@ -6,15 +6,16 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import io.xkeen.mobile.app.AppPhase
+import io.xkeen.mobile.app.CompanionApp
 import io.xkeen.mobile.app.CompanionController
 import io.xkeen.mobile.app.CompanionUiState
+import io.xkeen.mobile.app.MainTab
+import io.xkeen.mobile.app.WorkspaceSection
 import io.xkeen.mobile.app.XrayDatFile
 import io.xkeen.mobile.app.XrayDatItem
 import io.xkeen.mobile.app.XrayDatKind
 import io.xkeen.mobile.app.XrayDatState
 import io.xkeen.mobile.app.XrayDatTag
-import io.xkeen.mobile.app.XrayDatWorkspaceScreen
-import io.xkeen.mobile.ui.theme.XkeenMobileTheme
 
 /** Debug-only, network-free visual surface for the compact DAT viewer. */
 class XrayDatPreviewActivity : ComponentActivity() {
@@ -25,13 +26,18 @@ class XrayDatPreviewActivity : ComponentActivity() {
         val controller = CompanionController(
             initialState = CompanionUiState(
                 phase = AppPhase.Ready,
+                mainTab = MainTab.Routing,
+                workspaceSection = WorkspaceSection.XrayAssets,
+                dashboard = io.xkeen.mobile.app.demoDashboardState().copy(
+                    endpoint = "",
+                    availableCores = listOf("Xray", "Mihomo"),
+                    activeCore = "Xray",
+                ),
                 xrayDat = previewDatState(showItems),
             ),
         )
         setContent {
-            XkeenMobileTheme {
-                XrayDatWorkspaceScreen(controller.state, controller)
-            }
+            CompanionApp(controller)
         }
     }
 }

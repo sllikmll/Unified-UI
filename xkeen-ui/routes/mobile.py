@@ -242,20 +242,28 @@ def _mobile_log_level(line: str) -> str:
 
 def _mobile_log_entries(*, source: str, inode: int, marker: int, lines: list[str]) -> list[dict[str, str]]:
     entries: list[dict[str, str]] = []
+    previous_time = "—"
+    previous_level = "info"
     for index, raw_line in enumerate(lines):
-        message = str(raw_line or "").strip()
-        if not message:
+        message = str(raw_line or "").rstrip()
+        if not message.strip():
             continue
         time_match = _MOBILE_LOG_TIME_RE.search(message)
+        entry_time = time_match.group(1) if time_match else previous_time if message[:1].isspace() else "—"
+        entry_level = previous_level if not time_match and message[:1].isspace() else _mobile_log_level(message)
+        if time_match:
+            previous_time = entry_time
+        if not message[:1].isspace():
+            previous_level = entry_level
         # IDs are opaque cursor-window identities. They stay stable for a repeated snapshot and
         # make a duplicate delivery after reconnect harmless on Android.
         identity = f"{source}:{inode}:{marker}:{index}".encode("utf-8")
         entries.append(
             {
                 "id": f"{source}:{hashlib.sha256(identity).hexdigest()[:20]}",
-                "time": time_match.group(1) if time_match else "—",
+                "time": entry_time,
                 "source": _MOBILE_LOG_SOURCES[source],
-                "level": _mobile_log_level(message),
+                "level": entry_level,
                 "message": message[:8000],
             }
         )

@@ -455,9 +455,16 @@ internal class DemoLogsPort(
         source: String,
         level: LogLevel,
         message: String,
-    ): LogsState = current.copy(
-        entries = listOf(journal.createEntry(source, level, message)) + current.entries.take(19),
-    )
+    ): LogsState {
+        val localEntries = current.entries.filterNot(LogEntry::isXrayLogEntry).take(19)
+        val remoteEntries = current.entries.filter(LogEntry::isXrayLogEntry)
+            .sortedXrayLogsChronologically()
+            .asReversed()
+            .take(current.displayLimit)
+        return current.copy(
+            entries = listOf(journal.createEntry(source, level, message)) + localEntries + remoteEntries,
+        )
+    }
 }
 
 internal class SystemCompanionJournalPort : CompanionJournalPort {

@@ -130,6 +130,21 @@ enum class LogFilter {
     Errors,
 }
 
+/** Log file selected in the read-only Xray viewer. */
+enum class XrayLogStreamFilter {
+    All,
+    Access,
+    Error,
+}
+
+/** Minimum visual slice selected by the user; it never changes server-side logging. */
+enum class XrayLogLevelFilter {
+    All,
+    Info,
+    Warning,
+    Error,
+}
+
 /**
  * Observable state of the cursor-based Xray log transport.  A disconnected stream is not an
  * error by itself: it is the expected state while the app is backgrounded or no session is open.
@@ -683,6 +698,15 @@ data class LogEntry(
 
 data class LogsState(
     val filter: LogFilter = LogFilter.All,
+    val streamFilter: XrayLogStreamFilter = XrayLogStreamFilter.All,
+    val levelFilter: XrayLogLevelFilter = XrayLogLevelFilter.All,
+    val searchQuery: String = "",
+    val useRegex: Boolean = false,
+    val displayLimit: Int = 600,
+    val compactRows: Boolean = true,
+    val followNewest: Boolean = true,
+    val isPausedByUser: Boolean = false,
+    val streamAvailability: Map<String, Boolean> = emptyMap(),
     val entries: List<LogEntry> = emptyList(),
     val connection: LogsConnectionState = LogsConnectionState.Disconnected,
     val statusMessage: String = "Поток логов ожидает подключения.",

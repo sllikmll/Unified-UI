@@ -132,3 +132,20 @@ def test_mobile_logs_resets_to_snapshot_after_rotation_or_invalid_cursor(tmp_pat
     malformed = client.get("/api/mobile/v1/logs", query_string={"error-cursor": "not-a-cursor"})
     malformed_stream = _stream(malformed.get_json(), "error")
     assert malformed_stream["mode"] == "snapshot"
+
+
+def test_mobile_logs_preserves_multiline_context(tmp_path, monkeypatch):
+    client, error_log, _access_log = _build_client(tmp_path, monkeypatch)
+    error_log.write_text(
+        "2026/07/16 18:03:00 [Error] failed to dial upstream\n"
+        "  transport: grpc\n",
+        encoding="utf-8",
+    )
+    _login(client)
+
+    response = client.get("/api/mobile/v1/logs")
+    entries = _stream(response.get_json(), "error")["entries"]
+
+    assert entries[1]["message"] == "  transport: grpc"
+    assert entries[1]["time"] == "18:03:00"
+    assert entries[1]["level"] == "error"

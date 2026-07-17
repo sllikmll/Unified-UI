@@ -69,6 +69,7 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.google.material)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.re2j)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

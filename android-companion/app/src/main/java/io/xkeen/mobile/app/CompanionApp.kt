@@ -462,7 +462,13 @@ private fun ReadyRoute(
     val isImeVisible = WindowInsets.ime.getBottom(density) > 0
     val scope = rememberCoroutineScope()
 
-    LogsTransportLifecycle(controller, state.dashboard.endpoint)
+    LogsTransportLifecycle(
+        controller = controller,
+        endpoint = state.dashboard.endpoint,
+        isVisible = state.workspaceSection == WorkspaceSection.XrayLogs,
+        isPausedByUser = state.logs.isPausedByUser,
+        displayLimit = state.logs.displayLimit,
+    )
 
     LaunchedEffect(state.dashboard.endpoint) {
         controller.refreshWorkspaceSnapshot()
@@ -528,6 +534,9 @@ private fun ReadyRoute(
 private fun LogsTransportLifecycle(
     controller: CompanionController,
     endpoint: String,
+    isVisible: Boolean,
+    isPausedByUser: Boolean,
+    displayLimit: Int,
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     var isForeground by remember(lifecycleOwner) {
@@ -555,8 +564,8 @@ private fun LogsTransportLifecycle(
             controller.pauseLogsTransport()
         }
     }
-    LaunchedEffect(controller, endpoint, isForeground) {
-        if (isForeground) {
+    LaunchedEffect(controller, endpoint, isForeground, isVisible, isPausedByUser, displayLimit) {
+        if (isForeground && isVisible && !isPausedByUser) {
             controller.runLogsTransport()
         } else {
             controller.pauseLogsTransport()

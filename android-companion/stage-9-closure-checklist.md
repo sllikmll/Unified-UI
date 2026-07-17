@@ -22,6 +22,6 @@ Status: implementation and automated verification completed 2026-07-16. Device s
 
 ## Verification
 
-- [x] `python -m pytest tests/test_mobile_logs_contract.py` — `3 passed` on 2026-07-16.
+- [x] `python -m pytest tests/test_mobile_logs_contract.py` — `4 passed` on 2026-07-17.
 - [x] `cd android-companion; .\gradlew.bat testDebugUnitTest` — successful on 2026-07-16.
 - [ ] Device smoke-test on a node running this backend and matching APK: initial history, appended line, temporary offline, `background -> foreground`, reconnect and expired session.
