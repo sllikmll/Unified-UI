@@ -10,6 +10,7 @@ import org.json.JSONObject
 internal class MobileSessionPort(
     private val sessionMaterials: SessionMaterialStore,
     private val transport: CompanionHttpTransport,
+    private val keeneticGatewayAuth: KeeneticGatewayAuthStore = NoOpKeeneticGatewayAuthStore,
 ) : SessionPort {
     override suspend fun pair(connection: Connection): SessionPairResult {
         val bootstrap = loadBootstrap(connection.baseUrl)
@@ -66,6 +67,33 @@ internal class MobileSessionPort(
             user = session.optString("user").trim().ifBlank { credentials.username.trim() },
             restored = false,
         )
+    }
+
+    override suspend fun authorizeKeenetic(
+        connection: Connection,
+        credentials: LoginForm,
+    ): SessionPairResult {
+        require(credentials.username.isNotBlank()) { "Введите логин Keenetic." }
+        require(credentials.password.isNotBlank()) { "Введите пароль Keenetic." }
+        keeneticGatewayAuth.save(
+            connection.baseUrl,
+            KeeneticGatewayCredentials(
+                username = credentials.username,
+                password = credentials.password,
+            ),
+        )
+        return try {
+            when (val restored = restore(connection)) {
+                SessionRestoreResult.NotAvailable -> pair(connection)
+                is SessionRestoreResult.Open -> SessionPairResult.Open(restored.result)
+                is SessionRestoreResult.AuthRequired -> pair(restored.result.connection)
+            }
+        } catch (error: CompanionTransportException) {
+            if (error.failure.kind == CompanionTransportFailureKind.KeeneticAuthenticationRequired) {
+                keeneticGatewayAuth.clear(connection.baseUrl)
+            }
+            throw error
+        }
     }
 
     override suspend fun restore(connection: Connection): SessionRestoreResult {

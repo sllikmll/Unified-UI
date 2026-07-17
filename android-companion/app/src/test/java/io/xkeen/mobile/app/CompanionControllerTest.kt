@@ -268,6 +268,89 @@ class CompanionControllerTest {
     }
 
     @Test
+    fun keeneticChallengeSwitchesPairScreenToRouterCredentials() = runTest {
+        val connection = Connection(
+            id = "remote-node",
+            name = "Удалённый узел",
+            baseUrl = "https://node.keenetic.pro:8443",
+            status = ConnectionStatus.NeedsAuth,
+            lastSeen = "Требуется вход",
+        )
+        val controller = CompanionController(
+            initialState = CompanionUiState(
+                phase = AppPhase.PairLogin,
+                connections = listOf(connection),
+                selectedConnectionId = connection.id,
+            ),
+            dependencies = testDependencies(
+                connections = InMemoryConnectionsPort(StoredConnections(listOf(connection), connection.id)),
+                session = object : SessionPort by DemoSessionPort() {
+                    override suspend fun pair(connection: Connection): SessionPairResult =
+                        throw CompanionTransportException(
+                            CompanionTransportFailure(
+                                kind = CompanionTransportFailureKind.KeeneticAuthenticationRequired,
+                                userMessage = "Для удалённого доступа сначала войдите в Keenetic.",
+                                statusCode = 401,
+                                serverCode = "keenetic_auth_required",
+                            ),
+                        )
+                },
+            ),
+        )
+
+        controller.pair()
+
+        assertEquals(AppPhase.PairLogin, controller.state.phase)
+        assertTrue(controller.state.isKeeneticAuthRequired)
+        assertEquals("Требуется вход в Keenetic", controller.state.dashboard.statusSummary)
+        assertTrue(controller.state.sessionMessage.orEmpty().contains("сначала войдите в Keenetic"))
+    }
+
+    @Test
+    fun successfulKeeneticLoginContinuesToSeparateXkeenLoginStep() = runTest {
+        val connection = Connection(
+            id = "remote-node",
+            name = "Удалённый узел",
+            baseUrl = "https://node.keenetic.pro:8443",
+            status = ConnectionStatus.NeedsAuth,
+            lastSeen = "Требуется вход",
+        )
+        var submittedCredentials: LoginForm? = null
+        val controller = CompanionController(
+            initialState = CompanionUiState(
+                phase = AppPhase.PairLogin,
+                connections = listOf(connection),
+                selectedConnectionId = connection.id,
+                keeneticLoginForm = LoginForm("router-admin", "router-secret"),
+                isKeeneticAuthRequired = true,
+            ),
+            dependencies = testDependencies(
+                connections = InMemoryConnectionsPort(StoredConnections(listOf(connection), connection.id)),
+                session = object : SessionPort by DemoSessionPort() {
+                    override suspend fun authorizeKeenetic(
+                        connection: Connection,
+                        credentials: LoginForm,
+                    ): SessionPairResult {
+                        submittedCredentials = credentials
+                        return SessionPairResult.Status(
+                            connection = connection,
+                            statusSummary = "Требуется вход",
+                            message = "Введите учётные данные Xkeen UI.",
+                        )
+                    }
+                },
+            ),
+        )
+
+        controller.authorizeKeenetic()
+
+        assertEquals(LoginForm("router-admin", "router-secret"), submittedCredentials)
+        assertFalse(controller.state.isKeeneticAuthRequired)
+        assertEquals("", controller.state.keeneticLoginForm.password)
+        assertEquals("Введите учётные данные Xkeen UI.", controller.state.sessionMessage)
+    }
+
+    @Test
     fun selectingBottomTabResetsItsContextSection() {
         val controller = CompanionController(
             CompanionUiState(

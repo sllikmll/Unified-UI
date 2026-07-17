@@ -298,12 +298,16 @@ private fun PairLoginRoute(
     val connection = state.connections.firstOrNull { it.id == state.selectedConnectionId }
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
-    val passwordVisible = rememberSaveable(connection?.id) { mutableStateOf(false) }
-    val canLogin = state.loginForm.username.isNotBlank() && state.loginForm.password.isNotBlank()
+    val isKeeneticStep = state.isKeeneticAuthRequired
+    val activeForm = if (isKeeneticStep) state.keeneticLoginForm else state.loginForm
+    val passwordVisible = rememberSaveable(connection?.id, isKeeneticStep) { mutableStateOf(false) }
+    val canLogin = activeForm.username.isNotBlank() && activeForm.password.isNotBlank()
     val submitLogin: () -> Unit = {
         if (canLogin && !state.isSessionBusy) {
             focusManager.clearFocus()
-            scope.launch { controller.login() }
+            scope.launch {
+                if (isKeeneticStep) controller.authorizeKeenetic() else controller.login()
+            }
         }
     }
 
@@ -338,8 +342,12 @@ private fun PairLoginRoute(
         }
 
         SectionCard(
-            title = "Учетная запись",
-            supporting = "Введите тот же логин и пароль администратора, что используете в веб-панели.",
+            title = if (isKeeneticStep) "Доступ Keenetic" else "Учетная запись Xkeen UI",
+            supporting = if (isKeeneticStep) {
+                "Удалённый адрес защищён роутером. Сначала войдите с учётной записью Keenetic. Пароль останется только в памяти приложения."
+            } else {
+                "Введите логин и пароль администратора Xkeen UI. Они могут отличаться от учётной записи Keenetic."
+            },
         ) {
             CompactStatusRow(
                 items = listOf(
@@ -375,9 +383,13 @@ private fun PairLoginRoute(
             Spacer(Modifier.height(12.dp))
             CompactField(
                 modifier = Modifier.fillMaxWidth(),
-                value = state.loginForm.username,
-                onValueChange = controller::updateUsername,
-                label = "Логин",
+                value = activeForm.username,
+                onValueChange = if (isKeeneticStep) {
+                    controller::updateKeeneticUsername
+                } else {
+                    controller::updateUsername
+                },
+                label = if (isKeeneticStep) "Логин Keenetic" else "Логин Xkeen UI",
                 labelMode = CompactFieldLabelMode.Above,
                 leadingIcon = { Icon(Icons.Outlined.Key, contentDescription = null) },
                 imeAction = ImeAction.Next,
@@ -389,9 +401,13 @@ private fun PairLoginRoute(
             Spacer(Modifier.height(10.dp))
             CompactField(
                 modifier = Modifier.fillMaxWidth(),
-                value = state.loginForm.password,
-                onValueChange = controller::updatePassword,
-                label = "Пароль",
+                value = activeForm.password,
+                onValueChange = if (isKeeneticStep) {
+                    controller::updateKeeneticPassword
+                } else {
+                    controller::updatePassword
+                },
+                label = if (isKeeneticStep) "Пароль Keenetic" else "Пароль Xkeen UI",
                 labelMode = CompactFieldLabelMode.Above,
                 leadingIcon = { Icon(Icons.Outlined.Password, contentDescription = null) },
                 trailingIcon = {
@@ -431,7 +447,7 @@ private fun PairLoginRoute(
             ) {
                 Icon(Icons.Outlined.Verified, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Войти")
+                Text(if (isKeeneticStep) "Продолжить" else "Войти")
             }
         }
     }

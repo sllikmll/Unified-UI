@@ -72,12 +72,14 @@ internal class CompanionController(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            state = state.copy(
-                phase = AppPhase.PairLogin,
-                isSessionBusy = false,
-                sessionMessage = "Не удалось подтвердить сохраненную сессию: ${sessionErrorMessage(error)}",
-                dashboard = state.dashboard.copy(statusSummary = "Не удалось восстановить сессию"),
-            )
+            if (!requireKeeneticLogin(error, "Не удалось подтвердить сохраненную сессию")) {
+                state = state.copy(
+                    phase = AppPhase.PairLogin,
+                    isSessionBusy = false,
+                    sessionMessage = "Не удалось подтвердить сохраненную сессию: ${sessionErrorMessage(error)}",
+                    dashboard = state.dashboard.copy(statusSummary = "Не удалось восстановить сессию"),
+                )
+            }
         }
     }
 
@@ -137,6 +139,8 @@ internal class CompanionController(
             phase = AppPhase.PairLogin,
             selectedConnectionId = connectionId,
             loginForm = state.loginForm.copy(username = "admin", password = ""),
+            keeneticLoginForm = LoginForm(),
+            isKeeneticAuthRequired = false,
             isSessionBusy = false,
             sessionMessage = null,
             dashboard = state.dashboard.copy(
@@ -180,6 +184,14 @@ internal class CompanionController(
         state = state.copy(loginForm = state.loginForm.copy(password = value))
     }
 
+    fun updateKeeneticUsername(value: String) {
+        state = state.copy(keeneticLoginForm = state.keeneticLoginForm.copy(username = value))
+    }
+
+    fun updateKeeneticPassword(value: String) {
+        state = state.copy(keeneticLoginForm = state.keeneticLoginForm.copy(password = value))
+    }
+
     suspend fun pair() {
         val connection = selectedConnection() ?: return
         if (state.isSessionBusy) return
@@ -196,7 +208,31 @@ internal class CompanionController(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            sessionFailed(error, "Не удалось проверить узел")
+            if (!requireKeeneticLogin(error, "Не удалось проверить узел")) {
+                sessionFailed(error, "Не удалось проверить узел")
+            }
+        }
+    }
+
+    suspend fun authorizeKeenetic() {
+        val connection = selectedConnection() ?: return
+        if (state.isSessionBusy) return
+        state = state.copy(
+            isSessionBusy = true,
+            sessionMessage = "Входим в Keenetic и продолжаем проверку…",
+        )
+
+        try {
+            when (val result = dependencies.session.authorizeKeenetic(connection, state.keeneticLoginForm)) {
+                is SessionPairResult.Open -> openSession(result.result)
+                is SessionPairResult.Status -> updateSessionStatus(result)
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            if (!requireKeeneticLogin(error, "Не удалось войти в Keenetic")) {
+                sessionFailed(error, "Не удалось войти в Keenetic")
+            }
         }
     }
 
@@ -213,7 +249,9 @@ internal class CompanionController(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            sessionFailed(error, "Не удалось выполнить вход")
+            if (!requireKeeneticLogin(error, "Не удалось выполнить вход")) {
+                sessionFailed(error, "Не удалось выполнить вход")
+            }
         }
     }
 
@@ -2083,6 +2121,8 @@ internal class CompanionController(
             phase = AppPhase.Ready,
             connections = updatedConnections,
             loginForm = state.loginForm.copy(password = ""),
+            keeneticLoginForm = state.keeneticLoginForm.copy(password = ""),
+            isKeeneticAuthRequired = false,
             isSessionBusy = false,
             sessionMessage = null,
             dashboard = workspaceDashboard,
@@ -2107,6 +2147,8 @@ internal class CompanionController(
         state = state.copy(
             phase = AppPhase.PairLogin,
             connections = updatedConnections,
+            keeneticLoginForm = state.keeneticLoginForm.copy(password = ""),
+            isKeeneticAuthRequired = false,
             isSessionBusy = false,
             sessionMessage = result.message,
             dashboard = state.dashboard.copy(statusSummary = result.statusSummary),
@@ -2150,6 +2192,8 @@ internal class CompanionController(
             phase = phase,
             connections = updatedConnections,
             loginForm = state.loginForm.copy(password = ""),
+            keeneticLoginForm = state.keeneticLoginForm.copy(password = ""),
+            isKeeneticAuthRequired = false,
             isSessionBusy = false,
             sessionMessage = message,
             mainTab = MainTab.Routing,
@@ -2179,6 +2223,25 @@ internal class CompanionController(
         )
     }
 
+    private fun requireKeeneticLogin(error: Throwable, action: String): Boolean {
+        val failure = (error as? CompanionTransportException)?.failure ?: return false
+        if (failure.kind != CompanionTransportFailureKind.KeeneticAuthenticationRequired) {
+            return false
+        }
+        val message = "$action: ${failure.userMessage}"
+        logsTransportGeneration += 1
+        state = state.copy(
+            phase = AppPhase.PairLogin,
+            isKeeneticAuthRequired = true,
+            keeneticLoginForm = state.keeneticLoginForm.copy(password = ""),
+            isSessionBusy = false,
+            sessionMessage = message,
+            dashboard = state.dashboard.copy(statusSummary = "Требуется вход в Keenetic"),
+            logs = recordLog("auth", LogLevel.Warning, message),
+        )
+        return true
+    }
+
     /**
      * A 401 from an authenticated workspace endpoint means the stored server session no longer
      * exists.  Clear only this node's material and make the required re-login explicit instead of
@@ -2186,6 +2249,9 @@ internal class CompanionController(
      */
     private fun returnToLoginForExpiredSession(error: Throwable): Boolean {
         val failure = (error as? CompanionTransportException)?.failure ?: return false
+        if (failure.kind == CompanionTransportFailureKind.KeeneticAuthenticationRequired) {
+            return requireKeeneticLogin(error, "Удалённая сессия Keenetic истекла")
+        }
         if (failure.kind != CompanionTransportFailureKind.AuthenticationRequired) {
             return false
         }
@@ -2492,7 +2558,12 @@ internal class CompanionController(
     ): ActiveOutboundSnapshot? = try {
         dependencies.outbounds.loadActive(endpoint, filename)
     } catch (error: CompanionTransportException) {
-        if (error.failure.kind == CompanionTransportFailureKind.AuthenticationRequired) throw error
+        if (
+            error.failure.kind == CompanionTransportFailureKind.AuthenticationRequired ||
+            error.failure.kind == CompanionTransportFailureKind.KeeneticAuthenticationRequired
+        ) {
+            throw error
+        }
         null
     } catch (_: Exception) {
         null
@@ -2630,6 +2701,7 @@ internal class CompanionController(
             fallback = "Не удалось обновить состояние Xkeen UI.",
         )
         val severity = when ((error as? CompanionTransportException)?.failure?.kind) {
+            CompanionTransportFailureKind.KeeneticAuthenticationRequired,
             CompanionTransportFailureKind.AuthenticationRequired,
             CompanionTransportFailureKind.AccessDenied,
             CompanionTransportFailureKind.SetupRequired,
@@ -2963,8 +3035,10 @@ internal fun logReconnectDelayMillis(attempt: Int): Long =
     }
 
 private fun Throwable.isAuthenticationRequired(): Boolean =
-    (this as? CompanionTransportException)?.failure?.kind ==
-        CompanionTransportFailureKind.AuthenticationRequired
+    (this as? CompanionTransportException)?.failure?.kind in setOf(
+        CompanionTransportFailureKind.KeeneticAuthenticationRequired,
+        CompanionTransportFailureKind.AuthenticationRequired,
+    )
 
 private fun List<LogEntry>.deduplicateLogEntries(): List<LogEntry> {
     val seenIds = mutableSetOf<String>()

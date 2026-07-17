@@ -8,6 +8,8 @@ import java.net.SocketTimeoutException
 import java.net.URI
 import java.net.UnknownHostException
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -69,7 +71,15 @@ internal object NoOpCompanionHttpAuthHook : CompanionHttpAuthHook {
 internal class HttpUrlConnectionCompanionTransport(
     private val config: CompanionHttpTransportConfig = CompanionHttpTransportConfig(),
     private val authHook: CompanionHttpAuthHook = NoOpCompanionHttpAuthHook,
+    private val keeneticGatewayAuth: KeeneticGatewayAuthStore = NoOpKeeneticGatewayAuthStore,
 ) : CompanionHttpTransport {
+    private data class DigestState(
+        val challenge: KeeneticDigestChallenge,
+        val nonceCount: AtomicInteger = AtomicInteger(0),
+    )
+
+    private val digestStates = ConcurrentHashMap<String, DigestState>()
+
     override suspend fun get(request: CompanionHttpRequest): CompanionHttpResponse =
         execute("GET", request)
 
@@ -85,50 +95,53 @@ internal class HttpUrlConnectionCompanionTransport(
     ): CompanionHttpResponse =
         withContext(Dispatchers.IO) {
             val url = resolveCompanionEndpoint(request.baseUrl, request.endpoint)
+            val normalizedBaseUrl = normalizeCompanionBaseUrl(request.baseUrl).toString()
             try {
-                val connection = url.toURL().openConnection() as HttpURLConnection
-                try {
-                    connection.requestMethod = method
-                    connection.connectTimeout = config.connectTimeoutMillis
-                    connection.readTimeout = config.readTimeoutMillis
-                    connection.useCaches = false
-                    connection.instanceFollowRedirects = true
-                    val headers = mergedCompanionHeaders(config, authHook, request)
-                    headers.forEach { (name, value) ->
-                        connection.setRequestProperty(name, value)
-                    }
-                    request.body?.let { body ->
-                        connection.doOutput = true
-                        if (headers.keys.none { it.equals("Content-Type", ignoreCase = true) }) {
-                            connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                        }
-                        connection.outputStream.bufferedWriter(StandardCharsets.UTF_8).use { writer ->
-                            writer.write(body)
-                        }
-                    }
-
-                    val status = connection.responseCode
-                    val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-                    val response = CompanionHttpResponse(
-                        statusCode = status,
-                        body = stream?.bufferedReader(StandardCharsets.UTF_8)?.use { it.readText() }.orEmpty(),
-                        headers = connection.headerFields
-                            .filterKeys { it != null }
-                            .mapKeys { (name, _) -> name.orEmpty().lowercase() }
-                            .mapValues { (_, values) -> values?.firstOrNull().orEmpty() },
-                        contentType = connection.contentType.orEmpty(),
-                        setCookieHeaders = connection.headerFields
-                            .entries
-                            .filter { (name, _) -> name.equals("Set-Cookie", ignoreCase = true) }
-                            .flatMap { (_, values) -> values.orEmpty() },
-                    )
-                    requireSuccessfulCompanionResponse(
-                        response = response,
+                val credentials = keeneticGatewayAuth.credentialsFor(normalizedBaseUrl)
+                val cachedState = digestStates[normalizedBaseUrl]
+                val initialAuthorization = if (credentials != null && cachedState != null) {
+                    cachedState.authorization(credentials, method, url)
+                } else {
+                    null
+                }
+                val initialResponse = executeOnce(method, request, url, initialAuthorization)
+                val responseChallenge = initialResponse.keeneticDigestChallenge()
+                if (initialResponse.statusCode != HttpURLConnection.HTTP_UNAUTHORIZED || responseChallenge == null) {
+                    return@withContext requireSuccessfulCompanionResponse(
+                        response = initialResponse,
                         allowHtmlResponse = request.allowHtmlResponse,
                     )
-                } finally {
-                    connection.disconnect()
                 }
+
+                val challengedState = DigestState(responseChallenge)
+                digestStates[normalizedBaseUrl] = challengedState
+                if (credentials == null) {
+                    throw keeneticGatewayAuthenticationRequired(responseChallenge.realm)
+                }
+                if (initialAuthorization != null && !responseChallenge.stale) {
+                    digestStates.remove(normalizedBaseUrl)
+                    keeneticGatewayAuth.clear(request.baseUrl)
+                    throw keeneticGatewayAuthenticationRejected(responseChallenge.realm)
+                }
+
+                val retryResponse = executeOnce(
+                    method = method,
+                    request = request,
+                    url = url,
+                    gatewayAuthorization = challengedState.authorization(credentials, method, url),
+                )
+                if (
+                    retryResponse.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED &&
+                    retryResponse.keeneticDigestChallenge() != null
+                ) {
+                    digestStates.remove(normalizedBaseUrl)
+                    keeneticGatewayAuth.clear(request.baseUrl)
+                    throw keeneticGatewayAuthenticationRejected(responseChallenge.realm)
+                }
+                requireSuccessfulCompanionResponse(
+                    response = retryResponse,
+                    allowHtmlResponse = request.allowHtmlResponse,
+                )
             } catch (error: CompanionTransportException) {
                 throw error
             } catch (error: CancellationException) {
@@ -137,10 +150,73 @@ internal class HttpUrlConnectionCompanionTransport(
                 throw error.toCompanionTransportException()
             }
         }
+
+    private fun executeOnce(
+        method: String,
+        request: CompanionHttpRequest,
+        url: URI,
+        gatewayAuthorization: String?,
+    ): CompanionHttpResponse {
+        val connection = url.toURL().openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = method
+            connection.connectTimeout = config.connectTimeoutMillis
+            connection.readTimeout = config.readTimeoutMillis
+            connection.useCaches = false
+            connection.instanceFollowRedirects = true
+            val headers = mergedCompanionHeaders(config, authHook, request).toMutableMap()
+            gatewayAuthorization?.let { authorization ->
+                headers.keys.firstOrNull { it.equals("Authorization", ignoreCase = true) }
+                    ?.let(headers::remove)
+                headers["Authorization"] = authorization
+            }
+            headers.forEach { (name, value) -> connection.setRequestProperty(name, value) }
+            request.body?.let { body ->
+                connection.doOutput = true
+                if (headers.keys.none { it.equals("Content-Type", ignoreCase = true) }) {
+                    connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                }
+                connection.outputStream.bufferedWriter(StandardCharsets.UTF_8).use { writer ->
+                    writer.write(body)
+                }
+            }
+
+            val status = connection.responseCode
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            return CompanionHttpResponse(
+                statusCode = status,
+                body = stream?.bufferedReader(StandardCharsets.UTF_8)?.use { it.readText() }.orEmpty(),
+                headers = connection.headerFields
+                    .filterKeys { it != null }
+                    .mapKeys { (name, _) -> name.orEmpty().lowercase() }
+                    .mapValues { (_, values) -> values?.firstOrNull().orEmpty() },
+                contentType = connection.contentType.orEmpty(),
+                setCookieHeaders = connection.headerFields
+                    .entries
+                    .filter { (name, _) -> name.equals("Set-Cookie", ignoreCase = true) }
+                    .flatMap { (_, values) -> values.orEmpty() },
+            )
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun DigestState.authorization(
+        credentials: KeeneticGatewayCredentials,
+        method: String,
+        uri: URI,
+    ): String = createKeeneticDigestAuthorization(
+        challenge = challenge,
+        credentials = credentials,
+        method = method,
+        uri = uri,
+        nonceCount = nonceCount.incrementAndGet(),
+    )
 }
 
 internal enum class CompanionTransportFailureKind {
     InvalidBaseUrl,
+    KeeneticAuthenticationRequired,
     AuthenticationRequired,
     AccessDenied,
     SetupRequired,
@@ -150,6 +226,29 @@ internal enum class CompanionTransportFailureKind {
     HttpError,
     UnexpectedResponse,
 }
+
+private fun CompanionHttpResponse.keeneticDigestChallenge(): KeeneticDigestChallenge? =
+    parseKeeneticDigestChallenge(headers["www-authenticate"])
+
+private fun keeneticGatewayAuthenticationRequired(realm: String): CompanionTransportException =
+    CompanionTransportException(
+        CompanionTransportFailure(
+            kind = CompanionTransportFailureKind.KeeneticAuthenticationRequired,
+            userMessage = "Для удалённого доступа сначала войдите в Keenetic ($realm).",
+            statusCode = HttpURLConnection.HTTP_UNAUTHORIZED,
+            serverCode = "keenetic_auth_required",
+        ),
+    )
+
+private fun keeneticGatewayAuthenticationRejected(realm: String): CompanionTransportException =
+    CompanionTransportException(
+        CompanionTransportFailure(
+            kind = CompanionTransportFailureKind.KeeneticAuthenticationRequired,
+            userMessage = "Keenetic ($realm) отклонил логин или пароль.",
+            statusCode = HttpURLConnection.HTTP_UNAUTHORIZED,
+            serverCode = "keenetic_invalid_credentials",
+        ),
+    )
 
 internal data class CompanionTransportFailure(
     val kind: CompanionTransportFailureKind,

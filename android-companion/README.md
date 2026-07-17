@@ -2,14 +2,15 @@
 
 Android companion-приложение для Xkeen-UI. Каталог `android-companion/` уже является рабочим implementation baseline, а не пустым skeleton: проект собирается, проходит unit tests и содержит живой Compose shell с частичной backend-интеграцией.
 
-## Текущее состояние на 2026-07-16
+## Текущее состояние на 2026-07-17
 
 - Приложение проходит через фазы `Launching`, `Connections`, `Pair/Login` и `Ready`.
 - На `Launching` приложение загружает из app-private storage список узлов, их базовый metadata state и последний выбранный узел; trusted material выбранного узла проверяется server bootstrap до открытия `Ready`.
 - `Connections` поддерживает ручное добавление инстанса по `name` и `baseUrl`, повторный выбор и безопасное редактирование уже сохраненного узла без смены его `id` и metadata.
 - Сохраненный `Configured` status сам по себе не открывает `Ready`: marker доверенного восстановления хранится отдельно, а авторизация подтверждается backend bootstrap.
 - `Pair/Login` работает через реальный `MobileSessionPort`: сначала используется `GET /api/mobile/v1/bootstrap` и `POST/DELETE /api/mobile/v1/session`. Если установленный Xkeen UI еще закрывает mobile handshake ответом старой версии, приложение автоматически и без перехода в браузер использует совместимый `/api/auth/status` + CSRF-protected `/api/auth/login` flow.
-- Экран входа проверяет узел автоматически и оставляет пользователю одно основное действие: ввести данные веб-панели и нажать `Войти`. Логин и пароль расположены вертикально, пароль можно показать, а клавиша `Done` запускает вход.
+- При удалённом доступе через защищённый KeenDNS-прокси transport отличает Digest challenge Keenetic от `401` Xkeen UI. Экран последовательно запрашивает учётную запись Keenetic, продолжает исходный API-запрос с Digest authorization и только затем показывает отдельный вход Xkeen UI.
+- Экран входа проверяет узел автоматически. Локальный сценарий сразу показывает Xkeen UI; удалённый — только необходимые этапы `Keenetic → Xkeen UI`. Логин и пароль расположены вертикально, пароль можно показать, а клавиша `Done` запускает текущий этап.
 - `Ready`-состояние построено как capability-aware workspace с компактной верхней панелью, отдельной кнопкой `Core` и безопасными действиями `start`, `stop`, `restart` через confirm dialog.
 - `start`, `stop`, `restart` и смена `Core` выполняются реальным `WebPanelServiceActionsPort`; успех показывается только после повторного чтения runtime/core state с сервера.
 - Подтверждение service/core action использует bounded polling: переходный snapshot во время перезапуска (в частности `stopped / Xray` при Mihomo → Xray) не считается немедленной ошибкой. Клиент ждёт server-confirmed целевое состояние до 15 секунд, не подменяя его локальным success.
@@ -61,7 +62,7 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 - `GET /api/mobile/v1/logs` возвращает Xray `error`/`access` history и инкрементальные записи по per-source opaque cursor. Android пользуется этим контрактом для live logs, а не web WebSocket endpoint'ами.
 - `POST /api/xkeen/start`, `POST /api/xkeen/stop`, `POST /api/restart` и `POST /api/xkeen/core` выполняют service/core actions; после каждого принятого POST приложение сверяет результат через `GET /api/xkeen/status` и `GET /api/xkeen/core`.
 - Эти read-only запросы идут через единый `CompanionHttpTransport`: он нормализует безопасный `baseUrl`, добавляет common headers, применяет timeout и оставляет seam для session auth headers. Validate и service actions используют отдельный `90 s` transport, потому что server Xray preflight может быть долгим.
-- `401`, `403`, `428`, HTML login page, offline и timeout переводятся в типизированные app-level ошибки. `Core` отражает их в dashboard, diagnostics и logs, а `Routing Xray` — в retryable load state.
+- Keenetic Digest challenge, `401`, `403`, `428`, HTML login page, offline и timeout переводятся в отдельные типизированные app-level состояния. `Core` отражает их в dashboard, diagnostics и logs, а `Routing Xray` — в retryable load state.
 - Во время core switch pending/failure показывается внутри modal без дублирующего глобального сообщения; после подтверждённого успеха modal закрывается и появляется одна непрозрачная контрастная success-карточка.
 
 ## Архитектурный seam
@@ -87,6 +88,7 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 - Android-реализация шифрует единый payload AES-GCM; неэкспортируемый ключ создается в Android Keystore. В app-private `SharedPreferences` попадает только ciphertext, а не raw token/cookie/CSRF.
 - Поврежденный ciphertext или недоступный ключ очищают unusable payload. Backup выключен через `android:allowBackup="false"`.
 - Пароль не записывается в storage и после успешного входа очищается из UI-state. Logout очищает material только активного узла.
+- Учётные данные Keenetic также не сохраняются: они существуют только в памяти процесса для повторной Digest-авторизации удалённых API-запросов. После перезапуска приложения защищённый KeenDNS-узел попросит вход Keenetic снова, не удаляя доверенную сессию Xkeen UI.
 - Текущий demo flow сохраняет лишь случайный синтетический secret с `trustedForRestore = false`, поэтому он не может превратиться в автоматическую авторизацию.
 
 ### Политика automatic restore

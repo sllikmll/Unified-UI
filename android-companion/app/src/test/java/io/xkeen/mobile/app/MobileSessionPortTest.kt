@@ -69,6 +69,66 @@ class MobileSessionPortTest {
     }
 
     @Test
+    fun keeneticLoginContinuesWithXkeenPairWithoutPersistingRouterPassword() = runTest {
+        val gatewayAuth = InMemoryKeeneticGatewayAuthStore()
+        val materials = InMemorySessionMaterialStore()
+        val transport = RecordingSessionTransport(
+            getResponse = response(
+                body = """{"ok":true,"data":{"auth":{"configured":true,"authenticated":false}}}""",
+            ),
+        )
+        val session = MobileSessionPort(
+            sessionMaterials = materials,
+            transport = transport,
+            keeneticGatewayAuth = gatewayAuth,
+        )
+
+        val result = session.authorizeKeenetic(
+            connection,
+            LoginForm(username = "router-admin", password = "router-secret"),
+        )
+
+        assertTrue(result is SessionPairResult.Status)
+        assertEquals(ConnectionStatus.NeedsAuth, (result as SessionPairResult.Status).connection.status)
+        assertEquals(
+            KeeneticGatewayCredentials("router-admin", "router-secret"),
+            gatewayAuth.credentialsFor(normalizeCompanionBaseUrl(connection.baseUrl).toString()),
+        )
+        assertNull(materials.load(connection.id))
+    }
+
+    @Test
+    fun rejectedKeeneticLoginClearsEphemeralCredentials() = runTest {
+        val gatewayAuth = InMemoryKeeneticGatewayAuthStore()
+        val transport = ScriptedSessionTransport(
+            getSteps = listOf({
+                throw CompanionTransportException(
+                    CompanionTransportFailure(
+                        kind = CompanionTransportFailureKind.KeeneticAuthenticationRequired,
+                        userMessage = "Keenetic отклонил логин или пароль.",
+                        statusCode = 401,
+                        serverCode = "keenetic_invalid_credentials",
+                    ),
+                )
+            }),
+        )
+        val session = MobileSessionPort(
+            sessionMaterials = InMemorySessionMaterialStore(),
+            transport = transport,
+            keeneticGatewayAuth = gatewayAuth,
+        )
+
+        runCatching {
+            session.authorizeKeenetic(
+                connection,
+                LoginForm(username = "router-admin", password = "wrong"),
+            )
+        }
+
+        assertNull(gatewayAuth.credentialsFor(normalizeCompanionBaseUrl(connection.baseUrl).toString()))
+    }
+
+    @Test
     fun loginFallsBackToCsrfProtectedWebApiAndStoresAuthenticatedSession() = runTest {
         val materials = InMemorySessionMaterialStore()
         val transport = ScriptedSessionTransport(
@@ -186,6 +246,30 @@ class MobileSessionPortTest {
 
         assertTrue(restored is SessionRestoreResult.AuthRequired)
         assertNull(materials.load(connection.id))
+    }
+
+    @Test
+    fun keeneticChallengeDoesNotDeleteTrustedXkeenSession() = runTest {
+        val materials = trustedMaterials()
+        val transport = ScriptedSessionTransport(
+            getSteps = listOf({
+                throw CompanionTransportException(
+                    CompanionTransportFailure(
+                        kind = CompanionTransportFailureKind.KeeneticAuthenticationRequired,
+                        userMessage = "Сначала войдите в Keenetic.",
+                        statusCode = 401,
+                        serverCode = "keenetic_auth_required",
+                    ),
+                )
+            }),
+        )
+
+        val error = runCatching {
+            MobileSessionPort(materials, transport).restore(connection)
+        }.exceptionOrNull()
+
+        assertTrue(error is CompanionTransportException)
+        assertEquals("session=mobile-cookie", materials.loadTrusted(connection.id)?.material?.cookieHeader)
     }
 
     @Test

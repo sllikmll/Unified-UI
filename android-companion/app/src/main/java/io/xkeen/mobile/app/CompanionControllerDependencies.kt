@@ -28,6 +28,11 @@ internal interface SessionPort {
 
     suspend fun login(connection: Connection, credentials: LoginForm): SessionOpenResult
 
+    suspend fun authorizeKeenetic(
+        connection: Connection,
+        credentials: LoginForm,
+    ): SessionPairResult = pair(connection)
+
     suspend fun restore(connection: Connection): SessionRestoreResult
 
     suspend fun disconnect(connection: Connection): SessionCloseResult
@@ -169,14 +174,19 @@ internal fun defaultCompanionControllerDependencies(
 ): CompanionControllerDependencies {
     val journal = SystemCompanionJournalPort()
     val authHook = SessionMaterialAuthHook(connections, sessionMaterials)
-    val effectiveTransport = transport ?: HttpUrlConnectionCompanionTransport(authHook = authHook)
+    val keeneticGatewayAuth = InMemoryKeeneticGatewayAuthStore()
+    val effectiveTransport = transport ?: HttpUrlConnectionCompanionTransport(
+        authHook = authHook,
+        keeneticGatewayAuth = keeneticGatewayAuth,
+    )
     val serviceTransport = transport ?: HttpUrlConnectionCompanionTransport(
         config = CompanionHttpTransportConfig(readTimeoutMillis = 90_000),
         authHook = authHook,
+        keeneticGatewayAuth = keeneticGatewayAuth,
     )
     return CompanionControllerDependencies(
         connections = connections,
-        session = MobileSessionPort(sessionMaterials, effectiveTransport),
+        session = MobileSessionPort(sessionMaterials, effectiveTransport, keeneticGatewayAuth),
         serviceActions = WebPanelServiceActionsPort(serviceTransport),
         routingValidation = WebPanelRoutingValidationPort(serviceTransport),
         routingWrites = WebPanelRoutingWritePort(serviceTransport),

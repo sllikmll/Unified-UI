@@ -707,6 +707,8 @@ data class CompanionUiState(
     val connectionDraft: ConnectionDraft = ConnectionDraft(),
     val selectedConnectionId: String? = null,
     val loginForm: LoginForm = LoginForm(),
+    val keeneticLoginForm: LoginForm = LoginForm(),
+    val isKeeneticAuthRequired: Boolean = false,
     val isSessionBusy: Boolean = false,
     val sessionMessage: String? = null,
     val mainTab: MainTab = MainTab.Routing,
