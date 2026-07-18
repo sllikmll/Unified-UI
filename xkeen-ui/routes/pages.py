@@ -43,6 +43,8 @@ def _detect_panel_core_ui() -> dict[str, object]:
     if has_mihomo:
         supported_sections.append("mihomo")
         supported_sections.append("mihomo-selectors")
+        supported_sections.append("mihomo-connections")
+        supported_sections.append("geodat")
     supported_sections.extend(["xkeen"])
     if has_xray:
         supported_sections.append("xray-logs")
