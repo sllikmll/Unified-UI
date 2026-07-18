@@ -42,6 +42,7 @@ def _detect_panel_core_ui() -> dict[str, object]:
         supported_sections.append("routing")
     if has_mihomo:
         supported_sections.append("mihomo")
+        supported_sections.append("mihomo-selectors")
     supported_sections.extend(["xkeen"])
     if has_xray:
         supported_sections.append("xray-logs")
