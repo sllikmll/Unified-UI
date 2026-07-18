@@ -61,7 +61,7 @@ resolve_our_ui_init_script() {
   return 1
 }
 
-REPO="${XKEEN_UI_UPDATE_REPO:-umarcheh001/Xkeen-UI}"
+REPO="${XKEEN_UI_UPDATE_REPO:-sllikmll/Xkeen-UI-umarcheh}"
 CHANNEL="${XKEEN_UI_UPDATE_CHANNEL:-stable}"
 ASSET_NAME="${XKEEN_UI_UPDATE_ASSET_NAME:-}"
 ACTION="${XKEEN_UI_UPDATE_ACTION:-update}"

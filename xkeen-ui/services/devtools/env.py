@@ -335,7 +335,7 @@ def _default_effective_value(
 
     # Self-update defaults
     if k == "XKEEN_UI_UPDATE_REPO":
-        return "umarcheh001/Xkeen-UI"
+        return "sllikmll/Xkeen-UI-umarcheh"
     if k == "XKEEN_UI_UPDATE_CHANNEL":
         return "stable"
     if k == "XKEEN_UI_UPDATE_BRANCH":

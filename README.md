@@ -158,7 +158,7 @@ sh install.sh
 
 ```sh
 cd /opt
-curl -fL -o xkeen-ui-routing.tar.gz "https://github.com/umarcheh001/Xkeen-UI/releases/latest/download/xkeen-ui-routing.tar.gz"
+curl -fL -o xkeen-ui-routing.tar.gz "https://github.com/sllikmll/Xkeen-UI-umarcheh/releases/latest/download/xkeen-ui-routing.tar.gz"
 tar -xzf xkeen-ui-routing.tar.gz
 cd xkeen-ui
 sh install.sh
