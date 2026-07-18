@@ -1,0 +1,1 @@
+import{t as e}from"./mihomo_proxy_tools-CdgZdIwq.js";window.XKeen=window.XKeen||{};var t=window.XKeen;t.features=t.features||{};var n=typeof e==`function`?e():null;if(n){let e=t.features.mihomoProxyTools||{};t.features.mihomoProxyTools=e,Object.assign(e,n)}

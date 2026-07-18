@@ -527,6 +527,9 @@ import { wireTopLevelNavigation } from './top_level_nav.shared.js';
       routing: document.getElementById('view-routing'),
       mihomo: document.getElementById('view-mihomo'),
       'mihomo-selectors': document.getElementById('view-mihomo-selectors'),
+      'mihomo-connections': document.getElementById('view-mihomo-connections'),
+      geodat: document.getElementById('view-geodat'),
+      'mihomo-generator': document.getElementById('view-mihomo-generator'),
       xkeen: document.getElementById('view-xkeen'),
       'xray-logs': document.getElementById('view-xray-logs'),
       commands: document.getElementById('view-commands'),
@@ -607,8 +610,12 @@ import { wireTopLevelNavigation } from './top_level_nav.shared.js';
     const prevView = _currentView;
     applyShellView(nextView);
     _currentView = nextView;
-    if (nextView === 'routing') {
+    if (nextView === 'routing' || nextView === 'geodat') {
       try { scheduleRoutingInteractionRecovery(); } catch (e) {}
+    }
+    if (nextView === 'geodat') {
+      try { initRoutingDatActionsFallback(); } catch (e) {}
+      try { refreshRoutingDatFallback(); } catch (e) {}
     }
     emitViewChanged(nextView, prevView);
     return nextView;
@@ -1187,6 +1194,14 @@ import { wireTopLevelNavigation } from './top_level_nav.shared.js';
     scheduleRoutingInteractionRecovery();
     wirePanelTerminalLazyOpen();
     initPanelTerminalCapabilityButtons();
+    try {
+      const genReload = document.getElementById('mihomo-generator-reload-btn');
+      const genFrame = document.getElementById('mihomo-generator-frame');
+      if (genReload && genFrame && !(genReload.dataset && genReload.dataset.xkWired === '1')) {
+        genReload.addEventListener('click', () => { try { genFrame.src = genFrame.src; } catch (e) {} });
+        if (genReload.dataset) genReload.dataset.xkWired = '1';
+      }
+    } catch (e) {}
 
     try {
       const url = new URL(window.location.href);

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-REPO="umarcheh001/Xkeen-UI"
+REPO="sllikmll/Xkeen-UI-umarcheh"
 
 # Where to install the binary. Backend/UI may override this via XKEEN_GEODAT_BIN.
 DEST_DEFAULT="/opt/etc/xkeen-ui/bin/xk-geodat"

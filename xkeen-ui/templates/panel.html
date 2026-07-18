@@ -212,6 +212,12 @@
         <button class="top-tab-btn xk-top-tab xk-top-tab-mihomo-selectors" data-view="mihomo-selectors" data-xk-section="mihomo-selectors">
           Селекторы
         </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-mihomo-connections" data-view="mihomo-connections" data-xk-section="mihomo-connections">
+          Соединения
+        </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-geodat" data-view="geodat" data-xk-section="geodat">
+          DAT GeoIP / GeoSite
+        </button>
         {% endif %}
         <button class="top-tab-btn xk-top-tab xk-top-tab-xkeen" data-view="xkeen" data-xk-section="xkeen">
           Порты и Исключения
@@ -228,13 +234,10 @@
           Файлы
         </button>
         {% if has_mihomo %}
-        <button class="top-tab-btn xk-top-tab xk-top-tab-generator" type="button" data-xk-section="mihomo-generator" id="top-tab-mihomo-generator" data-nav-href="{{ url_for('mihomo_generator_page') }}" data-xk-top-nav="1">
+        <button class="top-tab-btn xk-top-tab xk-top-tab-generator" type="button" data-view="mihomo-generator" data-xk-section="mihomo-generator" id="top-tab-mihomo-generator">
           Mihomo Генератор
         </button>
         {% endif %}
-        <button class="top-tab-btn xk-top-tab xk-top-tab-donate" type="button" data-xk-section="donate" id="top-tab-donate">
-          💰 Донат
-        </button>
       </div>
     
 <div class="xkeen-ctrl-row">
@@ -269,117 +272,6 @@
 
             <div class="layout-side routing-side">
         <div class="routing-side-grid">
-    <section class="card routing-dat-card routing-side-card">
-              <div class="commands-header" id="routing-dat-header" role="button" tabindex="0" aria-controls="routing-dat-body" aria-expanded="false">
-                <h2>DAT-файлы GeoIP / GeoSite</h2>
-                <span id="routing-dat-arrow">▼</span>
-              </div>
-
-              <div id="routing-dat-body" style="display:none;">
-                <div class="routing-dat-toolbar">
-                  <div class="routing-dat-toolbar-left">
-                    <button id="routing-dat-refresh-btn" class="btn-secondary btn-icon" type="button" aria-label="Обновить статусы" data-tooltip="Проверить наличие DAT-файлов и обновить информацию о размере/дате.">⟳</button>
-                    <button id="routing-dat-geodat-install-btn" class="btn-secondary btn-compact" type="button" data-tooltip="Установить/обновить xk-geodat (включит просмотр содержимого DAT и добавление тегов в правила).">xk-geodat</button>
-                    <button id="routing-dat-geodat-install-file-btn" class="btn-secondary btn-icon" type="button" aria-label="Установить xk-geodat из файла" data-tooltip="Установить xk-geodat из файла (если вы тестируете до релиза или ставите свой бинарник).">⬆︎</button>
-                    <details class="xk-card-help-popover routing-dat-help-popover">
-                      <summary class="xk-card-help-trigger"
-                               aria-label="Подсказка по DAT-файлам"
-                               title="О DAT-файлах"
-                               data-tooltip="О DAT-файлах">
-                        <span class="xk-card-help-icon" aria-hidden="true">?</span>
-                      </summary>
-                      <div class="xk-card-help-panel">
-                        Хранилища <code>GeoIP</code> и <code>GeoSite</code> используются правилами <code>geoip:</code> и <code>geosite:</code>.
-                        Здесь можно быстро обновить DAT-файлы, заменить их вручную и открыть содержимое тегов через <code>xk-geodat</code>.
-                      </div>
-                    </details>
-                    <input id="routing-dat-geodat-install-file" type="file" style="display:none" />
-                  </div>
-                  <div id="routing-dat-status" class="status"></div>
-                </div>
-
-                <div class="routing-dat-grid">
-                  <div class="routing-dat-item" data-kind="geosite">
-                    <div class="routing-dat-head">
-                      <div class="routing-dat-title">
-                        <span class="routing-dat-name">GeoSite</span>
-                        <span id="routing-dat-geosite-current-file" class="routing-dat-file">geosite.dat</span>
-                      </div>
-                      <div class="routing-dat-meta" id="routing-dat-geosite-meta">—</div>
-                    </div>
-
-                    <label class="routing-dat-field">
-                      <span>Папка</span>
-                      <input id="routing-dat-geosite-dir" class="routing-dat-input" type="text" placeholder="/opt/etc/xray/dat">
-                    </label>
-
-                    <label class="routing-dat-field">
-                      <span>Имя файла</span>
-                      <div class="routing-dat-combo" data-kind="geosite">
-                        <input id="routing-dat-geosite-name" class="routing-dat-input" type="text" list="routing-dat-geosite-name-list" placeholder="geosite.dat">
-                        <button id="routing-dat-geosite-browse" class="btn-secondary btn-icon routing-dat-combo-btn" type="button" aria-label="Обнаруженные DAT" data-tooltip="Показать найденные .dat в папке.">▼</button>
-                        <div id="routing-dat-geosite-found" class="routing-dat-found" data-tooltip="Найденные DAT в папке. Клик по строке подставит имя файла.">—</div>
-                      </div>
-                      <datalist id="routing-dat-geosite-name-list"></datalist>
-                    </label>
-
-                    <label class="routing-dat-field">
-                      <span>URL обновления</span>
-                      <input id="routing-dat-geosite-url" class="routing-dat-input" type="url" placeholder="https://.../geosite.dat">
-                    </label>
-
-                    <input id="routing-dat-geosite-file" type="file" accept=".dat" style="display:none">
-
-                    <div class="actions xk-actions-inline routing-dat-actions-inline">
-                      <button id="routing-dat-geosite-upload-btn" class="btn-icon" type="button" aria-label="Загрузить" data-tooltip="Загрузить DAT-файл с компьютера и сохранить по указанному пути.">⬆️</button>
-                      <button id="routing-dat-geosite-update-btn" class="btn-icon" type="button" aria-label="Обновить" data-tooltip="Скачать DAT по URL и заменить текущий файл (с подтверждением).">🔗</button>
-                      <button id="routing-dat-geosite-download-btn" class="btn-icon" type="button" aria-label="Скачать" data-tooltip="Скачать текущий локальный DAT-файл.">⬇️</button>
-                      <button id="routing-dat-geosite-content-btn" class="btn-icon" type="button" aria-label="Содержимое" data-tooltip="Открыть просмотр тегов/содержимого GeoSite (поиск + копирование geosite:TAG).">🔎</button>
-                    </div>
-                  </div>
-
-                  <div class="routing-dat-item" data-kind="geoip">
-                    <div class="routing-dat-head">
-                      <div class="routing-dat-title">
-                        <span class="routing-dat-name">GeoIP</span>
-                        <span id="routing-dat-geoip-current-file" class="routing-dat-file">geoip.dat</span>
-                      </div>
-                      <div class="routing-dat-meta" id="routing-dat-geoip-meta">—</div>
-                    </div>
-
-                    <label class="routing-dat-field">
-                      <span>Папка</span>
-                      <input id="routing-dat-geoip-dir" class="routing-dat-input" type="text" placeholder="/opt/etc/xray/dat">
-                    </label>
-
-                    <label class="routing-dat-field">
-                      <span>Имя файла</span>
-                      <div class="routing-dat-combo" data-kind="geoip">
-                        <input id="routing-dat-geoip-name" class="routing-dat-input" type="text" list="routing-dat-geoip-name-list" placeholder="geoip.dat">
-                        <button id="routing-dat-geoip-browse" class="btn-secondary btn-icon routing-dat-combo-btn" type="button" aria-label="Обнаруженные DAT" data-tooltip="Показать найденные .dat в папке.">▼</button>
-                        <div id="routing-dat-geoip-found" class="routing-dat-found" data-tooltip="Найденные DAT в папке. Клик по строке подставит имя файла.">—</div>
-                      </div>
-                      <datalist id="routing-dat-geoip-name-list"></datalist>
-                    </label>
-
-                    <label class="routing-dat-field">
-                      <span>URL обновления</span>
-                      <input id="routing-dat-geoip-url" class="routing-dat-input" type="url" placeholder="https://.../geoip.dat">
-                    </label>
-
-                    <input id="routing-dat-geoip-file" type="file" accept=".dat" style="display:none">
-
-                    <div class="actions xk-actions-inline routing-dat-actions-inline">
-                      <button id="routing-dat-geoip-upload-btn" class="btn-icon" type="button" aria-label="Загрузить" data-tooltip="Загрузить DAT-файл с компьютера и сохранить по указанному пути.">⬆️</button>
-                      <button id="routing-dat-geoip-update-btn" class="btn-icon" type="button" aria-label="Обновить" data-tooltip="Скачать DAT по URL и заменить текущий файл (с подтверждением).">🔗</button>
-                      <button id="routing-dat-geoip-download-btn" class="btn-icon" type="button" aria-label="Скачать" data-tooltip="Скачать текущий локальный DAT-файл.">⬇️</button>
-                      <button id="routing-dat-geoip-content-btn" class="btn-icon" type="button" aria-label="Содержимое" data-tooltip="Открыть просмотр тегов/содержимого GeoIP (поиск + копирование geoip:TAG).">🔎</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
     <!-- Inbounds mode -->
     <section class="card routing-side-card routing-side-card--inbounds">
       <div class="commands-header" id="inbounds-header" role="button" tabindex="0">
@@ -980,6 +872,15 @@
           <span class="xk-btn-label">Рестарт</span>
         </button>
 
+        <button id="mihomo-update-subscriptions-btn"
+                type="button"
+                class="terminal-tool-btn xk-icon-btn"
+                data-tooltip="Обновить все proxy-provider подписки Mihomo через Clash API"
+                aria-label="Обновить подписки Mihomo">
+          <span class="xk-btn-icon" aria-hidden="true">🔄</span>
+          <span class="xk-btn-label">Подписки</span>
+        </button>
+
         <details class="dt-log-menu xk-mihomo-menu">
           <summary class="terminal-tool-btn xk-mihomo-menu-trigger" data-tooltip="Меню" aria-label="Меню">⋯</summary>
 
@@ -1249,6 +1150,165 @@
   </section>
 </div>
 {% endif %}
+
+<div id="view-mihomo-connections" class="view-section" style="display:none;" data-xk-section="mihomo-connections">
+  <section class="card xk-mihomo-connections-card">
+    <div class="commands-header">
+      <div>
+        <div class="commands-title">Соединения Mihomo</div>
+        <div class="commands-subtitle">Активные TCP/UDP-соединения из Clash API: фильтр по хостам, детали и принудительное закрытие.</div>
+      </div>
+      <div class="xk-connections-actions">
+        <span id="mihomo-connections-status" class="status" style="margin:0;">Загрузка…</span>
+        <button type="button" class="btn-secondary" id="mihomo-connections-refresh-btn">⟳ Обновить</button>
+        <button type="button" class="btn-secondary terminal-tool-btn-danger" id="mihomo-connections-close-all-btn">Разорвать все</button>
+      </div>
+    </div>
+    <div class="xk-connections-toolbar">
+      <input id="mihomo-connections-filter" class="terminal-input" type="search" placeholder="Фильтр: source IP, host, rule, chain, network…">
+      <select id="mihomo-connections-source-filter" class="terminal-input">
+        <option value="">Все источники</option>
+      </select>
+      <label class="xk-checkbox-inline"><input id="mihomo-connections-auto-refresh" type="checkbox"> авто 5с</label>
+    </div>
+    <div id="mihomo-connections-summary" class="status" style="margin:8px 0;"></div>
+    <div class="xk-connections-shell">
+      <div id="mihomo-connections-list" class="xk-connections-list"></div>
+      <aside id="mihomo-connection-details" class="xk-connection-details">
+        <div class="xk-empty-state">Выбери соединение слева — покажу детали, chain, rule, host, upload/download и кнопку закрытия.</div>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<div id="view-geodat" class="view-section" style="display:none;" data-xk-section="geodat">
+    <section class="card routing-dat-card routing-side-card xk-geodat-card">
+              <div class="commands-header" id="routing-dat-header" role="heading" aria-level="2">
+                <div>
+                  <h2>DAT GeoIP / GeoSite</h2>
+                  <div class="commands-subtitle">Обновление, просмотр состава, загрузка и редактирование источников DAT-файлов.</div>
+                </div>
+              </div>
+
+              <div id="routing-dat-body">
+                <div class="routing-dat-toolbar">
+                  <div class="routing-dat-toolbar-left">
+                    <button id="routing-dat-refresh-btn" class="btn-secondary btn-icon" type="button" aria-label="Обновить статусы" data-tooltip="Проверить наличие DAT-файлов и обновить информацию о размере/дате.">⟳</button>
+                    <button id="routing-dat-geodat-install-btn" class="btn-secondary btn-compact" type="button" data-tooltip="Установить/обновить xk-geodat (включит просмотр содержимого DAT и добавление тегов в правила).">xk-geodat</button>
+                    <button id="routing-dat-geodat-install-file-btn" class="btn-secondary btn-icon" type="button" aria-label="Установить xk-geodat из файла" data-tooltip="Установить xk-geodat из файла (если вы тестируете до релиза или ставите свой бинарник).">⬆︎</button>
+                    <details class="xk-card-help-popover routing-dat-help-popover">
+                      <summary class="xk-card-help-trigger"
+                               aria-label="Подсказка по DAT-файлам"
+                               title="О DAT-файлах"
+                               data-tooltip="О DAT-файлах">
+                        <span class="xk-card-help-icon" aria-hidden="true">?</span>
+                      </summary>
+                      <div class="xk-card-help-panel">
+                        Хранилища <code>GeoIP</code> и <code>GeoSite</code> используются правилами <code>geoip:</code> и <code>geosite:</code>.
+                        Здесь можно быстро обновить DAT-файлы, заменить их вручную и открыть содержимое тегов через <code>xk-geodat</code>.
+                      </div>
+                    </details>
+                    <input id="routing-dat-geodat-install-file" type="file" style="display:none" />
+                  </div>
+                  <div id="routing-dat-status" class="status"></div>
+                </div>
+
+                <div class="routing-dat-grid">
+                  <div class="routing-dat-item" data-kind="geosite">
+                    <div class="routing-dat-head">
+                      <div class="routing-dat-title">
+                        <span class="routing-dat-name">GeoSite</span>
+                        <span id="routing-dat-geosite-current-file" class="routing-dat-file">geosite.dat</span>
+                      </div>
+                      <div class="routing-dat-meta" id="routing-dat-geosite-meta">—</div>
+                    </div>
+
+                    <label class="routing-dat-field">
+                      <span>Папка</span>
+                      <input id="routing-dat-geosite-dir" class="routing-dat-input" type="text" placeholder="/opt/etc/xray/dat">
+                    </label>
+
+                    <label class="routing-dat-field">
+                      <span>Имя файла</span>
+                      <div class="routing-dat-combo" data-kind="geosite">
+                        <input id="routing-dat-geosite-name" class="routing-dat-input" type="text" list="routing-dat-geosite-name-list" placeholder="geosite.dat">
+                        <button id="routing-dat-geosite-browse" class="btn-secondary btn-icon routing-dat-combo-btn" type="button" aria-label="Обнаруженные DAT" data-tooltip="Показать найденные .dat в папке.">▼</button>
+                        <div id="routing-dat-geosite-found" class="routing-dat-found" data-tooltip="Найденные DAT в папке. Клик по строке подставит имя файла.">—</div>
+                      </div>
+                      <datalist id="routing-dat-geosite-name-list"></datalist>
+                    </label>
+
+                    <label class="routing-dat-field">
+                      <span>URL обновления</span>
+                      <input id="routing-dat-geosite-url" class="routing-dat-input" type="url" placeholder="https://.../geosite.dat">
+                    </label>
+
+                    <input id="routing-dat-geosite-file" type="file" accept=".dat" style="display:none">
+
+                    <div class="actions xk-actions-inline routing-dat-actions-inline">
+                      <button id="routing-dat-geosite-upload-btn" class="btn-icon" type="button" aria-label="Загрузить" data-tooltip="Загрузить DAT-файл с компьютера и сохранить по указанному пути.">⬆️</button>
+                      <button id="routing-dat-geosite-update-btn" class="btn-icon" type="button" aria-label="Обновить" data-tooltip="Скачать DAT по URL и заменить текущий файл (с подтверждением).">🔗</button>
+                      <button id="routing-dat-geosite-download-btn" class="btn-icon" type="button" aria-label="Скачать" data-tooltip="Скачать текущий локальный DAT-файл.">⬇️</button>
+                      <button id="routing-dat-geosite-content-btn" class="btn-icon" type="button" aria-label="Содержимое" data-tooltip="Открыть просмотр тегов/содержимого GeoSite (поиск + копирование geosite:TAG).">🔎</button>
+                    </div>
+                  </div>
+
+                  <div class="routing-dat-item" data-kind="geoip">
+                    <div class="routing-dat-head">
+                      <div class="routing-dat-title">
+                        <span class="routing-dat-name">GeoIP</span>
+                        <span id="routing-dat-geoip-current-file" class="routing-dat-file">geoip.dat</span>
+                      </div>
+                      <div class="routing-dat-meta" id="routing-dat-geoip-meta">—</div>
+                    </div>
+
+                    <label class="routing-dat-field">
+                      <span>Папка</span>
+                      <input id="routing-dat-geoip-dir" class="routing-dat-input" type="text" placeholder="/opt/etc/xray/dat">
+                    </label>
+
+                    <label class="routing-dat-field">
+                      <span>Имя файла</span>
+                      <div class="routing-dat-combo" data-kind="geoip">
+                        <input id="routing-dat-geoip-name" class="routing-dat-input" type="text" list="routing-dat-geoip-name-list" placeholder="geoip.dat">
+                        <button id="routing-dat-geoip-browse" class="btn-secondary btn-icon routing-dat-combo-btn" type="button" aria-label="Обнаруженные DAT" data-tooltip="Показать найденные .dat в папке.">▼</button>
+                        <div id="routing-dat-geoip-found" class="routing-dat-found" data-tooltip="Найденные DAT в папке. Клик по строке подставит имя файла.">—</div>
+                      </div>
+                      <datalist id="routing-dat-geoip-name-list"></datalist>
+                    </label>
+
+                    <label class="routing-dat-field">
+                      <span>URL обновления</span>
+                      <input id="routing-dat-geoip-url" class="routing-dat-input" type="url" placeholder="https://.../geoip.dat">
+                    </label>
+
+                    <input id="routing-dat-geoip-file" type="file" accept=".dat" style="display:none">
+
+                    <div class="actions xk-actions-inline routing-dat-actions-inline">
+                      <button id="routing-dat-geoip-upload-btn" class="btn-icon" type="button" aria-label="Загрузить" data-tooltip="Загрузить DAT-файл с компьютера и сохранить по указанному пути.">⬆️</button>
+                      <button id="routing-dat-geoip-update-btn" class="btn-icon" type="button" aria-label="Обновить" data-tooltip="Скачать DAT по URL и заменить текущий файл (с подтверждением).">🔗</button>
+                      <button id="routing-dat-geoip-download-btn" class="btn-icon" type="button" aria-label="Скачать" data-tooltip="Скачать текущий локальный DAT-файл.">⬇️</button>
+                      <button id="routing-dat-geoip-content-btn" class="btn-icon" type="button" aria-label="Содержимое" data-tooltip="Открыть просмотр тегов/содержимого GeoIP (поиск + копирование geoip:TAG).">🔎</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+</div>
+
+<div id="view-mihomo-generator" class="view-section" style="display:none;" data-xk-section="mihomo-generator">
+  <section class="card xk-mihomo-generator-shell">
+    <div class="commands-header">
+      <div>
+        <div class="commands-title">Mihomo Генератор</div>
+        <div class="commands-subtitle">Генератор открыт внутри единой панели — шапка и вкладки остаются на месте.</div>
+      </div>
+      <button type="button" class="btn-secondary" id="mihomo-generator-reload-btn">⟳ Обновить</button>
+    </div>
+    <iframe id="mihomo-generator-frame" class="xk-generator-frame" src="{{ url_for('mihomo_generator_page') }}?embedded=1" title="Mihomo Генератор"></iframe>
+  </section>
+</div>
 
 <div id="view-xkeen" class="view-section" style="display:none;" data-xk-section="xkeen">
   <!-- XKeen: порты и исключения -->

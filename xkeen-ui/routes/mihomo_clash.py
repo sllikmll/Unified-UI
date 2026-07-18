@@ -400,6 +400,83 @@ def create_mihomo_clash_blueprint() -> Blueprint:
         results = [result_by_name.get(name, {"ok": False, "proxy": name, "delay": None, "error": "not checked"}) for name in names]
         return jsonify({"ok": True, "results": results, "count": len(results), "providers": provider_results})
 
+
+    @bp.get("/api/mihomo/clash/connections")
+    def api_mihomo_clash_connections():
+        try:
+            status, data = _request_mihomo("GET", "/connections", timeout=6.0)
+            ok = 200 <= status < 300
+            return jsonify({"ok": ok, "status": status, "data": data, "controller": _controller_base()}), (200 if ok else 502)
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"ok": False, "error": str(exc), "controller": _controller_base()}), 502
+
+    @bp.delete("/api/mihomo/clash/connections/<path:connection_id>")
+    def api_mihomo_clash_connection_close(connection_id: str):
+        enc = urllib.parse.quote(str(connection_id), safe="")
+        try:
+            status, data = _request_mihomo("DELETE", f"/connections/{enc}", timeout=6.0)
+            ok = 200 <= status < 300
+            return jsonify({"ok": ok, "status": status, "data": data, "id": connection_id}), (200 if ok else 502)
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"ok": False, "error": str(exc), "id": connection_id}), 502
+
+    @bp.delete("/api/mihomo/clash/connections")
+    def api_mihomo_clash_connections_close_all():
+        try:
+            status, data = _request_mihomo("DELETE", "/connections", timeout=8.0)
+            ok = 200 <= status < 300
+            return jsonify({"ok": ok, "status": status, "data": data}), (200 if ok else 502)
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"ok": False, "error": str(exc)}), 502
+
+    @bp.get("/api/mihomo/clash/providers/proxies")
+    def api_mihomo_clash_proxy_providers():
+        try:
+            status, data = _request_mihomo("GET", "/providers/proxies", timeout=10.0)
+            ok = 200 <= status < 300
+            return jsonify({"ok": ok, "status": status, "data": data, "controller": _controller_base()}), (200 if ok else 502)
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"ok": False, "error": str(exc), "controller": _controller_base()}), 502
+
+    @bp.put("/api/mihomo/clash/providers/proxies/<path:provider>")
+    def api_mihomo_clash_proxy_provider_update(provider: str):
+        enc = urllib.parse.quote(str(provider), safe="")
+        try:
+            status, data = _request_mihomo("PUT", f"/providers/proxies/{enc}", timeout=60.0)
+            ok = 200 <= status < 300
+            return jsonify({"ok": ok, "status": status, "data": data, "provider": provider}), (200 if ok else 502)
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"ok": False, "error": str(exc), "provider": provider}), 502
+
+    @bp.post("/api/mihomo/clash/providers/proxies/update-all")
+    def api_mihomo_clash_proxy_providers_update_all():
+        try:
+            status, data = _request_mihomo("GET", "/providers/proxies", timeout=10.0)
+            if not (200 <= status < 300) or not isinstance(data, dict):
+                return jsonify({"ok": False, "status": status, "error": data}), 502
+            providers = data.get("providers")
+            names = []
+            if isinstance(providers, dict):
+                for name, provider in providers.items():
+                    if not isinstance(provider, dict):
+                        continue
+                    # Mihomo uses providerType/proxyProviderType depending on version; skip compatible/direct pseudo providers.
+                    ptype = str(provider.get("type") or provider.get("vehicleType") or provider.get("providerType") or "").lower()
+                    if name and ptype not in {"compatible", "direct", "reject"}:
+                        names.append(str(name))
+            names = names[:30]
+            results = []
+            for name in names:
+                enc = urllib.parse.quote(name, safe="")
+                try:
+                    st, body = _request_mihomo("PUT", f"/providers/proxies/{enc}", timeout=60.0)
+                    results.append({"provider": name, "ok": 200 <= st < 300, "status": st, "data": body})
+                except Exception as exc:  # noqa: BLE001
+                    results.append({"provider": name, "ok": False, "error": str(exc)})
+            return jsonify({"ok": True, "count": len(results), "results": results})
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"ok": False, "error": str(exc)}), 502
+
     @bp.get("/api/mihomo/manual-proxy")
     def api_mihomo_manual_proxy_get():
         try:

@@ -1,0 +1,1 @@
+Bundled Python wheelhouse for Keenetic/Entware aarch64 Python 3.11. Installer uses this directory first with pip --no-index --find-links, then falls back to configured pip indexes only if wheels do not match the device.

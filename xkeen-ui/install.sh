@@ -142,6 +142,7 @@ PIP_FALLBACK_INDEX_DEFAULT="https://mirrors.aliyun.com/pypi/simple/"
 PIP_HTTP_FALLBACK_INDEX_DEFAULT="http://mirrors.aliyun.com/pypi/simple/"
 PIP_HTTP_EXTRA_INDEX_DEFAULT="http://mirror.yandex.ru/pypi/simple/"
 PIP_TRUSTED_HOSTS_DEFAULT="mirrors.aliyun.com mirror.yandex.ru"
+PY_WHEELHOUSE_DIR="${XKEEN_PY_WHEELHOUSE_DIR:-$SRC_DIR/third_party/wheels}"
 PIP_REPAIR_ATTEMPTED=0
 
 append_pip_index_candidate() {
@@ -318,6 +319,21 @@ pip_failure_needs_repair() {
 pip_install_with_fallback() {
   PHASE="$1"
   shift
+
+  if [ -d "$PY_WHEELHOUSE_DIR" ] && ls "$PY_WHEELHOUSE_DIR"/*.whl >/dev/null 2>&1; then
+    echo "[*] [$PHASE] pip install из bundled wheelhouse: $PY_WHEELHOUSE_DIR"
+    PIP_LOG="${TMPDIR:-/tmp}/xkeen-pip-$PHASE-wheelhouse-$$.log"
+    rm -f "$PIP_LOG" 2>/dev/null || true
+    if "$PYTHON_BIN" -m pip install --upgrade --no-index --find-links "$PY_WHEELHOUSE_DIR" "$@" >"$PIP_LOG" 2>&1; then
+      cat "$PIP_LOG"
+      rm -f "$PIP_LOG" 2>/dev/null || true
+      echo "[*] [$PHASE] pip install успешно из bundled wheelhouse"
+      return 0
+    fi
+    cat "$PIP_LOG"
+    rm -f "$PIP_LOG" 2>/dev/null || true
+    echo "[!] [$PHASE] wheelhouse не подошёл, пробую внешний индекс fallback."
+  fi
 
   build_pip_index_candidates
   if [ -z "${PIP_INDEX_CANDIDATES:-}" ]; then

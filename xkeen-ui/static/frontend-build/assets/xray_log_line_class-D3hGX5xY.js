@@ -1,0 +1,1 @@
+function e(e){let t=String(e||``).toLowerCase();return t.includes(`error`)||t.includes(`fail`)||t.includes(`failed`)||t.includes(`fatal`)?`log-line log-line-error`:t.includes(`warning`)||t.includes(`warn`)?`log-line log-line-warning`:t.includes(`info`)?`log-line log-line-info`:t.includes(`debug`)?`log-line log-line-debug`:`log-line`}export{e as t};

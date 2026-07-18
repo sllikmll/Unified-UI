@@ -1,0 +1,3 @@
+Flask
+gevent<26
+gevent-websocket

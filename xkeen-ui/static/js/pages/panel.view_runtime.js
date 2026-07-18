@@ -3,6 +3,8 @@ import { getConfigShellApi, activateRoutingConfigView } from './config_shell.sha
 import { ensurePanelLazyFeature, getPanelLazyRuntimeApi } from './panel.lazy_bindings.runtime.js';
 import { initMihomoPanel, onShowMihomoPanel } from '../features/mihomo_panel.js';
 import { initMihomoSelectorsPanel, onShowMihomoSelectorsPanel } from '../features/mihomo_selectors.js';
+import { initMihomoConnectionsPanel, onShowMihomoConnectionsPanel } from '../features/mihomo_connections.js';
+import { initMihomoSubscriptionsButton } from '../features/mihomo_subscriptions.js';
 import {
   getXkeenStateValue,
   hasXkeenXrayCore,
@@ -78,6 +80,7 @@ export function applyPanelViewRuntime(name) {
   if (viewName === 'mihomo') {
     initViewOnce('mihomo', () => {
       initMihomoPanel();
+      initMihomoSubscriptionsButton();
     }).catch((error) => {
       try { console.error('[XKeen] view init failed:', viewName, error); } catch (e) {}
     });
@@ -86,6 +89,14 @@ export function applyPanelViewRuntime(name) {
   if (viewName === 'mihomo-selectors') {
     initViewOnce('mihomo-selectors', () => {
       initMihomoSelectorsPanel();
+    }).catch((error) => {
+      try { console.error('[XKeen] view init failed:', viewName, error); } catch (e) {}
+    });
+  }
+
+  if (viewName === 'mihomo-connections') {
+    initViewOnce('mihomo-connections', () => {
+      initMihomoConnectionsPanel();
     }).catch((error) => {
       try { console.error('[XKeen] view init failed:', viewName, error); } catch (e) {}
     });
@@ -138,6 +149,10 @@ export function applyPanelViewRuntime(name) {
 
   if (viewName === 'mihomo-selectors') {
     safe(() => onShowMihomoSelectorsPanel({ reason: 'tab' }));
+  }
+
+  if (viewName === 'mihomo-connections') {
+    safe(() => onShowMihomoConnectionsPanel({ reason: 'tab' }));
   }
 
   if (viewName === 'xkeen') {
