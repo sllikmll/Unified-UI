@@ -3,6 +3,7 @@ let loading = false;
 let lastData = null;
 
 const SELECTOR_TYPES = new Set(['Selector', 'Fallback', 'URLTest', 'LoadBalance']);
+const NO_DELAY_TYPES = new Set(['Reject', 'RejectDrop', 'Dns', 'Pass', 'Relay', 'Compatible']);
 
 function $(id) { return document.getElementById(id); }
 
@@ -37,11 +38,24 @@ function setText(id, text, cls) {
   if (cls) el.className = cls;
 }
 
-function delayBadge(delay) {
-  if (delay === null || delay === undefined || delay === '') return '<span class="xk-delay xk-delay-muted">—</span>';
+function delayClass(delay) {
+  if (delay === null || delay === undefined || delay === '') return 'muted';
   const n = Number(delay);
-  const cls = !n ? 'bad' : (n < 300 ? 'good' : (n < 700 ? 'warn' : 'bad'));
-  return `<span class="xk-delay xk-delay-${cls}">${n} ms</span>`;
+  return !n ? 'bad' : (n < 300 ? 'good' : (n < 700 ? 'warn' : 'bad'));
+}
+
+function delayText(delay) {
+  if (delay === null || delay === undefined || delay === '') return 'ping';
+  const n = Number(delay);
+  return Number.isFinite(n) ? `${n} ms` : 'ping';
+}
+
+function delayBadge(name, delay, enabled = true) {
+  const cls = delayClass(delay);
+  const label = delayText(delay);
+  const dis = enabled ? '' : ' disabled';
+  const title = enabled ? 'Нажми, чтобы обновить ping этого узла' : 'Ping для этого типа недоступен';
+  return `<span class="xk-delay xk-delay-${cls} ${enabled ? 'xk-delay-clickable' : ''}" role="button" tabindex="0" title="${esc(title)}" data-delay-proxy="${esc(name)}"${dis}>${esc(label)}</span>`;
 }
 
 function esc(value) {
@@ -50,11 +64,115 @@ function esc(value) {
   }[ch]));
 }
 
+function isDelayCapable(proxy) {
+  if (!proxy) return true;
+  const type = String(proxy.type || '');
+  if (NO_DELAY_TYPES.has(type)) return false;
+  if (type.toLowerCase() === 'selector' && Array.isArray(proxy.all) && proxy.all.length) return true;
+  return true;
+}
+
 function nodeLabel(nodesByName, name) {
   const p = nodesByName.get(name) || {};
   const type = p.type ? String(p.type) : '';
   const alive = p.alive === false ? 'offline' : (p.alive === true ? 'online' : '');
-  return `<span class="xk-node-name">${esc(name)}</span><span class="xk-node-meta">${esc(type)} ${alive ? '· ' + alive : ''}</span>${delayBadge(p.delay)}`;
+  const canDelay = isDelayCapable(p);
+  return `<span class="xk-node-name">${esc(name)}</span><span class="xk-node-meta">${esc(type)} ${alive ? '· ' + alive : ''}</span>${delayBadge(name, p.delay, canDelay)}`;
+}
+
+function setProxyDelayInData(name, delay) {
+  if (!lastData) return;
+  const lists = [lastData.selectors, lastData.nodes];
+  lists.forEach((list) => {
+    if (!Array.isArray(list)) return;
+    list.forEach((item) => {
+      if (String(item.name || '') === String(name)) item.delay = delay;
+    });
+  });
+}
+
+function updateDelayDom(name, delay, ok = true) {
+  const cls = delayClass(delay);
+  document.querySelectorAll(`[data-delay-proxy="${CSS.escape(String(name))}"]`).forEach((el) => {
+    el.className = `xk-delay xk-delay-${ok ? cls : 'bad'} xk-delay-clickable`;
+    el.textContent = ok ? delayText(delay) : 'fail';
+    el.title = ok ? 'Нажми, чтобы обновить ping этого узла' : 'Ping не прошёл — нажми, чтобы повторить';
+  });
+}
+
+async function pingProxy(name) {
+  const proxy = String(name || '').trim();
+  if (!proxy) return;
+  setText('mihomo-selectors-status', `Пингую ${proxy}…`);
+  document.querySelectorAll(`[data-delay-proxy="${CSS.escape(proxy)}"]`).forEach((el) => {
+    el.classList.add('is-loading');
+    el.textContent = '…';
+  });
+  try {
+    const data = await fetchJson('/api/mihomo/clash/proxies/' + encodeURIComponent(proxy) + '/delay', {
+      method: 'POST',
+      body: JSON.stringify({ timeout: 5000 })
+    });
+    setProxyDelayInData(proxy, data.delay);
+    updateDelayDom(proxy, data.delay, true);
+    setText('mihomo-selectors-status', `${proxy}: ${delayText(data.delay)}`);
+  } catch (error) {
+    updateDelayDom(proxy, null, false);
+    setText('mihomo-selectors-status', `${proxy}: ошибка ping — ${error.message}`);
+  } finally {
+    document.querySelectorAll(`[data-delay-proxy="${CSS.escape(proxy)}"]`).forEach((el) => el.classList.remove('is-loading'));
+  }
+}
+
+function collectPingNames() {
+  const names = [];
+  const seen = new Set();
+  document.querySelectorAll('[data-delay-proxy]').forEach((el) => {
+    if (el.hasAttribute('disabled')) return;
+    const name = String(el.getAttribute('data-delay-proxy') || '').trim();
+    if (!name || seen.has(name)) return;
+    seen.add(name);
+    names.push(name);
+  });
+  return names;
+}
+
+async function pingAll() {
+  const btn = $('mihomo-selectors-ping-all-btn');
+  const names = collectPingNames();
+  if (!names.length) {
+    setText('mihomo-selectors-status', 'Нет узлов для ping');
+    return;
+  }
+  if (btn) btn.disabled = true;
+  setText('mihomo-selectors-status', `Обновляю ping: ${names.length} узлов…`);
+  document.querySelectorAll('[data-delay-proxy]').forEach((el) => {
+    if (!el.hasAttribute('disabled')) {
+      el.classList.add('is-loading');
+      el.textContent = '…';
+    }
+  });
+  try {
+    const data = await fetchJson('/api/mihomo/clash/proxies/delay-all', {
+      method: 'POST',
+      body: JSON.stringify({ names, timeout: 5000, workers: 6 })
+    });
+    let okCount = 0;
+    const results = Array.isArray(data.results) ? data.results : [];
+    results.forEach((item) => {
+      const name = String(item.proxy || '');
+      if (!name) return;
+      if (item.ok) okCount += 1;
+      setProxyDelayInData(name, item.delay);
+      updateDelayDom(name, item.delay, !!item.ok);
+    });
+    setText('mihomo-selectors-status', `Ping обновлён: ${okCount}/${results.length}`);
+  } catch (error) {
+    setText('mihomo-selectors-status', 'Ошибка массового ping: ' + error.message);
+  } finally {
+    document.querySelectorAll('[data-delay-proxy]').forEach((el) => el.classList.remove('is-loading'));
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function selectProxy(selector, name) {
@@ -104,13 +222,28 @@ function renderSelectors(data) {
   }).join('');
 
   list.querySelectorAll('.xk-proxy-choice').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (event) => {
+      if (event.target && event.target.closest && event.target.closest('[data-delay-proxy]')) return;
       const selector = btn.getAttribute('data-selector') || '';
       const proxy = btn.getAttribute('data-proxy') || '';
       if (!selector || !proxy || btn.classList.contains('active')) return;
       selectProxy(selector, proxy).catch((error) => {
         setText('mihomo-selectors-status', 'Ошибка: ' + error.message);
       });
+    });
+  });
+
+  list.querySelectorAll('[data-delay-proxy]').forEach((badge) => {
+    const handler = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (badge.hasAttribute('disabled')) return;
+      const proxy = badge.getAttribute('data-delay-proxy') || '';
+      pingProxy(proxy);
+    };
+    badge.addEventListener('click', handler);
+    badge.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') handler(event);
     });
   });
 }
@@ -175,6 +308,8 @@ export function initMihomoSelectorsPanel() {
   initialized = true;
   const refresh = $('mihomo-selectors-refresh-btn');
   if (refresh) refresh.addEventListener('click', () => loadSelectors());
+  const pingAllBtn = $('mihomo-selectors-ping-all-btn');
+  if (pingAllBtn) pingAllBtn.addEventListener('click', () => pingAll());
   const loadBtn = $('mihomo-manual-load-btn');
   if (loadBtn) loadBtn.addEventListener('click', () => loadManual());
   const saveBtn = $('mihomo-manual-save-btn');

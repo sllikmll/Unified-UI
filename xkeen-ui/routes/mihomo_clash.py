@@ -7,6 +7,7 @@ selectors from :8088 without opening the standalone dashboard on :9090.
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import os
 import shutil
@@ -95,12 +96,48 @@ def _proxy_delay(proxy: dict[str, Any]) -> int | None:
     return None
 
 
-def _summarize_proxies(raw: dict[str, Any]) -> dict[str, Any]:
+def _provider_nodes(raw: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, str]]:
+    providers = raw.get("providers") if isinstance(raw, dict) else None
+    if not isinstance(providers, dict):
+        return [], {}
+    nodes: list[dict[str, Any]] = []
+    provider_by_node: dict[str, str] = {}
+    for provider_name, provider in providers.items():
+        if not isinstance(provider, dict):
+            continue
+        proxies = provider.get("proxies")
+        if not isinstance(proxies, list):
+            continue
+        for proxy in proxies:
+            if not isinstance(proxy, dict):
+                continue
+            name = str(proxy.get("name") or "").strip()
+            if not name:
+                continue
+            provider_by_node[name] = str(provider_name)
+            nodes.append({
+                "name": name,
+                "type": proxy.get("type"),
+                "now": proxy.get("now"),
+                "all": proxy.get("all") if isinstance(proxy.get("all"), list) else [],
+                "alive": proxy.get("alive"),
+                "udp": proxy.get("udp"),
+                "delay": _proxy_delay(proxy),
+                "provider": str(provider_name),
+                "hidden": proxy.get("hidden"),
+            })
+    return nodes, provider_by_node
+
+
+def _summarize_proxies(raw: dict[str, Any], provider_raw: dict[str, Any] | None = None) -> dict[str, Any]:
     proxies = raw.get("proxies") if isinstance(raw, dict) else None
     if not isinstance(proxies, dict):
         proxies = {}
     selectors = []
-    nodes = []
+    nodes_by_name: dict[str, dict[str, Any]] = {}
+    provider_nodes, provider_by_node = _provider_nodes(provider_raw or {})
+    for node in provider_nodes:
+        nodes_by_name[str(node.get("name") or "")] = node
     for name, value in proxies.items():
         if not isinstance(value, dict):
             continue
@@ -118,13 +155,15 @@ def _summarize_proxies(raw: dict[str, Any]) -> dict[str, Any]:
         if str(value.get("type") or "") in _SELECTOR_TYPES and item["all"]:
             selectors.append(item)
         else:
-            nodes.append(item)
+            nodes_by_name[str(name)] = item
     selectors.sort(key=lambda x: str(x.get("name") or "").lower())
-    nodes.sort(key=lambda x: str(x.get("name") or "").lower())
+    nodes = sorted(nodes_by_name.values(), key=lambda x: str(x.get("name") or "").lower())
     return {
         "selectors": selectors,
         "nodes": nodes,
+        "providerByNode": provider_by_node,
         "raw_count": len(proxies),
+        "provider_node_count": len(provider_nodes),
         "controller": _controller_base(),
     }
 
@@ -177,6 +216,39 @@ def _normalize_manual_payload(text: str) -> str:
     return "payload:\n" + "\n".join(lines) + ("\n" if lines else "")
 
 
+def _latest_provider_node(provider_name: str, proxy_name: str) -> dict[str, Any] | None:
+    status, data = _request_mihomo("GET", f"/providers/proxies/{urllib.parse.quote(provider_name, safe='')}", timeout=10.0)
+    if not (200 <= status < 300) or not isinstance(data, dict):
+        return None
+    proxies = data.get("proxies")
+    if not isinstance(proxies, list):
+        return None
+    for proxy in proxies:
+        if isinstance(proxy, dict) and str(proxy.get("name") or "") == proxy_name:
+            return proxy
+    return None
+
+
+def _provider_for_proxy(proxy_name: str) -> str | None:
+    status, data = _request_mihomo("GET", "/providers/proxies", timeout=10.0)
+    if not (200 <= status < 300):
+        return None
+    _, provider_by_node = _provider_nodes(data)
+    return provider_by_node.get(proxy_name)
+
+
+def _healthcheck_provider_for_proxy(proxy_name: str, timeout_ms: int) -> tuple[int, dict[str, Any]]:
+    provider = _provider_for_proxy(proxy_name)
+    if not provider:
+        return 404, {"message": "proxy not found in providers"}
+    enc_provider = urllib.parse.quote(provider, safe="")
+    _request_mihomo("GET", f"/providers/proxies/{enc_provider}/healthcheck", timeout=(timeout_ms / 1000.0) + 8.0)
+    proxy = _latest_provider_node(provider, proxy_name)
+    if not proxy:
+        return 404, {"message": "proxy not found after provider healthcheck", "provider": provider}
+    return 200, {"provider": provider, "delay": _proxy_delay(proxy), "alive": proxy.get("alive")}
+
+
 def create_mihomo_clash_blueprint() -> Blueprint:
     bp = Blueprint("mihomo_clash", __name__)
 
@@ -194,7 +266,10 @@ def create_mihomo_clash_blueprint() -> Blueprint:
             status, data = _request_mihomo("GET", "/proxies", timeout=10.0)
             if not (200 <= status < 300):
                 return jsonify({"ok": False, "status": status, "error": data}), 502
-            summary = _summarize_proxies(data)
+            provider_status, provider_data = _request_mihomo("GET", "/providers/proxies", timeout=10.0)
+            if not (200 <= provider_status < 300):
+                provider_data = {}
+            summary = _summarize_proxies(data, provider_data)
             summary["ok"] = True
             return jsonify(summary)
         except Exception as exc:  # noqa: BLE001
@@ -213,6 +288,117 @@ def create_mihomo_clash_blueprint() -> Blueprint:
             return jsonify({"ok": ok, "status": status, "data": data, "selector": selector, "name": name}), (200 if ok else 502)
         except Exception as exc:  # noqa: BLE001
             return jsonify({"ok": False, "error": str(exc), "selector": selector, "name": name}), 502
+
+    @bp.post("/api/mihomo/clash/proxies/<path:proxy>/delay")
+    def api_mihomo_clash_delay(proxy: str):
+        body = request.get_json(silent=True) or {}
+        timeout_ms = int(body.get("timeout") or os.environ.get("MIHOMO_DELAY_TIMEOUT_MS") or 5000)
+        test_url = str(body.get("url") or os.environ.get("MIHOMO_DELAY_TEST_URL") or "https://www.gstatic.com/generate_204")
+        timeout_ms = max(1000, min(timeout_ms, 15000))
+        enc = urllib.parse.quote(str(proxy), safe="")
+        qs = urllib.parse.urlencode({"timeout": str(timeout_ms), "url": test_url})
+        try:
+            status, data = _request_mihomo("GET", f"/proxies/{enc}/delay?{qs}", timeout=(timeout_ms / 1000.0) + 3.0)
+            if status == 404:
+                status, data = _healthcheck_provider_for_proxy(proxy, timeout_ms)
+            ok = 200 <= status < 300
+            delay = data.get("delay") if isinstance(data, dict) else None
+            try:
+                delay = int(delay) if delay is not None else None
+            except Exception:
+                delay = None
+            return jsonify({"ok": ok, "status": status, "proxy": proxy, "delay": delay, "data": data}), (200 if ok else 502)
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"ok": False, "error": str(exc), "proxy": proxy}), 502
+
+    @bp.post("/api/mihomo/clash/proxies/delay-all")
+    def api_mihomo_clash_delay_all():
+        body = request.get_json(silent=True) or {}
+        raw_names = body.get("names") or []
+        names: list[str] = []
+        seen: set[str] = set()
+        for item in raw_names if isinstance(raw_names, list) else []:
+            name = str(item or "").strip()
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            names.append(name)
+        names = names[:80]
+        timeout_ms = int(body.get("timeout") or os.environ.get("MIHOMO_DELAY_TIMEOUT_MS") or 5000)
+        test_url = str(body.get("url") or os.environ.get("MIHOMO_DELAY_TEST_URL") or "https://www.gstatic.com/generate_204")
+        timeout_ms = max(1000, min(timeout_ms, 15000))
+        workers = max(1, min(int(body.get("workers") or os.environ.get("MIHOMO_DELAY_WORKERS") or 6), 12))
+
+        provider_status, provider_data = _request_mihomo("GET", "/providers/proxies", timeout=10.0)
+        provider_by_node: dict[str, str] = {}
+        if 200 <= provider_status < 300:
+            _, provider_by_node = _provider_nodes(provider_data)
+        provider_names = sorted({provider_by_node[name] for name in names if name in provider_by_node})
+        provider_results: dict[str, dict[str, Any]] = {}
+
+        def healthcheck_provider(provider: str) -> tuple[str, dict[str, Any]]:
+            enc = urllib.parse.quote(provider, safe="")
+            try:
+                status, data = _request_mihomo("GET", f"/providers/proxies/{enc}/healthcheck", timeout=(timeout_ms / 1000.0) + 8.0)
+                return provider, {"ok": 200 <= status < 300, "status": status, "data": data}
+            except Exception as exc:  # noqa: BLE001
+                return provider, {"ok": False, "error": str(exc)}
+
+        if provider_names:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(workers, max(1, len(provider_names)))) as executor:
+                for provider, result in executor.map(healthcheck_provider, provider_names):
+                    provider_results[provider] = result
+
+        latest_provider_nodes: dict[str, dict[str, Any]] = {}
+        if provider_names:
+            latest_status, latest_data = _request_mihomo("GET", "/providers/proxies", timeout=10.0)
+            if 200 <= latest_status < 300:
+                provider_nodes, _ = _provider_nodes(latest_data)
+                latest_provider_nodes = {str(node.get("name") or ""): node for node in provider_nodes}
+
+        direct_names = [name for name in names if name not in provider_by_node]
+
+        def one_direct(name: str) -> dict[str, Any]:
+            enc = urllib.parse.quote(name, safe="")
+            qs = urllib.parse.urlencode({"timeout": str(timeout_ms), "url": test_url})
+            try:
+                status, data = _request_mihomo("GET", f"/proxies/{enc}/delay?{qs}", timeout=(timeout_ms / 1000.0) + 3.0)
+                delay = data.get("delay") if isinstance(data, dict) else None
+                try:
+                    delay = int(delay) if delay is not None else None
+                except Exception:
+                    delay = None
+                return {"ok": 200 <= status < 300, "status": status, "proxy": name, "delay": delay, "data": data}
+            except Exception as exc:  # noqa: BLE001
+                return {"ok": False, "proxy": name, "delay": None, "error": str(exc)}
+
+        direct_results: list[dict[str, Any]] = []
+        if direct_names:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(workers, max(1, len(direct_names)))) as executor:
+                future_map = {executor.submit(one_direct, name): name for name in direct_names}
+                for future in concurrent.futures.as_completed(future_map):
+                    direct_results.append(future.result())
+
+        result_by_name: dict[str, dict[str, Any]] = {str(item.get("proxy")): item for item in direct_results}
+        for name in names:
+            provider = provider_by_node.get(name)
+            if not provider:
+                continue
+            node = latest_provider_nodes.get(name)
+            provider_result = provider_results.get(provider, {})
+            if node:
+                result_by_name[name] = {
+                    "ok": bool(provider_result.get("ok", True)),
+                    "status": int(provider_result.get("status", 200) or 200),
+                    "proxy": name,
+                    "provider": provider,
+                    "delay": node.get("delay"),
+                    "alive": node.get("alive"),
+                }
+            else:
+                result_by_name[name] = {"ok": False, "proxy": name, "provider": provider, "delay": None, "error": "provider node not found"}
+        results = [result_by_name.get(name, {"ok": False, "proxy": name, "delay": None, "error": "not checked"}) for name in names]
+        return jsonify({"ok": True, "results": results, "count": len(results), "providers": provider_results})
 
     @bp.get("/api/mihomo/manual-proxy")
     def api_mihomo_manual_proxy_get():
