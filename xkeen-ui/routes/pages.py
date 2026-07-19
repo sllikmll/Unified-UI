@@ -48,7 +48,7 @@ def _detect_panel_core_ui() -> dict[str, object]:
     supported_sections.extend(["xkeen"])
     if has_xray:
         supported_sections.append("xray-logs")
-    supported_sections.extend(["commands", "files"])
+    supported_sections.extend(["commands", "files", "ui-settings", "devtools", "settings"])
     if has_mihomo:
         supported_sections.append("mihomo-generator")
     supported_sections.append("donate")

@@ -68,6 +68,54 @@ def _redact_env_updates(updates: dict) -> dict:
     return out
 
 
+def _norm_release_version(v: Any) -> str:
+    s = str(v or "").strip()
+    if s.lower().startswith("v"):
+        s = s[1:].strip()
+    return s
+
+
+def _cmp_release_versions(a: Any, b: Any) -> int:
+    """Return 1 when a>b, -1 when a<b, 0 when equal/unknown.
+
+    Release checks must not show older/different tags as updates. Handles
+    versions like 2.4.10-unified and v2.4.9-unified conservatively.
+    """
+    sa = _norm_release_version(a)
+    sb = _norm_release_version(b)
+    if not sa or not sb:
+        return 0
+    try:
+        def split_one(value: str) -> tuple[list[int], str]:
+            head, _, suffix = value.partition("-")
+            nums = []
+            for part in head.split("."):
+                try:
+                    nums.append(int(part))
+                except Exception:
+                    nums.append(0)
+            while len(nums) < 3:
+                nums.append(0)
+            return nums[:3], suffix
+        na, ra = split_one(sa)
+        nb, rb = split_one(sb)
+        if na != nb:
+            return 1 if na > nb else -1
+        if ra == rb:
+            return 0
+        if not ra and rb:
+            return 1
+        if ra and not rb:
+            return -1
+        return 1 if ra > rb else -1
+    except Exception:
+        return 0
+
+
+def _is_newer_release(latest: Any, current: Any) -> bool:
+    return _cmp_release_versions(latest, current) > 0
+
+
 from services import devtools as dt
 from services import branding as br
 from services import get_build_info
@@ -339,7 +387,7 @@ def create_devtools_blueprint(ui_state_dir: str) -> Blueprint:
 
                 if latest_tag:
                     if current_ver:
-                        update_available = _norm_ver(current_ver) != _norm_ver(latest_tag)
+                        update_available = _is_newer_release(latest_tag, current_ver)
                     else:
                         update_available = True
             elif ch == "main":

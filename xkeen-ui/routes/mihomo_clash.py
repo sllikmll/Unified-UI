@@ -11,6 +11,8 @@ import concurrent.futures
 import json
 import os
 import shutil
+import subprocess
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -214,6 +216,461 @@ def _normalize_manual_payload(text: str) -> str:
         if s:
             lines.append(f"  - {s}")
     return "payload:\n" + "\n".join(lines) + ("\n" if lines else "")
+
+
+
+def _load_yaml_mapping(path: Path) -> dict[str, Any]:
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
+    try:
+        import yaml  # type: ignore
+        data = yaml.safe_load(text) if text.strip() else {}
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        pass
+    return _parse_mihomo_config_minimal(text)
+
+
+
+def _parse_inline_yaml_map(raw: str) -> dict[str, str]:
+    value = str(raw or "").strip()
+    if not (value.startswith("{") and value.endswith("}")):
+        return {}
+    inner = value[1:-1].strip()
+    out: dict[str, str] = {}
+    parts: list[str] = []
+    buf: list[str] = []
+    quote = ""
+    for ch in inner:
+        if quote:
+            buf.append(ch)
+            if ch == quote:
+                quote = ""
+            continue
+        if ch in {"'", '"'}:
+            quote = ch
+            buf.append(ch)
+            continue
+        if ch == ",":
+            parts.append("".join(buf).strip())
+            buf = []
+        else:
+            buf.append(ch)
+    if buf:
+        parts.append("".join(buf).strip())
+    for part in parts:
+        if ":" not in part:
+            continue
+        k, v = part.split(":", 1)
+        out[k.strip()] = v.strip().strip('"\'')
+    return out
+
+def _parse_mihomo_config_minimal(text: str) -> dict[str, Any]:
+    """Tiny parser for the config fragments we need: rule-providers and rules.
+
+    Entware installs are not guaranteed to have PyYAML. This keeps the inspector
+    useful without pulling dependencies just to read provider paths/URLs.
+    """
+    out: dict[str, Any] = {"rule-providers": {}, "rules": []}
+    lines = str(text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    section = None
+    current_name = None
+    current_indent = 0
+    for raw in lines:
+        line = raw.rstrip()
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        if indent == 0 and stripped.endswith(":"):
+            section = stripped[:-1]
+            current_name = None
+            continue
+        if section == "rule-providers":
+            if indent == 2 and ":" in stripped:
+                name_part, rest = stripped.split(":", 1)
+                if name_part.strip():
+                    current_name = name_part.strip().strip('"\'')
+                    out["rule-providers"].setdefault(current_name, {})
+                    current_indent = indent
+                    inline = _parse_inline_yaml_map(rest.strip())
+                    if inline:
+                        out["rule-providers"][current_name].update(inline)
+                    continue
+            if current_name and indent > current_indent and ":" in stripped:
+                k, v = stripped.split(":", 1)
+                k = k.strip()
+                v = v.strip().strip('"\'')
+                if k == "<<":
+                    continue
+                out["rule-providers"][current_name][k] = v
+        elif section == "rules":
+            if stripped.startswith("-"):
+                out["rules"].append(stripped[1:].strip().strip('"\''))
+    return out
+
+
+def _mihomo_config_mapping() -> dict[str, Any]:
+    path = Path(CONFIG_PATH).expanduser()
+    try:
+        if path.is_symlink():
+            # Keep relative symlink target under config dir working.
+            target = os.readlink(path)
+            path = (path.parent / target).resolve() if not os.path.isabs(target) else Path(target).resolve()
+        else:
+            path = path.resolve()
+    except Exception:
+        pass
+    return _load_yaml_mapping(path)
+
+
+def _rule_providers_from_config() -> dict[str, dict[str, Any]]:
+    cfg = _mihomo_config_mapping()
+    providers = cfg.get("rule-providers") if isinstance(cfg, dict) else {}
+    return providers if isinstance(providers, dict) else {}
+
+
+def _rules_from_config() -> list[str]:
+    cfg = _mihomo_config_mapping()
+    rules = cfg.get("rules") if isinstance(cfg, dict) else []
+    return [str(x) for x in rules] if isinstance(rules, list) else []
+
+
+
+def _resolve_rule_provider_name(name: str, providers: dict[str, dict[str, Any]] | None = None) -> str:
+    raw = str(name or "").strip()
+    providers = providers if isinstance(providers, dict) else _rule_providers_from_config()
+    if raw in providers:
+        return raw
+    for suffix in ("@classical", "@domain", "@ipcidr"):
+        cand = raw + suffix
+        if cand in providers:
+            return cand
+    for key in providers.keys():
+        if str(key).split("@", 1)[0] == raw:
+            return str(key)
+    return raw
+
+def _provider_path_from_config(provider: str, meta: dict[str, Any] | None = None) -> Path | None:
+    meta = meta if isinstance(meta, dict) else _rule_providers_from_config().get(provider, {})
+    raw = str(meta.get("path") or "").strip()
+    if not raw:
+        raw = f"rules/{provider}.yaml"
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        path = (_mihomo_root() / path).resolve()
+    else:
+        path = path.resolve()
+    root = _mihomo_root().resolve()
+    if not (str(path).startswith(str(root) + os.sep) or path == root):
+        raise RuntimeError("unsafe rule provider path")
+    return path
+
+
+def _provider_is_editable(name: str, meta: dict[str, Any] | None = None) -> bool:
+    meta = meta if isinstance(meta, dict) else _rule_providers_from_config().get(name, {})
+    ptype = str(meta.get("type") or "").strip().lower()
+    has_url = bool(str(meta.get("url") or "").strip())
+    behavior = str(meta.get("behavior") or "").strip().lower()
+    return (ptype in {"file", ""} and not has_url and behavior in {"domain", "ipcidr", "classical", ""}) or name == "manual-proxy"
+
+
+def _format_rule_payload_from_lines(lines: list[str]) -> str:
+    clean: list[str] = []
+    for item in lines:
+        value = str(item or "").strip()
+        if not value or value.startswith("#"):
+            continue
+        if value.startswith("-"):
+            value = value[1:].strip()
+        if value:
+            clean.append(value)
+    return "payload:\n" + "\n".join(f"  - {item}" for item in clean) + ("\n" if clean else "")
+
+
+def _rule_provider_cache_dir() -> Path:
+    raw = str(os.environ.get("XKEEN_RULE_PROVIDER_CACHE_DIR") or "").strip()
+    if raw:
+        return Path(raw).expanduser().resolve()
+    return Path(os.environ.get("BASE_VAR_DIR", "/opt/var")).expanduser().resolve() / "cache" / "xkeen-ui" / "rule-providers"
+
+
+def _safe_cache_name(name: str) -> str:
+    value = str(name or "provider").strip() or "provider"
+    return "".join(ch if ch.isalnum() or ch in {"-", "_", ".", "@"} else "_" for ch in value)[:180]
+
+
+def _rule_provider_cache_path(name: str) -> Path:
+    return _rule_provider_cache_dir() / (_safe_cache_name(name) + ".yaml")
+
+
+def _read_rule_provider_cache(name: str) -> str | None:
+    path = _rule_provider_cache_path(name)
+    try:
+        if path.exists() and path.is_file():
+            text = path.read_text(encoding="utf-8", errors="replace")
+            if text.strip():
+                return text if text.endswith("\n") else text + "\n"
+    except Exception:
+        return None
+    return None
+
+
+def _write_rule_provider_cache(name: str, text: str) -> None:
+    try:
+        path = _rule_provider_cache_path(name)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(str(text or ""), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _download_rule_provider_source(url: str, *, max_bytes: int = 16 * 1024 * 1024, timeout: float | None = None) -> bytes:
+    raw = str(url or "").strip()
+    if not raw.lower().startswith(("https://", "http://")):
+        raise RuntimeError("unsupported provider url")
+    if timeout is None:
+        try:
+            timeout = float(os.environ.get("XKEEN_RULE_PROVIDER_DOWNLOAD_TIMEOUT") or "4")
+        except Exception:
+            timeout = 5.0
+    timeout = max(2.0, min(float(timeout), 12.0))
+    req = urllib.request.Request(raw, headers={"User-Agent": "Xkeen-UI/selector-inspector", "Accept": "*/*"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        chunks: list[bytes] = []
+        total = 0
+        while True:
+            chunk = resp.read(256 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > max_bytes:
+                raise RuntimeError("provider file too large")
+            chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def _decode_mrs_provider(meta: dict[str, Any], resolved: str) -> tuple[str, dict[str, Any]]:
+    url = str(meta.get("url") or "").strip()
+    behavior = str(meta.get("behavior") or "domain").strip().lower() or "domain"
+    if behavior == "classical":
+        behavior = "classical"
+    if behavior not in {"domain", "ipcidr", "classical"}:
+        behavior = "domain"
+    blob = _download_rule_provider_source(url)
+    mihomo_bin = str(os.environ.get("MIHOMO_BIN") or "/opt/sbin/mihomo")
+    with tempfile.TemporaryDirectory(prefix="xkeen-rp-") as td:
+        src = Path(td) / (resolved.replace("/", "_") + ".mrs")
+        dst = Path(td) / "out.txt"
+        src.write_bytes(blob)
+        proc = subprocess.run(
+            [mihomo_bin, "convert-ruleset", behavior, "mrs", str(src), str(dst)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError((proc.stderr or proc.stdout or "mrs decode failed")[:500])
+        lines = dst.read_text(encoding="utf-8", errors="replace").splitlines() if dst.exists() else []
+    text = _format_rule_payload_from_lines(lines)
+    _write_rule_provider_cache(resolved, text)
+    meta2 = dict(meta)
+    meta2["decoded"] = True
+    meta2["decoded_format"] = "mrs"
+    meta2["decoded_count"] = len([x for x in lines if str(x).strip()])
+    meta2["cached"] = False
+    return text, meta2
+
+
+def _read_remote_rule_provider_text(resolved: str, meta: dict[str, Any]) -> tuple[Path, str, bool, dict[str, Any]]:
+    fmt = str(meta.get("format") or "").strip().lower()
+    url = str(meta.get("url") or "").strip()
+    pseudo_path = _provider_path_from_config(resolved, meta)
+    meta_base = dict(meta)
+    if not url:
+        return pseudo_path, "payload:\n", False, meta_base
+    # Inspector must be instant: show previously decoded payload first.
+    # Network refresh belongs to the explicit "Обновить provider" action, not every click.
+    cached_first = _read_rule_provider_cache(resolved)
+    if cached_first:
+        meta_cached = dict(meta_base)
+        meta_cached["decoded"] = True
+        meta_cached["cached"] = True
+        meta_cached["decoded_count"] = len([x for x in cached_first.splitlines() if x.strip().startswith("-")])
+        return pseudo_path, cached_first, False, meta_cached
+    try:
+        if fmt == "mrs" or url.lower().endswith(".mrs"):
+            text, meta2 = _decode_mrs_provider(meta_base, resolved)
+            return pseudo_path, text, False, meta2
+        blob = _download_rule_provider_source(url)
+        raw = blob.decode("utf-8", errors="replace")
+        if "payload:" in raw.lstrip()[:80]:
+            text = raw.strip() + "\n"
+        else:
+            text = _format_rule_payload_from_lines(raw.splitlines())
+        _write_rule_provider_cache(resolved, text)
+        meta2 = dict(meta_base)
+        meta2["decoded"] = True
+        meta2["decoded_format"] = fmt or "text"
+        meta2["decoded_count"] = len([x for x in text.splitlines() if x.strip().startswith("-")])
+        meta2["cached"] = False
+        return pseudo_path, text, False, meta2
+    except Exception as exc:
+        cached = _read_rule_provider_cache(resolved)
+        meta2 = dict(meta_base)
+        meta2["decoded"] = bool(cached)
+        meta2["cached"] = bool(cached)
+        meta2["decode_error"] = str(exc)
+        if cached:
+            meta2["decoded_count"] = len([x for x in cached.splitlines() if x.strip().startswith("-")])
+            return pseudo_path, cached, False, meta2
+        msg = str(exc).replace("\n", " ")[:500]
+        return pseudo_path, f"payload:\n  # Не удалось быстро загрузить provider {resolved}: {msg}\n  # Нажми «Обновить provider» или попробуй позже. UI больше не ждёт 30 секунд.\n", False, meta2
+
+
+def _read_rule_provider_text(name: str) -> tuple[Path, str, bool, dict[str, Any]]:
+    providers = _rule_providers_from_config()
+    resolved = _resolve_rule_provider_name(name, providers)
+    meta = providers.get(resolved, {}) if isinstance(providers, dict) else {}
+    if str(name) == "manual-proxy" and not meta:
+        path = _safe_manual_path()
+        return path, path.read_text(encoding="utf-8") if path.exists() else "payload:\n", True, {"type": "file", "behavior": "classical", "path": str(path), "resolved_name": resolved}
+    meta = dict(meta) if isinstance(meta, dict) else {}
+    meta["resolved_name"] = resolved
+    editable = _provider_is_editable(resolved, meta)
+    if not editable and str(meta.get("url") or "").strip():
+        return _read_remote_rule_provider_text(resolved, meta)
+    path = _provider_path_from_config(resolved, meta)
+    text = path.read_text(encoding="utf-8") if path and path.exists() else "payload:\n"
+    return path, text, editable, meta
+
+
+def _strip_inline_comment(value: str) -> str:
+    return str(value or "").split("#", 1)[0].strip()
+
+
+def _rules_targeting_selector(selector: str) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    target = str(selector or "").strip()
+    aliases = {target}
+    if target.endswith(" Selector"):
+        aliases.add(target[:-9].strip())
+    aliases.add(target.replace(" Selector", "").strip())
+    for idx, rule in enumerate(_rules_from_config()):
+        parts = [p.strip() for p in str(rule).split(",")]
+        if len(parts) < 3:
+            continue
+        rule_target = _strip_inline_comment(parts[-1])
+        if rule_target not in aliases:
+            continue
+        provider = parts[1] if parts[0].upper() == "RULE-SET" and len(parts) >= 3 else ""
+        out.append({"index": idx, "rule": rule, "provider": provider})
+    return out
+
+
+def _list_rule_providers_payload() -> dict[str, Any]:
+    providers = _rule_providers_from_config()
+    rules = _rules_from_config()
+    usage: dict[str, list[dict[str, Any]]] = {}
+    for idx, rule in enumerate(rules):
+        parts = [p.strip() for p in str(rule).split(",")]
+        if len(parts) >= 3 and parts[0].upper() == "RULE-SET":
+            usage.setdefault(parts[1], []).append({"index": idx, "rule": rule, "target": parts[-1]})
+    items = []
+    for name, meta in sorted(providers.items(), key=lambda kv: str(kv[0]).lower()):
+        if not isinstance(meta, dict):
+            meta = {}
+        path = None
+        try:
+            path = str(_provider_path_from_config(str(name), meta))
+        except Exception:
+            path = str(meta.get("path") or "")
+        items.append({
+            "name": str(name),
+            "type": meta.get("type"),
+            "behavior": meta.get("behavior"),
+            "url": meta.get("url"),
+            "path": path,
+            "editable": _provider_is_editable(str(name), meta),
+            "usedBy": usage.get(str(name), []),
+        })
+    return {"providers": items, "count": len(items), "controller": _controller_base()}
+
+
+def _runtime_selector_payload(selector: str) -> tuple[str, dict[str, Any]]:
+    status, data = _request_mihomo("GET", "/proxies", timeout=8.0)
+    lines: list[str] = []
+    meta: dict[str, Any] = {"runtime": True}
+    if 200 <= status < 300 and isinstance(data, dict):
+        proxies = data.get("proxies") if isinstance(data.get("proxies"), dict) else {}
+        item = proxies.get(str(selector)) if isinstance(proxies, dict) else None
+        if isinstance(item, dict):
+            all_items = item.get("all") if isinstance(item.get("all"), list) else []
+            now = item.get("now")
+            meta.update({"type": item.get("type"), "now": now, "runtime_count": len(all_items)})
+            lines = [str(x) for x in all_items if str(x or "").strip()]
+    return _format_rule_payload_from_lines(lines), meta
+
+
+def _selector_inspector_payload(selector: str) -> dict[str, Any]:
+    matches = _rules_targeting_selector(selector)
+    providers = _list_rule_providers_payload().get("providers", [])
+    by_name = {str(p.get("name")): p for p in providers if isinstance(p, dict)}
+    linked: list[dict[str, Any]] = []
+    for match in matches:
+        pname = str(match.get("provider") or "")
+        if not pname:
+            continue
+        item = dict(by_name.get(pname) or {"name": pname})
+        item["rule"] = match.get("rule")
+        item["ruleIndex"] = match.get("index")
+        linked.append(item)
+
+    editable = False
+    primary = linked[0] if len(linked) == 1 else None
+    text_parts: list[str] = []
+    if primary:
+        path, text, editable, meta = _read_rule_provider_text(str(primary.get("name") or ""))
+        resolved_name = str((meta or {}).get("resolved_name") or primary.get("name") or "")
+        primary["name"] = resolved_name
+        primary["path"] = str(path)
+        primary["meta"] = meta
+        text_parts.append(text)
+    elif linked:
+        def read_linked_provider(item: dict[str, Any]) -> tuple[dict[str, Any], str]:
+            pname = str(item.get("name") or "")
+            try:
+                path, text, _editable_one, meta = _read_rule_provider_text(pname)
+                out_item = dict(item)
+                out_item["path"] = str(path)
+                out_item["meta"] = meta
+                return out_item, f"# Provider: {pname}\n" + text
+            except Exception as exc:
+                return dict(item), f"payload:\n  # Не удалось прочитать provider {pname}: {exc}\n"
+
+        workers = max(1, min(6, len(linked)))
+        new_linked: list[dict[str, Any]] = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+            for item, text in executor.map(read_linked_provider, linked):
+                new_linked.append(item)
+                text_parts.append(text)
+        linked = new_linked
+    else:
+        text, meta = _runtime_selector_payload(selector)
+        if text.strip() == "payload:":
+            text = "payload:\n  # Runtime selector пуст или Mihomo не вернул список all.\n"
+        text_parts.append(text)
+        primary = {"name": "runtime:" + str(selector), "meta": meta, "path": "runtime selector / no RULE-SET"}
+
+    return {
+        "ok": True,
+        "selector": selector,
+        "providers": linked,
+        "content": "\n".join(text_parts),
+        "editable": bool(editable and primary and linked),
+        "primaryProvider": primary,
+    }
 
 
 def _latest_provider_node(provider_name: str, proxy_name: str) -> dict[str, Any] | None:
@@ -476,6 +933,79 @@ def create_mihomo_clash_blueprint() -> Blueprint:
             return jsonify({"ok": True, "count": len(results), "results": results})
         except Exception as exc:  # noqa: BLE001
             return jsonify({"ok": False, "error": str(exc)}), 502
+
+    @bp.get("/api/mihomo/clash/providers/rules")
+    def api_mihomo_clash_rule_providers():
+        try:
+            payload = _list_rule_providers_payload()
+            payload["ok"] = True
+            # Merge runtime Mihomo provider status when available.
+            try:
+                status, data = _request_mihomo("GET", "/providers/rules", timeout=10.0)
+                payload["runtime"] = data if 200 <= status < 300 else None
+                payload["runtime_status"] = status
+            except Exception:
+                payload["runtime"] = None
+            return jsonify(payload)
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"ok": False, "error": str(exc), "controller": _controller_base()}), 502
+
+    @bp.put("/api/mihomo/clash/providers/rules/<path:provider>")
+    def api_mihomo_clash_rule_provider_update(provider: str):
+        enc = urllib.parse.quote(str(provider), safe="")
+        try:
+            status, data = _request_mihomo("PUT", f"/providers/rules/{enc}", timeout=60.0)
+            ok = 200 <= status < 300
+            return jsonify({"ok": ok, "status": status, "data": data, "provider": provider}), (200 if ok else 502)
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"ok": False, "error": str(exc), "provider": provider}), 502
+
+    @bp.get("/api/mihomo/rule-provider/<path:provider>")
+    def api_mihomo_rule_provider_get(provider: str):
+        try:
+            path, text, editable, meta = _read_rule_provider_text(str(provider))
+            resolved_provider = str((meta or {}).get("resolved_name") or provider)
+            used_by = []
+            for item in _list_rule_providers_payload().get("providers", []):
+                if item.get("name") == resolved_provider:
+                    used_by = item.get("usedBy") or []
+                    break
+            return jsonify({
+                "ok": True,
+                "provider": resolved_provider,
+                "path": str(path),
+                "content": text,
+                "editable": bool(editable),
+                "meta": meta,
+                "usedBy": used_by,
+            })
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"ok": False, "error": str(exc), "provider": provider}), 500
+
+    @bp.post("/api/mihomo/rule-provider/<path:provider>")
+    def api_mihomo_rule_provider_save(provider: str):
+        body = request.get_json(silent=True) or {}
+        content = _normalize_manual_payload(str(body.get("content") or ""))
+        try:
+            path, _old_text, editable, meta = _read_rule_provider_text(str(provider))
+            if not editable:
+                return jsonify({"ok": False, "error": "provider is remote or not editable", "provider": provider}), 403
+            path.parent.mkdir(parents=True, exist_ok=True)
+            backup = None
+            if path.exists():
+                backup = path.with_name(path.name + ".bak-" + datetime.now().strftime("%Y%m%d-%H%M%S"))
+                shutil.copy2(path, backup)
+            path.write_text(content, encoding="utf-8")
+            return jsonify({"ok": True, "provider": provider, "path": str(path), "backup": str(backup) if backup else None, "content": content, "meta": meta})
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"ok": False, "error": str(exc), "provider": provider}), 500
+
+    @bp.get("/api/mihomo/selector-inspector/<path:selector>")
+    def api_mihomo_selector_inspector(selector: str):
+        try:
+            return jsonify(_selector_inspector_payload(selector))
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"ok": False, "error": str(exc), "selector": selector}), 500
 
     @bp.get("/api/mihomo/manual-proxy")
     def api_mihomo_manual_proxy_get():

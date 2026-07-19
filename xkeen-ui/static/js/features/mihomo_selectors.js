@@ -2,6 +2,7 @@ let initialized = false;
 let loading = false;
 let lastData = null;
 let viewMode = 'tiles';
+let inspectorState = { kind: 'provider', name: 'manual-proxy', editable: true, provider: 'manual-proxy', updateable: false };
 
 const VIEW_MODE_KEY = 'xkeen.mihomo.selectors.viewMode';
 const SELECTOR_TYPES = new Set(['Selector', 'Fallback', 'URLTest', 'LoadBalance']);
@@ -232,7 +233,7 @@ function renderTiles(selectors, nodesByName) {
       <article class="xk-selector-card">
         <div class="xk-selector-card-head">
           <div>
-            <div class="xk-selector-title">${esc(name)}</div>
+            <button type="button" class="xk-selector-title xk-selector-title-btn" data-inspect-selector="${esc(name)}">${esc(name)}</button>
             <div class="xk-selector-sub">${esc(sel.type || '')}${auto ? ' · авто-группа' : ''}</div>
           </div>
           <div class="xk-selector-current">Сейчас: <b>${esc(now || '—')}</b></div>
@@ -258,7 +259,7 @@ function renderListMode(selectors, nodesByName) {
         return `
           <article class="xk-selector-row">
             <div class="xk-selector-row-title">
-              <div class="xk-selector-title">${esc(name)}</div>
+              <button type="button" class="xk-selector-title xk-selector-title-btn" data-inspect-selector="${esc(name)}">${esc(name)}</button>
               <div class="xk-selector-sub">${esc(sel.type || '')}</div>
             </div>
             <select class="xk-selector-select" data-selector-select="${esc(name)}" aria-label="Выбор proxy для ${esc(name)}">
@@ -274,6 +275,15 @@ function renderListMode(selectors, nodesByName) {
 }
 
 function bindSelectorEvents(list) {
+  list.querySelectorAll('[data-inspect-selector]').forEach((btn) => {
+    btn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const selector = btn.getAttribute('data-inspect-selector') || '';
+      inspectSelector(selector).catch((error) => setText('mihomo-manual-status', 'Ошибка: ' + error.message));
+    });
+  });
+
   list.querySelectorAll('.xk-proxy-choice').forEach((btn) => {
     btn.addEventListener('click', (event) => {
       if (event.target && event.target.closest && event.target.closest('[data-delay-proxy]')) return;
@@ -367,25 +377,94 @@ function normalizeManualText(text) {
   return 'payload:\n' + lines.map((line) => '  - ' + line.replace(/^[-\s]+/, '')).join('\n') + '\n';
 }
 
-async function loadManual() {
-  setText('mihomo-manual-status', 'Загрузка…');
-  try {
-    const data = await fetchJson('/api/mihomo/manual-proxy');
-    const editor = $('mihomo-manual-editor');
-    if (editor) editor.value = data.content || 'payload:\n';
-    setText('mihomo-manual-path', data.path || '/opt/etc/mihomo/rules/manual-proxy.yaml');
-    setText('mihomo-manual-status', 'OK');
-  } catch (error) {
-    setText('mihomo-manual-status', 'Ошибка: ' + error.message);
+function setInspectorControls({ editable = false, updateable = false } = {}) {
+  const editor = $('mihomo-manual-editor');
+  const saveBtn = $('mihomo-manual-save-btn');
+  const normBtn = $('mihomo-manual-normalize-btn');
+  const updateBtn = $('mihomo-provider-update-btn');
+  if (editor) editor.readOnly = !editable;
+  if (saveBtn) saveBtn.disabled = !editable;
+  if (normBtn) normBtn.disabled = !editable;
+  if (updateBtn) updateBtn.disabled = !updateable;
+}
+
+function renderInspectorMeta(data) {
+  const metaEl = $('mihomo-inspector-meta');
+  if (!metaEl) return;
+  const parts = [];
+  const meta = data && data.meta && typeof data.meta === 'object' ? data.meta : {};
+  if (data && data.provider) parts.push(`<span>provider: <b>${esc(data.provider)}</b></span>`);
+  if (data && data.selector) parts.push(`<span>selector: <b>${esc(data.selector)}</b></span>`);
+  if (meta.type) parts.push(`<span>type: ${esc(meta.type)}</span>`);
+  if (meta.behavior) parts.push(`<span>behavior: ${esc(meta.behavior)}</span>`);
+  if (meta.url) parts.push(`<span class="xk-inspector-remote">remote</span>`);
+  if (meta.decoded) parts.push(`<span>список загружен${meta.decoded_count ? ': ' + esc(meta.decoded_count) : ''}</span>`);
+  if (meta.ruleCount) parts.push(`<span>rules: ${esc(meta.ruleCount)}</span>`);
+  parts.push(`<span class="${data && data.editable ? 'xk-inspector-editable' : 'xk-inspector-readonly'}">${data && data.editable ? 'можно сохранять' : 'только просмотр'}</span>`);
+  const providers = Array.isArray(data && data.providers) ? data.providers : [];
+  if (providers.length > 1) {
+    const rows = providers.map((p) => `<li><button type="button" class="xk-provider-link" data-inspect-provider="${esc(p.name || '')}">${esc(p.name || '')}</button></li>`).join('');
+    parts.push(`<div class="xk-inspector-provider-list"><b>Источники selector:</b><ul>${rows}</ul></div>`);
   }
+  metaEl.innerHTML = parts.join('');
+  metaEl.querySelectorAll('[data-inspect-provider]').forEach((btn) => {
+    btn.addEventListener('click', () => inspectProvider(btn.getAttribute('data-inspect-provider') || ''));
+  });
+}
+
+function applyInspectorPayload(data, fallbackTitle) {
+  const editor = $('mihomo-manual-editor');
+  const title = $('mihomo-inspector-title');
+  const path = $('mihomo-inspector-path');
+  const provider = data && (data.provider || (data.primaryProvider && data.primaryProvider.name));
+  const editable = !!(data && data.editable);
+  const updateable = !!provider;
+  if (title) title.textContent = fallbackTitle || (provider ? provider : 'Инспектор списков');
+  if (path) path.textContent = (data && data.path) || (data && data.primaryProvider && data.primaryProvider.path) || 'runtime selector / rule-provider';
+  if (editor) editor.value = data && data.content ? data.content : 'payload:\n';
+  renderInspectorMeta(data || {});
+  inspectorState = {
+    kind: data && data.selector ? 'selector' : 'provider',
+    name: String((data && data.selector) || provider || 'manual-proxy'),
+    provider: provider ? String(provider) : '',
+    editable,
+    updateable,
+  };
+  setInspectorControls({ editable, updateable });
+}
+
+async function inspectProvider(name = 'manual-proxy') {
+  const provider = String(name || 'manual-proxy').trim() || 'manual-proxy';
+  setText('mihomo-manual-status', `Загрузка ${provider}…`);
+  const data = await fetchJson('/api/mihomo/rule-provider/' + encodeURIComponent(provider));
+  applyInspectorPayload(data, provider);
+  setText('mihomo-manual-status', data.editable ? 'OK · локальный список можно редактировать' : 'OK · remote/provider только для просмотра');
+}
+
+async function inspectSelector(name) {
+  const selector = String(name || '').trim();
+  if (!selector) return;
+  setText('mihomo-manual-status', `Открываю selector ${selector}…`);
+  const data = await fetchJson('/api/mihomo/selector-inspector/' + encodeURIComponent(selector));
+  applyInspectorPayload(data, selector);
+  setText('mihomo-manual-status', data.editable ? 'OK · локальный список можно редактировать' : 'OK · список загружен для просмотра');
+}
+
+async function loadManual() {
+  return inspectProvider(inspectorState.provider || 'manual-proxy');
 }
 
 async function saveManual() {
   const editor = $('mihomo-manual-editor');
   const content = editor ? editor.value : '';
-  setText('mihomo-manual-status', 'Сохранение…');
+  const provider = inspectorState.provider || (inspectorState.name === 'manual-proxy' ? 'manual-proxy' : '');
+  if (!provider || !inspectorState.editable) {
+    setText('mihomo-manual-status', 'Этот список нельзя сохранять: он remote/subscription или selector состоит из нескольких provider.');
+    return;
+  }
+  setText('mihomo-manual-status', `Сохраняю ${provider}…`);
   try {
-    const data = await fetchJson('/api/mihomo/manual-proxy', {
+    const data = await fetchJson('/api/mihomo/rule-provider/' + encodeURIComponent(provider), {
       method: 'POST',
       body: JSON.stringify({ content })
     });
@@ -393,6 +472,26 @@ async function saveManual() {
     setText('mihomo-manual-status', data.backup ? ('Сохранено · backup: ' + data.backup) : 'Сохранено');
   } catch (error) {
     setText('mihomo-manual-status', 'Ошибка: ' + error.message);
+  }
+}
+
+async function updateCurrentProvider() {
+  const provider = inspectorState.provider || '';
+  if (!provider) {
+    setText('mihomo-manual-status', 'Для этого selector нет одного выбранного provider для обновления.');
+    return;
+  }
+  const btn = $('mihomo-provider-update-btn');
+  if (btn) btn.disabled = true;
+  setText('mihomo-manual-status', `Обновляю provider ${provider}…`);
+  try {
+    const data = await fetchJson('/api/mihomo/clash/providers/rules/' + encodeURIComponent(provider), { method: 'PUT', body: JSON.stringify({}) });
+    setText('mihomo-manual-status', data.ok ? `Provider ${provider} обновлён` : `Provider ${provider}: ответ ${data.status || 'unknown'}`);
+    await inspectProvider(provider);
+  } catch (error) {
+    setText('mihomo-manual-status', 'Ошибка обновления provider: ' + error.message);
+  } finally {
+    if (btn) btn.disabled = !inspectorState.updateable;
   }
 }
 
@@ -408,15 +507,17 @@ export function initMihomoSelectorsPanel() {
   if (refresh) refresh.addEventListener('click', () => loadSelectors());
   const pingAllBtn = $('mihomo-selectors-ping-all-btn');
   if (pingAllBtn) pingAllBtn.addEventListener('click', () => pingAll());
-  const loadBtn = $('mihomo-manual-load-btn');
+  const loadBtn = $('mihomo-inspector-refresh-btn');
   if (loadBtn) loadBtn.addEventListener('click', () => loadManual());
   const saveBtn = $('mihomo-manual-save-btn');
   if (saveBtn) saveBtn.addEventListener('click', () => saveManual());
   const normBtn = $('mihomo-manual-normalize-btn');
   if (normBtn) normBtn.addEventListener('click', () => {
     const editor = $('mihomo-manual-editor');
-    if (editor) editor.value = normalizeManualText(editor.value);
+    if (editor && !editor.readOnly) editor.value = normalizeManualText(editor.value);
   });
+  const updateProviderBtn = $('mihomo-provider-update-btn');
+  if (updateProviderBtn) updateProviderBtn.addEventListener('click', () => updateCurrentProvider());
   loadManual();
   loadSelectors();
 }

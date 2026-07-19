@@ -142,8 +142,16 @@ import { getFeatureApi } from '../features/feature_access.js';
     if (modal.dataset) modal.dataset.xkModalBound = '1';
   }
 
+  function isEmbeddedPanel(el) {
+    try { return !!(el && (el.classList.contains('xk-ui-settings-embedded') || document.getElementById('view-ui-settings')?.contains(el))); } catch (e) { return false; }
+  }
+
   function showModal(modal) {
     if (!modal) return;
+    if (isEmbeddedPanel(modal)) {
+      try { window.XKeen?.ui?.tabs?.show?.('ui-settings'); } catch (e) {}
+      return;
+    }
     ensureModalBinding(modal);
     const api = getModalApi();
     try {
@@ -156,6 +164,10 @@ import { getFeatureApi } from '../features/feature_access.js';
 
   function hideModal(modal) {
     if (!modal) return;
+    if (isEmbeddedPanel(modal)) {
+      try { window.XKeen?.ui?.tabs?.show?.('mihomo'); } catch (e) {}
+      return;
+    }
     ensureModalBinding(modal);
     const api = getModalApi();
     try {
@@ -1520,7 +1532,7 @@ import { getFeatureApi } from '../features/feature_access.js';
     }
   }
 
-  function openPanel() {
+  function openPanel(_opts) {
     const modal = $('ui-settings-modal');
     if (!modal) return false;
     ensureModalBinding(modal);
@@ -1532,7 +1544,7 @@ import { getFeatureApi } from '../features/feature_access.js';
     return true;
   }
 
-  function closePanel() {
+  function closePanel(_opts) {
     const modal = $('ui-settings-modal');
     if (!modal) return false;
     hideModal(modal);
@@ -1549,7 +1561,7 @@ import { getFeatureApi } from '../features/feature_access.js';
     const closeBtn = $('ui-settings-close-btn');
     const okBtn = $('ui-settings-ok-btn');
 
-    if (!modal || !openBtn) return;
+    if (!modal) return;
     ensureModalBinding(modal);
     ensureSchemaRendered();
     ensureSettingsSubscription();
@@ -1557,9 +1569,9 @@ import { getFeatureApi } from '../features/feature_access.js';
 
     if (modal.dataset && modal.dataset.xkSettingsPanelWired === '1') return;
 
-    openBtn.addEventListener('click', (e) => {
+    if (openBtn) openBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      openPanel();
+      openPanel({ source: 'header' });
     });
 
     const close = () => closePanel();

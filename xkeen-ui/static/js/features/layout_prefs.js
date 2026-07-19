@@ -19,6 +19,8 @@ let layoutPrefsModuleApi = null;
     { key: 'view:commands', label: 'Команды' },
     { key: 'view:files', label: 'Файлы' },
     { key: 'view:mihomo-generator', label: 'Mihomo Генератор' },
+    { key: 'view:ui-settings', label: 'Интерфейс' },
+    { key: 'view:devtools', label: 'Настройки' },
     { key: 'id:top-tab-donate', label: '💰 Донат' },
   ]);
 

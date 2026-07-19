@@ -111,6 +111,33 @@ export function applyPanelViewRuntime(name) {
     });
   }
 
+  if (viewName === 'ui-settings') {
+    initViewOnce('ui-settings', async () => {
+      await ensurePanelLazyFeature('uiSettingsPanel');
+      const api = getPanelLazyRuntimeApi();
+      return api;
+    }).then(() => {
+      try {
+        const lazy = getPanelLazyRuntimeApi();
+        const feature = lazy && typeof lazy.getFeatureApi === 'function' ? lazy.getFeatureApi('uiSettingsPanel') : null;
+        if (feature && typeof feature.open === 'function') feature.open({ embedded: true });
+      } catch (e) {}
+    }).catch((error) => {
+      try { console.error('[XKeen] view init failed:', viewName, error); } catch (e) {}
+    });
+  }
+
+  if (viewName === 'devtools') {
+    initViewOnce('devtools', async () => {
+      const mod = await import('./devtools.screen.bootstrap.js');
+      return mod.bootDevtoolsScreen();
+    }).then((api) => {
+      try { if (api && typeof api.activate === 'function') api.activate({ reason: 'tab' }); } catch (e) {}
+    }).catch((error) => {
+      try { console.error('[XKeen] view init failed:', viewName, error); } catch (e) {}
+    });
+  }
+
   if (viewName === 'xkeen') {
     initViewOnce('xkeen', async () => {
       const ready = await ensurePanelLazyFeature('xkeenTexts');

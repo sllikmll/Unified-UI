@@ -137,7 +137,7 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
     'XKEEN_UI_UPDATE_API_TIMEOUT': 'Таймаут GitHub API (сек).',
     'XKEEN_UI_UPDATE_REQUIRE_SHA': 'Требовать checksum (sha) перед установкой. Значения: 1/0.',
     'XKEEN_UI_UPDATE_SHA_STRICT': 'Строгая проверка имени checksum‑файла. Значения: 1/0.',
-    'XKEEN_UI_PANEL_SECTIONS_WHITELIST': 'Whitelist видимых секций/вкладок на основной панели (/). Формат: ключи через запятую. Пусто/не задано = показывать всё. Ключи: routing,mihomo,mihomo-selectors,mihomo-connections,geodat,xkeen,xray-logs,commands,files,mihomo-generator,donate. Пример: routing,mihomo,xray-logs,commands. (Секция “Files” может быть скрыта и по архитектуре/feature flags.)',
+    'XKEEN_UI_PANEL_SECTIONS_WHITELIST': 'Whitelist видимых секций/вкладок на основной панели (/). Формат: ключи через запятую. Пусто/не задано = показывать всё. Ключи: routing,mihomo,mihomo-selectors,mihomo-connections,geodat,xkeen,xray-logs,commands,files,mihomo-generator,ui-settings,devtools,settings,donate. Пример: routing,mihomo,xray-logs,commands. (Секция “Files” может быть скрыта и по архитектуре/feature flags.)',
     'XKEEN_UI_DEVTOOLS_SECTIONS_WHITELIST': 'Whitelist видимых секций DevTools (/devtools). Формат: ключи через запятую. Пусто/не задано = показывать всё. Ключи: tools,logs,service,update,logging,ui,branding,layout,theme,css,env. Пример: service,update,logging,ui,branding,layout,theme,css,env (или просто tools,env).',
     'XKEEN_LOG_DIR': 'Каталог UI‑логов: core.log / access.log / ws.log. По умолчанию: /opt/var/log/xkeen-ui.',
     'XKEEN_LOG_CORE_ENABLE': 'Включить/выключить core.log. Значения: 1/0. При 0 core.log не пишется (полезно для экономии flash).',

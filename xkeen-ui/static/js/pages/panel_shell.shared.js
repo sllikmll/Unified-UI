@@ -530,6 +530,8 @@ import { wireTopLevelNavigation } from './top_level_nav.shared.js';
       'mihomo-connections': document.getElementById('view-mihomo-connections'),
       geodat: document.getElementById('view-geodat'),
       'mihomo-generator': document.getElementById('view-mihomo-generator'),
+      'ui-settings': document.getElementById('view-ui-settings'),
+      devtools: document.getElementById('view-devtools'),
       xkeen: document.getElementById('view-xkeen'),
       'xray-logs': document.getElementById('view-xray-logs'),
       commands: document.getElementById('view-commands'),
@@ -631,6 +633,16 @@ import { wireTopLevelNavigation } from './top_level_nav.shared.js';
       });
       if (btn.dataset) btn.dataset.xkeenWiredTabs = '1';
     });
+
+    const devtoolsBtn = document.getElementById('devtools-open-btn');
+    if (devtoolsBtn && (!devtoolsBtn.dataset || devtoolsBtn.dataset.xkeenWiredTabs !== '1')) {
+      devtoolsBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        showView('devtools');
+      });
+      if (devtoolsBtn.dataset) devtoolsBtn.dataset.xkeenWiredTabs = '1';
+    }
+
   }
 
   function wireExplicitNavigation() {

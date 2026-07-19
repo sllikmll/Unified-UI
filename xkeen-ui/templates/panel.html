@@ -63,6 +63,7 @@
   <!-- Editor payload is lazy-loaded by js/runtime/lazy_runtime.js + js/ui/editor_engine.js. -->
   {% include '_top_level_host_theme_bootstrap.html' %}
 <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260609b') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='devtools.css', v='20260517a') }}">
   <link rel="stylesheet" id="xk-terminal-theme-link" href="{{ url_for('terminal_theme_css', v=terminal_theme_v) }}">
   {# Global Custom CSS (DevTools) — last in order so it can override everything. #}
 <!-- XTerm.js для веб-терминала XKeen (локально из static/xterm) -->
@@ -162,15 +163,15 @@
                 type="button"
                 id="ui-settings-open-btn"
                 class="service-core-text xk-header-btn xk-header-btn-ui"
-                title="UI settings"
-              >⚙ UI</button>
+                title="Настройки интерфейса"
+              >⚙ Интерфейс</button>
 
-              <a
-                href="{{ url_for('devtools_page') }}"
+              <button
+                type="button"
+                id="devtools-open-btn"
                 class="service-core-text xk-header-btn xk-header-btn-devtools"
-                data-xk-top-nav="1"
-                title="DevTools"
-              >DevTools</a>
+                title="Настройки"
+              >Настройки</button>
 
               <a
                 href="{{ url_for('devtools_page') }}#dt-update-card"
@@ -234,6 +235,12 @@
         </button>
         <button class="top-tab-btn xk-top-tab xk-top-tab-files" data-view="files" data-xk-section="files" id="top-tab-files">
           Файлы
+        </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-ui-settings" type="button" data-view="ui-settings" data-xk-section="ui-settings">
+          Интерфейс
+        </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-devtools" type="button" data-view="devtools" data-xk-section="devtools settings">
+          Настройки
         </button>
         {% if has_mihomo %}
         <button class="top-tab-btn xk-top-tab xk-top-tab-generator" type="button" data-view="mihomo-generator" data-xk-section="mihomo-generator" id="top-tab-mihomo-generator">
@@ -1108,7 +1115,7 @@
   <section class="card xk-mihomo-selectors-card">
     <div class="commands-header">
       <div>
-        <div class="commands-title">Маршрутизация Mihomo</div>
+        <div class="commands-title">Маршрутизация</div>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <span id="mihomo-selectors-status" class="status" style="margin:0;">Загрузка…</span>
@@ -1129,22 +1136,24 @@
         <div id="mihomo-selectors-list" class="xk-selectors-list"></div>
       </div>
 
-      <aside class="xk-manual-list-panel">
-        <div class="xk-manual-list-head">
+      <aside class="xk-manual-list-panel xk-selector-inspector-panel" id="mihomo-selector-inspector">
+        <div class="xk-manual-list-head xk-selector-inspector-head">
           <div>
-            <div class="commands-title" style="font-size:16px;">Ручной список</div>
-            <div id="mihomo-manual-path" class="commands-subtitle">/opt/etc/mihomo/rules/manual-proxy.yaml</div>
+            <div class="commands-title" id="mihomo-inspector-title" style="font-size:16px;">Инспектор списков</div>
+            <div id="mihomo-inspector-path" class="commands-subtitle">Нажми на заголовок selector-группы слева.</div>
           </div>
-          <button type="button" class="btn-secondary" id="mihomo-manual-load-btn">⟳</button>
+          <button type="button" class="btn-secondary" id="mihomo-inspector-refresh-btn" title="Обновить текущий список">⟳</button>
         </div>
-        <textarea id="mihomo-manual-editor" class="terminal-input xk-manual-editor" spellcheck="false" placeholder="payload:\n  - DOMAIN-SUFFIX,example.com\n  - DOMAIN,exact.example.com\n  - DOMAIN-KEYWORD,spotify"></textarea>
-        <div class="xk-manual-list-actions">
+        <div id="mihomo-inspector-meta" class="xk-inspector-meta"></div>
+        <textarea id="mihomo-manual-editor" class="terminal-input xk-manual-editor xk-inspector-editor" spellcheck="false" placeholder="Выбери selector или rule-provider слева…"></textarea>
+        <div class="xk-manual-list-actions xk-inspector-actions">
           <button type="button" class="btn-primary" id="mihomo-manual-save-btn">💾 Сохранить</button>
           <button type="button" class="btn-secondary" id="mihomo-manual-normalize-btn">✨ Нормализовать</button>
+          <button type="button" class="btn-secondary" id="mihomo-provider-update-btn">⤓ Обновить provider</button>
         </div>
         <div id="mihomo-manual-status" class="status" style="margin:8px 0 0 0;"></div>
-        <div class="status" style="margin:8px 0 0 0; opacity:.75;">
-          После сохранения список используется rule-provider <b>manual-proxy</b>. Если меняешь только домены — обычно достаточно обновить/перезапустить Mihomo.
+        <div id="mihomo-inspector-hint" class="status" style="margin:8px 0 0 0; opacity:.75;">
+          Сохранять можно только локальные/file списки. HTTP/subscription provider — только просмотр и принудительное обновление.
         </div>
       </aside>
     </div>
@@ -3484,26 +3493,36 @@ https://..."></textarea>
     </div>
 
 
-    <!-- UI settings modal -->
-    <div id="ui-settings-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Настройки интерфейса" data-modal-focus="#ui-settings-nav-btn-editor">
-      <div class="modal-content xk-ui-settings-modal-content" data-modal-key="ui-settings">
-        <div class="modal-header xk-ui-settings-header">
+    <div id="view-ui-settings" class="view-section" style="display:none;" data-xk-section="ui-settings">
+      <section id="ui-settings-modal" class="card xk-ui-settings-embedded" aria-label="Настройки интерфейса" data-modal-focus="#ui-settings-nav-btn-editor">
+        <div class="xk-ui-settings-embedded-head">
           <div class="xk-ui-settings-titlebox">
             <span class="modal-title">Настройки интерфейса</span>
           </div>
-          <button type="button" class="modal-close" id="ui-settings-close-btn" title="Закрыть">×</button>
+          <button type="button" class="btn-secondary" id="ui-settings-close-btn" title="Вернуться к роутингу">← Назад</button>
         </div>
-        <div class="modal-body xk-ui-settings-body">
+        <div class="xk-ui-settings-body">
           <div class="xk-ui-settings-shell">
             <nav id="ui-settings-nav" class="xk-ui-settings-nav" aria-label="Разделы настроек интерфейса"></nav>
             <div id="ui-settings-sections" class="xk-ui-settings-sections" aria-live="polite"></div>
           </div>
         </div>
-        <div class="modal-actions xk-ui-settings-footer">
+        <div class="xk-ui-settings-footer">
           <div id="ui-settings-status" class="modal-hint xk-ui-settings-status is-empty"></div>
-          <button type="button" id="ui-settings-ok-btn" class="btn-secondary">Закрыть</button>
+          <button type="button" id="ui-settings-ok-btn" class="btn-secondary">Готово</button>
         </div>
-      </div>
+      </section>
+    </div>
+
+    <div id="view-devtools" class="view-section" style="display:none;" data-xk-section="devtools settings">
+      <section class="card xk-devtools-panel-card">
+        <div class="commands-header">
+          <div>
+            <div class="commands-title">Настройки</div>
+          </div>
+        </div>
+        {% include '_devtools_embedded_body.html' %}
+      </section>
     </div>
 
     <div id="toast-container"></div>
