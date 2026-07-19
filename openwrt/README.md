@@ -1,71 +1,90 @@
 # Unified UI для OpenWrt
 
-OpenWrt-версия Unified UI сделана **без Python/Flask**: лёгкая статическая страница под `uhttpd` + CGI backend на `ash`, который ходит в Mihomo API Nikki.
+OpenWrt-версия Unified UI теперь работает **на standalone Mihomo**, без Nikki. Это лёгкий OpenWrt-native слой: статическая страница под `uhttpd` + CGI backend на `ash`, который ходит в Mihomo API.
 
-## Почему не Python
+## Почему не Flask как на Keenetic
 
 На тестовом роутере `172.16.0.21`:
 
 ```text
 OpenWrt 25.12.5
 arch: aarch64_cortex-a53
-root overlay: 147.6M total / 116.0M used / 26.9M free
+root overlay: ~147.6M total / ~26M free
 python3: not installed
 package manager: apk, not opkg
 ```
 
-Симуляция показывает:
-
-```text
-apk add --simulate python3 -> OK: 141.6 MiB in 250 packages
-py3-flask -> no such package
-```
-
-То есть Flask-панель для этого OpenWrt — плохая идея: overlay быстро забьётся и роутер словит ненужную боль.
+Python/Flask на таком overlay — плохая идея: `apk add --simulate python3` тянет слишком большой runtime, а Flask-пакета нет. Поэтому OpenWrt-вариант сделан без Python, но по UX и функциям приближается к Keenetic Unified UI.
 
 ## Архитектура
 
 ```text
-uhttpd static page      /www/unified-ui/index.html
-CGI backend             /www/cgi-bin/unified-ui-api
-runtime config/env      /etc/unified-ui/openwrt.env
-build info              /etc/unified-ui/BUILD.json
-backup dir              /etc/unified-ui/backups/
-update script           /etc/unified-ui/openwrt-update.sh
-uninstall script        /etc/unified-ui/openwrt-uninstall.sh
-Mihomo controller       http://127.0.0.1:6060
-Nikki profile           /etc/nikki/profiles/manual-mihomo.yaml
-Nikki active config     /etc/nikki/run/config.yaml
+Mihomo binary           /usr/bin/mihomo
+Mihomo service          /etc/init.d/mihomo
+Mihomo config/profile   /etc/mihomo/config.yaml
+Mihomo controller       http://127.0.0.1:9090
+Unified UI static page  /www/unified-ui/index.html
+Unified UI CGI backend  /www/cgi-bin/unified-ui-api
+Unified UI env/build    /etc/unified-ui/openwrt.env, BUILD.json
+Unified UI backups      /etc/unified-ui/backups/
 ```
 
-## Что умеет сейчас
+Nikki не используется и на тестовом роутере удалён:
 
-### Runtime controls
+```text
+nikki/luci-app-nikki/luci-i18n-nikki-ru: removed
+/etc/nikki: removed
+controller :6060: closed
+standalone Mihomo :9090: active
+```
+
+## Возможности
+
+### Runtime Mihomo
 
 - статус Mihomo + UI version;
 - просмотр selector/group/proxy дерева;
 - переключение selector → proxy;
-- delay/ping check по proxy;
+- ping/delay check по proxy;
 - просмотр активных соединений;
 - фильтр соединений;
 - разрыв одного соединения;
 - разрыв всех соединений;
-- restart Nikki/Mihomo.
+- restart standalone Mihomo.
+
+### Подключения по протоколам
+
+Вкладка `Подключения` показывает proxy по протоколам:
+
+- VLESS;
+- WireGuard;
+- Amnezia;
+- Hysteria2;
+- Trojan;
+- Mieru;
+- NaiveProxy.
+
+Импорт сейчас добавляет YAML proxy-блок в `/etc/mihomo/config.yaml` через редактор:
+
+- `vless://...`
+- `trojan://...`
+- `hysteria2://...` / `hy2://...`
+- WireGuard/Amnezia-style config with `PrivateKey`, `PublicKey`, `Endpoint`.
+
+После импорта нужно проверить YAML и нажать `Сохранить и применить`.
 
 ### Config editor
 
-Для `manual-mihomo.yaml`:
+Для `/etc/mihomo/config.yaml`:
 
 - чтение текущего конфига;
 - validate через реальный `mihomo -t`;
 - save только после успешной валидации;
 - backup старого файла перед записью;
-- save+apply через restart Nikki;
-- сохранение backup в `/etc/unified-ui/backups/`.
+- save+apply через restart `/etc/init.d/mihomo`;
+- backup в `/etc/unified-ui/backups/`.
 
 ## Release asset
-
-Основной OpenWrt-архив:
 
 ```text
 unified-ui-openwrt.tar.gz
@@ -121,13 +140,9 @@ POST /cgi-bin/unified-ui-api/config-save           { content, apply }
 
 ## Обновление и удаление
 
-Обновление с release asset:
-
 ```sh
 sh /etc/unified-ui/openwrt-update.sh
 ```
-
-Полное удаление:
 
 ```sh
 sh /etc/unified-ui/openwrt-uninstall.sh
@@ -135,48 +150,36 @@ sh /etc/unified-ui/openwrt-uninstall.sh
 
 ## Проверено на 172.16.0.21
 
-HTTP smoke:
+Standalone state:
 
 ```text
-/unified-ui/                           HTTP 200
-/cgi-bin/unified-ui-api/status         HTTP 200
-/cgi-bin/unified-ui-api/version        HTTP 200
-/cgi-bin/unified-ui-api/proxies        HTTP 200
-/cgi-bin/unified-ui-api/connections    HTTP 200
-/cgi-bin/unified-ui-api/config-get     HTTP 200
+mihomo-meta installed
+nikki removed
+/etc/nikki removed
+PID: mihomo
+ports: 7890 + 9090
 ```
 
-Runtime actions:
+Status:
 
 ```text
-delay DIRECT: {"delay":86}
-select GLOBAL -> DIRECT: HTTP 200
-close one connection: before_count=25, after_count=24
-```
-
-Config editor:
-
-```text
-config-get: path=/etc/nikki/profiles/manual-mihomo.yaml
-content_len: 19231
-config-validate: ok=true, exit_code=0
-config-save apply=false: ok=true, backup created
-config-save apply=true: ok=true, pid_changed=true
+controller: http://127.0.0.1:9090
+config: /etc/mihomo/config.yaml
+profile: /etc/mihomo/config.yaml
 ```
 
 Browser smoke:
 
 ```text
-summary: Групп: 22 · узлов/служебных proxy: 18
-selectors: 22 dropdowns
-ping buttons: 361
-apply buttons: 22
-close buttons: 25
-config tab: textarea loaded, validate OK
+main tabs: Статус, Маршрутизация, Подключения, Соединения, Конфиг, Raw API
+protocol tabs: VLESS, WireGuard, Amnezia, Hysteria2, Trojan, Mieru, NaiveProxy
+VLESS count: 11
+WireGuard count: 1
+config editor: /etc/mihomo/config.yaml loaded
 JS errors: []
 ```
 
-## Сборка локального release-архива
+## Сборка локального OpenWrt-архива
 
 ```sh
 python3 scripts/build_openwrt_archive.py \
@@ -189,10 +192,3 @@ python3 scripts/build_openwrt_archive.py \
 ```sh
 npm run archive:openwrt
 ```
-
-## Что дальше можно улучшить
-
-- diff/editor UX лучше обычного textarea;
-- compare against running config `/etc/nikki/run/config.yaml`;
-- selective restart/reload flow, если Nikki даст безопасный apply без полного restart;
-- auth gate поверх OpenWrt UI, если панель будут открывать не только из LAN.
