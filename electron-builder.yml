@@ -1,0 +1,52 @@
+{
+  "appId": "ru.dogonin.unifiedui",
+  "productName": "Unified UI",
+  "copyright": "Copyright © 2026 Unified UI",
+  "directories": {
+    "output": "dist/desktop"
+  },
+  "files": [
+    "desktop/electron/**/*",
+    "unified-ui/**/*",
+    "mikrotik/assets/mihomo-linux-arm64",
+    "package.json",
+    "!**/__pycache__/**",
+    "!unified-ui/static/frontend-src/**",
+    "!unified-ui/node_modules/**"
+  ],
+  "extraMetadata": {
+    "main": "desktop/electron/main.cjs"
+  },
+  "asar": false,
+  "mac": {
+    "target": ["dmg"],
+    "category": "public.app-category.utilities",
+    "hardenedRuntime": false,
+    "gatekeeperAssess": false
+  },
+  "dmg": {
+    "sign": false,
+    "artifactName": "Unified-UI-${version}-${arch}.${ext}"
+  },
+  "linux": {
+    "target": ["deb", "rpm", "AppImage"],
+    "category": "Network",
+    "maintainer": "Unified UI",
+    "artifactName": "Unified-UI-${version}-${arch}.${ext}"
+  },
+  "deb": {
+    "depends": ["python3", "python3-venv", "python3-pip"]
+  },
+  "rpm": {
+    "depends": ["python3", "python3-pip"]
+  },
+  "win": {
+    "target": ["nsis"],
+    "artifactName": "Unified-UI-Setup-${version}-${arch}.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "perMachine": false
+  }
+}

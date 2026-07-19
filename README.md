@@ -2,12 +2,15 @@
 
 **Unified UI** — единая веб-панель для управления Mihomo/маршрутизацией на роутерах.
 
-Теперь проект поддерживает две целевые платформы:
+Теперь проект поддерживает несколько целевых платформ:
 
 | Платформа | Где живёт UI | Runtime | Для чего |
 |---|---:|---|---|
 | **Keenetic / Entware** | `http://<router-ip>:8088/` | Python/Flask + standalone Mihomo | Полная серверная панель с backend’ом, registry, installer’ом и self-update |
 | **OpenWrt** | `http://<router-ip>/unified-ui/` | Static full-panel snapshot + CGI API + standalone Mihomo | Максимально близкая к Keenetic версия без тяжёлого Python stack на маленьком overlay |
+| **MikroTik / RouterOS container** | `http://172.16.0.22:8088/` или выбранный host-port | RouterOS container: Unified UI + Mihomo | Full-панель внутри RouterOS container package |
+| **Desktop Linux/macOS/Windows** | Локальное окно приложения + `127.0.0.1` ports | Electron shell + Flask Unified UI + Mihomo | Конечные устройства: локальный proxy, selector routing, service lists |
+| **Docker / Compose** | `http://localhost:8088/` | Container: Flask Unified UI + Mihomo | Серверы, NAS, homelab, desktop Docker |
 
 Не Xkeen UI, не Nikki-wrapper, не отдельный Zashboard. Это одна панель для маршрутизации, селекторов, подключений, подписок и протоколов.
 
@@ -154,7 +157,91 @@ UNIFIED_UI_UPDATE_CHANNEL=main \
 
 ---
 
-## Вариант 2 — OpenWrt / standalone Mihomo
+## Вариант 2 — Docker / Docker Compose
+
+Готовый образ опубликован в GHCR:
+
+```text
+ghcr.io/sllikmll/unified-ui:latest
+ghcr.io/sllikmll/unified-ui:2.5.0
+```
+
+Быстрый запуск:
+
+```sh
+docker run -d \
+  --name unified-ui \
+  --restart unless-stopped \
+  -p 8088:8088 \
+  -p 9090:9090 \
+  -p 7890:7890 \
+  -e UNIFIED_UI_AUTH_USER=admin \
+  -e UNIFIED_UI_AUTH_PASSWORD=admin \
+  -v unified-ui-state:/data/unified-ui \
+  -v unified-ui-mihomo:/etc/mihomo \
+  ghcr.io/sllikmll/unified-ui:latest
+```
+
+Или через Compose:
+
+```sh
+curl -fL -o docker-compose.yml \
+  https://raw.githubusercontent.com/sllikmll/Unified-UI/main/docker-compose.yml
+docker compose up -d
+```
+
+После запуска:
+
+```text
+UI:              http://localhost:8088/
+Mihomo API:      http://localhost:9090/
+Mixed proxy:     127.0.0.1:7890
+DNS optional:    127.0.0.1:1053
+```
+
+По умолчанию контейнер стартует без TUN, чтобы не требовать `NET_ADMIN`. Для полноценной системной маршрутизации через TUN включи в compose:
+
+```yaml
+environment:
+  MIHOMO_ENABLE_TUN: "true"
+cap_add:
+  - NET_ADMIN
+devices:
+  - /dev/net/tun:/dev/net/tun
+```
+
+> Важно: `UNIFIED_UI_AUTH_PASSWORD` и `MIHOMO_SUB_URL` нужны только для первого запуска. После создания `/data/unified-ui/auth.json` и `/etc/mihomo/config.yaml` их лучше убрать из env/compose.
+
+---
+
+## Вариант 3 — Desktop: Linux / macOS / Windows
+
+Desktop-сборки предназначены для конечных устройств, а не роутеров. Приложение открывает нативное окно Electron, внутри поднимает локальный Flask Unified UI и отдельный процесс Mihomo.
+
+Собранные пакеты:
+
+| ОС | Артефакт | Назначение |
+|---|---|---|
+| Linux Debian/Ubuntu | `Unified-UI-2.5.0-amd64.deb` | `.deb` пакет |
+| Linux Fedora/RHEL/openSUSE | `Unified-UI-2.5.0-x86_64.rpm` | `.rpm` пакет |
+| Linux universal | `Unified-UI-2.5.0-x86_64.AppImage` | запуск без установки |
+| macOS Apple Silicon | `Unified-UI-2.5.0-arm64.dmg` | `.dmg` образ |
+| Windows x64 | `Unified-UI-Setup-2.5.0-x64.exe` | NSIS installer |
+
+Локальные порты desktop-приложения:
+
+```text
+Unified UI:      http://127.0.0.1:18088/
+Mihomo API:      http://127.0.0.1:19090/
+Mixed proxy:     127.0.0.1:17890
+DNS:             127.0.0.1:15353
+```
+
+На первом запуске приложение создаёт runtime-папку в профиле пользователя, скачивает подходящий Mihomo binary при необходимости, создаёт Python venv и ставит зависимости из `unified-ui/requirements.txt`.
+
+Текущий desktop-режим даёт локальный proxy и управление Mihomo/selector/rule/provider через панель. Полная системная маршрутизация всего трафика через TUN/Wintun/utun требует прав администратора и будет включаться отдельным elevated-flow, чтобы не ломать сеть пользователю без спроса.
+
+## Вариант 4 — OpenWrt / standalone Mihomo
 
 OpenWrt-сборка — это full-panel snapshot той же Unified UI, но без установки Flask/Python на роутер. На маленьком OpenWrt overlay это важно: Python stack съест место быстрее, чем кот сосиску.
 

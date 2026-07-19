@@ -1,0 +1,33 @@
+services:
+  unified-ui:
+    image: ghcr.io/sllikmll/unified-ui:latest
+    container_name: unified-ui
+    restart: unless-stopped
+    ports:
+      - "8088:8088"   # Unified UI
+      - "9090:9090"   # Mihomo controller API
+      - "7890:7890"   # Mihomo mixed HTTP/SOCKS proxy
+      # DNS is optional. Uncomment if you want host/LAN DNS to use Mihomo.
+      # - "1053:1053/tcp"
+      # - "1053:1053/udp"
+    environment:
+      UNIFIED_UI_AUTH_USER: admin
+      UNIFIED_UI_AUTH_PASSWORD: admin
+      # Optional: pass your subscription URL on first boot only.
+      # Remove it from compose after config.yaml is created if you do not want it in env.
+      # MIHOMO_SUB_URL: "https://example.com/sub/token"
+      MIHOMO_ENABLE_TUN: "false"
+      MIHOMO_MIXED_PORT: "7890"
+      MIHOMO_DNS_PORT: "1053"
+    volumes:
+      - unified-ui-state:/data/unified-ui
+      - unified-ui-mihomo:/etc/mihomo
+    # TUN mode needs elevated permissions. Keep disabled unless you know you need it.
+    # cap_add:
+    #   - NET_ADMIN
+    # devices:
+    #   - /dev/net/tun:/dev/net/tun
+
+volumes:
+  unified-ui-state:
+  unified-ui-mihomo:
