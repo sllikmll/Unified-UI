@@ -5,6 +5,7 @@ import { initMihomoPanel, onShowMihomoPanel } from '../features/mihomo_panel.js'
 import { initMihomoSelectorsPanel, onShowMihomoSelectorsPanel } from '../features/mihomo_selectors.js';
 import { initMihomoConnectionsPanel, onShowMihomoConnectionsPanel } from '../features/mihomo_connections.js';
 import { initMihomoSubscriptionsButton } from '../features/mihomo_subscriptions.js';
+import { initProxyConnectionsPanel, onShowProxyConnectionsPanel } from '../features/proxy_connections.js';
 import { initMihomoGenerator, getMihomoGeneratorApi } from '../features/mihomo_generator.js';
 import {
   getXkeenStateValue,
@@ -103,6 +104,17 @@ export function applyPanelViewRuntime(name) {
     });
   }
 
+
+  if (viewName.startsWith('protocol-')) {
+    const proto = viewName.slice('protocol-'.length);
+    initViewOnce('proxy-connections', () => {
+      initProxyConnectionsPanel();
+    }).catch((error) => {
+      try { console.error('[XKeen] view init failed:', viewName, error); } catch (e) {}
+    });
+    safe(() => onShowProxyConnectionsPanel(proto));
+  }
+
   if (viewName === 'mihomo-generator') {
     initViewOnce('mihomo-generator', () => {
       initMihomoGenerator();
@@ -189,6 +201,17 @@ export function applyPanelViewRuntime(name) {
 
   if (viewName === 'mihomo-connections') {
     safe(() => onShowMihomoConnectionsPanel({ reason: 'tab' }));
+  }
+
+
+  if (viewName.startsWith('protocol-')) {
+    const proto = viewName.slice('protocol-'.length);
+    initViewOnce('proxy-connections', () => {
+      initProxyConnectionsPanel();
+    }).catch((error) => {
+      try { console.error('[XKeen] view init failed:', viewName, error); } catch (e) {}
+    });
+    safe(() => onShowProxyConnectionsPanel(proto));
   }
 
   if (viewName === 'mihomo-generator') {

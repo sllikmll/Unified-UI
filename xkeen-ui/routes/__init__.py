@@ -48,6 +48,7 @@ def register_blueprints(app, ctx: Optional[AppContext] = None):
     from .xray_subscriptions import create_xray_subscriptions_blueprint
     from .mihomo import create_mihomo_blueprint
     from .mihomo_clash import create_mihomo_clash_blueprint
+    from .proxy_connections import create_proxy_connections_blueprint
     from .backups import create_backups_blueprint
     from .service import create_service_blueprint
     from .xray_logs import create_xray_logs_blueprint
@@ -120,6 +121,7 @@ def register_blueprints(app, ctx: Optional[AppContext] = None):
         )
     )
     app.register_blueprint(create_mihomo_clash_blueprint())
+    app.register_blueprint(create_proxy_connections_blueprint())
 
     app.register_blueprint(
         create_backups_blueprint(

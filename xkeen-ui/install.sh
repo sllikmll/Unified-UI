@@ -1633,6 +1633,23 @@ else
   echo "[*] XKEEN_INSTALL_MIHOMO=0 — пропускаю установку Mihomo core."
 fi
 
+# --- Optional proxy clients for protocol tabs ---
+# Mihomo-native protocols run inside Mihomo; this installs only optional external runtimes
+# when this fork publishes matching release assets/bundled archives.
+if [ "${XKEEN_INSTALL_PROXY_CLIENTS:-1}" != "0" ]; then
+  if [ -f "$UI_DIR/scripts/install_proxy_clients.sh" ]; then
+    echo "[*] Проверяю optional proxy-клиенты для WireGuard/Amnezia/Hysteria2/VLESS/Trojan/Mieru/NaiveProxy..."
+    chmod +x "$UI_DIR/scripts/install_proxy_clients.sh" 2>/dev/null || true
+    if ! sh "$UI_DIR/scripts/install_proxy_clients.sh"; then
+      echo "[!] Optional proxy-клиенты не установлены. Mihomo-native протоколы продолжат работать внутри Mihomo."
+    fi
+  else
+    echo "[!] install_proxy_clients.sh не найден в архиве, optional proxy-клиенты пропущены."
+  fi
+else
+  echo "[*] XKEEN_INSTALL_PROXY_CLIENTS=0 — optional proxy-клиенты пропущены."
+fi
+
 # --- Init-скрипт ---
 
 echo "[*] Создаю init-скрипт $INIT_SCRIPT..."

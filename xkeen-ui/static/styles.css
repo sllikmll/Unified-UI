@@ -33798,3 +33798,25 @@ html[data-theme="light"] .xkeen-diff-modal .xkeen-diff-host .cm-collapsedLines:f
 .xk-geodat-card { max-width:none; }
 #view-geodat .routing-dat-grid { grid-template-columns: repeat(2, minmax(280px, 1fr)); }
 @media (max-width: 980px) { .xk-connections-shell { grid-template-columns:1fr; } .xk-connection-details { position:static; } #view-geodat .routing-dat-grid { grid-template-columns:1fr; } }
+/* Unified proxy protocol tabs */
+.xk-protocol-card { overflow: hidden; }
+.xk-protocol-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+.xk-protocol-grid { display:grid; grid-template-columns:minmax(280px, 380px) minmax(0, 1fr); gap:16px; align-items:start; margin-top:14px; }
+.xk-protocol-import,
+.xk-protocol-main { border:1px solid rgba(133,169,255,.16); border-radius:18px; background:rgba(4,12,27,.28); padding:14px; box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
+.xk-protocol-import h3,
+.xk-protocol-main h3 { margin:0 0 10px 0; }
+.xk-protocol-field { display:flex; flex-direction:column; gap:6px; margin:10px 0; font-size:13px; color:var(--muted, #9fb0c8); }
+.xk-protocol-import-text { min-height:150px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+.xk-protocol-selector-select { min-height:130px; }
+.xk-protocol-list { display:grid; gap:12px; }
+.xk-protocol-item { border:1px solid rgba(133,169,255,.14); border-radius:16px; background:linear-gradient(135deg,rgba(12,24,49,.72),rgba(6,14,28,.76)); padding:12px; }
+.xk-protocol-item-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.xk-protocol-item h4 { margin:0 0 4px 0; font-size:16px; }
+.xk-protocol-item-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.xk-protocol-used { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:10px 0; color:var(--muted, #9fb0c8); }
+.xk-protocol-details { margin-top:10px; }
+.xk-protocol-details summary { cursor:pointer; color:#b9cdfb; }
+.xk-protocol-yaml { max-height:260px; overflow:auto; padding:10px; border-radius:12px; background:rgba(0,0,0,.28); border:1px solid rgba(255,255,255,.08); font-size:12px; }
+@media (max-width: 980px) { .xk-protocol-grid { grid-template-columns:1fr; } .xk-protocol-item-head { flex-direction:column; } }
+

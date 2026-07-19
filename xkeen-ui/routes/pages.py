@@ -45,6 +45,16 @@ def _detect_panel_core_ui() -> dict[str, object]:
         supported_sections.append("mihomo-selectors")
         supported_sections.append("mihomo-connections")
         supported_sections.append("geodat")
+        supported_sections.extend([
+            "protocol-wireguard",
+            "protocol-amnezia",
+            "protocol-hysteria2",
+            "protocol-vless",
+            "protocol-trojan",
+            "protocol-mieru",
+            "protocol-naiveproxy",
+            "proxy-protocols",
+        ])
     supported_sections.extend(["xkeen"])
     if has_xray:
         supported_sections.append("xray-logs")

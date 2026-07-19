@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "owner": "sllikmll",
+  "repo": "Xkeen-UI-umarcheh",
+  "note": "Preferred single-source proxy client artifacts for Keenetic/Entware unified installs. Mihomo-native protocols (WireGuard, VLESS, Trojan, Hysteria2, NaiveProxy-as-HTTPS) run inside Mihomo and do not require separate clients. External runtimes are optional and must be published as release assets here before offline/single-point install can fetch them.",
+  "platforms": {
+    "linux-arm64": {
+      "amneziawg-go": {
+        "required": false,
+        "asset": "amneziawg-go-linux-arm64.tar.gz",
+        "bin": "amneziawg-go",
+        "install_as": "/opt/sbin/amneziawg-go"
+      },
+      "mieru": {
+        "required": false,
+        "asset": "mieru-client-linux-arm64.tar.gz",
+        "bin": "mieru",
+        "install_as": "/opt/sbin/mieru"
+      },
+      "naiveproxy": {
+        "required": false,
+        "asset": "naiveproxy-linux-arm64.tar.gz",
+        "bin": "naive",
+        "install_as": "/opt/sbin/naive"
+      },
+      "hysteria": {
+        "required": false,
+        "asset": "hysteria-linux-arm64.tar.gz",
+        "bin": "hysteria",
+        "install_as": "/opt/sbin/hysteria"
+      }
+    }
+  }
+}

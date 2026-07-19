@@ -10,10 +10,16 @@ let layoutPrefsModuleApi = null;
 
   const TAB_DEFS = Object.freeze([
     { key: 'view:routing', label: 'Роутинг Xray' },
-    { key: 'view:mihomo', label: 'Роутинг Mihomo' },
-    { key: 'view:mihomo-selectors', label: 'Маршрутизация' },
+    { key: 'view:mihomo', label: 'Mihomo' },
     { key: 'view:mihomo-connections', label: 'Соединения' },
     { key: 'view:geodat', label: 'DAT GeoIP / GeoSite' },
+    { key: 'view:protocol-wireguard', label: 'WireGuard' },
+    { key: 'view:protocol-amnezia', label: 'Amnezia' },
+    { key: 'view:protocol-hysteria2', label: 'Hysteria2' },
+    { key: 'view:protocol-vless', label: 'VLESS' },
+    { key: 'view:protocol-trojan', label: 'Trojan' },
+    { key: 'view:protocol-mieru', label: 'Meiru' },
+    { key: 'view:protocol-naiveproxy', label: 'NaiveProxy' },
     { key: 'view:xkeen', label: 'Порты и Исключения' },
     { key: 'view:xray-logs', label: 'Логи Xray онлайн' },
     { key: 'view:commands', label: 'Команды' },

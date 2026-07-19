@@ -204,22 +204,43 @@
 
 <div class="top-tabs header-tabs">
         {% if has_xray %}
-        <button class="top-tab-btn xk-top-tab xk-top-tab-routing active" data-view="routing" data-xk-section="routing">
+        <button class="top-tab-btn xk-top-tab xk-top-tab-routing{% if not has_mihomo %} active{% endif %}" data-view="routing" data-xk-section="routing">
           Роутинг Xray
         </button>
         {% endif %}
         {% if has_mihomo %}
-        <button class="top-tab-btn xk-top-tab xk-top-tab-mihomo" data-view="mihomo" data-xk-section="mihomo">
-          Роутинг Mihomo
-        </button>
-        <button class="top-tab-btn xk-top-tab xk-top-tab-mihomo-selectors" data-view="mihomo-selectors" data-xk-section="mihomo-selectors">
+        <button class="top-tab-btn xk-top-tab xk-top-tab-mihomo-selectors active" data-view="mihomo-selectors" data-xk-section="mihomo-selectors">
           Маршрутизация
+        </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-mihomo" data-view="mihomo" data-xk-section="mihomo">
+          Mihomo
         </button>
         <button class="top-tab-btn xk-top-tab xk-top-tab-mihomo-connections" data-view="mihomo-connections" data-xk-section="mihomo-connections">
           Соединения
         </button>
         <button class="top-tab-btn xk-top-tab xk-top-tab-geodat" data-view="geodat" data-xk-section="geodat">
           DAT GeoIP / GeoSite
+        </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-protocol" data-view="protocol-wireguard" data-xk-section="protocol-wireguard proxy-protocols">
+          WireGuard
+        </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-protocol" data-view="protocol-amnezia" data-xk-section="protocol-amnezia proxy-protocols">
+          Amnezia
+        </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-protocol" data-view="protocol-hysteria2" data-xk-section="protocol-hysteria2 proxy-protocols">
+          Hysteria2
+        </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-protocol" data-view="protocol-vless" data-xk-section="protocol-vless proxy-protocols">
+          VLESS
+        </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-protocol" data-view="protocol-trojan" data-xk-section="protocol-trojan proxy-protocols">
+          Trojan
+        </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-protocol" data-view="protocol-mieru" data-xk-section="protocol-mieru proxy-protocols">
+          Meiru
+        </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-protocol" data-view="protocol-naiveproxy" data-xk-section="protocol-naiveproxy proxy-protocols">
+          NaiveProxy
         </button>
         {% endif %}
         <button class="top-tab-btn xk-top-tab xk-top-tab-xkeen" data-view="xkeen" data-xk-section="xkeen">
@@ -842,7 +863,7 @@
 <div id="view-mihomo" class="view-section" style="display:none;" data-xk-section="mihomo">
   <section class="card">
     <div class="commands-header" data-xk-toggle="mihomo-card" role="button" tabindex="0" aria-controls="mihomo-body" aria-expanded="true">
-      <h2>Роутинг Mihomo</h2>
+      <h2>Mihomo</h2>
       <span id="mihomo-arrow">▼</span>
     </div>
 
@@ -1191,13 +1212,76 @@
   </section>
 </div>
 
+{% if has_mihomo %}
+{% set proxy_protocol_views = [
+  ('wireguard', 'WireGuard', 'WG .conf / wireguard:// import. Для обычных WG/wg-easy серверов генерируется native Mihomo type: wireguard.'),
+  ('amnezia', 'Amnezia', 'AWG .conf импортируется как WireGuard-compatible outbound, AWG-специфика сохраняется в registry для внешних клиентов.'),
+  ('hysteria2', 'Hysteria2', 'hy2:// / hysteria2:// ссылки превращаются в Mihomo type: hysteria2.'),
+  ('vless', 'VLESS', 'vless:// Reality/WS/gRPC/XHTTP ссылки превращаются в Mihomo type: vless.'),
+  ('trojan', 'Trojan', 'trojan:// ссылки превращаются в Mihomo type: trojan.'),
+  ('mieru', 'Meiru', 'Mieru сохраняется в registry. Native injection зависит от core/build, поэтому пока это staging-вкладка.'),
+  ('naiveproxy', 'NaiveProxy', 'naive:// или naive+https:// импортируется как HTTPS/HTTP proxy для Mihomo-compatible runtime.')
+] %}
+{% for proto_id, proto_label, proto_hint in proxy_protocol_views %}
+<div id="view-protocol-{{ proto_id }}" class="view-section xk-protocol-view" style="display:none;" data-xk-section="protocol-{{ proto_id }} proxy-protocols">
+  <section class="card xk-protocol-card" data-protocol="{{ proto_id }}">
+    <div class="commands-header">
+      <div>
+        <div class="commands-title">{{ proto_label }}</div>
+        <div class="commands-subtitle">{{ proto_hint }}</div>
+      </div>
+      <div class="xk-protocol-actions">
+        <span class="status xk-protocol-status" data-protocol-status="{{ proto_id }}">Загрузка…</span>
+        <button type="button" class="btn-secondary" data-protocol-refresh="{{ proto_id }}">⟳ Обновить</button>
+        <button type="button" class="btn-secondary" data-protocol-preview="{{ proto_id }}">👁 Preview</button>
+        <button type="button" class="btn-primary" data-protocol-apply="{{ proto_id }}">✅ Применить в Mihomo</button>
+      </div>
+    </div>
+
+    <div class="xk-protocol-grid">
+      <aside class="xk-protocol-import">
+        <h3>Добавить подключение</h3>
+        <label class="xk-protocol-field">
+          <span>Имя подключения</span>
+          <input class="terminal-input" type="text" data-protocol-name="{{ proto_id }}" placeholder="{{ proto_label }}-admger">
+        </label>
+        <label class="xk-protocol-field">
+          <span>Ссылка или конфиг</span>
+          <textarea class="terminal-input xk-protocol-import-text" data-protocol-content="{{ proto_id }}" spellcheck="false" placeholder="Вставь ссылку или содержимое .conf/.json…"></textarea>
+        </label>
+        <label class="xk-protocol-field">
+          <span>Файл конфига</span>
+          <input type="file" data-protocol-file="{{ proto_id }}">
+        </label>
+        <label class="xk-protocol-field">
+          <span>Добавить сразу в selector’ы</span>
+          <select class="terminal-input xk-protocol-selector-select" data-protocol-selectors="{{ proto_id }}" multiple size="7"></select>
+        </label>
+        <button type="button" class="btn-primary" data-protocol-import="{{ proto_id }}">➕ Добавить {{ proto_label }}</button>
+        <div class="status" data-protocol-import-status="{{ proto_id }}"></div>
+      </aside>
+
+      <main class="xk-protocol-main">
+        <div class="xk-protocol-main-head">
+          <h3>Добавленные подключения</h3>
+          <div class="commands-subtitle">У каждого видно protocol, proxy name, Mihomo support и selector’ы, где оно сейчас используется.</div>
+        </div>
+        <div class="xk-protocol-list" data-protocol-list="{{ proto_id }}"></div>
+      </main>
+    </div>
+  </section>
+</div>
+{% endfor %}
+{% endif %}
+
 <div id="view-geodat" class="view-section" style="display:none;" data-xk-section="geodat">
-    <section class="card routing-dat-card routing-side-card xk-geodat-card">
+    <section class="card routing-dat-card routing-side-card">
               <div class="commands-header" id="routing-dat-header" role="heading" aria-level="2">
                 <div>
                   <h2>DAT GeoIP / GeoSite</h2>
                   <div class="commands-subtitle">Обновление, просмотр состава, загрузка и редактирование источников DAT-файлов.</div>
                 </div>
+                <span id="routing-dat-arrow" aria-hidden="true">▼</span>
               </div>
 
               <div id="routing-dat-body">
