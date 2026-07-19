@@ -182,7 +182,7 @@ def _init_xray_startup_migrations(*, base_etc_dir: str, base_var_dir: str, ui_st
 
     from services.xkeen_commands_catalog import build_xkeen_cmd
 
-    xkeen_restart_cmd = build_xkeen_cmd("-restart")
+    xkeen_restart_cmd = _preferred_xkeen_restart_cmd(base_etc_dir, build_xkeen_cmd("-restart"))
     restart_log_file = os.environ.get(
         "XKEEN_RESTART_LOG_FILE", os.path.join(ui_state_dir, "restart.log")
     )
@@ -220,6 +220,25 @@ def _init_xray_startup_migrations(*, base_etc_dir: str, base_var_dir: str, ui_st
         "XRAY_ERROR_LOG_SAVED": xray_error_log_saved,
         "XRAY_LOG_TZ_OFFSET_HOURS": xray_log_tz_offset_hours,
     }
+
+
+def _preferred_xkeen_restart_cmd(base_etc_dir: str, fallback_cmd: list[str]) -> list[str]:
+    """Resolve primary restart command for the current installation.
+
+    Clean unified Mihomo installs do not have legacy `xkeen`; use the standalone
+    Mihomo restart script when configured or present.
+    """
+    import shlex
+
+    for key in ("MIHOMO_RESTART_CMD", "XKEEN_RESTART_CMD"):
+        raw = str(os.environ.get(key) or "").strip()
+        if raw:
+            return shlex.split(raw)
+    mihomo_restart = os.path.join(base_etc_dir, "mihomo", "restart-mihomo.sh")
+    mihomo_config = os.path.join(base_etc_dir, "mihomo", "config.yaml")
+    if os.path.exists(mihomo_restart) and os.path.exists(mihomo_config):
+        return [mihomo_restart]
+    return fallback_cmd
 
 
 def _create_flask_app():

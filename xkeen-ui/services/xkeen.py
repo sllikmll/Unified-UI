@@ -27,20 +27,28 @@ def read_restart_log(log_file: str, limit: int = 100) -> List[str]:
     return _read_restart_log(log_file, limit=limit)
 
 
+def detect_xkeen_runtime_pids(core_name: str) -> tuple[str, ...]:
+    """Return currently running PIDs for a managed core."""
+    try:
+        res = subprocess.run(
+            ["pidof", str(core_name or "")],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except FileNotFoundError:
+        return ()
+    except Exception:
+        return ()
+    if res.returncode != 0:
+        return ()
+    return tuple(part for part in str(res.stdout or "").split() if part)
+
+
 def detect_xkeen_runtime_core() -> str:
     """Return the currently running xkeen-managed core name, if detected."""
     for core_name in ("xray", "mihomo"):
-        try:
-            res = subprocess.run(
-                ["pidof", core_name],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-            )
-        except FileNotFoundError:
-            continue
-        except Exception:
-            continue
-        if res.returncode == 0:
+        if detect_xkeen_runtime_pids(core_name):
             return core_name
     return ""
 
@@ -54,9 +62,11 @@ def get_xkeen_runtime_status() -> dict[str, object]:
     """Return compact runtime status fields for restart-log metadata."""
     core = detect_xkeen_runtime_core()
     running = bool(core)
+    pids = detect_xkeen_runtime_pids(core) if core else ()
     return {
         "runtime_status": "running" if running else "stopped",
         "runtime_core": core or "none",
+        "runtime_pids": ",".join(pids),
     }
 
 
@@ -172,18 +182,44 @@ def control_xkeen_action(
         return False
 
     expected_running = normalized != "stop"
-    if normalized == "start" and is_xkeen_running():
+    before_core = detect_xkeen_runtime_core()
+    before_pids = detect_xkeen_runtime_pids(before_core) if before_core else ()
+    if normalized == "start" and before_core:
         return True
-    if normalized == "stop" and not is_xkeen_running():
+    if normalized == "stop" and not before_core:
         return True
 
     settle = max(2.0, float(settle_timeout or 0))
+
+    def _restart_verified() -> bool:
+        core = detect_xkeen_runtime_core()
+        if not core:
+            return False
+        after_pids = detect_xkeen_runtime_pids(core)
+        if not before_pids:
+            return bool(after_pids)
+        # A restart must be observed as a new runtime process. Merely "still
+        # running" is a no-op and must not be reported as success.
+        return bool(after_pids) and (core != before_core or after_pids != before_pids)
+
+    def _wait_restart_verified(timeout: float, poll_interval: float = 0.25) -> bool:
+        deadline = time.monotonic() + max(0.2, float(timeout or 0))
+        while time.monotonic() < deadline:
+            if _restart_verified():
+                return True
+            time.sleep(max(0.05, float(poll_interval or 0.25)))
+        return _restart_verified()
+
     for cmd in build_xkeen_control_cmds(
         normalized,
         primary_cmd=primary_cmd,
         prefer_init=prefer_init,
     ):
         if not _dispatch_xkeen_control_command(cmd, dispatch_timeout=dispatch_timeout):
+            continue
+        if normalized == "restart":
+            if _wait_restart_verified(timeout=settle):
+                return True
             continue
         if _wait_xkeen_running(expected_running, timeout=settle):
             return True

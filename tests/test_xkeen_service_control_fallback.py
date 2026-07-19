@@ -56,6 +56,38 @@ def test_control_xkeen_action_falls_back_when_first_command_does_not_change_runt
 
 
 
+def test_restart_requires_runtime_pid_change(monkeypatch):
+    monkeypatch.setattr(
+        xkeen_service,
+        'build_xkeen_control_cmds',
+        lambda action, primary_cmd=None, prefer_init=True: [['/opt/etc/mihomo/restart-mihomo.sh']],
+    )
+    monkeypatch.setattr(xkeen_service, '_dispatch_xkeen_control_command', lambda cmd, dispatch_timeout: True)
+    monkeypatch.setattr(xkeen_service, 'detect_xkeen_runtime_core', lambda: 'mihomo')
+    monkeypatch.setattr(xkeen_service, 'detect_xkeen_runtime_pids', lambda core: ('1234',))
+
+    assert xkeen_service.control_xkeen_action('restart', primary_cmd=['/opt/etc/mihomo/restart-mihomo.sh']) is False
+
+
+def test_restart_succeeds_when_runtime_pid_changes(monkeypatch):
+    monkeypatch.setattr(
+        xkeen_service,
+        'build_xkeen_control_cmds',
+        lambda action, primary_cmd=None, prefer_init=True: [['/opt/etc/mihomo/restart-mihomo.sh']],
+    )
+    monkeypatch.setattr(xkeen_service, '_dispatch_xkeen_control_command', lambda cmd, dispatch_timeout: True)
+    monkeypatch.setattr(xkeen_service, 'detect_xkeen_runtime_core', lambda: 'mihomo')
+    calls = {'count': 0}
+
+    def fake_pids(core):
+        calls['count'] += 1
+        return ('1234',) if calls['count'] <= 1 else ('5678',)
+
+    monkeypatch.setattr(xkeen_service, 'detect_xkeen_runtime_pids', fake_pids)
+
+    assert xkeen_service.control_xkeen_action('restart', primary_cmd=['/opt/etc/mihomo/restart-mihomo.sh']) is True
+
+
 def test_restart_xkeen_logs_result_from_verified_control_flow(tmp_path, monkeypatch):
     log_file = tmp_path / 'restart.log'
     seen: list[tuple[str, tuple[str, ...] | None]] = []

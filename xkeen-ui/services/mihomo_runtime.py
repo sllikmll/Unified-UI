@@ -77,7 +77,20 @@ except Exception as e:  # noqa: BLE001
         pass
 
 MAX_BACKUPS_PER_PROFILE = int(os.environ.get("MIHOMO_MAX_BACKUPS", "20"))
-RESTART_CMD = os.environ.get("MIHOMO_RESTART_CMD", shlex.join(build_xkeen_cmd("-restart")))
+
+
+def _default_mihomo_restart_cmd() -> str:
+    for key in ("MIHOMO_RESTART_CMD", "XKEEN_RESTART_CMD"):
+        raw = str(os.environ.get(key) or "").strip()
+        if raw:
+            return raw
+    standalone = MIHOMO_ROOT / "restart-mihomo.sh"
+    if standalone.exists():
+        return str(standalone)
+    return shlex.join(build_xkeen_cmd("-restart"))
+
+
+RESTART_CMD = _default_mihomo_restart_cmd()
 RESTART_TIMEOUT = int(os.environ.get("MIHOMO_RESTART_TIMEOUT", "60"))
 
 
