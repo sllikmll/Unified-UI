@@ -173,6 +173,20 @@
                 title="Настройки"
               >Настройки</button>
 
+              <span
+                id="xk-version-badge"
+                class="service-core-text xk-version-badge"
+                title="Текущая версия панели"
+                data-xk-version-badge
+              >v…</span>
+
+              <button
+                type="button"
+                id="xk-update-check-btn"
+                class="service-core-text xk-header-btn xk-update-check-btn"
+                title="Проверить обновления панели"
+              >↻ Проверить обновления</button>
+
               <a
                 href="{{ url_for('devtools_page') }}#dt-update-card"
                 id="xk-update-link"
@@ -1200,7 +1214,18 @@
       <select id="mihomo-connections-source-filter" class="terminal-input">
         <option value="">Все источники</option>
       </select>
-      <label class="xk-checkbox-inline"><input id="mihomo-connections-auto-refresh" type="checkbox"> авто 5с</label>
+      <label class="xk-autorefresh-inline">
+        <span>Автообновление</span>
+        <select id="mihomo-connections-auto-refresh-interval" class="terminal-input xk-autorefresh-select" title="Интервал автообновления соединений">
+          <option value="1">1 сек</option>
+          <option value="2">2 сек</option>
+          <option value="3">3 сек</option>
+          <option value="5" selected>5 сек</option>
+          <option value="10">10 сек</option>
+          <option value="30">30 сек</option>
+          <option value="60">60 сек</option>
+        </select>
+      </label>
     </div>
     <div id="mihomo-connections-summary" class="status" style="margin:8px 0;"></div>
     <div class="xk-connections-shell">

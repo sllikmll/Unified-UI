@@ -33819,4 +33819,32 @@ html[data-theme="light"] .xkeen-diff-modal .xkeen-diff-host .cm-collapsedLines:f
 .xk-protocol-details summary { cursor:pointer; color:#b9cdfb; }
 .xk-protocol-yaml { max-height:260px; overflow:auto; padding:10px; border-radius:12px; background:rgba(0,0,0,.28); border:1px solid rgba(255,255,255,.08); font-size:12px; }
 @media (max-width: 980px) { .xk-protocol-grid { grid-template-columns:1fr; } .xk-protocol-item-head { flex-direction:column; } }
+/* Squared data panels: avoid clipped values inside rounded bubbles */
+.xk-mihomo-connections-card,
+.xk-protocol-card,
+.xk-protocol-import,
+.xk-protocol-main,
+.xk-protocol-item,
+.xk-connection-row,
+.xk-connection-details,
+.xk-connection-json,
+.xk-protocol-yaml,
+.xk-generator-frame,
+#view-geodat .routing-dat-card,
+#view-mihomo-selectors .card,
+.xk-selector-card,
+.xk-selector-row,
+.mihomo-proxy-card,
+.proxy-card {
+  border-radius: 4px !important;
+}
+.xk-connection-pill,
+.routing-editor-badge,
+.proxy-delay-badge,
+.xk-delay-pill,
+.xk-proxy-delay {
+  border-radius: 3px !important;
+}
+.xk-autorefresh-inline { display:inline-flex; align-items:center; gap:8px; color:#cbd5e1; font-size:13px; }
+.xk-autorefresh-select { width:auto; min-width:96px; padding-right:28px; }
 

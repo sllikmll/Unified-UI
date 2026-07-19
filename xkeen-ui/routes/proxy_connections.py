@@ -57,6 +57,34 @@ END_MARK = "# xkeen-managed-proxies:end"
 DEFAULT_SELECTOR_HINTS = ["Ручной список", "AI", "AI Selector", "CDN", "GLOBAL", "Заблок. сервисы"]
 
 
+def _dedupe_strings(values: list[Any] | tuple[Any, ...] | set[Any]) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for value in values or []:
+        item = str(value or "").strip()
+        if not item or item in seen:
+            continue
+        out.append(item)
+        seen.add(item)
+    return out
+
+
+def _default_selectors_for_config(config_text: str) -> list[str]:
+    """By product decision, enabled imported proxies should be available in every selector by default."""
+    selectors = _selector_names_from_config(config_text)
+    if selectors:
+        return selectors
+    return DEFAULT_SELECTOR_HINTS[:]
+
+
+def _effective_selectors(conn: dict[str, Any], config_text: str) -> list[str]:
+    raw = conn.get("selectors") if isinstance(conn.get("selectors"), list) else []
+    selected = _dedupe_strings(raw)
+    if selected:
+        return selected
+    return _default_selectors_for_config(config_text)
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
@@ -351,8 +379,7 @@ def _apply_selectors(config_text: str, connections: list[dict[str, Any]]) -> str
         if not conn.get("enabled", True) or not conn.get("mihomoSupported", True):
             continue
         name = str(conn.get("name") or _name_from_yaml(str(conn.get("proxyYaml") or ""))).strip()
-        selectors = conn.get("selectors") if isinstance(conn.get("selectors"), list) else []
-        selectors = [str(x).strip() for x in selectors if str(x).strip()]
+        selectors = _effective_selectors(conn, out)
         if name and selectors:
             out = insert_proxy_into_groups(out, name, selectors)
     return out
@@ -517,7 +544,7 @@ def create_proxy_connections_blueprint() -> Blueprint:
         content = str(body.get("content") or body.get("link") or body.get("config") or "").strip()
         selectors = body.get("selectors") if isinstance(body.get("selectors"), list) else []
         conn = _parse_connection(protocol, content, custom_name=name)
-        conn["selectors"] = [str(x).strip() for x in selectors if str(x).strip()]
+        conn["selectors"] = _dedupe_strings(selectors) or _default_selectors_for_config(_read_text(_mihomo_config_path()))
         data = _load_registry()
         conns = _managed_connections(data)
         # Upsert by id or by protocol/name.
@@ -546,9 +573,11 @@ def create_proxy_connections_blueprint() -> Blueprint:
                 conn["name"] = str(body.get("name")).strip()
             if "enabled" in body:
                 conn["enabled"] = bool(body.get("enabled"))
+                if conn["enabled"] and not _dedupe_strings(conn.get("selectors") if isinstance(conn.get("selectors"), list) else []):
+                    conn["selectors"] = _default_selectors_for_config(_read_text(_mihomo_config_path()))
             if "selectors" in body and isinstance(body.get("selectors"), list):
                 raw_selectors = body.get("selectors") or []
-                conn["selectors"] = [str(x).strip() for x in raw_selectors if str(x).strip()]
+                conn["selectors"] = _dedupe_strings(raw_selectors) or _default_selectors_for_config(_read_text(_mihomo_config_path()))
             conn["updatedAt"] = _now_iso()
             data["connections"] = conns
             _save_registry(data)

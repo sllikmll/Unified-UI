@@ -38,8 +38,9 @@ function protocolLabel(proto) {
   return found ? found.label : proto;
 }
 function selectorOptions(selected = []) {
+  const autoAll = !selected || !selected.length;
   const selectedSet = new Set((selected || []).map(String));
-  return (cache.selectors || []).map((name) => `<option value="${esc(name)}"${selectedSet.has(String(name)) ? ' selected' : ''}>${esc(name)}</option>`).join('');
+  return (cache.selectors || []).map((name) => `<option value="${esc(name)}"${(autoAll || selectedSet.has(String(name))) ? ' selected' : ''}>${esc(name)}</option>`).join('');
 }
 function selectedValues(select) {
   return Array.from(select?.selectedOptions || []).map((x) => x.value).filter(Boolean);
@@ -109,7 +110,8 @@ async function importProtocol(proto) {
     await fetchJson('/api/proxy-connections/import', { method: 'POST', body: JSON.stringify({ protocol: proto, name, content, selectors }) });
     if (textarea) textarea.value = '';
     const file = $(`[data-protocol-file="${CSS.escape(proto)}"]`); if (file) file.value = '';
-    setStatus(proto, 'Импортировано');
+    setStatus(proto, 'Импортировано, применяю в Mihomo…');
+    await applyManaged(proto, true);
     await loadConnections();
   } catch (error) { setStatus(proto, 'Ошибка импорта: ' + error.message, true); }
 }
@@ -160,7 +162,7 @@ function bind() {
     const del = event.target && event.target.closest ? event.target.closest('[data-conn-delete]') : null;
     if (save) {
       const id = save.getAttribute('data-conn-save') || '';
-      updateConnection(id).then(loadConnections).catch((e) => alert(e.message));
+      updateConnection(id).then(() => { const conn = (cache.connections || []).find((x) => x.id === id); return applyManaged(conn?.protocol || 'wireguard', true); }).then(loadConnections).catch((e) => alert(e.message));
     }
     if (del) {
       const id = del.getAttribute('data-conn-delete') || '';

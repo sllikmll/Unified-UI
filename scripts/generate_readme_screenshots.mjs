@@ -99,7 +99,7 @@ await render('xkeen-routing-mihomo.png', frame({
   title: 'Маршрутизация Mihomo', active: 'Маршрутизация',
   subtitle: 'Runtime selector-группы, быстрые ping-и и ручной список в одной панели на 8088.',
   body: `${selectorBlock('AI', proxies.AI, proxies, 12)}${selectorBlock('CDN', proxies.CDN, proxies, 12)}`,
-  side: `<h2>Ручной список</h2><p class="muted">/opt/etc/mihomo/rules/manual-proxy.yaml</p><div>${badge('DOMAIN-SUFFIX,2ip.ru','good')}${badge('DOMAIN-SUFFIX,codex.sale','good')}${badge('обновить provider')}</div><div class="manual"><pre>- DOMAIN-SUFFIX,2ip.ru\n- DOMAIN-SUFFIX,2ip.io\n- DOMAIN-SUFFIX,codex.sale</pre></div>`
+  side: `<h2>Ручной список</h2><p class="muted">/opt/etc/mihomo/rules/manual-proxy.yaml</p><div>${badge('DOMAIN-SUFFIX,example.org','good')}${badge('DOMAIN-SUFFIX,docs.example','good')}${badge('обновить provider')}</div><div class="manual"><pre>- DOMAIN-SUFFIX,example.org\n- DOMAIN-SUFFIX,docs.example\n- DOMAIN-SUFFIX,status.example</pre></div>`
 }));
 await render('xkeen-selectors-tiles.png', frame({
   title: 'Селекторы плитками', active: 'Маршрутизация', subtitle: 'Плиточный режим остаётся вариантом по умолчанию: удобно видеть задержки и активный сервер.',

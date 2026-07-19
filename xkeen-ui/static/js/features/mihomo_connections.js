@@ -3,6 +3,8 @@ let loading = false;
 let lastConnections = [];
 let selectedId = '';
 let autoTimer = null;
+const AUTO_REFRESH_LS_KEY = 'xkeen.mihomo.connections.autoRefreshSeconds';
+const AUTO_REFRESH_ALLOWED = [1, 2, 3, 5, 10, 30, 60];
 
 function $(id) { return document.getElementById(id); }
 
@@ -38,6 +40,19 @@ function esc(value) {
 function setText(id, text) {
   const el = $(id);
   if (el) el.textContent = text || '';
+}
+
+function autoRefreshSeconds() {
+  const select = $('mihomo-connections-auto-refresh-interval');
+  const raw = Number(select?.value || window.localStorage.getItem(AUTO_REFRESH_LS_KEY) || 5);
+  return AUTO_REFRESH_ALLOWED.includes(raw) ? raw : 5;
+}
+
+function initAutoRefreshSelect() {
+  const select = $('mihomo-connections-auto-refresh-interval');
+  if (!select) return;
+  const saved = Number(window.localStorage.getItem(AUTO_REFRESH_LS_KEY) || 5);
+  select.value = String(AUTO_REFRESH_ALLOWED.includes(saved) ? saved : 5);
 }
 
 function formatBytes(value) {
@@ -220,12 +235,14 @@ async function closeAllConnections() {
 }
 
 function syncAutoRefresh() {
-  const enabled = !!$('mihomo-connections-auto-refresh')?.checked;
+  const seconds = autoRefreshSeconds();
+  try { window.localStorage.setItem(AUTO_REFRESH_LS_KEY, String(seconds)); } catch (e) {}
   if (autoTimer) {
     clearInterval(autoTimer);
     autoTimer = null;
   }
-  if (enabled) autoTimer = setInterval(() => loadConnections(), 5000);
+  autoTimer = setInterval(() => loadConnections(), Math.max(1, seconds) * 1000);
+  setText('mihomo-connections-status', `Автообновление: ${seconds}с`);
 }
 
 export function initMihomoConnectionsPanel() {
@@ -235,11 +252,14 @@ export function initMihomoConnectionsPanel() {
   $('mihomo-connections-close-all-btn')?.addEventListener('click', () => closeAllConnections());
   $('mihomo-connections-filter')?.addEventListener('input', () => renderConnections());
   $('mihomo-connections-source-filter')?.addEventListener('change', () => renderConnections());
-  $('mihomo-connections-auto-refresh')?.addEventListener('change', () => syncAutoRefresh());
+  initAutoRefreshSelect();
+  $('mihomo-connections-auto-refresh-interval')?.addEventListener('change', () => syncAutoRefresh());
+  syncAutoRefresh();
   loadConnections();
 }
 
 export function onShowMihomoConnectionsPanel() {
   initMihomoConnectionsPanel();
+  syncAutoRefresh();
   loadConnections();
 }

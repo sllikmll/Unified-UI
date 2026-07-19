@@ -143,6 +143,22 @@ let updateNotifierModuleApi = null;
     }
   }
 
+  function _getVersionBadgeEl() {
+    try {
+      return document.getElementById('xk-version-badge');
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function _getUpdateCheckBtnEl() {
+    try {
+      return document.getElementById('xk-update-check-btn');
+    } catch (e) {
+      return null;
+    }
+  }
+
   function _getUiShellApi() {
     return getXkeenUiShellApi();
   }
@@ -186,6 +202,13 @@ let updateNotifierModuleApi = null;
 
   function _setUpdateLoadingState(isLoading) {
     const api = _getUiShellApi();
+    try {
+      const btn = _getUpdateCheckBtnEl();
+      if (btn) {
+        btn.disabled = !!isLoading;
+        btn.textContent = isLoading ? '↻ Проверяю…' : '↻ Проверить обновления';
+      }
+    } catch (e) {}
     if (!api) return;
     try {
       api.patchState({
@@ -195,6 +218,25 @@ let updateNotifierModuleApi = null;
       }, {
         source: 'update_notifier_loading',
       });
+    } catch (e) {}
+  }
+
+  function _renderVersionBadge(version) {
+    const el = _getVersionBadgeEl();
+    if (!el) return;
+    const v = version && typeof version === 'object' ? version : _readVersionState();
+    const current = String(v.currentLabel || '').trim();
+    const commit = String(v.currentCommit || '').trim();
+    const latest = String(v.latestLabel || '').trim();
+    const channel = String(v.channel || '').trim();
+    const label = current || commit || 'dev';
+    try { el.textContent = label.startsWith('v') ? label : ('v' + label); } catch (e) {}
+    try {
+      const parts = ['Текущая версия: ' + label];
+      if (commit) parts.push('commit: ' + commit);
+      if (latest) parts.push('latest: ' + latest);
+      if (channel) parts.push('channel: ' + channel);
+      el.title = parts.join('\n');
     } catch (e) {}
   }
 
@@ -246,6 +288,8 @@ let updateNotifierModuleApi = null;
         label: String(update.label || ''),
         title: String(update.title || ''),
       });
+      const version = next && next.version && typeof next.version === 'object' ? next.version : null;
+      if (version) _renderVersionBadge(version);
     }, { immediate: true });
   }
 
@@ -355,16 +399,7 @@ let updateNotifierModuleApi = null;
       ? String(o.channel || '').trim()
       : String((data && data.channel) || current.channel || '').trim();
 
-    _setVersionState({
-      currentLabel: curVer,
-      currentCommit: curCommit,
-      currentBuiltAt: curBuiltAt,
-      latestLabel,
-      latestPublishedAt,
-      channel,
-    }, 'update_notifier_payload');
-
-    return {
+    const nextVersionState = {
       currentLabel: curVer,
       currentCommit: curCommit,
       currentBuiltAt: curBuiltAt,
@@ -372,6 +407,10 @@ let updateNotifierModuleApi = null;
       latestPublishedAt,
       channel,
     };
+    _setVersionState(nextVersionState, 'update_notifier_payload');
+    _renderVersionBadge(nextVersionState);
+
+    return nextVersionState;
   }
 
   function _syncVersionFromBuildInfo(opts) {
@@ -400,6 +439,7 @@ let updateNotifierModuleApi = null;
         };
 
         _setVersionState(next, 'update_notifier_build_info');
+        _renderVersionBadge(next);
         return next;
       } catch (e) {
         return _readVersionState();
@@ -736,6 +776,24 @@ let updateNotifierModuleApi = null;
     if (!linkEl) return; // page doesn't have the indicator
 
     _ensureShellBinding();
+    _renderVersionBadge(_readVersionState());
+    try {
+      const btn = _getUpdateCheckBtnEl();
+      if (btn && !btn.dataset.xkUpdateCheckWired) {
+        btn.dataset.xkUpdateCheckWired = '1';
+        btn.addEventListener('click', (event) => {
+          event.preventDefault();
+          _setUpdateLoadingState(true);
+          api.checkNow({ silent: false }).then((state) => {
+            const has = !!(state && state.update && state.update.hasUpdate);
+            const latest = state && state.version ? String(state.version.latestLabel || '') : '';
+            try { toastXkeen(has ? ('Доступно обновление: ' + latest) : 'Обновлений нет. Версия актуальна.', has ? 'info' : 'success'); } catch (e) {}
+          }).catch((error) => {
+            try { toastXkeen('Не удалось проверить обновления: ' + (error && error.message ? error.message : error), 'error'); } catch (e) {}
+          }).finally(() => _setUpdateLoadingState(false));
+        });
+      }
+    } catch (e) {}
 
     // Allow one-off override, but prefer stored settings.
     const s = _readSettings();
