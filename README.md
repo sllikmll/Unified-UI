@@ -1,51 +1,5 @@
 # Unified UI
 
-**Unified UI** — самостоятельная панель управления для Keenetic + Entware + Mihomo. Это уже не форк чужой панели, а единый интерфейс для маршрутизации, selector’ов, подписок, подключений, DAT GeoIP/GeoSite и managed proxy-подключений.
-
-Цель простая: одна панель на `8088`, без отдельного Zashboard для базовых операций, без ручного YAML через SSH и без “а где оно теперь переключается?”.
-
-> Панель рассчитана на локальную сеть. Не публикуйте её напрямую в интернет без отдельной авторизации или reverse-proxy auth. Роутер — не то место, куда стоит приглашать весь интернет на чай.
-
----
-
-## Скриншоты
-
-### Маршрутизация Mihomo
-
-![Маршрутизация Mihomo](docs/screenshots/unified-routing-mihomo.png)
-
-### Селекторы плитками
-
-![Селекторы Mihomo — плитки](docs/screenshots/unified-selectors-tiles.png)
-
-### Селекторы списком
-
-![Селекторы Mihomo — списком](docs/screenshots/unified-selectors-list.png)
-
-### Подключения по протоколам
-
-![Подключения WireGuard, Amnezia, Hysteria2, VLESS, Trojan, Meiru, NaiveProxy](docs/screenshots/unified-protocol-connections.png)
-
-### Соединения и DAT GeoIP / GeoSite
-
-![Соединения и DAT GeoIP / GeoSite](docs/screenshots/unified-connections-geodat.png)
-
----
-
-## Репозитории
-
-| Что | Репозиторий |
-|---|---|
-| Unified UI | [`sllikmll/Unified-UI`](https://github.com/sllikmll/Unified-UI) |
-| Mihomo fork/assets | [`sllikmll/mihomo`](https://github.com/sllikmll/mihomo) |
-| Mihomo upstream | [`MetaCubeX/mihomo`](https://github.com/MetaCubeX/mihomo) |
-
-В конфигурации и коде используются только репозитории `sllikmll/*` и публичный upstream Mihomo.
-
----
-
-## Возможности
-
 ### Единая панель на `8088`
 
 | Раздел | Что делает |
