@@ -20,6 +20,8 @@
             currentBtn.textContent = '👤 ' + user;
             try { currentBtn.dataset.xkCurrentUser = user; } catch(e) {}
           }
+          const modalUser = document.querySelector('#xk-password-modal .xk-modal-head strong');
+          if(modalUser) modalUser.textContent = user;
           document.querySelectorAll('.xk-header-btn-user, [data-xk-user], [data-user-menu], button, a, span').forEach(el=>{
             const txt=(el.textContent||'').trim();
             if(txt==='openwrt' || txt==='👤 openwrt') el.textContent=txt.startsWith('👤') ? ('👤 ' + user) : user;
@@ -121,6 +123,15 @@
     if(path==='/api/devtools/update/status' && method==='GET') return cgi('/update-status', opts);
     if(path==='/api/devtools/env' && method==='GET') return cgi('/env', opts);
     if(path==='/api/devtools/env' && method==='POST') return cgi('/env-save', opts);
+    if(path==='/api/auth/password' && method==='POST') {
+      const res = await cgi('/auth-password', opts);
+      try {
+        const clone = res.clone();
+        const data = await clone.json();
+        if(res.ok && data && data.ok) setTimeout(()=>{ window.location.replace('/unified-ui/'); }, 900);
+      } catch(e) {}
+      return res;
+    }
     if(path==='/api/devtools/branding' && method==='GET') return jsonResponse({ok:true, branding:{title:'Unified UI'}});
     if(path==='/api/devtools/terminal_theme' && method==='GET') return jsonResponse({ok:true, enabled:false});
     if(path==='/api/proxy-connections' && method==='GET') return cgi('/proxy-connections', opts);

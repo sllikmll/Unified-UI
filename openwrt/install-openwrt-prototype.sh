@@ -273,6 +273,27 @@ json_string_value() {
   sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1
 }
 
+shell_quote_value() {
+  printf "%s" "$1" | sed "s/'/'\\''/g; s/^/'/; s/$/'/"
+}
+
+set_env_value() {
+  key="$1"
+  value="$2"
+  mkdir -p "$(dirname "$CONF_FILE")"
+  touch "$CONF_FILE"
+  tmp="$CONF_FILE.tmp.$$"
+  q="$(shell_quote_value "$value")"
+  if grep -q "^$key=" "$CONF_FILE" 2>/dev/null; then
+    sed "s|^$key=.*|$key=$q|" "$CONF_FILE" > "$tmp"
+  else
+    cat "$CONF_FILE" > "$tmp"
+    printf '%s=%s\n' "$key" "$q" >> "$tmp"
+  fi
+  mv "$tmp" "$CONF_FILE"
+  chmod 600 "$CONF_FILE" 2>/dev/null || true
+}
+
 url_decode() {
   printf '%s' "$1" | sed 's/+/ /g; s/%2[Ff]/\//g; s/%3[Aa]/:/g; s/%20/ /g; s/%2[Dd]/-/g; s/%5[Ff]/_/g; s/%2[Ee]/./g'
 }
@@ -359,6 +380,28 @@ case "${PATH_INFO:-}" in
     rm -f "$UNIFIED_UI_SESSION_FILE" 2>/dev/null || true
     hdr_json_cookie '200 OK' "$UNIFIED_UI_SESSION_COOKIE=deleted; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
     printf '{"ok":true,"authenticated":false}'
+    ;;
+  /auth-password)
+    body="$(read_body)"
+    current="$(printf '%s' "$body" | json_string_value current_password)"
+    newp="$(printf '%s' "$body" | json_string_value new_password)"
+    newp2="$(printf '%s' "$body" | json_string_value new_password2)"
+    if [ "$current" != "$UNIFIED_UI_AUTH_PASSWORD" ]; then
+      hdr_json_cookie '403 Forbidden'
+      printf '{"ok":false,"error":"bad_current_password","message":"Текущий пароль неверный"}'
+    elif [ "$newp" != "$newp2" ]; then
+      hdr_json_cookie '400 Bad Request'
+      printf '{"ok":false,"error":"password_mismatch","message":"Новые пароли не совпадают"}'
+    elif [ ${#newp} -lt 8 ]; then
+      hdr_json_cookie '400 Bad Request'
+      printf '{"ok":false,"error":"password_too_short","message":"Новый пароль должен быть не короче 8 символов"}'
+    else
+      set_env_value UNIFIED_UI_AUTH_USER "$UNIFIED_UI_AUTH_USER"
+      set_env_value UNIFIED_UI_AUTH_PASSWORD "$newp"
+      rm -f "$UNIFIED_UI_SESSION_FILE" 2>/dev/null || true
+      hdr_json_cookie '200 OK' "$UNIFIED_UI_SESSION_COOKIE=deleted; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
+      printf '{"ok":true,"message":"Пароль изменён. Войдите заново.","reauth":true,"user":"%s"}' "$(printf '%s' "$UNIFIED_UI_AUTH_USER" | json_escape)"
+    fi
     ;;
   /version)
     hdr_json
