@@ -16,7 +16,7 @@ UPDATE_URL="${UNIFIED_OPENWRT_UPDATE_URL:-}"
 
 mkdir -p "$UI_ROOT" "$CONF_DIR" /www/cgi-bin "$BACKUP_DIR"
 
-_secret="$(awk -F"'" '/^secret:/ {print $2}' /etc/mihomo/config.yaml 2>/dev/null || true)"
+_secret="$(sed -n "s/^[[:space:]]*secret:[[:space:]]*['\"]\{0,1\}\([^'\"#]*\)['\"]\{0,1\}[[:space:]]*\(#.*\)\{0,1\}$/\1/p" /etc/mihomo/config.yaml 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')"
 _secret_q="$(printf '%s' "$_secret" | sed "s/'/'\\''/g")"
 _profile_q="$(printf '%s' "$PROFILE_FILE" | sed "s/'/'\\''/g")"
 _version_q="$(printf '%s' "$VERSION" | sed "s/'/'\\''/g")"
@@ -435,11 +435,21 @@ chmod +x "$CGI_PATH"
 
 
 BUNDLED_UI_DIR="$SCRIPT_DIR/www/unified-ui"
+install_logout_fallback() {
+  rm -rf /www/logout
+  mkdir -p /www/logout
+  cat > /www/logout/index.html <<'HTML'
+<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=/unified-ui/"><script>location.replace('/unified-ui/');</script><a href="/unified-ui/">Unified UI</a>
+HTML
+  chmod 755 /www/logout
+  chmod 644 /www/logout/index.html
+}
 if [ -f "$BUNDLED_UI_DIR/index.html" ]; then
   rm -rf "$UI_ROOT"
   mkdir -p "$UI_ROOT"
   cp -a "$BUNDLED_UI_DIR/." "$UI_ROOT/"
   chmod -R a+rX "$UI_ROOT"
+  install_logout_fallback
   printf 'Installed Unified UI OpenWrt full panel:\n  %s\n  %s\n  update: %s\n' "$UI_ROOT/index.html" "$CGI_PATH" "$UPDATE_URL"
   exit 0
 fi

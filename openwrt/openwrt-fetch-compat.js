@@ -4,6 +4,55 @@
   const nativeFetch = window.fetch.bind(window);
   const jsonResponse = (obj, init={}) => new Response(JSON.stringify(obj), Object.assign({status:200, headers:{'Content-Type':'application/json; charset=utf-8'}}, init));
   const enc = encodeURIComponent;
+  function installOpenWrtLogoutFallback(){
+    function goHome(ev){
+      try { if (ev) ev.preventDefault(); } catch(e) {}
+      window.location.href = '/unified-ui/';
+      return false;
+    }
+    document.addEventListener('submit', function(ev){
+      const form = ev && ev.target;
+      if(!form || !form.matches || !form.matches('form')) return;
+      const action = String(form.getAttribute('action') || '');
+      if(action === '/logout' || action === '/logout_post' || action.endsWith('/logout')) goHome(ev);
+    }, true);
+    document.addEventListener('click', function(ev){
+      const btn = ev && ev.target && ev.target.closest ? ev.target.closest('[data-logout-button], a[href="/logout"], a[href="/logout_post"]') : null;
+      if(btn) goHome(ev);
+    }, true);
+  }
+  installOpenWrtLogoutFallback();
+  function installOpenWrtMihomoEditorFallback(){
+    async function loadConfig(){
+      const ta = document.getElementById('mihomo-editor');
+      if(!ta) return;
+      try{
+        const r = await nativeFetch(CGI + '/config-get', {cache:'no-store'});
+        const d = await r.json();
+        if(!d || d.ok===false) throw new Error((d&&d.error)||'config-get failed');
+        const content = String(d.content || '');
+        ta.value = content;
+        ta.dispatchEvent(new Event('input', {bubbles:true}));
+        ta.dispatchEvent(new Event('change', {bubbles:true}));
+        const cm = document.querySelector('#mihomo-card .cm-content, #view-mihomo .cm-content, .cm-content');
+        if(cm && !cm.textContent && content){ cm.textContent = content; }
+        const status = document.getElementById('mihomo-status');
+        if(status) status.textContent = 'config.yaml загружен: ' + (d.path || '/etc/mihomo/config.yaml') + ' · ' + content.length + ' bytes';
+      }catch(e){
+        const status = document.getElementById('mihomo-status');
+        if(status) status.textContent = 'Ошибка загрузки config.yaml: ' + String(e.message||e);
+      }
+    }
+    document.addEventListener('click', function(ev){
+      const tab = ev && ev.target && ev.target.closest ? ev.target.closest('[data-view="mihomo"]') : null;
+      const btn = ev && ev.target && ev.target.closest ? ev.target.closest('#mihomo-load-btn') : null;
+      if(tab || btn) setTimeout(loadConfig, 250);
+    }, true);
+    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ()=>setTimeout(loadConfig, 1200), {once:true});
+    else setTimeout(loadConfig, 1200);
+    window.UnifiedOpenWrtLoadMihomoConfig = loadConfig;
+  }
+  installOpenWrtMihomoEditorFallback();
   async function cgi(path, opts){ return nativeFetch(CGI + path, Object.assign({cache:'no-store'}, opts||{})); }
   async function cgiJson(path, opts){ const r=await cgi(path, opts); const d=await r.json().catch(()=>({})); if(!r.ok || d.ok===false){ throw new Error(d.error || d.message || ('HTTP '+r.status)); } return d; }
   function delayOf(p){ const h=Array.isArray(p&&p.history)?p.history:[]; const last=h.length?h[h.length-1]:null; const d=last&&typeof last.delay==='number'?last.delay:null; return d; }
