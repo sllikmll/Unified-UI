@@ -48,7 +48,7 @@ resolve_our_ui_init_script() {
 }
 
 echo "========================================"
-echo "  Xkeen Web UI — УДАЛЕНИЕ"
+echo "  Unified UI — УДАЛЕНИЕ"
 echo "========================================"
 
 ACTIVE_INIT_SCRIPT="$(resolve_our_ui_init_script || true)"
@@ -91,5 +91,5 @@ echo "    $WS_LOG"
 echo "    $RESTART_LOG"
 
 echo "========================================"
-echo "  ✔ Xkeen Web UI удалён"
+echo "  ✔ Unified UI удалён"
 echo "========================================"

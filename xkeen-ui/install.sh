@@ -394,7 +394,7 @@ pip_install_with_fallback() {
 }
 
 echo "========================================"
-echo "  Xkeen Web UI — УСТАНОВКА"
+echo "  Unified UI — УСТАНОВКА"
 echo "========================================"
 
 # --- Python3 ---
@@ -1743,7 +1743,7 @@ start_service() {
     rm -f "$PID_FILE"
   fi
 
-  echo "Запуск Xkeen Web UI..."
+  echo "Запуск Unified UI..."
   export MIHOMO_ROOT="/opt/etc/mihomo"
   export MIHOMO_VALIDATE_CMD='/opt/sbin/mihomo -t -d {root} -f {config}'
   export PYTHONUNBUFFERED=1
@@ -1823,7 +1823,7 @@ stop_service() {
   if [ -f "$PID_FILE" ]; then
     PID="$(cat "$PID_FILE")"
     if kill -0 "$PID" 2>/dev/null; then
-      echo "Останавливаю Xkeen Web UI (PID $PID)..."
+      echo "Останавливаю Unified UI (PID $PID)..."
       kill "$PID" 2>/dev/null || true
       sleep 1
       if kill -0 "$PID" 2>/dev/null; then
@@ -1839,10 +1839,10 @@ stop_service() {
 
 status_service() {
   if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-    echo "Xkeen Web UI запущен, PID $(cat "$PID_FILE")."
+    echo "Unified UI запущен, PID $(cat "$PID_FILE")."
     return 0
   fi
-  echo "Xkeen Web UI не запущен."
+  echo "Unified UI не запущен."
   return 1
 }
 
@@ -1885,7 +1885,7 @@ echo "[*] Запускаю сервис..."
 "$INIT_SCRIPT" restart || true
 
 echo "========================================"
-echo "  ✔ Xkeen Web UI установлен"
+echo "  ✔ Unified UI установлен"
 echo "========================================"
 PANEL_URL="http://<IP_роутера>:${PANEL_PORT}/"
 printf '\033[1;32mОткрой в браузере:  %s\033[0m\n' "$PANEL_URL"
