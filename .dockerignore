@@ -1,0 +1,14 @@
+.git
+node_modules
+**/__pycache__
+.pytest_cache
+.mypy_cache
+.DS_Store
+*.tar.gz
+*.sha256
+unified-ui-openwrt.tar.gz
+unified-ui-routing.tar.gz
+.env
+.hermes
+android-companion
+.cache
