@@ -179,6 +179,40 @@ json_string_value() {
   sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1
 }
 
+url_decode() {
+  printf '%s' "$1" | sed 's/+/ /g; s/%2[Ff]/\//g; s/%3[Aa]/:/g; s/%20/ /g; s/%2[Dd]/-/g; s/%5[Ff]/_/g; s/%2[Ee]/./g'
+}
+
+query_param() {
+  key="$1"
+  qs="${QUERY_STRING:-}"
+  if [ -z "$qs" ] && [ -n "${REQUEST_URI:-}" ]; then
+    case "$REQUEST_URI" in *\?*) qs="${REQUEST_URI#*?}" ;; esac
+  fi
+  printf '%s' "$qs" | tr '&' '\n' | sed -n "s/^$key=//p" | head -1 | while IFS= read -r v; do url_decode "$v"; done
+}
+
+json_escape_str() {
+  printf '%s' "$1" | json_escape
+}
+
+openwrt_fs_safe_path() {
+  p="$1"
+  [ -n "$p" ] || p="/tmp"
+  case "$p" in
+    /opt/var|/opt/var/*|/opt/etc|/opt/etc/*) p="/etc" ;;
+  esac
+  case "$p" in
+    /*) ;;
+    *) p="/$p" ;;
+  esac
+  # Keep this intentionally conservative for the browser file manager.
+  case "$p" in
+    /|/etc|/etc/*|/tmp|/tmp/*|/www|/www/*|/root|/root/*|/rom|/rom/*|/overlay|/overlay/*|/mnt|/mnt/*) printf '%s' "$p" ;;
+    *) printf '/tmp' ;;
+  esac
+}
+
 rule_provider_file() {
   name="$1"
   case "$name" in
@@ -342,6 +376,52 @@ case "${PATH_INFO:-}" in
     else
       printf '{"ok":true,"saved":true,"applied":false,"backup":"%s","validation_output":"%s"}' "$backup" "$esc_out"
     fi
+    ;;
+  /fs-list|/fs-list-path/*)
+    hdr_json
+    target="$(query_param target)"
+    if [ -z "$target" ]; then target=local; fi
+    case "${PATH_INFO:-}" in
+      /fs-list-path/*) path_req="${PATH_INFO#/fs-list-path/}"; path_req="$(url_decode "$path_req")" ;;
+      *) path_req="$(query_param path)" ;;
+    esac
+    if [ "$target" != "local" ]; then
+      printf '{"ok":false,"error":"remote file manager disabled on OpenWrt","code":"remote_disabled"}'
+      exit 0
+    fi
+    path_safe="$(openwrt_fs_safe_path "$path_req")"
+    if [ ! -e "$path_safe" ]; then path_safe="/tmp"; fi
+    if [ ! -d "$path_safe" ]; then
+      printf '{"ok":false,"error":"not_a_directory","path":"%s"}' "$(json_escape_str "$path_safe")"
+      exit 0
+    fi
+    real="$(cd "$path_safe" 2>/dev/null && pwd -P || printf '%s' "$path_safe")"
+    items_file="/tmp/unified-ui-fs-items-$$.jsonl"
+    : > "$items_file"
+    for f in "$path_safe"/* "$path_safe"/.[!.]* "$path_safe"/..?*; do
+      [ -e "$f" ] || [ -L "$f" ] || continue
+      name="${f##*/}"
+      [ "$name" = "." ] && continue
+      [ "$name" = ".." ] && continue
+      type=file
+      link_dir=false
+      if [ -L "$f" ]; then
+        type=link
+        [ -d "$f" ] && link_dir=true
+      elif [ -d "$f" ]; then
+        type=dir
+      fi
+      size=0
+      if [ -f "$f" ] && [ ! -L "$f" ]; then size="$(wc -c < "$f" 2>/dev/null | tr -d ' ')"; fi
+      [ -n "$size" ] || size=0
+      ename="$(json_escape_str "$name")"
+      printf '{"name":"%s","type":"%s","size":%s,"mtime":0,"perm":"","link_dir":%s}\n' "$ename" "$type" "$size" "$link_dir" >> "$items_file"
+    done
+    items="$(awk 'BEGIN{printf "["} {if(NR>1)printf ","; printf "%s",$0} END{printf "]"}' "$items_file")"
+    rm -f "$items_file"
+    esc_path="$(json_escape_str "$path_safe")"
+    esc_real="$(json_escape_str "$real")"
+    printf '{"ok":true,"target":"local","path":"%s","realpath":"%s","roots":["/","/etc","/tmp","/www","/root","/rom","/overlay","/mnt"],"items":%s}' "$esc_path" "$esc_real" "$items"
     ;;
   /proxy-connections)
     hdr_json
