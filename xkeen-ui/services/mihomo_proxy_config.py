@@ -166,6 +166,85 @@ def insert_proxy_into_groups(content: str, proxy_name: str, target_groups: Itera
     return "\n".join(out2) + "\n"
 
 
+def remove_proxy_from_groups(content: str, proxy_names: Iterable[str]) -> str:
+    """Remove proxy names from proxy-groups explicit proxies lists.
+
+    Used by the managed proxy registry before re-inserting the current desired
+    selector membership. This prevents deleted/imported nodes from lingering in
+    Mihomo selectors after their registry entry is removed or retargeted.
+    """
+    targets = {str(name or "").strip().strip('"').strip("'") for name in (proxy_names or [])}
+    targets = {name for name in targets if name}
+    if not targets:
+        return content
+
+    lines = str(content or "").replace("\r\n", "\n").replace("\r", "\n").splitlines()
+    out: List[str] = []
+    in_groups = False
+    in_proxies_list = False
+
+    def _remove_from_inline(line: str) -> str:
+        stripped = line.lstrip()
+        indent = line[: len(line) - len(stripped)]
+        rest = stripped[len("proxies:"):].lstrip()
+        if not (rest.startswith("[") and rest.endswith("]")):
+            return line
+        inner = rest[1:-1].strip()
+        if not inner:
+            return line
+        raw_items = [item.strip() for item in inner.split(",")]
+        kept: List[str] = []
+        for item in raw_items:
+            normalized = _normalize_yaml_scalar(item)
+            if normalized in targets:
+                continue
+            kept.append(item)
+        return f"{indent}proxies: [{', '.join(kept)}]"
+
+    for line in lines:
+        stripped = line.lstrip()
+        indent = len(line) - len(stripped)
+
+        if indent == 0 and stripped.startswith("proxy-groups:"):
+            in_groups = True
+            in_proxies_list = False
+            out.append(line)
+            continue
+
+        if in_groups and indent == 0 and stripped and not stripped.startswith("#"):
+            in_groups = False
+            in_proxies_list = False
+            out.append(line)
+            continue
+
+        if in_groups and stripped.startswith("- name:"):
+            in_proxies_list = False
+            out.append(line)
+            continue
+
+        if in_groups and stripped.startswith("proxies:"):
+            if "[" in stripped and "]" in stripped:
+                out.append(_remove_from_inline(line))
+                in_proxies_list = False
+            else:
+                out.append(line)
+                in_proxies_list = True
+            continue
+
+        if in_groups and in_proxies_list:
+            if stripped.startswith("- name:") or (stripped and indent <= 2 and not stripped.startswith("-")):
+                in_proxies_list = False
+                out.append(line)
+                continue
+            item = _proxy_list_item_name(line)
+            if item is not None and item.strip().strip('"').strip("'") in targets:
+                continue
+
+        out.append(line)
+
+    return "\n".join(out) + "\n"
+
+
 def _proxy_groups_with_include_all(content: str) -> set[str]:
     """Return proxy-group names where include-all is explicitly enabled."""
     lines = str(content or "").replace("\r\n", "\n").replace("\r", "\n").splitlines()

@@ -122,7 +122,7 @@ async function updateConnection(id) {
 }
 async function deleteConnection(id) {
   if (!window.confirm('Удалить подключение из registry? После применения оно исчезнет из managed-блока Mihomo.')) return;
-  await fetchJson('/api/proxy-connections/' + encodeURIComponent(id), { method: 'DELETE' });
+  await fetchJson('/api/proxy-connections/' + encodeURIComponent(id) + '?apply=1&restart=1', { method: 'DELETE' });
 }
 async function applyManaged(proto, restart = true) {
   setStatus(proto, restart ? 'Применяю и перезапускаю Mihomo…' : 'Применяю…');

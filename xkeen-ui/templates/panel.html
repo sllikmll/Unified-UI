@@ -4762,5 +4762,42 @@ https://..."></textarea>
     </form>
   </div>
 </div>
+<script>
+(function () {
+  if (window.__xkPasswordModalFallbackInstalled) return;
+  window.__xkPasswordModalFallbackInstalled = true;
+  function qs(sel) { return document.querySelector(sel); }
+  function openPasswordModal() {
+    var modal = qs('#xk-password-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    var status = qs('[data-xk-password-status]');
+    if (status) { status.textContent = ''; status.dataset.status = ''; }
+    setTimeout(function () {
+      var input = qs('#xk-password-form input[name="current_password"]');
+      if (input && typeof input.focus === 'function') input.focus();
+    }, 20);
+  }
+  function closePasswordModal() {
+    var modal = qs('#xk-password-modal');
+    if (modal) modal.classList.add('hidden');
+    var form = qs('#xk-password-form');
+    if (form && typeof form.reset === 'function') form.reset();
+  }
+  document.addEventListener('click', function (event) {
+    var target = event.target;
+    if (!target || !target.closest) return;
+    if (target.closest('#xk-current-user-btn')) {
+      event.preventDefault();
+      openPasswordModal();
+      return;
+    }
+    if (target.closest('[data-xk-password-close]')) {
+      event.preventDefault();
+      closePasswordModal();
+    }
+  }, true);
+})();
+</script>
 </body>
 </html>

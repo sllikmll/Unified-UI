@@ -39,7 +39,7 @@ from services.mihomo_proxy_parsers import (
     parse_vless,
     parse_wireguard,
 )
-from services.mihomo_proxy_config import insert_proxy_into_groups
+from services.mihomo_proxy_config import insert_proxy_into_groups, remove_proxy_from_groups
 from services.mihomo_yaml import validate_yaml_syntax
 
 PROTOCOLS: dict[str, dict[str, Any]] = {
@@ -373,6 +373,32 @@ def _replace_managed_block(config_text: str, block: str) -> str:
     return prefix + ("\n" if text else "") + text
 
 
+def _managed_proxy_names_from_block(config_text: str) -> set[str]:
+    text = str(config_text or "").replace("\r\n", "\n").replace("\r", "\n")
+    start = text.find(START_MARK)
+    end = text.find(END_MARK, start + len(START_MARK)) if start != -1 else -1
+    if start == -1 or end == -1:
+        return set()
+    block = text[start:end]
+    names: set[str] = set()
+    for match in re.finditer(r"^\s*-\s*name:\s*(.+?)\s*$", block, flags=re.M):
+        name = _clean_yaml_scalar(match.group(1))
+        if name:
+            names.add(name)
+    return names
+
+
+def _current_managed_proxy_names(connections: list[dict[str, Any]]) -> set[str]:
+    names: set[str] = set()
+    for conn in connections:
+        if not conn.get("enabled", True) or not conn.get("mihomoSupported", True):
+            continue
+        name = str(conn.get("name") or _name_from_yaml(str(conn.get("proxyYaml") or ""))).strip()
+        if name:
+            names.add(name)
+    return names
+
+
 def _apply_selectors(config_text: str, connections: list[dict[str, Any]]) -> str:
     out = config_text
     for conn in connections:
@@ -475,8 +501,10 @@ def _apply_to_mihomo(*, restart: bool = False) -> dict[str, Any]:
     cfg = _read_text(cfg_path)
     if not cfg.strip():
         raise RuntimeError(f"Mihomo config is empty or missing: {cfg_path}")
+    stale_names = _managed_proxy_names_from_block(cfg) | _current_managed_proxy_names(conns)
     block = _format_managed_block(conns)
-    patched = _replace_managed_block(cfg, block)
+    cleaned = remove_proxy_from_groups(cfg, stale_names)
+    patched = _replace_managed_block(cleaned, block)
     patched = _apply_selectors(patched, conns)
     ok, err = validate_yaml_syntax(patched)
     if not ok:
@@ -591,9 +619,15 @@ def create_proxy_connections_blueprint() -> Blueprint:
         next_conns = [c for c in conns if str(c.get("id") or "") != conn_id]
         if len(next_conns) == len(conns):
             return jsonify({"ok": False, "error": "connection not found", "id": conn_id}), 404
+        removed = [c for c in conns if str(c.get("id") or "") == conn_id][0]
         data["connections"] = next_conns
         _save_registry(data)
-        return jsonify({"ok": True, "id": conn_id})
+        apply_now = str(request.args.get("apply") or "").lower() in {"1", "true", "yes", "on"}
+        restart = str(request.args.get("restart") or "").lower() in {"1", "true", "yes", "on"}
+        result: dict[str, Any] | None = None
+        if apply_now:
+            result = _apply_to_mihomo(restart=restart)
+        return jsonify({"ok": True, "id": conn_id, "removedName": removed.get("name"), "apply": result})
 
     @bp.post("/api/proxy-connections/apply")
     def api_apply():
@@ -610,7 +644,11 @@ def create_proxy_connections_blueprint() -> Blueprint:
         conns = _managed_connections(data)
         block = _format_managed_block(conns)
         cfg = _read_text(_mihomo_config_path())
-        patched = _apply_selectors(_replace_managed_block(cfg, block), conns) if cfg else block
+        if cfg:
+            stale_names = _managed_proxy_names_from_block(cfg) | _current_managed_proxy_names(conns)
+            patched = _apply_selectors(_replace_managed_block(remove_proxy_from_groups(cfg, stale_names), block), conns)
+        else:
+            patched = block
         ok, err = validate_yaml_syntax(patched) if patched else (True, "")
         return jsonify({"ok": bool(ok), "error": str(err or ""), "block": block, "configPreview": patched[-20000:]})
 
