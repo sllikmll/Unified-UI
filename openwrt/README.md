@@ -52,6 +52,10 @@ API endpoints:
 /cgi-bin/unified-ui-api/proxies
 /cgi-bin/unified-ui-api/connections
 /cgi-bin/unified-ui-api/restart
+/cgi-bin/unified-ui-api/select               POST: { group, groupEncoded, name }
+/cgi-bin/unified-ui-api/delay                POST: { name, nameEncoded, timeout, url }
+/cgi-bin/unified-ui-api/connection-close     POST: { id }
+/cgi-bin/unified-ui-api/connections-close-all POST
 ```
 
 ## Проверено на 172.16.0.21
@@ -74,14 +78,24 @@ connections: 25
 errors: []
 ```
 
+Action smoke after enabling runtime controls:
+
+```text
+delay DIRECT: {"delay":86}
+select GLOBAL -> DIRECT: HTTP 200, empty Mihomo body
+close one connection: before_count=25, after_count=24
+browser selectors: 22 dropdowns, 361 ping buttons, 22 apply buttons
+browser connections: filter present, 25 close buttons
+JS errors: []
+```
+
 ## Следующие этапы
 
 1. Перенести UI-компоненты из Flask-панели в общий frontend package, чтобы OpenWrt и Keenetic использовали одну визуальную базу.
-2. Реализовать write endpoints:
-   - selector switch через `PUT /proxies/<group>`;
-   - delay check через `/group/<name>/delay` или `/proxies/<name>/delay`;
-   - close connection через `DELETE /connections/<id>`;
-   - close all через `DELETE /connections`.
+2. Довести runtime controls до полноценного UX:
+   - per-row loading/errors;
+   - bulk ping с throttling и progress;
+   - подтверждение перед close-all.
 3. Реализовать config editor для `/etc/nikki/profiles/manual-mihomo.yaml` и safe apply через Nikki.
 4. Добавить auth-интеграцию через LuCI/rpcd session либо встроенный shared-secret gate.
 5. Собрать нормальный release asset `unified-ui-openwrt.tar.gz`.
