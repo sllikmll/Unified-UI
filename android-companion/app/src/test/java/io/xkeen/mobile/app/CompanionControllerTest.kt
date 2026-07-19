@@ -335,7 +335,7 @@ class CompanionControllerTest {
                         return SessionPairResult.Status(
                             connection = connection,
                             statusSummary = "Требуется вход",
-                            message = "Введите учётные данные Xkeen UI.",
+                            message = "Введите учётные данные Unified UI.",
                         )
                     }
                 },
@@ -347,7 +347,7 @@ class CompanionControllerTest {
         assertEquals(LoginForm("router-admin", "router-secret"), submittedCredentials)
         assertFalse(controller.state.isKeeneticAuthRequired)
         assertEquals("", controller.state.keeneticLoginForm.password)
-        assertEquals("Введите учётные данные Xkeen UI.", controller.state.sessionMessage)
+        assertEquals("Введите учётные данные Unified UI.", controller.state.sessionMessage)
     }
 
     @Test
@@ -568,7 +568,7 @@ class CompanionControllerTest {
         val failure = CompanionTransportException(
             CompanionTransportFailure(
                 kind = CompanionTransportFailureKind.AuthenticationRequired,
-                userMessage = "Требуется вход в Xkeen UI.",
+                userMessage = "Требуется вход в Unified UI.",
                 statusCode = 401,
             ),
         )
@@ -583,15 +583,15 @@ class CompanionControllerTest {
 
         controller.refreshCoreStatus()
 
-        assertEquals("Требуется вход в Xkeen UI.", controller.state.dashboard.statusSummary)
-        assertEquals("Требуется вход в Xkeen UI.", controller.state.dashboard.lastError)
-        assertEquals("Не удалось обновить состояние Xkeen UI", controller.state.dashboard.lastOperation)
+        assertEquals("Требуется вход в Unified UI.", controller.state.dashboard.statusSummary)
+        assertEquals("Требуется вход в Unified UI.", controller.state.dashboard.lastError)
+        assertEquals("Не удалось обновить состояние Unified UI", controller.state.dashboard.lastOperation)
         assertEquals(
             DiagnosticSeverity.Warning,
             controller.state.diagnostics.first { it.label == "Сеть и доступ" }.severity,
         )
         assertEquals("transport", controller.state.logs.entries.first().source)
-        assertEquals("Требуется вход в Xkeen UI.", controller.state.logs.entries.first().message)
+        assertEquals("Требуется вход в Unified UI.", controller.state.logs.entries.first().message)
     }
 
     @Test
@@ -599,7 +599,7 @@ class CompanionControllerTest {
         val offline = CompanionTransportException(
             CompanionTransportFailure(
                 kind = CompanionTransportFailureKind.Offline,
-                userMessage = "Не удалось подключиться к Xkeen UI. Проверьте адрес, сеть или VPN.",
+                userMessage = "Не удалось подключиться к Unified UI. Проверьте адрес, сеть или VPN.",
             ),
         )
         val controller = CompanionController(
@@ -684,7 +684,7 @@ class CompanionControllerTest {
                     override suspend fun load(baseUrl: String): ConfirmedServiceSnapshot = throw CompanionTransportException(
                         CompanionTransportFailure(
                             kind = CompanionTransportFailureKind.AuthenticationRequired,
-                            userMessage = "Требуется вход в Xkeen UI.",
+                            userMessage = "Требуется вход в Unified UI.",
                             statusCode = 401,
                         ),
                     )
@@ -696,7 +696,7 @@ class CompanionControllerTest {
 
         assertEquals(AppPhase.PairLogin, controller.state.phase)
         assertEquals(ConnectionStatus.NeedsAuth, controller.state.connections.single().status)
-        assertEquals("Сессия на Xkeen UI истекла. Войдите снова.", controller.state.sessionMessage)
+        assertEquals("Сессия на Unified UI истекла. Войдите снова.", controller.state.sessionMessage)
         assertNull(sessionMaterials.load(connection.id))
     }
 
@@ -869,7 +869,7 @@ class CompanionControllerTest {
                         baseUrl: String,
                         document: RoutingDocument,
                     ): RoutingServerValidation = throw RoutingValidationException(
-                        message = "Обновите Xkeen UI на роутере.",
+                        message = "Обновите Unified UI на роутере.",
                         diagnosticCode = "validation_endpoint_unavailable",
                     )
                 },
@@ -881,7 +881,7 @@ class CompanionControllerTest {
         val diagnostic = controller.state.routing.validation.serverDiagnostics.single()
         assertEquals(RoutingDiagnosticSource.Transport, diagnostic.source)
         assertEquals("validation_endpoint_unavailable", diagnostic.code)
-        assertEquals("Обновите Xkeen UI на роутере.", diagnostic.message)
+        assertEquals("Обновите Unified UI на роутере.", diagnostic.message)
     }
 
     @Test
@@ -933,7 +933,7 @@ class CompanionControllerTest {
                     ): RoutingServerValidation = throw CompanionTransportException(
                         CompanionTransportFailure(
                             kind = CompanionTransportFailureKind.AuthenticationRequired,
-                            userMessage = "Требуется вход в Xkeen UI.",
+                            userMessage = "Требуется вход в Unified UI.",
                             statusCode = 401,
                         ),
                     )
@@ -946,7 +946,7 @@ class CompanionControllerTest {
         assertEquals(AppPhase.PairLogin, controller.state.phase)
         assertEquals(ConnectionStatus.NeedsAuth, controller.state.connections.single().status)
         assertNull(sessionMaterials.load(connection.id))
-        assertEquals("Сессия на Xkeen UI истекла. Войдите снова.", controller.state.sessionMessage)
+        assertEquals("Сессия на Unified UI истекла. Войдите снова.", controller.state.sessionMessage)
     }
 
     @Test

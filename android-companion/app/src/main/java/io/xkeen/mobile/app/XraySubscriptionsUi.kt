@@ -548,7 +548,7 @@ private fun XraySubscriptionEditorDialog(
                 )
             }
             Text(
-                "URL хранится на сервере Xkeen UI и не сохраняется локально в приложении. Подробные routing/balancer настройки остаются доступны в веб-панели.",
+                "URL хранится на сервере Unified UI и не сохраняется локально в приложении. Подробные routing/balancer настройки остаются доступны в веб-панели.",
                 color = WebPanelPalette.MutedDeep,
                 style = MaterialTheme.typography.labelSmall,
             )

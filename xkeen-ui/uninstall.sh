@@ -2,7 +2,7 @@
 set -e
 
 UI_DIR="/opt/etc/xkeen-ui"
-INIT_SCRIPT_DEFAULT="/opt/etc/init.d/S99xkeen-ui-umarcheh001"
+INIT_SCRIPT_DEFAULT="/opt/etc/init.d/S99unified-ui001"
 LEGACY_INIT_SCRIPT="/opt/etc/init.d/S99xkeen-ui"
 INIT_SCRIPT="${XKEEN_UI_INIT_SCRIPT:-$INIT_SCRIPT_DEFAULT}"
 LOG_DIR="/opt/var/log/xkeen-ui"
@@ -17,7 +17,7 @@ is_our_ui_init_script() {
   [ -n "$_path" ] || return 1
   [ -f "$_path" ] || return 1
 
-  if grep -q 'XKEEN_UI_INIT_OWNER="umarcheh001/Xkeen-UI"' "$_path" 2>/dev/null; then
+  if grep -q 'XKEEN_UI_INIT_OWNER="sllikmll/Unified-UI"' "$_path" 2>/dev/null; then
     return 0
   fi
 

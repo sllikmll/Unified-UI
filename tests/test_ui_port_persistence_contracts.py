@@ -13,7 +13,7 @@ def test_devtools_env_exposes_ui_port_as_restart_bound_setting():
     assert '"XKEEN_UI_PORT"' in env_py
     assert 'if k == "XKEEN_UI_PORT":' in env_py
     assert 'return "8088"' in env_py
-    assert "XKEEN_UI_PORT': 'Порт веб-панели Xkeen UI." in env_js
+    assert "XKEEN_UI_PORT': 'Порт веб-панели Unified UI." in env_js
     assert "const ENV_RESTART_KEYS = new Set([" in env_js
     assert "    'XKEEN_UI_PORT'," in env_js
 

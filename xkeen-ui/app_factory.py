@@ -425,8 +425,8 @@ def create_app(*, ws_runtime: bool = False):
     XRAY_CONFIG_DIR = os.path.dirname(ROUTING_FILE)
     XKEEN_CONFIG_DIR = os.path.dirname(PORT_PROXYING_FILE)
 
-    GITHUB_OWNER = os.environ.get("XKEEN_GITHUB_OWNER", "umarcheh001")
-    GITHUB_REPO = os.environ.get("XKEEN_GITHUB_REPO", "xkeen-community-configs")
+    GITHUB_OWNER = os.environ.get("XKEEN_GITHUB_OWNER", "sllikmll")
+    GITHUB_REPO = os.environ.get("XKEEN_GITHUB_REPO", "unified-ui-community-configs")
     GITHUB_BRANCH = os.environ.get("XKEEN_GITHUB_BRANCH", "main")
 
     GITHUB_REPO_URL = os.environ.get(

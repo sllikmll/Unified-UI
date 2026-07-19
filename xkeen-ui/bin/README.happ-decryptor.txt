@@ -64,7 +64,7 @@ XKEEN_HAPP_DECRYPTOR_REMOTE_URL='https://happy-decoder.cc/p/%LINK_ENCODED%'
 Репозиторий XKeen не хранит готовый Happ decryptor и ключевой материал. Для
 локальных тестов можно собрать drop-in decryptor из актуального checkout
 `LeeeeT/happ-decryptor` и включить его в локальный архив
-`xkeen-ui-routing.tar.gz`, не коммитя launcher, assets или сгенерированный
+`unified-ui-routing.tar.gz`, не коммитя launcher, assets или сгенерированный
 исходник с ключевым материалом в GitHub.
 
 Ожидаемый локальный checkout:

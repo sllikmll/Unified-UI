@@ -1,5 +1,5 @@
 /**
- * codemirror-json-schema — lightweight ESM build for Xkeen UI
+ * codemirror-json-schema — lightweight ESM build for Unified UI
  * Provides JSON Schema validation (linter), autocomplete and hover tooltips
  * for CodeMirror 6 editors.
  *

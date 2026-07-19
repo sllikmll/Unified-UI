@@ -375,7 +375,7 @@ private class ScriptedSessionTransport(
 private fun legacyHandshakeFailure(): CompanionTransportException = CompanionTransportException(
     CompanionTransportFailure(
         kind = CompanionTransportFailureKind.AuthenticationRequired,
-        userMessage = "Требуется вход в Xkeen UI.",
+        userMessage = "Требуется вход в Unified UI.",
         statusCode = 401,
         serverCode = "unauthorized",
     ),

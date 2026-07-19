@@ -230,7 +230,7 @@ def create_devtools_blueprint(ui_state_dir: str) -> Blueprint:
             "sha256sum": bool(shutil.which("sha256sum")),
         }
         settings = {
-            "repo": str(os.environ.get("XKEEN_UI_UPDATE_REPO") or build.get("repo") or "umarcheh001/Xkeen-UI"),
+            "repo": str(os.environ.get("XKEEN_UI_UPDATE_REPO") or build.get("repo") or "sllikmll/Unified-UI"),
             "channel": str(os.environ.get("XKEEN_UI_UPDATE_CHANNEL") or build.get("channel") or "stable"),
             "branch": str(os.environ.get("XKEEN_UI_UPDATE_BRANCH") or "main"),
         }
@@ -301,7 +301,7 @@ def create_devtools_blueprint(ui_state_dir: str) -> Blueprint:
         branch_env = os.environ.get("XKEEN_UI_UPDATE_BRANCH")
 
         # Default settings (may be overridden by BUILD.json if env is not set).
-        repo = str(repo_env or "umarcheh001/Xkeen-UI")
+        repo = str(repo_env or "sllikmll/Unified-UI")
         channel = str(channel_env or "stable")
         branch = str(branch_env or "main")
 
@@ -565,7 +565,7 @@ def create_devtools_blueprint(ui_state_dir: str) -> Blueprint:
 
         # Pass effective update settings to runner (so it works without restarting UI).
         build_eff = get_build_info(ui_state_dir)
-        repo_eff = str(os.environ.get("XKEEN_UI_UPDATE_REPO") or build_eff.get("repo") or "umarcheh001/Xkeen-UI")
+        repo_eff = str(os.environ.get("XKEEN_UI_UPDATE_REPO") or build_eff.get("repo") or "sllikmll/Unified-UI")
         channel_eff = str(os.environ.get("XKEEN_UI_UPDATE_CHANNEL") or build_eff.get("channel") or "stable")
         branch_eff = str(os.environ.get("XKEEN_UI_UPDATE_BRANCH") or "main")
         env["XKEEN_UI_UPDATE_REPO"] = repo_eff
@@ -702,7 +702,7 @@ def create_devtools_blueprint(ui_state_dir: str) -> Blueprint:
         env["XKEEN_UI_UPDATE_ACTION"] = "rollback"
 
         build_eff = get_build_info(ui_state_dir)
-        repo_eff = str(os.environ.get("XKEEN_UI_UPDATE_REPO") or build_eff.get("repo") or "umarcheh001/Xkeen-UI")
+        repo_eff = str(os.environ.get("XKEEN_UI_UPDATE_REPO") or build_eff.get("repo") or "sllikmll/Unified-UI")
         channel_eff = str(os.environ.get("XKEEN_UI_UPDATE_CHANNEL") or build_eff.get("channel") or "stable")
         branch_eff = str(os.environ.get("XKEEN_UI_UPDATE_BRANCH") or "main")
         env["XKEEN_UI_UPDATE_REPO"] = repo_eff

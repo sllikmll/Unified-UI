@@ -1,14 +1,14 @@
 #!/bin/sh
-# Xkeen-UI self-update runner (stable GitHub Releases / main tarball)
+# Unified-UI self-update runner (stable GitHub Releases / main tarball)
 #
 # Ручной запуск:
 #   sh /opt/etc/xkeen-ui/scripts/update_xkeen_ui.sh
 #
 # Настройки через env:
-#   XKEEN_UI_UPDATE_REPO=umarcheh001/Xkeen-UI
+#   XKEEN_UI_UPDATE_REPO=sllikmll/Unified-UI
 #   XKEEN_UI_UPDATE_CHANNEL=stable   # stable | main
 #   XKEEN_UI_UPDATE_BRANCH=main      # used when channel=main
-#   XKEEN_UI_UPDATE_ASSET_NAME=xkeen-ui-routing.tar.gz
+#   XKEEN_UI_UPDATE_ASSET_NAME=unified-ui-routing.tar.gz
 #   XKEEN_UI_UPDATE_DIR=/opt/var/lib/xkeen-ui/update
 #   XKEEN_UI_BACKUP_DIR=/opt/var/backups/xkeen-ui
 #   XKEEN_UI_BACKUP_KEEP=1
@@ -22,7 +22,7 @@
 set -eu
 
 UI_DIR="/opt/etc/xkeen-ui"
-UI_INIT_SCRIPT_DEFAULT="/opt/etc/init.d/S99xkeen-ui-umarcheh001"
+UI_INIT_SCRIPT_DEFAULT="/opt/etc/init.d/S99unified-ui001"
 UI_INIT_SCRIPT_LEGACY="/opt/etc/init.d/S99xkeen-ui"
 UI_INIT_SCRIPT="${XKEEN_UI_INIT_SCRIPT:-$UI_INIT_SCRIPT_DEFAULT}"
 
@@ -31,7 +31,7 @@ is_our_ui_init_script() {
   [ -n "$_path" ] || return 1
   [ -f "$_path" ] || return 1
 
-  if grep -q 'XKEEN_UI_INIT_OWNER="umarcheh001/Xkeen-UI"' "$_path" 2>/dev/null; then
+  if grep -q 'XKEEN_UI_INIT_OWNER="sllikmll/Unified-UI"' "$_path" 2>/dev/null; then
     return 0
   fi
 
@@ -61,7 +61,7 @@ resolve_our_ui_init_script() {
   return 1
 }
 
-REPO="${XKEEN_UI_UPDATE_REPO:-sllikmll/Xkeen-UI-umarcheh}"
+REPO="${XKEEN_UI_UPDATE_REPO:-sllikmll/Unified-UI}"
 CHANNEL="${XKEEN_UI_UPDATE_CHANNEL:-stable}"
 ASSET_NAME="${XKEEN_UI_UPDATE_ASSET_NAME:-}"
 ACTION="${XKEEN_UI_UPDATE_ACTION:-update}"
@@ -775,7 +775,7 @@ if [ -f "$LOG_FILE" ] && [ -s "$LOG_FILE" ]; then
 fi
 : >"$LOG_FILE" 2>/dev/null || true
 
-log "=== Xkeen-UI updater start ==="
+log "=== Unified-UI updater start ==="
 log "repo=$REPO channel=$CHANNEL action=$ACTION update_dir=$UPDATE_DIR backup_dir=$BACKUP_DIR"
 
 if ! acquire_lock; then
@@ -860,7 +860,7 @@ if [ "$ACTION" = "rollback" ]; then
   fi
 
   write_status "done" "done" "Rollback completed"
-  log "=== Xkeen-UI rollback done ==="
+  log "=== Unified-UI rollback done ==="
   exit 0
 fi
 
@@ -1045,15 +1045,15 @@ ASSET_CANDIDATES=""
 if [ -n "$ASSET_NAME" ]; then
   # user override + safe fallbacks
   if [ "$ASSET_NAME" = "xkeen-ui.tar.gz" ]; then
-    ASSET_CANDIDATES="$ASSET_NAME xkeen-ui-routing.tar.gz"
-  elif [ "$ASSET_NAME" = "xkeen-ui-routing.tar.gz" ]; then
+    ASSET_CANDIDATES="$ASSET_NAME unified-ui-routing.tar.gz"
+  elif [ "$ASSET_NAME" = "unified-ui-routing.tar.gz" ]; then
     ASSET_CANDIDATES="$ASSET_NAME xkeen-ui.tar.gz"
   else
-    ASSET_CANDIDATES="$ASSET_NAME xkeen-ui-routing.tar.gz xkeen-ui.tar.gz"
+    ASSET_CANDIDATES="$ASSET_NAME unified-ui-routing.tar.gz xkeen-ui.tar.gz"
   fi
 else
   # default project convention first
-  ASSET_CANDIDATES="xkeen-ui-routing.tar.gz xkeen-ui.tar.gz"
+  ASSET_CANDIDATES="unified-ui-routing.tar.gz xkeen-ui.tar.gz"
 fi
 
 ERR_TMP="$UPDATE_DIR/.gh_latest.err.$$"
@@ -1963,6 +1963,6 @@ fi
 
 # 8) Done
 write_status "done" "done" "Update completed"
-log "=== Xkeen-UI updater done ==="
+log "=== Unified-UI updater done ==="
 
 exit 0

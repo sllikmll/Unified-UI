@@ -134,7 +134,7 @@ def test_geodat_install_opt_in_downloads_to_local_file_before_script(monkeypatch
     download_calls = []
     seen_env = {}
 
-    def fake_download(url, tmp_file, max_bytes, *, policy, user_agent="Xkeen-UI", timeout=45):
+    def fake_download(url, tmp_file, max_bytes, *, policy, user_agent="Unified-UI", timeout=45):
         download_calls.append({
             "url": url,
             "tmp_file": tmp_file,
@@ -228,7 +228,7 @@ def test_dat_update_opt_in_allows_custom_public_url(monkeypatch, tmp_path: Path)
     monkeypatch.setattr(dat, "_local_resolve", lambda path, roots: str(target))
     monkeypatch.setattr(dat, "_apply_local_metadata_best_effort", lambda *args, **kwargs: None)
 
-    def fake_download(url, tmp_file, max_bytes, *, policy, user_agent="Xkeen-UI", timeout=45):
+    def fake_download(url, tmp_file, max_bytes, *, policy, user_agent="Unified-UI", timeout=45):
         Path(tmp_file).write_bytes(b"dat")
         return 3
 

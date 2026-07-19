@@ -305,9 +305,9 @@ private fun RoutingWorkspaceLoading(
             }
             Text(
                 text = error ?: if (isLoading) {
-                    "Загружаем routing-конфигурации с Xkeen UI…"
+                    "Загружаем routing-конфигурации с Unified UI…"
                 } else {
-                    "Ожидаем подтверждённое состояние Xkeen UI…"
+                    "Ожидаем подтверждённое состояние Unified UI…"
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (error != null) WebPanelPalette.Error else WebPanelPalette.Text,
@@ -333,7 +333,7 @@ private fun RoutingDocumentPage(
     when {
         document.isLoading -> DocumentLoadMessage(
             title = "Загружаем ${document.title}",
-            message = "Получаем JSON/JSONC с Xkeen UI…",
+            message = "Получаем JSON/JSONC с Unified UI…",
             showProgress = true,
         )
 
@@ -1391,7 +1391,7 @@ private fun editorStatusPresentation(
 ): EditorStatusPresentation {
     val workflowStep = routingWorkflowStep(document, validation)
     val text = when {
-        document.isLoading -> "Загрузка с Xkeen UI…"
+        document.isLoading -> "Загрузка с Unified UI…"
         document.loadError != null -> document.loadError
         write.isPending || write.phase in setOf(
             RoutingWritePhase.Conflict,
@@ -1459,7 +1459,7 @@ private fun EditorStatusDetailsDialog(
                 StatusDetailLine(
                     "Источник проверки",
                     when (item.source) {
-                        RoutingDiagnosticSource.Server -> "Сервер Xkeen UI / Xray"
+                        RoutingDiagnosticSource.Server -> "Сервер Unified UI / Xray"
                         RoutingDiagnosticSource.Transport -> "Соединение с сервером"
                         RoutingDiagnosticSource.LocalSyntax -> "Локальная предварительная проверка"
                     },

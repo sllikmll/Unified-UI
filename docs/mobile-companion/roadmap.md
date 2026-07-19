@@ -1,4 +1,4 @@
-# Xkeen-UI Mobile Companion Roadmap
+# Unified-UI Mobile Companion Roadmap
 
 Status: phase 2 active
 Updated: 2026-07-16
@@ -101,7 +101,7 @@ Updated: 2026-07-16
 ### Exit criteria
 
 - Приложение собирается и запускается на целевых Android-устройствах.
-- Можно добавить Xkeen-UI инстанс и дойти до состояния `Ready` без браузерного fallback.
+- Можно добавить Unified-UI инстанс и дойти до состояния `Ready` без браузерного fallback.
 - Этапы 5, 6 и 7 закрыты по [session closure checklist](../../android-companion/stage-5-closure-checklist.md), [service actions closure checklist](../../android-companion/stage-6-closure-checklist.md) и [routing validate closure checklist](../../android-companion/stage-7-closure-checklist.md).
 - Сессия и данные подключения переживают перезапуск приложения корректно.
 - Базовые состояния UI выглядят предсказуемо и не требуют web fallback.
@@ -126,7 +126,7 @@ Persistence данных подключения, secure storage, session flow, s
 
 ### Exit criteria
 
-- Пользователь может с телефона открыть `Ready` workspace, понять состояние Xkeen-UI и выполнить основные safe actions.
+- Пользователь может с телефона открыть `Ready` workspace, понять состояние Unified-UI и выполнить основные safe actions.
 - Пользователь может пройти controlled сценарий `Routing Xray` без возврата в мобильный браузер.
 - Ошибки сети, auth и backend отражаются явно и без "тихих" провалов.
 - Quick control не требует перехода в мобильный браузер для базовых сценариев.
@@ -239,4 +239,4 @@ Persistence данных подключения, secure storage, session flow, s
 - Пользователь может открыть `Routing Xray`, пройти `validate` / `preview` / `save` / `apply` для ограниченного сценария и остаться в понятной safety-модели.
 - Приложение не открывает опасные low-level surfaces вроде PTY, файлового менеджера или произвольных raw editor flows без отдельного decision gate.
 - Mobile contract versioned и покрыт тестами на совместимость.
-- V1 не требует публичной интернет-экспозиции Xkeen-UI.
+- V1 не требует публичной интернет-экспозиции Unified-UI.

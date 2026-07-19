@@ -19,8 +19,8 @@ xkeen-ui/static/frontend-build/
 # Local packaging artifacts
 dist/
 package-root/
-/xkeen-ui-routing.tar.gz
-/xkeen-ui-routing.tar.gz.sha256
+/unified-ui-routing.tar.gz
+/unified-ui-routing.tar.gz.sha256
 /xkeen-ui-debian.tar.gz
 /xkeen-ui-debian.tar.gz.sha256
 /packaging/debian/

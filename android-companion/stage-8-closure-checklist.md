@@ -44,7 +44,7 @@ Android хранит отдельный `RoutingWritePhase` (`Idle`, `Saving`, `
 
 - `401` очищает trusted material выбранного connection и возвращает в `Pair/Login`.
 - `403/428`, offline, timeout и malformed response не создают локальный success.
-- `404` write/document endpoint означает rollout mismatch: нужно обновить Xkeen UI на роутере вместе с APK.
+- `404` write/document endpoint означает rollout mismatch: нужно обновить Unified UI на роутере вместе с APK.
 - `409` — отдельный revision conflict с актуальным server snapshot.
 - `422` — server syntax/preflight rejection; live fragment и runtime не меняются.
 - Failed restart восстанавливает прежние live JSON/JSONC files и оставляет saved draft для повторной попытки.

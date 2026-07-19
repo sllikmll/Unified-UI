@@ -182,7 +182,7 @@ def register_geodat_routes(bp: Blueprint) -> None:
                         tmp_downloaded,
                         None,
                         policy=policy,
-                        user_agent="Xkeen-UI geodat",
+                        user_agent="Unified-UI geodat",
                     )
                     try:
                         os.chmod(tmp_downloaded, 0o755)

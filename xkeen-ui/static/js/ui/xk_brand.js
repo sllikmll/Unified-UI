@@ -220,8 +220,8 @@
         return;
       }
 
-      if (cur.includes('Xkeen UI')) {
-        document.title = cur.replace('Xkeen UI', t);
+      if (cur.includes('Unified UI')) {
+        document.title = cur.replace('Unified UI', t);
         return;
       }
 

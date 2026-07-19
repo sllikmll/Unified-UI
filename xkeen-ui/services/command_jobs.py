@@ -1,4 +1,4 @@
-"""Background command jobs for XKeen UI.
+"""Background command jobs for Unified UI.
 
 This module runs `xkeen` (or optional shell commands) in a background thread and
 stores incremental output for polling or WebSocket streaming.

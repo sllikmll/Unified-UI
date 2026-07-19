@@ -1,7 +1,7 @@
 {
   "version": 1,
   "owner": "sllikmll",
-  "repo": "Xkeen-UI-umarcheh",
+  "repo": "Unified-UI",
   "note": "Preferred single-source proxy client artifacts for Keenetic/Entware unified installs. Mihomo-native protocols (WireGuard, VLESS, Trojan, Hysteria2, NaiveProxy-as-HTTPS) run inside Mihomo and do not require separate clients. External runtimes are optional and must be published as release assets here before offline/single-point install can fetch them.",
   "platforms": {
     "linux-arm64": {

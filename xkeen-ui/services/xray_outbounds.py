@@ -985,7 +985,7 @@ def build_outbounds_config_from_vless(url, *, proxy_tags: Optional[List[str]] = 
     - tcp/ws/grpc/httpupgrade/kcp/raw/xhttp
 
     Эта функция старается быть максимально совместимой с генератором
-    zxc-rv.github.io/XKeen-UI_Outbound_Generator.
+    zxc-rv.github.io/Unified-UI_Outbound_Generator.
     """
 
     def _first(qs, key, default=None):

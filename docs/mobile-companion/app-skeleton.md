@@ -1,4 +1,4 @@
-# Xkeen-UI Mobile Companion App Skeleton
+# Unified-UI Mobile Companion App Skeleton
 
 Status: implementation baseline active
 Updated: 2026-07-16

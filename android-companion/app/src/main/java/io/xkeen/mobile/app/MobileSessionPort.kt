@@ -23,9 +23,9 @@ internal class MobileSessionPort(
                     status = if (isSetupRequired) ConnectionStatus.SetupRequired else ConnectionStatus.NeedsAuth,
                     lastSeen = if (isSetupRequired) "Требуется первичная настройка" else "Требуется вход",
                 ),
-                statusSummary = if (isSetupRequired) "Требуется настройка Xkeen UI" else "Требуется вход",
+                statusSummary = if (isSetupRequired) "Требуется настройка Unified UI" else "Требуется вход",
                 message = if (isSetupRequired) {
-                    "На узле еще не создана учетная запись администратора. Завершите настройку в Xkeen UI."
+                    "На узле еще не создана учетная запись администратора. Завершите настройку в Unified UI."
                 } else {
                     "Узел доступен. Введите учетные данные администратора для открытия мобильной сессии."
                 },
@@ -205,7 +205,7 @@ internal class MobileSessionPort(
         )
         val initialCsrf = loginPage.body.extractCsrfToken()
         val initialCookie = loginPage.setCookieHeaders.toCookieHeader()
-            ?: throw MobileSessionException("Xkeen UI не создал защищенную сессию для входа.")
+            ?: throw MobileSessionException("Unified UI не создал защищенную сессию для входа.")
 
         val loginResponse = transport.post(
             CompanionHttpRequest(
@@ -221,7 +221,7 @@ internal class MobileSessionPort(
         )
         requireLegacyAuthSuccess(loginResponse.body)
         val authenticatedCookie = loginResponse.setCookieHeaders.toCookieHeader()
-            ?: throw MobileSessionException("Xkeen UI не вернул cookie после входа.")
+            ?: throw MobileSessionException("Unified UI не вернул cookie после входа.")
 
         val authenticatedPage = transport.get(
             CompanionHttpRequest(
@@ -286,11 +286,11 @@ internal class MobileSessionPort(
         lastOperation = if (restored) "Мобильная сессия восстановлена" else "Вход выполнен",
         eventTitle = if (restored) "Сессия восстановлена" else "Вход выполнен",
         eventSubtitle = user?.takeIf(String::isNotBlank)?.let { "Авторизован: $it" }
-            ?: "Сессия подтверждена Xkeen UI",
+            ?: "Сессия подтверждена Unified UI",
         logMessage = if (restored) {
             "Доверенная мобильная сессия подтверждена сервером"
         } else {
-            "Открыта мобильная сессия Xkeen UI"
+            "Открыта мобильная сессия Unified UI"
         },
     )
 }
@@ -334,10 +334,10 @@ private fun parseMobileBootstrap(body: String): MobileBootstrap {
 private fun parseLegacyBootstrap(body: String): MobileBootstrap {
     val root = parseJsonObject(
         body = body,
-        unexpectedMessage = "Xkeen UI вернул неожиданный ответ проверки авторизации.",
+        unexpectedMessage = "Unified UI вернул неожиданный ответ проверки авторизации.",
     )
     if (!root.optBoolean("ok", false)) {
-        throw MobileSessionException("Xkeen UI отклонил проверку авторизации.")
+        throw MobileSessionException("Unified UI отклонил проверку авторизации.")
     }
     return MobileBootstrap(
         configured = root.optBoolean("configured", false),
@@ -349,10 +349,10 @@ private fun parseLegacyBootstrap(body: String): MobileBootstrap {
 private fun parseMobilePayload(body: String): JSONObject {
     val root = parseJsonObject(
         body = body,
-        unexpectedMessage = "Xkeen UI вернул неожиданный ответ мобильной сессии.",
+        unexpectedMessage = "Unified UI вернул неожиданный ответ мобильной сессии.",
     )
     if (!root.optBoolean("ok", false)) {
-        throw MobileSessionException("Xkeen UI отклонил запрос мобильной сессии.")
+        throw MobileSessionException("Unified UI отклонил запрос мобильной сессии.")
     }
     return root.optJSONObject("data")
         ?: throw MobileSessionException("Сервер не вернул данные мобильной сессии.")
@@ -361,11 +361,11 @@ private fun parseMobilePayload(body: String): JSONObject {
 private fun requireLegacyAuthSuccess(body: String) {
     val root = parseJsonObject(
         body = body,
-        unexpectedMessage = "Xkeen UI вернул неожиданный ответ входа.",
+        unexpectedMessage = "Unified UI вернул неожиданный ответ входа.",
     )
     if (!root.optBoolean("ok", false)) {
         val message = root.optString("message").trim().takeIf(String::isNotBlank)
-            ?: "Xkeen UI отклонил вход."
+            ?: "Unified UI отклонил вход."
         throw MobileSessionException(message)
     }
 }
@@ -394,7 +394,7 @@ private fun String.extractCsrfToken(): String {
     )
     return patterns.firstNotNullOfOrNull { pattern ->
         pattern.find(this)?.groupValues?.getOrNull(1)?.trim()?.takeIf(String::isNotBlank)
-    } ?: throw MobileSessionException("Xkeen UI не вернул CSRF-параметр для входа.")
+    } ?: throw MobileSessionException("Unified UI не вернул CSRF-параметр для входа.")
 }
 
 private fun CompanionTransportException.isLegacyMobileHandshakeFailure(): Boolean =

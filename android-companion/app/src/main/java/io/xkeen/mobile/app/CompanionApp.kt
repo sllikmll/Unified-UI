@@ -330,7 +330,7 @@ private fun PairLoginRoute(
             Spacer(Modifier.width(4.dp))
             Column {
                 Text(
-                    text = connection?.let { "Вход в ${it.name}" } ?: "Вход в Xkeen UI",
+                    text = connection?.let { "Вход в ${it.name}" } ?: "Вход в Unified UI",
                     style = MaterialTheme.typography.titleLarge,
                 )
                 Text(
@@ -342,11 +342,11 @@ private fun PairLoginRoute(
         }
 
         SectionCard(
-            title = if (isKeeneticStep) "Доступ Keenetic" else "Учетная запись Xkeen UI",
+            title = if (isKeeneticStep) "Доступ Keenetic" else "Учетная запись Unified UI",
             supporting = if (isKeeneticStep) {
                 "Удалённый адрес защищён роутером. Сначала войдите с учётной записью Keenetic. Пароль останется только в памяти приложения."
             } else {
-                "Введите логин и пароль администратора Xkeen UI. Они могут отличаться от учётной записи Keenetic."
+                "Введите логин и пароль администратора Unified UI. Они могут отличаться от учётной записи Keenetic."
             },
         ) {
             CompactStatusRow(
@@ -389,7 +389,7 @@ private fun PairLoginRoute(
                 } else {
                     controller::updateUsername
                 },
-                label = if (isKeeneticStep) "Логин Keenetic" else "Логин Xkeen UI",
+                label = if (isKeeneticStep) "Логин Keenetic" else "Логин Unified UI",
                 labelMode = CompactFieldLabelMode.Above,
                 leadingIcon = { Icon(Icons.Outlined.Key, contentDescription = null) },
                 imeAction = ImeAction.Next,
@@ -407,7 +407,7 @@ private fun PairLoginRoute(
                 } else {
                     controller::updatePassword
                 },
-                label = if (isKeeneticStep) "Пароль Keenetic" else "Пароль Xkeen UI",
+                label = if (isKeeneticStep) "Пароль Keenetic" else "Пароль Unified UI",
                 labelMode = CompactFieldLabelMode.Above,
                 leadingIcon = { Icon(Icons.Outlined.Password, contentDescription = null) },
                 trailingIcon = {

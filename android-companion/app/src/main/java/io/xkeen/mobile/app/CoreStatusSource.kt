@@ -32,7 +32,7 @@ internal fun parseCoreStatus(body: String): CoreStatus {
         JSONObject(body)
     } catch (error: Exception) {
         throw CoreStatusException(
-            "Xkeen UI вернул неожиданный ответ при загрузке списка ядер.",
+            "Unified UI вернул неожиданный ответ при загрузке списка ядер.",
             error,
         )
     }

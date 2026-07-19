@@ -1,17 +1,10 @@
-# Xkeen UI Unified
+# Unified UI
 
-**Xkeen UI Unified** — форк [`umarcheh001/Xkeen-UI`](https://github.com/umarcheh001/Xkeen-UI), собранный под сценарий “одна панель для Keenetic + Entware + Mihomo”.
+**Unified UI** — самостоятельная панель управления для Keenetic + Entware + Mihomo. Это уже не форк чужой панели, а единый интерфейс для маршрутизации, selector’ов, подписок, подключений, DAT GeoIP/GeoSite и managed proxy-подключений.
 
-Главная цель: убрать зоопарк из Python-панели на `8088`, отдельного Zashboard на `9090/ui`, ручного SSH-редактирования YAML и вечного “а где это переключается?”. Основное управление Mihomo собрано в одной панели:
+Цель простая: одна панель на `8088`, без отдельного Zashboard для базовых операций, без ручного YAML через SSH и без “а где оно теперь переключается?”.
 
-- **Маршрутизация** — runtime selectors Mihomo, плитки/списки, ping-и и ручной список;
-- **Mihomo** — редактирование активного `config.yaml`, обновление подписок и YAML-инструменты;
-- **Соединения** — список активных соединений Mihomo с деталями и разрывом соединений;
-- **DAT GeoIP / GeoSite** — обновление, просмотр состава и работа с rule-provider/DAT;
-- **WireGuard / Amnezia / Hysteria2 / VLESS / Trojan / Meiru / NaiveProxy** — импорт подключений ссылкой или файлом и добавление их в selector’ы;
-- **Mihomo Генератор** — встроен в общую панель, без iframe-костылей.
-
-> Панель рассчитана на локальную сеть. Не публикуйте её напрямую в интернет без отдельной авторизации/прокси-защиты. Интернету нельзя давать руль от роутера — он и так плохо себя ведёт.
+> Панель рассчитана на локальную сеть. Не публикуйте её напрямую в интернет без отдельной авторизации или reverse-proxy auth. Роутер — не то место, куда стоит приглашать весь интернет на чай.
 
 ---
 
@@ -43,73 +36,58 @@
 
 | Что | Репозиторий |
 |---|---|
-| Unified UI | [`sllikmll/Xkeen-UI-umarcheh`](https://github.com/sllikmll/Xkeen-UI-umarcheh) |
-| Mihomo fork | [`sllikmll/mihomo`](https://github.com/sllikmll/mihomo) |
-| UI upstream | [`umarcheh001/Xkeen-UI`](https://github.com/umarcheh001/Xkeen-UI) |
-| Старый XKeen UI источник фич | [`zxc-rv/XKeen-UI`](https://github.com/zxc-rv/XKeen-UI) |
+| Unified UI | [`sllikmll/Unified-UI`](https://github.com/sllikmll/Unified-UI) |
+| Mihomo fork/assets | [`sllikmll/mihomo`](https://github.com/sllikmll/mihomo) |
 | Mihomo upstream | [`MetaCubeX/mihomo`](https://github.com/MetaCubeX/mihomo) |
 
-Почему репозиторий называется `Xkeen-UI-umarcheh`, а не просто `Xkeen-UI`: в аккаунте уже есть форк `sllikmll/XKeen-UI` от `zxc-rv/XKeen-UI`, а GitHub не различает имена репозиториев только по регистру букв. Да, регистр есть, но свободы нет. Классика.
+В конфигурации и коде используются только репозитории `sllikmll/*` и публичный upstream Mihomo.
 
 ---
 
-## Что умеет этот форк
+## Возможности
 
-### Единая панель Mihomo на `8088`
+### Единая панель на `8088`
 
 | Раздел | Что делает |
 |---|---|
-| **Маршрутизация** | Runtime-переключение selector-групп Mihomo, плитки/списки, ping одного узла и всех узлов, inspector rule-provider payload |
-| **Mihomo** | Активный профиль `config.yaml`, обновление подписок, YAML-инструменты |
-| **Соединения** | Активные Mihomo connections, фильтрация, просмотр деталей, принудительный разрыв соединений |
-| **DAT GeoIP / GeoSite** | Обновление DAT/rule-provider, просмотр состава, редактирование локальных списков |
-| **Протоколы** | Импорт подключений через ссылку или файл и добавление managed proxy в selector’ы |
-| **Mihomo Генератор** | Генератор конфига встроен в общую панель без отдельной страницы/iframe |
+| **Маршрутизация** | Runtime-переключение selector-групп Mihomo, режим плиток/списков, ping одного узла и всех узлов |
+| **Mihomo** | Редактирование активного `config.yaml`, обновление подписок, YAML-инструменты |
+| **Соединения** | Активные Mihomo connections, фильтрация, детали, принудительный разрыв соединений |
+| **DAT GeoIP / GeoSite** | Обновление, просмотр состава, работа с локальными списками/rule-provider payload |
+| **WireGuard / Amnezia / Hysteria2 / VLESS / Trojan / Meiru / NaiveProxy** | Импорт подключений ссылкой или файлом и добавление в selector’ы |
+| **Mihomo Генератор** | Встроенный генератор конфига без iframe и без отдельной страницы |
 
-### Runtime selectors внутри панели
+### Runtime selectors
 
 Вкладка **Маршрутизация** работает с Mihomo API напрямую:
 
-- режим **Плитки** — по умолчанию;
+- режим **Плитки** — карточки нод/служебных proxy;
 - режим **Списки** — компактные строки `selector + dropdown`, чтобы много групп помещалось на одной странице;
-- выбор сервера из подписки прямо из dropdown;
 - ping рядом с узлом;
 - клик по ping обновляет задержку конкретного узла;
-- кнопка **Обновить все пинги**;
-- поддержка provider-нод из `/providers/proxies`, а не только top-level `/proxies`;
-- inspector справа показывает конечный payload rule-provider, включая decoded `.mrs` cache, а не бесполезную строку `RULE-SET -> selector`.
+- кнопка обновления всех ping’ов;
+- поддержка provider-нод из `/providers/proxies`;
+- inspector rule-provider показывает конечный payload, включая decoded `.mrs` cache, где это возможно.
 
-Подписочные узлы вроде `VLESS-amst` могут быть видны внутри selector-группы, но не существовать как отдельный ключ `/proxies/VLESS-amst`. Поэтому прямой запрос `/proxies/<name>/delay` может вернуть `404`. Форк мапит такие узлы через provider healthcheck. Да, пришлось пройти по минному полю, но теперь оно хотя бы размечено.
+### Managed proxy-подключения
 
-### Подключения по протоколам
+Вкладки протоколов позволяют добавлять подключения вручную:
 
-В панели есть вкладки:
+- **WireGuard** — `.conf` / `wireguard://`, injection как `type: wireguard`;
+- **Amnezia / AWG** — `.conf`, WireGuard-compatible outbound, AWG-метаданные сохраняются в registry;
+- **VLESS** — `vless://`, injection как `type: vless`;
+- **Trojan** — `trojan://`, injection как `type: trojan`;
+- **Hysteria2** — `hy2://` / `hysteria2://`, injection как `type: hysteria2`;
+- **NaiveProxy** — `naive+https://`, HTTP/TLS outbound;
+- **Meiru** — staging/registry для внешнего runtime, без native Mihomo injection.
 
-- **WireGuard**
-- **Amnezia**
-- **Hysteria2**
-- **VLESS**
-- **Trojan**
-- **Meiru**
-- **NaiveProxy**
-
-Для каждой вкладки:
-
-- импорт через ссылку или файл конфига;
-- список уже добавленных подключений этого протокола;
-- отображение protocol/type, имени, статуса Mihomo support;
-- видно, в каких selector’ах подключение сейчас доступно;
-- можно выбрать selector’ы, куда добавить подключение;
-- `Preview` показывает managed YAML;
-- `Применить в Mihomo` обновляет managed block в активном config.
-
-Managed registry хранится на роутере:
+Registry хранится на роутере:
 
 ```text
 /opt/var/lib/xkeen-ui/proxy-connections.json
 ```
 
-Mihomo-supported подключения вставляются внутрь существующего top-level `proxies:` между маркерами:
+Mihomo-supported подключения вставляются в активный `config.yaml` между маркерами:
 
 ```yaml
 # xkeen-managed-proxies:start
@@ -117,77 +95,28 @@ Mihomo-supported подключения вставляются внутрь су
 # xkeen-managed-proxies:end
 ```
 
-Важно: форк **не** добавляет второй top-level `proxies:` в конец файла. Это был бы YAML-гремлин с ножом.
+При удалении подключения Unified UI должен автоматически:
 
-### Поддержка протоколов сейчас
+1. удалить запись из registry;
+2. удалить generated proxy из managed-блока;
+3. удалить имя proxy из selector-групп;
+4. применить config;
+5. реально перезапустить Mihomo;
+6. проверить, что runtime перечитал конфиг.
 
-| Протокол | Импорт | Mihomo injection | Статус |
-|---|---:|---:|---|
-| WireGuard | `.conf` | `type: wireguard` | рабочий путь |
-| Amnezia / AWG | `.conf` | WireGuard-compatible outbound | рабочий путь, AWG-специфика сохраняется в registry |
-| VLESS | `vless://` | `type: vless` | рабочий путь |
-| Trojan | `trojan://` | `type: trojan` | parser/injection готовы, нужен серверный inbound для live-теста |
-| Hysteria2 | `hy2://`, `hysteria2://` | `type: hysteria2` | parser/injection готовы, нужен серверный inbound для live-теста |
-| NaiveProxy | `naive+https://` | HTTP/TLS outbound | parser/injection готовы, нужен серверный inbound для live-теста |
-| Meiru | `mieru://` / raw config | registry/staging | отдельный runtime зависит от клиента/бинаря, в Mihomo не injected |
-
-### Ручной список
-
-Вкладка **Маршрутизация** содержит редактор:
-
-```text
-/opt/etc/mihomo/rules/manual-proxy.yaml
-```
-
-Файл сохраняется через backend панели с backup. Больше не нужно лезть в SSH ради пары доменов.
-
-### Соединения
-
-Вкладка **Соединения** проксирует Mihomo `/connections`:
-
-- список активных соединений;
-- фильтрация по хостам/источникам;
-- детали соединения по клику;
-- цепочка proxy/rule;
-- принудительный разрыв конкретного соединения.
-
-### DAT GeoIP / GeoSite
-
-Отдельная вкладка для rule-provider/DAT:
-
-- обновление;
-- просмотр состава;
-- работа с локальными списками;
-- decoded cache для `.mrs`, когда Mihomo core умеет `convert-ruleset`.
-
-### Unified installer
-
-`install.sh` ставит не только Python-панель, но и standalone `mihomo`:
-
-- проверяет/ставит `python3`;
-- ставит Python-зависимости из bundled wheelhouse, а уже потом падает во внешний PyPI fallback;
-- ставит `Flask`, `gevent`, `gevent-websocket`;
-- ставит `lftp` для файлового менеджера;
-- ставит или проверяет `/opt/sbin/mihomo`;
-- создаёт стандартный layout `/opt/etc/mihomo`;
-- создаёт symlink `config.yaml -> profiles/default.yaml`;
-- создаёт `/opt/etc/mihomo/restart-mihomo.sh`;
-- прописывает команды validate/restart в env панели;
-- ставит optional xk-geodat;
-- проверяет optional proxy-client artifacts для внешних runtime;
-- регистрирует init-сервис `/opt/etc/init.d/S99xkeen-ui-umarcheh001`.
+Restart считается успешным только если PID Mihomo изменился. Просто “процесс всё ещё жив” — не успех, а дешёвый фокус.
 
 ---
 
-## Быстрая установка
+## Установка
 
 На Keenetic с Entware:
 
 ```sh
 cd /opt
-curl -fL -o xkeen-ui-routing.tar.gz \
-  "https://github.com/sllikmll/Xkeen-UI-umarcheh/releases/latest/download/xkeen-ui-routing.tar.gz"
-tar -xzf xkeen-ui-routing.tar.gz
+curl -fL -o unified-ui-routing.tar.gz \
+  "https://github.com/sllikmll/Unified-UI/releases/latest/download/unified-ui-routing.tar.gz"
+tar -xzf unified-ui-routing.tar.gz
 cd xkeen-ui
 sh install.sh
 ```
@@ -198,51 +127,60 @@ sh install.sh
 http://<IP_роутера>:8088/
 ```
 
-Если `8088` занят, installer попробует:
-
-```text
-8091, затем 8100–8199
-```
+Если `8088` занят, installer попробует запасные порты.
 
 ---
 
 ## Release asset
 
-Основной установочный архив:
+Основной архив:
 
 ```text
-xkeen-ui-routing.tar.gz
+unified-ui-routing.tar.gz
 ```
 
 Latest:
 
 ```text
-https://github.com/sllikmll/Xkeen-UI-umarcheh/releases/latest/download/xkeen-ui-routing.tar.gz
+https://github.com/sllikmll/Unified-UI/releases/latest/download/unified-ui-routing.tar.gz
 ```
 
 Checksum:
 
 ```text
-https://github.com/sllikmll/Xkeen-UI-umarcheh/releases/latest/download/xkeen-ui-routing.tar.gz.sha256
+https://github.com/sllikmll/Unified-UI/releases/latest/download/unified-ui-routing.tar.gz.sha256
 ```
 
 ---
 
-## Управление установкой Mihomo
+## Что ставит installer
 
-По умолчанию Mihomo ставится вместе с UI. Отключить:
+`install.sh` ставит UI и runtime-части одной сборкой:
+
+- Python-панель Flask/gevent;
+- bundled wheelhouse для Python-зависимостей с fallback во внешний PyPI;
+- standalone Mihomo core;
+- layout `/opt/etc/mihomo`;
+- symlink `config.yaml -> profiles/default.yaml`;
+- `/opt/etc/mihomo/restart-mihomo.sh`;
+- env-команды validate/restart для панели;
+- optional `xk-geodat`;
+- optional proxy-client artifacts для внешних runtime;
+- init-сервис `/opt/etc/init.d/S99unified-ui001`.
+
+Отключить установку Mihomo:
 
 ```sh
 XKEEN_INSTALL_MIHOMO=0 sh install.sh
 ```
 
-Принудительно переустановить бинарник:
+Принудительно переустановить Mihomo:
 
 ```sh
 XKEEN_INSTALL_MIHOMO_FORCE=1 sh install.sh
 ```
 
-Взять конкретный repo/tag:
+Задать repo/tag Mihomo:
 
 ```sh
 XKEEN_MIHOMO_REPO=sllikmll/mihomo \
@@ -250,215 +188,68 @@ XKEEN_MIHOMO_TAG=v1.19.29 \
 sh install.sh
 ```
 
-Взять конкретный asset URL:
-
-```sh
-XKEEN_MIHOMO_ASSET_URL=https://example.com/mihomo-linux-arm64.gz sh install.sh
-```
-
-Installer сначала пробует релизы форка:
-
-```text
-sllikmll/mihomo
-```
-
-Если там нет release assets, автоматически использует upstream:
-
-```text
-MetaCubeX/mihomo
-```
-
-Это сделано специально, потому что GitHub forks не наследуют upstream release assets.
-
----
-
-## Пути на роутере
-
-| Назначение | Путь |
-|---|---|
-| UI | `/opt/etc/xkeen-ui` |
-| UI init script | `/opt/etc/init.d/S99xkeen-ui-umarcheh001` |
-| UI env/state | `/opt/etc/xkeen-ui/devtools.env` |
-| Proxy connection registry | `/opt/var/lib/xkeen-ui/proxy-connections.json` |
-| Mihomo binary | `/opt/sbin/mihomo` |
-| Mihomo root | `/opt/etc/mihomo` |
-| Active profile | `/opt/etc/mihomo/profiles/default.yaml` |
-| Active config symlink | `/opt/etc/mihomo/config.yaml` |
-| Mihomo restart script | `/opt/etc/mihomo/restart-mihomo.sh` |
-| Manual proxy list | `/opt/etc/mihomo/rules/manual-proxy.yaml` |
-| Rule-provider cache | `/opt/var/cache/xkeen-ui/rule-providers/` |
-| UI logs | `/opt/var/log/xkeen-ui/` |
-| Mihomo logs | `/opt/var/log/mihomo/` |
-
-Ожидаемый symlink:
-
-```sh
-/opt/etc/mihomo/config.yaml -> profiles/default.yaml
-```
-
----
-
-## Управление сервисами
-
-Панель:
-
-```sh
-/opt/etc/init.d/S99xkeen-ui-umarcheh001 start
-/opt/etc/init.d/S99xkeen-ui-umarcheh001 stop
-/opt/etc/init.d/S99xkeen-ui-umarcheh001 restart
-/opt/etc/init.d/S99xkeen-ui-umarcheh001 status
-```
-
-Mihomo:
-
-```sh
-/opt/etc/mihomo/restart-mihomo.sh
-```
-
-Проверка Mihomo API:
-
-```sh
-wget -qO- http://127.0.0.1:9090/version
-```
-
-Проверка конфига:
-
-```sh
-/opt/sbin/mihomo -t -d /opt/etc/mihomo -f /opt/etc/mihomo/config.yaml
-```
-
----
-
-## Основные API панели для Mihomo
-
-| Endpoint | Что делает |
-|---|---|
-| `GET /api/mihomo/clash/status` | Проверяет Mihomo `/version` |
-| `GET /api/mihomo/clash/proxies` | Возвращает selectors + provider nodes |
-| `PUT /api/mihomo/clash/proxies/<selector>` | Переключает selector runtime |
-| `POST /api/mihomo/clash/proxies/<proxy>/delay` | Обновляет ping одного узла |
-| `POST /api/mihomo/clash/proxies/delay-all` | Обновляет ping всех видимых узлов |
-| `GET /api/mihomo/clash/connections` | Возвращает активные connections |
-| `DELETE /api/mihomo/clash/connections/<id>` | Разрывает конкретное соединение |
-| `GET /api/mihomo/manual-proxy` | Читает ручной список |
-| `POST /api/mihomo/manual-proxy` | Сохраняет ручной список с backup |
-| `GET /api/proxy-connections` | Список imported protocol connections |
-| `POST /api/proxy-connections/import` | Импорт ссылки/файла подключения |
-| `POST /api/proxy-connections/preview` | Preview generated managed YAML |
-| `POST /api/proxy-connections/apply` | Применяет managed proxies в Mihomo config |
-
 ---
 
 ## Обновление
 
-Если панель уже установлена:
+Через панель:
 
-```sh
-cd /opt
-curl -fL -o xkeen-ui-routing.tar.gz \
-  "https://github.com/sllikmll/Xkeen-UI-umarcheh/releases/latest/download/xkeen-ui-routing.tar.gz"
-tar -xzf xkeen-ui-routing.tar.gz
-cd xkeen-ui
-sh install.sh
+```text
+Настройки → Проверить обновления → Установить
 ```
 
-Installer сохраняет существующий порт панели и не перетирает пользовательский Mihomo profile, если он уже есть.
-
-На Keenetic нужен GNU `tar`; BusyBox `tar` слишком худой для части update-логики:
+Или вручную:
 
 ```sh
-opkg update
-opkg install tar
+/opt/etc/xkeen-ui/scripts/update_xkeen_ui.sh
+```
+
+Для ручного выбора repo/channel:
+
+```sh
+XKEEN_UI_UPDATE_REPO=sllikmll/Unified-UI \
+XKEEN_UI_UPDATE_CHANNEL=main \
+/opt/etc/xkeen-ui/scripts/update_xkeen_ui.sh
 ```
 
 ---
 
-## Сброс логина/пароля
+## Важные пути
 
-```sh
-/opt/etc/init.d/S99xkeen-ui-umarcheh001 stop
-rm -f /opt/etc/xkeen-ui/auth.json
-/opt/etc/init.d/S99xkeen-ui-umarcheh001 start
-```
-
-После этого панель снова предложит первичную настройку доступа.
-
----
-
-## Удаление
-
-Быстро удалить панель:
-
-```sh
-sh /opt/etc/xkeen-ui/uninstall.sh
-```
-
-Дополнительная ручная очистка, если нужно снести хвосты:
-
-```sh
-rm -rf /opt/var/log/xkeen-ui
-rm -f /opt/var/log/xkeen-ui.log
-rm -f /opt/var/run/xkeen-ui.pid
-rm -f /opt/bin/sysmon
-rm -f /opt/bin/entware-backup
-```
-
-Если Mihomo больше не нужен:
-
-```sh
-rm -f /opt/sbin/mihomo
-rm -rf /opt/etc/mihomo
-rm -rf /opt/var/log/mihomo
-rm -f /opt/var/run/mihomo.pid
-```
-
-Осторожно: удаление `/opt/etc/mihomo` снесёт профили, rule-providers и ручные списки. Без backup это будет не “очистка”, а маленький бытовой апокалипсис.
+| Путь | Назначение |
+|---|---|
+| `/opt/etc/xkeen-ui` | Код панели |
+| `/opt/var/lib/xkeen-ui` | State/registry |
+| `/opt/etc/mihomo/config.yaml` | Активный config Mihomo |
+| `/opt/etc/mihomo/profiles/default.yaml` | Default profile |
+| `/opt/etc/mihomo/rules/manual-proxy.yaml` | Ручной список |
+| `/opt/etc/mihomo/restart-mihomo.sh` | Реальный restart Mihomo |
+| `/opt/etc/init.d/S99unified-ui001` | Init-сервис панели |
 
 ---
 
 ## Разработка
 
-Сборка frontend:
+Локальная проверка:
 
 ```sh
+python3 -m py_compile xkeen-ui/app_factory.py
+python3 -m pytest -q tests/test_xkeen_service_control_fallback.py tests/test_proxy_connections_cleanup.py tests/test_app_routes_smoke.py
 npm run frontend:build
+node scripts/verify_frontend_build.mjs
 ```
 
-Генерация README-скриншотов из live read-only data:
+Сборка release-архива:
 
 ```sh
-node scripts/generate_readme_screenshots.mjs
-```
-
-Сборка пользовательского архива:
-
-```sh
-npm run archive:user
-```
-
-Быстрая проверка installer/API контрактов:
-
-```sh
-pytest tests/test_unified_mihomo_install_contract.py tests/test_install_script_pip_fallbacks.py -q
-```
-
-Расширенная проверка Mihomo/routing:
-
-```sh
-pytest -q tests -k 'mihomo or selector or install or routing'
+python3 scripts/build_user_archive.py \
+  --skip-frontend-build \
+  --version 2.4.x-unified \
+  --update-url https://github.com/sllikmll/Unified-UI/releases/download/v2.4.x-unified/unified-ui-routing.tar.gz
 ```
 
 ---
 
-## Статус проекта
+## Статус
 
-Этот форк — практичная сборка под рабочий Keenetic/Entware setup:
-
-- свежая Python-панель от `umarcheh001/Xkeen-UI`;
-- идеи runtime-селекторов и ручного списка из `zxc-rv/XKeen-UI`;
-- standalone Mihomo без legacy `xkeen` CLI;
-- одна панель на `8088` вместо двух отдельных UI;
-- managed protocol connections для WireGuard/Amnezia/VLESS/Trojan/Hysteria2/NaiveProxy;
-- честный staging для Meiru, пока отдельный runtime не закреплён.
-
-Фокус проекта — реальная эксплуатация на роутере, а не красивая демка, которая умирает при первом `restart`.
+Unified UI активно развивается под реальный Keenetic/Entware сценарий. Главный приоритет — чтобы кнопки в панели делали реальные действия на роутере, а не просто красиво врали в toast’ах.

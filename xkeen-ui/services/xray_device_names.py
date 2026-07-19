@@ -177,7 +177,7 @@ def extract_device_entries_from_device_list(data: Any) -> DeviceMap:
 def _fetch_router_device_list(timeout: float = DEFAULT_RCI_TIMEOUT) -> Any:
     req = urllib.request.Request(
         RCI_DEVICE_LIST_URL,
-        headers={"Accept": "application/json", "User-Agent": "XKeen-UI"},
+        headers={"Accept": "application/json", "User-Agent": "Unified-UI"},
         method="GET",
     )
     with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - local router RCI

@@ -492,7 +492,7 @@ private fun parseOutboundLatency(payload: JSONObject): OutboundLatency = Outboun
 private fun String.outboundsJsonObject(): JSONObject = try {
     JSONObject(this)
 } catch (error: Exception) {
-    throw OutboundsException("Xkeen UI вернул неожиданный ответ для outbounds.", error)
+    throw OutboundsException("Unified UI вернул неожиданный ответ для outbounds.", error)
 }
 
 private fun String.outboundsUrlEncoded(): String =

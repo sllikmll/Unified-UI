@@ -1,6 +1,6 @@
 # Xkeen Mobile Companion
 
-Android companion-приложение для Xkeen-UI. Каталог `android-companion/` уже является рабочим implementation baseline, а не пустым skeleton: проект собирается, проходит unit tests и содержит живой Compose shell с частичной backend-интеграцией.
+Android companion-приложение для Unified-UI. Каталог `android-companion/` уже является рабочим implementation baseline, а не пустым skeleton: проект собирается, проходит unit tests и содержит живой Compose shell с частичной backend-интеграцией.
 
 ## Текущее состояние на 2026-07-17
 
@@ -8,14 +8,14 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 - На `Launching` приложение загружает из app-private storage список узлов, их базовый metadata state и последний выбранный узел; trusted material выбранного узла проверяется server bootstrap до открытия `Ready`.
 - `Connections` поддерживает ручное добавление инстанса по `name` и `baseUrl`, повторный выбор и безопасное редактирование уже сохраненного узла без смены его `id` и metadata.
 - Сохраненный `Configured` status сам по себе не открывает `Ready`: marker доверенного восстановления хранится отдельно, а авторизация подтверждается backend bootstrap.
-- `Pair/Login` работает через реальный `MobileSessionPort`: сначала используется `GET /api/mobile/v1/bootstrap` и `POST/DELETE /api/mobile/v1/session`. Если установленный Xkeen UI еще закрывает mobile handshake ответом старой версии, приложение автоматически и без перехода в браузер использует совместимый `/api/auth/status` + CSRF-protected `/api/auth/login` flow.
-- При удалённом доступе через защищённый KeenDNS-прокси transport отличает Digest challenge Keenetic от `401` Xkeen UI. Экран последовательно запрашивает учётную запись Keenetic, продолжает исходный API-запрос с Digest authorization и только затем показывает отдельный вход Xkeen UI.
-- Экран входа проверяет узел автоматически. Локальный сценарий сразу показывает Xkeen UI; удалённый — только необходимые этапы `Keenetic → Xkeen UI`. Логин и пароль расположены вертикально, пароль можно показать, а клавиша `Done` запускает текущий этап.
+- `Pair/Login` работает через реальный `MobileSessionPort`: сначала используется `GET /api/mobile/v1/bootstrap` и `POST/DELETE /api/mobile/v1/session`. Если установленный Unified UI еще закрывает mobile handshake ответом старой версии, приложение автоматически и без перехода в браузер использует совместимый `/api/auth/status` + CSRF-protected `/api/auth/login` flow.
+- При удалённом доступе через защищённый KeenDNS-прокси transport отличает Digest challenge Keenetic от `401` Unified UI. Экран последовательно запрашивает учётную запись Keenetic, продолжает исходный API-запрос с Digest authorization и только затем показывает отдельный вход Unified UI.
+- Экран входа проверяет узел автоматически. Локальный сценарий сразу показывает Unified UI; удалённый — только необходимые этапы `Keenetic → Unified UI`. Логин и пароль расположены вертикально, пароль можно показать, а клавиша `Done` запускает текущий этап.
 - `Ready`-состояние построено как capability-aware workspace с компактной верхней панелью, отдельной кнопкой `Core` и безопасными действиями `start`, `stop`, `restart` через confirm dialog.
 - `start`, `stop`, `restart` и смена `Core` выполняются реальным `WebPanelServiceActionsPort`; успех показывается только после повторного чтения runtime/core state с сервера.
 - Подтверждение service/core action использует bounded polling: переходный snapshot во время перезапуска (в частности `stopped / Xray` при Mihomo → Xray) не считается немедленной ошибкой. Клиент ждёт server-confirmed целевое состояние до 15 секунд, не подменяя его локальным success.
 
-Этапы 5 и 6 закрыты 2026-07-16; приемка зафиксирована в [stage-5-closure-checklist.md](stage-5-closure-checklist.md) и [stage-6-closure-checklist.md](stage-6-closure-checklist.md). Service/core actions теперь backend-backed и server-confirmed. Реализация и пакет этапа 7 готовы, но финальная отметка требует повторного smoke-test на узле после совместного обновления Xkeen UI и APK; детали находятся в [stage-7-closure-checklist.md](stage-7-closure-checklist.md).
+Этапы 5 и 6 закрыты 2026-07-16; приемка зафиксирована в [stage-5-closure-checklist.md](stage-5-closure-checklist.md) и [stage-6-closure-checklist.md](stage-6-closure-checklist.md). Service/core actions теперь backend-backed и server-confirmed. Реализация и пакет этапа 7 готовы, но финальная отметка требует повторного smoke-test на узле после совместного обновления Unified UI и APK; детали находятся в [stage-7-closure-checklist.md](stage-7-closure-checklist.md).
 
 Этап 8 реализован и документирован в [stage-8-closure-checklist.md](stage-8-closure-checklist.md); финальная operational отметка требует device smoke-test согласованных backend archive и APK.
 
@@ -92,7 +92,7 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 - Android-реализация шифрует единый payload AES-GCM; неэкспортируемый ключ создается в Android Keystore. В app-private `SharedPreferences` попадает только ciphertext, а не raw token/cookie/CSRF.
 - Поврежденный ciphertext или недоступный ключ очищают unusable payload. Backup выключен через `android:allowBackup="false"`.
 - Пароль не записывается в storage и после успешного входа очищается из UI-state. Logout очищает material только активного узла.
-- Учётные данные Keenetic также не сохраняются: они существуют только в памяти процесса для повторной Digest-авторизации удалённых API-запросов. После перезапуска приложения защищённый KeenDNS-узел попросит вход Keenetic снова, не удаляя доверенную сессию Xkeen UI.
+- Учётные данные Keenetic также не сохраняются: они существуют только в памяти процесса для повторной Digest-авторизации удалённых API-запросов. После перезапуска приложения защищённый KeenDNS-узел попросит вход Keenetic снова, не удаляя доверенную сессию Unified UI.
 - Текущий demo flow сохраняет лишь случайный синтетический secret с `trustedForRestore = false`, поэтому он не может превратиться в автоматическую авторизацию.
 
 ### Политика automatic restore
@@ -109,7 +109,7 @@ Android companion-приложение для Xkeen-UI. Каталог `android-
 - Поддерживаются `.json` и `.jsonc`, а также заголовки `x-xkeen-jsonc` и `x-xkeen-jsonc-using`.
 - Панель действий включает `edit`, `validate`, `revert`, `save`, `apply`.
 - `validate` делает реальный authenticated/CSRF backend round-trip через `POST /api/mobile/v1/xray/routing/validate`. Backend запускает Xray preflight только во temporary confdir: routing-файл и DAT symlink assets не меняются, сервис не перезапускается.
-- Validate endpoint добавлен одновременно в backend и Android-клиент, поэтому один новый APK недостаточен: на роутере должен быть установлен актуальный `xkeen-ui-routing.tar.gz`. Старый backend отвечает `404`; приложение показывает для этого отдельный код `validation_endpoint_unavailable` и инструкцию обновить Xkeen UI.
+- Validate endpoint добавлен одновременно в backend и Android-клиент, поэтому один новый APK недостаточен: на роутере должен быть установлен актуальный `unified-ui-routing.tar.gz`. Старый backend отвечает `404`; приложение показывает для этого отдельный код `validation_endpoint_unavailable` и инструкцию обновить Unified UI.
 - Локальный JSONC syntax feedback, server Xray diagnostics и transport error хранятся отдельно. Diagnostics содержат source/severity/code/message и при наличии line/column/path/hint; active editor показывает их под текстом.
 - Во время проверки виден `Validating`, повторный tap заблокирован, а поздний ответ не может примениться к измененному или переключенному документу. `401` очищает session material выбранного узла и возвращает к `Pair/Login`.
 - `save` и `apply` используют production `WebPanelRoutingWritePort`. Оба запроса передают ожидаемые SHA-256 tokens для published и saved revision; внешний edit, stale draft и saved/published mismatch получают HTTP `409`, отдельный `Conflict` UI state и актуальный server snapshot.

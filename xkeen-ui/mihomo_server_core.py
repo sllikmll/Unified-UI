@@ -3,7 +3,7 @@
 # Исходный репозиторий: https://github.com/l-ptrol/mihomo_studio
 # Лицензия: MIT
 
-"""Compatibility facade for XKeen UI Mihomo backend.
+"""Compatibility facade for Unified UI Mihomo backend.
 
 The actual implementation now lives in smaller service modules:
   1. ``services.mihomo_proxy_parsers``   - proxy/WireGuard parsing helpers.

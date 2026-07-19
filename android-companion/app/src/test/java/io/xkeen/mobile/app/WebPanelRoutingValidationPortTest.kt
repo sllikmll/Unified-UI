@@ -118,7 +118,7 @@ class WebPanelRoutingValidationPortTest {
         }
 
         assertEquals("validation_endpoint_unavailable", error.diagnosticCode)
-        assertTrue(error.message.orEmpty().contains("Обновите Xkeen UI"))
+        assertTrue(error.message.orEmpty().contains("Обновите Unified UI"))
         assertTrue(error.cause is CompanionTransportException)
     }
 }

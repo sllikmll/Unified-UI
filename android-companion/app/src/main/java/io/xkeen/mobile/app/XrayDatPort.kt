@@ -250,7 +250,7 @@ internal class WebPanelXrayDatPort(
             ).body,
         )
     } catch (error: CompanionTransportException) {
-        if (error.failure.statusCode == 404) null to "Статус xk-geodat недоступен на этой версии Xkeen UI."
+        if (error.failure.statusCode == 404) null to "Статус xk-geodat недоступен на этой версии Unified UI."
         else throw error
     }
 
@@ -335,7 +335,7 @@ internal class DemoXrayDatPort : XrayDatPort {
 }
 
 internal fun parseXrayDatToolStatus(body: String): Pair<Boolean?, String?> {
-    val root = body.datJsonObject("Xkeen UI вернул неожиданный статус xk-geodat.")
+    val root = body.datJsonObject("Unified UI вернул неожиданный статус xk-geodat.")
     if (!root.optBoolean("ok", false)) return false to root.datErrorMessage()
     val installed = root.optBoolean("installed", false)
     val message = if (installed) null else {
@@ -346,7 +346,7 @@ internal fun parseXrayDatToolStatus(body: String): Pair<Boolean?, String?> {
 }
 
 internal fun parseXrayDatDirectory(body: String): List<XrayDatFile> {
-    val root = body.datJsonObject("Xkeen UI вернул неожиданный список DAT-файлов.")
+    val root = body.datJsonObject("Unified UI вернул неожиданный список DAT-файлов.")
     if (!root.optBoolean("ok", false)) throw XrayDatException(root.datErrorMessage())
     val directory = root.optString("path").trim().trimEnd('/')
     val items = root.optJSONArray("items") ?: return emptyList()
@@ -371,7 +371,7 @@ internal fun parseXrayDatDirectory(body: String): List<XrayDatFile> {
 }
 
 internal fun parseXrayDatTags(body: String, file: XrayDatFile): XrayDatTagsSnapshot {
-    val root = body.datJsonObject("Xkeen UI вернул неожиданный список DAT-тегов.")
+    val root = body.datJsonObject("Unified UI вернул неожиданный список DAT-тегов.")
     root.requireDatSuccess()
     val tagsJson = root.optJSONArray("tags")
     val tags = buildList {
@@ -396,7 +396,7 @@ internal fun parseXrayDatTags(body: String, file: XrayDatFile): XrayDatTagsSnaps
 }
 
 internal fun parseXrayDatItemsPage(body: String, file: XrayDatFile): XrayDatItemsPage {
-    val root = body.datJsonObject("Xkeen UI вернул неожиданное содержимое DAT-тега.")
+    val root = body.datJsonObject("Unified UI вернул неожиданное содержимое DAT-тега.")
     root.requireDatSuccess()
     return XrayDatItemsPage(
         file = file,
@@ -409,7 +409,7 @@ internal fun parseXrayDatItemsPage(body: String, file: XrayDatFile): XrayDatItem
 }
 
 internal fun parseXrayDatSearchPage(body: String, file: XrayDatFile): XrayDatSearchPage {
-    val root = body.datJsonObject("Xkeen UI вернул неожиданный результат поиска DAT.")
+    val root = body.datJsonObject("Unified UI вернул неожиданный результат поиска DAT.")
     root.requireDatSuccess()
     return XrayDatSearchPage(
         file = file,
@@ -425,7 +425,7 @@ internal fun parseXrayDatSearchPage(body: String, file: XrayDatFile): XrayDatSea
 }
 
 internal fun parseXrayDatLookupResult(body: String, file: XrayDatFile): XrayDatLookupResult {
-    val root = body.datJsonObject("Xkeen UI вернул неожиданный результат поиска по DAT-файлу.")
+    val root = body.datJsonObject("Unified UI вернул неожиданный результат поиска по DAT-файлу.")
     root.requireDatSuccess()
     val matchesJson = root.optJSONArray("matches")
     val matches = buildList {

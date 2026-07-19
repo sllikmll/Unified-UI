@@ -1,4 +1,4 @@
-"""Core path resolution helpers for Xkeen UI.
+"""Core path resolution helpers for Unified UI.
 
 PR1: moved from app.py so that app.py stays thin.
 """

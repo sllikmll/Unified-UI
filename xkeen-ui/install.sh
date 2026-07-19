@@ -4,7 +4,7 @@ set -e
 UI_DIR="/opt/etc/xkeen-ui"
 SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
 INIT_DIR="/opt/etc/init.d"
-INIT_SCRIPT_DEFAULT="$INIT_DIR/S99xkeen-ui-umarcheh001"
+INIT_SCRIPT_DEFAULT="$INIT_DIR/S99unified-ui001"
 LEGACY_INIT_SCRIPT="$INIT_DIR/S99xkeen-ui"
 INIT_SCRIPT="${XKEEN_UI_INIT_SCRIPT:-$INIT_SCRIPT_DEFAULT}"
 PYTHON_BIN="/opt/bin/python3"
@@ -16,7 +16,7 @@ is_our_ui_init_script() {
   [ -n "$_path" ] || return 1
   [ -f "$_path" ] || return 1
 
-  if grep -q 'XKEEN_UI_INIT_OWNER="umarcheh001/Xkeen-UI"' "$_path" 2>/dev/null; then
+  if grep -q 'XKEEN_UI_INIT_OWNER="sllikmll/Unified-UI"' "$_path" 2>/dev/null; then
     return 0
   fi
 
@@ -39,7 +39,7 @@ assert_safe_ui_init_target() {
     return 0
   fi
 
-  echo "[!] init-скрипт уже существует и не похож на Xkeen UI: $_path"
+  echo "[!] init-скрипт уже существует и не похож на Unified UI: $_path"
   echo "    Установщик прерывает запись, чтобы не перезаписать чужую панель."
   echo "    Используй XKEEN_UI_INIT_SCRIPT с отдельным именем, если нужен кастомный путь."
   return 1
@@ -1211,7 +1211,7 @@ if [ -f "$OLD_BUILD" ]; then
   OLD_CHANNEL="$(extract_json_field channel "$OLD_BUILD")"
 fi
 
-BUILD_REPO="${XKEEN_UI_UPDATE_REPO:-${OLD_REPO:-sllikmll/Xkeen-UI-umarcheh}}"
+BUILD_REPO="${XKEEN_UI_UPDATE_REPO:-${OLD_REPO:-sllikmll/Unified-UI}}"
 BUILD_CHANNEL="${XKEEN_UI_UPDATE_CHANNEL:-${OLD_CHANNEL:-stable}}"
 BUILD_VERSION="${XKEEN_UI_VERSION:-$OLD_VERSION}"
 BUILD_COMMIT="${XKEEN_UI_COMMIT:-$OLD_COMMIT}"
@@ -1455,7 +1455,7 @@ if [ -d "$SRC_MIHOMO_TEMPLATES" ]; then
   echo "[*] Устанавливаю шаблон Mihomo в $MIHOMO_TEMPLATES_DIR..."
   mkdir -p "$MIHOMO_TEMPLATES_DIR"
 
-  for old in config_2.yaml umarcheh001.yaml; do
+  for old in config_2.yaml; do
     if [ -f "$MIHOMO_TEMPLATES_DIR/$old" ]; then
       rm -f "$MIHOMO_TEMPLATES_DIR/$old" && echo "[*] Удалён старый шаблон $old"
     fi
@@ -1620,7 +1620,7 @@ fi
 # Отключить можно явно: XKEEN_INSTALL_MIHOMO=0 sh install.sh
 if [ "${XKEEN_INSTALL_MIHOMO:-1}" != "0" ]; then
   if [ -f "$UI_DIR/scripts/install_mihomo_core.sh" ]; then
-    echo "[*] Устанавливаю/проверяю Mihomo core для unified Xkeen UI..."
+    echo "[*] Устанавливаю/проверяю Mihomo core для unified Unified UI..."
     chmod +x "$UI_DIR/scripts/install_mihomo_core.sh" 2>/dev/null || true
     if ! sh "$UI_DIR/scripts/install_mihomo_core.sh"; then
       echo "[!] Mihomo core установить не удалось. Панель продолжит установку, но вкладки Mihomo будут работать только если core поставлен вручную."
@@ -1657,8 +1657,8 @@ echo "[*] Создаю init-скрипт $INIT_SCRIPT..."
 cat > "$INIT_SCRIPT" << 'EOF'
 #!/bin/sh
 
-# Xkeen UI dedicated init script.
-XKEEN_UI_INIT_OWNER="umarcheh001/Xkeen-UI"
+# Unified UI dedicated init script.
+XKEEN_UI_INIT_OWNER="sllikmll/Unified-UI"
 ENABLED=yes
 UI_DIR="/opt/etc/xkeen-ui"
 PYTHON_BIN="/opt/bin/python3"

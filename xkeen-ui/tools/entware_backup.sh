@@ -1,6 +1,6 @@
 #!/bin/sh
 # Backup Entware (/opt) to a tar.gz archive.
-# UI helper for XKeen UI command card.
+# UI helper for Unified UI command card.
 # Can be run from Interactive Shell:
 #   sh /opt/etc/xkeen-ui/tools/entware_backup.sh
 # or via wrapper:

@@ -27,10 +27,10 @@ class SelfUpdateGithubFallbackTests(unittest.TestCase):
     def test_fetch_latest_release_from_web_resolves_tag_and_assets(self):
         github = _reload("services.self_update.github")
 
-        repo = "umarcheh001/Xkeen-UI"
+        repo = "sllikmll/Unified-UI"
         latest_url = f"https://github.com/{repo}/releases/latest"
-        asset_url = f"https://github.com/{repo}/releases/latest/download/xkeen-ui-routing.tar.gz"
-        sha_url = f"https://github.com/{repo}/releases/latest/download/xkeen-ui-routing.tar.gz.sha256"
+        asset_url = f"https://github.com/{repo}/releases/latest/download/unified-ui-routing.tar.gz"
+        sha_url = f"https://github.com/{repo}/releases/latest/download/unified-ui-routing.tar.gz.sha256"
 
         def fake_req_no_redirect(url: str, *, timeout=None, headers=None):
             if url == latest_url:
@@ -57,8 +57,8 @@ class SelfUpdateGithubFallbackTests(unittest.TestCase):
             raise urllib.error.HTTPError(url, 404, "Not Found", None, None)
 
         with patch.object(github, "_cfg_github_web_base", lambda: "https://github.com"):
-            with patch.object(github, "_release_asset_candidates", lambda: ["xkeen-ui-routing.tar.gz"]):
-                with patch.object(github, "_sha_candidate_names", lambda asset_name: ["xkeen-ui-routing.tar.gz.sha256"]):
+            with patch.object(github, "_release_asset_candidates", lambda: ["unified-ui-routing.tar.gz"]):
+                with patch.object(github, "_sha_candidate_names", lambda asset_name: ["unified-ui-routing.tar.gz.sha256"]):
                     with patch.object(github, "_req_no_redirect", fake_req_no_redirect):
                         result = github._fetch_latest_release_from_web(repo, fallback_meta={"status": 500, "message": "api failed"})
 
@@ -75,7 +75,7 @@ class SelfUpdateGithubFallbackTests(unittest.TestCase):
         github = _reload("services.self_update.github")
 
         api_error = urllib.error.HTTPError(
-            "https://api.github.com/repos/umarcheh001/Xkeen-UI/releases/latest",
+            "https://api.github.com/repos/sllikmll/Unified-UI/releases/latest",
             500,
             "Server Error",
             None,
@@ -96,7 +96,7 @@ class SelfUpdateGithubFallbackTests(unittest.TestCase):
                 "latest": {
                     "tag": "v1.7.3",
                     "name": "v1.7.3",
-                    "html_url": "https://github.com/umarcheh001/Xkeen-UI/releases/tag/v1.7.3",
+                    "html_url": "https://github.com/sllikmll/Unified-UI/releases/tag/v1.7.3",
                     "published_at": None,
                     "draft": False,
                     "prerelease": False,
@@ -110,11 +110,11 @@ class SelfUpdateGithubFallbackTests(unittest.TestCase):
 
         with patch.object(github, "_req_json", fake_req_json):
             with patch.object(github, "_fetch_latest_release_from_web", fake_web_fallback):
-                result = github._fetch_latest_release("umarcheh001/Xkeen-UI")
+                result = github._fetch_latest_release("sllikmll/Unified-UI")
 
         self.assertTrue(result["ok"])
         self.assertEqual(result["latest"]["tag"], "v1.7.3")
-        self.assertEqual(seen["repo"], "umarcheh001/Xkeen-UI")
+        self.assertEqual(seen["repo"], "sllikmll/Unified-UI")
         self.assertEqual(seen["fallback_meta"]["status"], 500)
         self.assertIn("Internal Server Error", seen["fallback_meta"]["message"])
 

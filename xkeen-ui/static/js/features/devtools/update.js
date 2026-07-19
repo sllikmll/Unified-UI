@@ -512,7 +512,7 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
         title: '⚠️ Release не найден',
         lines: [
           'Для выбранного канала нет опубликованного release или нужного install-архива.',
-          'Проверь repo/channel и наличие xkeen-ui-routing.tar.gz в GitHub Releases.',
+          'Проверь repo/channel и наличие unified-ui-routing.tar.gz в GitHub Releases.',
         ],
       };
     }
@@ -906,12 +906,12 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
     if (kind !== 'main') {
       try {
         const assets = Array.isArray(latest.assets) ? latest.assets : [];
-        const wanted = ['xkeen-ui-routing.tar.gz', 'xkeen-ui.tar.gz'];
+        const wanted = ['unified-ui-routing.tar.gz', 'xkeen-ui.tar.gz'];
         const haveAsset = assets.some((a) => {
           const name = a && a.name ? String(a.name) : '';
           return wanted.indexOf(name) >= 0;
         });
-        if (!haveAsset) hintParts.push('в релизе нет xkeen-ui-routing.tar.gz / xkeen-ui.tar.gz');
+        if (!haveAsset) hintParts.push('в релизе нет unified-ui-routing.tar.gz / xkeen-ui.tar.gz');
       } catch (e) {}
     }
 

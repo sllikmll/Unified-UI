@@ -41,8 +41,8 @@ internal class WebPanelRoutingValidationPort(
         } catch (error: CompanionTransportException) {
             if (error.failure.statusCode == 404) {
                 throw RoutingValidationException(
-                    message = "На роутере установлена версия Xkeen UI без API проверки routing. " +
-                        "Обновите Xkeen UI на роутере и повторите проверку.",
+                    message = "На роутере установлена версия Unified UI без API проверки routing. " +
+                        "Обновите Unified UI на роутере и повторите проверку.",
                     cause = error,
                     diagnosticCode = "validation_endpoint_unavailable",
                 )
@@ -65,7 +65,7 @@ internal fun parseRoutingValidationResponse(body: String): RoutingServerValidati
         JSONObject(body)
     } catch (error: Exception) {
         throw RoutingValidationException(
-            "Xkeen UI вернул неожиданный ответ на проверку routing-конфига.",
+            "Unified UI вернул неожиданный ответ на проверку routing-конфига.",
             error,
         )
     }
@@ -73,16 +73,16 @@ internal fun parseRoutingValidationResponse(body: String): RoutingServerValidati
         val error = payload.optJSONObject("error")
         throw RoutingValidationException(
             error?.optString("message")?.trim()?.takeIf(String::isNotBlank)
-                ?: "Xkeen UI отклонил проверку routing-конфига.",
+                ?: "Unified UI отклонил проверку routing-конфига.",
         )
     }
 
     val data = payload.optJSONObject("data") ?: throw RoutingValidationException(
-        "В ответе Xkeen UI отсутствуют данные проверки routing-конфига.",
+        "В ответе Unified UI отсутствуют данные проверки routing-конфига.",
     )
     if (!data.has("valid")) {
         throw RoutingValidationException(
-            "В ответе Xkeen UI отсутствует результат проверки routing-конфига.",
+            "В ответе Unified UI отсутствует результат проверки routing-конфига.",
         )
     }
     val valid = data.optBoolean("valid")
@@ -116,12 +116,12 @@ private fun parseRoutingDiagnostics(items: JSONArray?): List<RoutingDiagnostic> 
     return buildList {
         for (index in 0 until items.length()) {
             val item = items.optJSONObject(index) ?: throw RoutingValidationException(
-                "Xkeen UI вернул некорректную диагностику routing-конфига.",
+                "Unified UI вернул некорректную диагностику routing-конфига.",
             )
             val message = item.optString("message").trim()
             if (message.isBlank()) {
                 throw RoutingValidationException(
-                    "Xkeen UI вернул диагностику routing-конфига без текста ошибки.",
+                    "Unified UI вернул диагностику routing-конфига без текста ошибки.",
                 )
             }
             add(

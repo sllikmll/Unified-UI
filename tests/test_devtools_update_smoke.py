@@ -44,7 +44,7 @@ class DevtoolsUpdateSmokeTests(unittest.TestCase):
                 "get_build_info",
                 return_value={
                     "version": "1.6.0",
-                    "repo": "umarcheh001/Xkeen-UI",
+                    "repo": "sllikmll/Unified-UI",
                     "channel": "stable",
                     "commit": "abc1234",
                 },
@@ -60,7 +60,7 @@ class DevtoolsUpdateSmokeTests(unittest.TestCase):
         payload = response.get_json()
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["build"]["version"], "1.6.0")
-        self.assertEqual(payload["settings"]["repo"], "umarcheh001/Xkeen-UI")
+        self.assertEqual(payload["settings"]["repo"], "sllikmll/Unified-UI")
         self.assertEqual(payload["settings"]["channel"], "stable")
         self.assertIn("capabilities", payload)
         self.assertIn("tar_exclude", payload["capabilities"])
@@ -119,7 +119,7 @@ class DevtoolsUpdateSmokeTests(unittest.TestCase):
             ), patch.object(
                 devtools.subprocess, "Popen", fake_popen
             ), patch.object(
-                devtools, "get_build_info", return_value={"repo": "umarcheh001/Xkeen-UI", "channel": "stable"}
+                devtools, "get_build_info", return_value={"repo": "sllikmll/Unified-UI", "channel": "stable"}
             ):
                 client = app.test_client()
                 response = client.post("/api/devtools/update/run", json={"skip_backup": True})
@@ -167,12 +167,12 @@ class DevtoolsUpdateSmokeTests(unittest.TestCase):
             "tag": "v1.7.4",
             "published_at": "2026-04-11T00:00:00Z",
             "asset": {
-                "name": "xkeen-ui-routing.tar.gz",
-                "download_url": "https://github.com/umarcheh001/Xkeen-UI/releases/download/v1.7.4/xkeen-ui-routing.tar.gz",
+                "name": "unified-ui-routing.tar.gz",
+                "download_url": "https://github.com/sllikmll/Unified-UI/releases/download/v1.7.4/unified-ui-routing.tar.gz",
             },
             "sha256_asset": {
                 "kind": "sidecar",
-                "download_url": "https://github.com/umarcheh001/Xkeen-UI/releases/download/v1.7.4/xkeen-ui-routing.tar.gz.sha256",
+                "download_url": "https://github.com/sllikmll/Unified-UI/releases/download/v1.7.4/unified-ui-routing.tar.gz.sha256",
             },
         }
 
@@ -191,7 +191,7 @@ class DevtoolsUpdateSmokeTests(unittest.TestCase):
                 "get_build_info",
                 return_value={
                     "version": "1.6.0",
-                    "repo": "umarcheh001/Xkeen-UI",
+                    "repo": "sllikmll/Unified-UI",
                     "channel": "stable",
                     "commit": "abc1234",
                 },
@@ -234,8 +234,8 @@ class DevtoolsUpdateSmokeTests(unittest.TestCase):
             "tag": "v1.7.4",
             "published_at": "2026-04-11T00:00:00Z",
             "asset": {
-                "name": "xkeen-ui-routing.tar.gz",
-                "download_url": "https://github.com/umarcheh001/Xkeen-UI/releases/download/v1.7.4/xkeen-ui-routing.tar.gz",
+                "name": "unified-ui-routing.tar.gz",
+                "download_url": "https://github.com/sllikmll/Unified-UI/releases/download/v1.7.4/unified-ui-routing.tar.gz",
             },
             "sha256_asset": None,
         }
@@ -255,7 +255,7 @@ class DevtoolsUpdateSmokeTests(unittest.TestCase):
                 "get_build_info",
                 return_value={
                     "version": "1.6.0",
-                    "repo": "umarcheh001/Xkeen-UI",
+                    "repo": "sllikmll/Unified-UI",
                     "channel": "stable",
                     "commit": "abc1234",
                 },

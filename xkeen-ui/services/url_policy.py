@@ -170,7 +170,7 @@ def download_to_file_with_policy(
     max_bytes: int | None,
     *,
     policy: URLPolicy,
-    user_agent: str = "Xkeen-UI",
+    user_agent: str = "Unified-UI",
     timeout: int = 45,
 ) -> int:
     ok, reason = is_url_allowed(url, policy)

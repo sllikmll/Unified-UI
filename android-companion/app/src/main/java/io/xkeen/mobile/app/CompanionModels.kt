@@ -754,9 +754,9 @@ data class CompanionUiState(
  * fixtures.  The controller replaces this state only after server reads have confirmed it.
  */
 fun unloadedDashboardState(): DashboardState = DashboardState(
-    instanceLabel = "Xkeen UI",
+    instanceLabel = "Unified UI",
     endpoint = "",
-    statusSummary = "Ожидание подключения к Xkeen UI",
+    statusSummary = "Ожидание подключения к Unified UI",
     serviceState = ServiceState.Unknown,
     activeCore = "Не определено",
     version = "Не загружено",
@@ -770,19 +770,19 @@ fun unloadedDashboardState(): DashboardState = DashboardState(
 fun unloadedRoutingState(): RoutingState = RoutingState(
     documents = emptyList(),
     selectedDocumentId = "",
-    validation = RoutingValidation(message = "Ожидаем список routing-конфигураций с Xkeen UI…"),
+    validation = RoutingValidation(message = "Ожидаем список routing-конфигураций с Unified UI…"),
 )
 
 fun unloadedInboundsState(): InboundsState = InboundsState(
-    message = "Ожидаем загрузку режима inbounds с Xkeen UI…",
+    message = "Ожидаем загрузку режима inbounds с Unified UI…",
 )
 
 fun unloadedOutboundsState(): OutboundsState = OutboundsState(
-    message = "Ожидаем загрузку proxy-узлов с Xkeen UI…",
+    message = "Ожидаем загрузку proxy-узлов с Unified UI…",
 )
 
 fun unloadedXraySubscriptionsState(): XraySubscriptionsState = XraySubscriptionsState(
-    message = "Ожидаем загрузку подписок Xray с Xkeen UI…",
+    message = "Ожидаем загрузку подписок Xray с Unified UI…",
 )
 
 fun unloadedXrayDatState(): XrayDatState = XrayDatState()

@@ -7,7 +7,7 @@ Updated: 2026-07-16
 
 ## Граница alpha
 
-В alpha Android использует browser-compatible сессию Xkeen UI: session cookie и CSRF token. Это сознательно не device pairing protocol и не mobile-native token contract.
+В alpha Android использует browser-compatible сессию Unified UI: session cookie и CSRF token. Это сознательно не device pairing protocol и не mobile-native token contract.
 
 - Пароль существует только во время `POST` login и не попадает ни в `CompanionUiState` после успеха, ни в persistent storage.
 - Cookie и CSRF хранятся только в per-connection encrypted payload с неэкспортируемым ключом Android Keystore.

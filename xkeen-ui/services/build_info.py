@@ -61,7 +61,7 @@ def read_build_info(ui_state_dir: Optional[str] = None) -> Dict[str, Any]:
     Never raises. Always returns a dict with stable keys.
     """
 
-    env_repo = os.environ.get("XKEEN_UI_UPDATE_REPO") or "sllikmll/Xkeen-UI-umarcheh"
+    env_repo = os.environ.get("XKEEN_UI_UPDATE_REPO") or "sllikmll/Unified-UI"
     env_channel = os.environ.get("XKEEN_UI_UPDATE_CHANNEL") or "stable"
 
     info: Dict[str, Any] = {

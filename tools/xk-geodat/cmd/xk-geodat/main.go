@@ -73,7 +73,7 @@ func hasHelp(args []string) bool {
 }
 
 func printRootUsage(w io.Writer) {
-	fmt.Fprintln(w, "xk-geodat — GeoIP/GeoSite .dat inspector for Xray/Xkeen-UI")
+	fmt.Fprintln(w, "xk-geodat — GeoIP/GeoSite .dat inspector for Unified UI")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Usage:")
 	fmt.Fprintln(w, "  xk-geodat <command> [flags]")

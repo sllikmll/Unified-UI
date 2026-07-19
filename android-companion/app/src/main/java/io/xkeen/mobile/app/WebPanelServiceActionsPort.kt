@@ -4,7 +4,7 @@ import kotlinx.coroutines.delay
 import org.json.JSONObject
 
 /**
- * Write adapter for the existing Xkeen UI service-control surface.
+ * Write adapter for the existing Unified UI service-control surface.
  *
  * A successful POST is only an accepted command. Every public operation performs fresh status
  * and core reads afterwards and returns that confirmed server snapshot to the controller.
@@ -156,7 +156,7 @@ internal fun parseServiceRuntimeStatus(body: String): ServiceRuntimeStatus {
         JSONObject(body)
     } catch (error: Exception) {
         throw ServiceActionException(
-            "Xkeen UI вернул неожиданный ответ при проверке состояния сервиса.",
+            "Unified UI вернул неожиданный ответ при проверке состояния сервиса.",
             error,
         )
     }
@@ -183,13 +183,13 @@ internal fun requireAcceptedServiceCommand(body: String, operation: String) {
         JSONObject(body)
     } catch (error: Exception) {
         throw ServiceActionException(
-            "Xkeen UI вернул неожиданный ответ на $operation.",
+            "Unified UI вернул неожиданный ответ на $operation.",
             error,
         )
     }
     if (!payload.optBoolean("ok", false)) {
         val message = payload.optString("error").trim().takeIf(String::isNotBlank)
-            ?: "Xkeen UI отклонил $operation."
+            ?: "Unified UI отклонил $operation."
         throw ServiceActionException(message)
     }
 }

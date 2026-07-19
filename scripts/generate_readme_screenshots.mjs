@@ -65,7 +65,7 @@ function frame({title, subtitle, active='Маршрутизация', body, side
   const tabs = ['Маршрутизация','Mihomo','Соединения','DAT GeoIP / GeoSite','WireGuard','Amnezia','Hysteria2','VLESS','Trojan','Meiru','NaiveProxy','Интерфейс','Настройки','Mihomo Генератор'];
   return `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>
   <div class="app">
-    <header><div class="brand"><span class="logo"></span><b>Xkeen UI Unified</b></div><div class="top-actions"><span class="pill">v2.4.11-unified</span><span class="pill green">Mihomo v1.19.29</span><button>UI</button><button>DevTools</button><button class="danger">Выйти</button></div></header>
+    <header><div class="brand"><span class="logo"></span><b>Unified UI</b></div><div class="top-actions"><span class="pill">v2.4.11-unified</span><span class="pill green">Mihomo v1.19.29</span><button>UI</button><button>DevTools</button><button class="danger">Выйти</button></div></header>
     <nav>${tabs.map(t=>`<span class="tab ${t===active?'active':''}">${esc(t)}</span>`).join('')}</nav>
     <main><div class="content ${side?'with-side':''}"><section class="hero"><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></section>${body}</div>${side ? `<aside>${side}</aside>` : ''}</main>
   </div></body></html>`;

@@ -1,4 +1,4 @@
-# Xkeen-UI Mobile Companion Backend Contract Gap Analysis
+# Unified-UI Mobile Companion Backend Contract Gap Analysis
 
 Status: working analysis
 Updated: 2026-07-16

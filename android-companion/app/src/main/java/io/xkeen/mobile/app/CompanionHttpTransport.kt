@@ -298,7 +298,7 @@ internal fun requireSuccessfulCompanionResponse(
     val failure = when {
         response.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED -> CompanionTransportFailure(
             kind = CompanionTransportFailureKind.AuthenticationRequired,
-            userMessage = serverError.message ?: "Требуется вход в Xkeen UI.",
+            userMessage = serverError.message ?: "Требуется вход в Unified UI.",
             statusCode = response.statusCode,
             serverCode = serverError.code,
         )
@@ -306,7 +306,7 @@ internal fun requireSuccessfulCompanionResponse(
         response.statusCode == HttpURLConnection.HTTP_FORBIDDEN -> CompanionTransportFailure(
             kind = CompanionTransportFailureKind.AccessDenied,
             userMessage = serverError.message
-                ?: "У текущей сессии нет доступа к этому разделу Xkeen UI.",
+                ?: "У текущей сессии нет доступа к этому разделу Unified UI.",
             statusCode = response.statusCode,
             serverCode = serverError.code,
         )
@@ -314,7 +314,7 @@ internal fun requireSuccessfulCompanionResponse(
         response.statusCode == 428 -> CompanionTransportFailure(
             kind = CompanionTransportFailureKind.SetupRequired,
             userMessage = serverError.message
-                ?: "На Xkeen UI нужно завершить начальную настройку.",
+                ?: "На Unified UI нужно завершить начальную настройку.",
             statusCode = response.statusCode,
             serverCode = serverError.code,
         )
@@ -326,9 +326,9 @@ internal fun requireSuccessfulCompanionResponse(
                 CompanionTransportFailureKind.HttpError
             },
             userMessage = if (response.statusCode in 500..599) {
-                "Xkeen UI временно не может обработать запрос. Попробуйте ещё раз."
+                "Unified UI временно не может обработать запрос. Попробуйте ещё раз."
             } else {
-                serverError.message ?: "Xkeen UI вернул ошибку HTTP ${response.statusCode}."
+                serverError.message ?: "Unified UI вернул ошибку HTTP ${response.statusCode}."
             },
             statusCode = response.statusCode,
             serverCode = serverError.code,
@@ -336,7 +336,7 @@ internal fun requireSuccessfulCompanionResponse(
 
         response.isHtmlResponse() && !allowHtmlResponse -> CompanionTransportFailure(
             kind = CompanionTransportFailureKind.AuthenticationRequired,
-            userMessage = "Xkeen UI вернул страницу входа. Требуется авторизация.",
+            userMessage = "Unified UI вернул страницу входа. Требуется авторизация.",
             statusCode = response.statusCode,
         )
 
@@ -386,12 +386,12 @@ internal fun resolveCompanionEndpoint(baseUrl: String, endpoint: String): URI {
     val base = normalizeCompanionBaseUrl(baseUrl)
     val endpointValue = endpoint.trim()
     if (endpointValue.isBlank()) {
-        throw invalidBaseUrl("Не указан путь запроса Xkeen UI.")
+        throw invalidBaseUrl("Не указан путь запроса Unified UI.")
     }
     val endpointUri = try {
         URI.create(endpointValue)
     } catch (error: IllegalArgumentException) {
-        throw invalidBaseUrl("Некорректный путь запроса Xkeen UI.", error)
+        throw invalidBaseUrl("Некорректный путь запроса Unified UI.", error)
     }
     if (
         endpointUri.isAbsolute ||
@@ -399,28 +399,28 @@ internal fun resolveCompanionEndpoint(baseUrl: String, endpoint: String): URI {
         endpointUri.rawFragment != null ||
         endpointUri.rawPath.orEmpty().split('/').any { it == ".." }
     ) {
-        throw invalidBaseUrl("Некорректный путь запроса Xkeen UI.")
+        throw invalidBaseUrl("Некорректный путь запроса Unified UI.")
     }
 
     val baseRoot = URI.create("${base.toString().trimEnd('/')}/")
     val resolved = baseRoot.resolve(endpointUri.toString().trimStart('/')).normalize()
     val basePath = base.rawPath.orEmpty().trimEnd('/')
     if (basePath.isNotEmpty() && !resolved.rawPath.orEmpty().startsWith("$basePath/")) {
-        throw invalidBaseUrl("Путь запроса выходит за пределы адреса Xkeen UI.")
+        throw invalidBaseUrl("Путь запроса выходит за пределы адреса Unified UI.")
     }
     return resolved
 }
 
 internal fun normalizeCompanionBaseUrl(baseUrl: String): URI {
     val value = baseUrl.trim()
-    if (value.isBlank()) throw invalidBaseUrl("Не указан адрес Xkeen UI.")
+    if (value.isBlank()) throw invalidBaseUrl("Не указан адрес Unified UI.")
 
     val parsed = try {
         URI.create(value)
     } catch (error: IllegalArgumentException) {
-        throw invalidBaseUrl("Некорректный адрес Xkeen UI.", error)
+        throw invalidBaseUrl("Некорректный адрес Unified UI.", error)
     }
-    val scheme = parsed.scheme?.lowercase() ?: throw invalidBaseUrl("Некорректный адрес Xkeen UI.")
+    val scheme = parsed.scheme?.lowercase() ?: throw invalidBaseUrl("Некорректный адрес Unified UI.")
     val host = parsed.host?.takeIf { it.isNotBlank() }
     if (
         scheme !in setOf("http", "https") ||
@@ -429,12 +429,12 @@ internal fun normalizeCompanionBaseUrl(baseUrl: String): URI {
         parsed.rawQuery != null ||
         parsed.rawFragment != null
     ) {
-        throw invalidBaseUrl("Некорректный адрес Xkeen UI.")
+        throw invalidBaseUrl("Некорректный адрес Unified UI.")
     }
     return try {
         URI(scheme, null, host, parsed.port, parsed.path.orEmpty().trimEnd('/'), null, null)
     } catch (error: Exception) {
-        throw invalidBaseUrl("Некорректный адрес Xkeen UI.", error)
+        throw invalidBaseUrl("Некорректный адрес Unified UI.", error)
     }
 }
 
@@ -442,7 +442,7 @@ internal fun Throwable.toCompanionTransportException(): CompanionTransportExcept
     val failure = when (this) {
         is SocketTimeoutException -> CompanionTransportFailure(
             CompanionTransportFailureKind.Timeout,
-            "Xkeen UI не ответил вовремя. Проверьте сеть и повторите запрос.",
+            "Unified UI не ответил вовремя. Проверьте сеть и повторите запрос.",
         )
 
         is UnknownHostException,
@@ -451,12 +451,12 @@ internal fun Throwable.toCompanionTransportException(): CompanionTransportExcept
         is SocketException,
         -> CompanionTransportFailure(
             CompanionTransportFailureKind.Offline,
-            "Не удалось подключиться к Xkeen UI. Проверьте адрес, сеть или VPN.",
+            "Не удалось подключиться к Unified UI. Проверьте адрес, сеть или VPN.",
         )
 
         else -> CompanionTransportFailure(
             CompanionTransportFailureKind.UnexpectedResponse,
-            "Не удалось выполнить запрос к Xkeen UI. Попробуйте ещё раз.",
+            "Не удалось выполнить запрос к Unified UI. Попробуйте ещё раз.",
         )
     }
     return CompanionTransportException(failure, this)

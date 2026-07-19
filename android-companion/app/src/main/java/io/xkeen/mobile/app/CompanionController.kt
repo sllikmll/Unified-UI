@@ -563,7 +563,7 @@ internal class CompanionController(
                     documents = documents,
                     selectedDocumentId = selected.id,
                     mode = RoutingMode.Read,
-                    validation = RoutingValidation(message = "Загружаем ${selected.title} с Xkeen UI…"),
+                    validation = RoutingValidation(message = "Загружаем ${selected.title} с Unified UI…"),
                     preview = null,
                     remoteDirectory = index.directory,
                     isRefreshing = false,
@@ -582,7 +582,7 @@ internal class CompanionController(
         state = state.copy(
             inbounds = current.copy(
                 isLoading = true,
-                message = "Загружаем режим inbounds с Xkeen UI…",
+                message = "Загружаем режим inbounds с Unified UI…",
                 error = null,
             ),
         )
@@ -744,7 +744,7 @@ internal class CompanionController(
         state = state.copy(
             outbounds = current.copy(
                 isLoading = true,
-                message = "Загружаем proxy-узлы с Xkeen UI…",
+                message = "Загружаем proxy-узлы с Unified UI…",
                 error = null,
             ),
         )
@@ -2095,9 +2095,9 @@ internal class CompanionController(
                         message = if (content.hasSavedDraft) {
                             "С сервера загружен сохранённый черновик. Проверьте его перед применением."
                         } else if (content.usesJsoncSidecar) {
-                            "JSONC загружен с Xkeen UI. Комментарии сохранены."
+                            "JSONC загружен с Unified UI. Комментарии сохранены."
                         } else {
-                            "Конфигурация загружена с Xkeen UI."
+                            "Конфигурация загружена с Unified UI."
                         },
                     ),
                 ),
@@ -2183,7 +2183,7 @@ internal class CompanionController(
                 isValidationInFlight = true,
                 validation = RoutingValidation(
                     state = RoutingValidationState.Validating,
-                    message = "Проверяем ${document.title} на сервере Xkeen UI…",
+                    message = "Проверяем ${document.title} на сервере Unified UI…",
                 ),
             ),
         )
@@ -2690,7 +2690,7 @@ internal class CompanionController(
         closeSession(
             result = dependencies.session.expire(connection),
             phase = AppPhase.PairLogin,
-            message = "Сессия на Xkeen UI истекла. Войдите снова.",
+            message = "Сессия на Unified UI истекла. Войдите снова.",
         )
         return true
     }
@@ -3136,7 +3136,7 @@ internal class CompanionController(
 
     private fun applyCoreStatusLoadFailure(error: Throwable) {
         val message = error.toCompanionLoadMessage(
-            fallback = "Не удалось обновить состояние Xkeen UI.",
+            fallback = "Не удалось обновить состояние Unified UI.",
         )
         val severity = when ((error as? CompanionTransportException)?.failure?.kind) {
             CompanionTransportFailureKind.KeeneticAuthenticationRequired,
@@ -3150,7 +3150,7 @@ internal class CompanionController(
         state = state.copy(
             dashboard = state.dashboard.copy(
                 statusSummary = message,
-                lastOperation = "Не удалось обновить состояние Xkeen UI",
+                lastOperation = "Не удалось обновить состояние Unified UI",
                 lastError = message,
             ),
             diagnostics = state.diagnostics.replaceDiagnostic(
@@ -3440,11 +3440,11 @@ private fun List<Connection>.replaceConnection(updated: Connection): List<Connec
     map { connection -> if (connection.id == updated.id) updated else connection }
 
 private fun Throwable.toRoutingLoadMessage(): String = toCompanionLoadMessage(
-    fallback = "Не удалось загрузить конфигурации с Xkeen UI.",
+    fallback = "Не удалось загрузить конфигурации с Unified UI.",
 )
 
 private fun Throwable.toRoutingValidationMessage(): String = toCompanionLoadMessage(
-    fallback = "Не удалось получить результат проверки с Xkeen UI. Повторите попытку.",
+    fallback = "Не удалось получить результат проверки с Unified UI. Повторите попытку.",
 )
 
 private fun Throwable.toCompanionLoadMessage(fallback: String): String =

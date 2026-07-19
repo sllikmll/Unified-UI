@@ -13,9 +13,9 @@ import subprocess
 from typing import Any, Dict
 
 
-UI_INIT_SCRIPT_DEFAULT = "/opt/etc/init.d/S99xkeen-ui-umarcheh001"
+UI_INIT_SCRIPT_DEFAULT = "/opt/etc/init.d/S99unified-ui001"
 UI_INIT_SCRIPT_LEGACY = "/opt/etc/init.d/S99xkeen-ui"
-UI_INIT_OWNER_MARKER = 'XKEEN_UI_INIT_OWNER="umarcheh001/Xkeen-UI"'
+UI_INIT_OWNER_MARKER = 'XKEEN_UI_INIT_OWNER="sllikmll/Unified-UI"'
 UI_PID_FILE = os.environ.get("XKEEN_UI_PID_FILE", "/opt/var/run/xkeen-ui.pid")
 # Optional: custom command to control UI in dev (e.g. launchctl/systemd). Supports "{action}" placeholder.
 UI_CONTROL_CMD = os.environ.get("XKEEN_UI_CONTROL_CMD") or os.environ.get("XKEEN_UI_RESTART_CMD")

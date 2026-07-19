@@ -184,7 +184,7 @@ internal fun parseInboundsApplyResult(
 private fun String.inboundsJsonObject(): JSONObject = try {
     JSONObject(this)
 } catch (error: Exception) {
-    throw InboundsException("Xkeen UI вернул неожиданный ответ для режима inbounds.", error)
+    throw InboundsException("Unified UI вернул неожиданный ответ для режима inbounds.", error)
 }
 
 private fun String.urlEncoded(): String =

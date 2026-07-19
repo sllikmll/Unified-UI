@@ -49,7 +49,7 @@ internal class WebPanelXrayConfigSource(
             JSONObject(response.body)
         } catch (error: Exception) {
             throw XrayConfigException(
-                "Xkeen UI вернул неожиданный ответ. Возможно, требуется авторизация.",
+                "Unified UI вернул неожиданный ответ. Возможно, требуется авторизация.",
                 error,
             )
         }
@@ -92,8 +92,8 @@ internal class WebPanelXrayConfigSource(
             } catch (error: CompanionTransportException) {
                 if (error.failure.statusCode == 404) {
                     throw XrayConfigException(
-                        "На роутере установлена версия Xkeen UI без revision API. " +
-                            "Обновите Xkeen UI для routing save/apply.",
+                        "На роутере установлена версия Unified UI без revision API. " +
+                            "Обновите Unified UI для routing save/apply.",
                         error,
                     )
                 }

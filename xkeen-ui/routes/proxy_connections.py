@@ -1,4 +1,4 @@
-"""Managed proxy connection registry for unified Xkeen UI.
+"""Managed proxy connection registry for unified Unified UI.
 
 This module stores user-imported proxy connections (WireGuard, AmneziaWG,
 Hysteria2, VLESS, Trojan, Mieru, NaiveProxy) and can inject Mihomo-compatible

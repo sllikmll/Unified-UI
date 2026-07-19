@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <title>Xkeen UI — Вход</title>
+  <title>Unified UI — Вход</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token }}">
 
@@ -61,7 +61,7 @@
 <body>
   <div class="auth-wrap">
     <div class="card auth-card">
-      <h1 class="auth-title">Вход в Xkeen UI</h1>
+      <h1 class="auth-title">Вход в Unified UI</h1>
       <p class="auth-sub xk-card-desc">Введите логин и пароль администратора.</p>
 
       <form method="post" action="{{ url_for('login', next=request.args.get('next')) }}" autocomplete="off">

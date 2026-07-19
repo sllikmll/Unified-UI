@@ -79,12 +79,12 @@ def _cfg_prefer_asset_name() -> str:
     Used by "Check latest". Runner script also respects this env.
     """
     v = (os.environ.get("XKEEN_UI_UPDATE_ASSET_NAME", "") or "").strip()
-    return v or "xkeen-ui-routing.tar.gz"
+    return v or "unified-ui-routing.tar.gz"
 
 
 def _release_asset_candidates() -> List[str]:
     names: List[str] = []
-    for nm in (_cfg_prefer_asset_name(), "xkeen-ui-routing.tar.gz", "xkeen-ui.tar.gz"):
+    for nm in (_cfg_prefer_asset_name(), "unified-ui-routing.tar.gz", "xkeen-ui.tar.gz"):
         s = str(nm or "").strip()
         if s and s not in names:
             names.append(s)

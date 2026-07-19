@@ -70,17 +70,17 @@ internal fun parseLogsTransportEnvelope(body: String): LogsTransportUpdate {
         val error = root.optJSONObject("error")
         throw IllegalStateException(
             error?.optString("message")?.takeIf(String::isNotBlank)
-                ?: "Xkeen UI вернул некорректный ответ логов.",
+                ?: "Unified UI вернул некорректный ответ логов.",
         )
     }
     val data = root.optJSONObject("data")
-        ?: throw IllegalStateException("В ответе Xkeen UI отсутствуют данные логов.")
+        ?: throw IllegalStateException("В ответе Unified UI отсутствуют данные логов.")
     val contractVersion = data.optInt("contract_version", 1)
     if (contractVersion != 1) {
         throw IllegalStateException("Версия контракта логов $contractVersion пока не поддерживается.")
     }
     val streams = data.optJSONArray("streams")
-        ?: throw IllegalStateException("В ответе Xkeen UI отсутствуют потоки логов.")
+        ?: throw IllegalStateException("В ответе Unified UI отсутствуют потоки логов.")
     return LogsTransportUpdate(
         streams = buildList {
             for (index in 0 until streams.length()) {

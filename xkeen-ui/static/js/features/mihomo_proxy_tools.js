@@ -8,7 +8,7 @@ let mihomoProxyToolsModuleApi = null;
 (() => {
   'use strict';
 
-  // Mihomo Proxy Tools (Rename / Replace) for xkeen-ui-routing2
+  // Mihomo Proxy Tools (Rename / Replace) for unified-ui-routing2
   // - Rename proxy: updates `proxies:` name and all mentions inside `proxy-groups:`
   // - Replace proxy: replaces a single proxy block inside `proxies:` by parsing a URI or WireGuard(.conf)
   // Legacy globals are published by features/compat/mihomo_proxy_tools.js.

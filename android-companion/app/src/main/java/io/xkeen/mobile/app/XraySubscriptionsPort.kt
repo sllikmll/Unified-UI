@@ -361,7 +361,7 @@ internal fun parseXraySubscriptionPreview(body: String): XraySubscriptionPreview
 
 internal fun parseXraySubscriptionMutation(body: String): XraySubscriptionMutationResult {
     val payload = body.subscriptionJsonObject()
-    payload.requireSubscriptionOk("Xkeen UI не выполнил операцию с подпиской.")
+    payload.requireSubscriptionOk("Unified UI не выполнил операцию с подпиской.")
     val recordObject = payload.optJSONObject("subscription") ?: payload.optJSONObject("deleted")
     val record = recordObject?.let(::parseXraySubscriptionRecord)
     val generatedChanged = payload.optBoolean("changed", false) || payload.optBoolean("output_removed", false)
@@ -511,7 +511,7 @@ private fun JSONObject.requireSubscriptionOk(message: String) {
 private fun String.subscriptionJsonObject(): JSONObject = try {
     JSONObject(this)
 } catch (error: Exception) {
-    throw XraySubscriptionsException("Xkeen UI вернул неожиданный ответ для подписок Xray.", error)
+    throw XraySubscriptionsException("Unified UI вернул неожиданный ответ для подписок Xray.", error)
 }
 
 private fun JSONArray?.subscriptionObjects(): List<JSONObject> = buildList {

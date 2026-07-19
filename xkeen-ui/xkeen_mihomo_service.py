@@ -2,7 +2,7 @@
   * mihomo_config_generator.py  – builds config.yaml from UI state;
   * mihomo_server_core.py       – profiles, backups, save & restart, parsers.
 
-This module is intended to be called from the XKeen UI backend (Flask)
+This module is intended to be called from the Unified UI backend (Flask)
 to perform one-shot actions like:
   - generate config from state;
   - generate + save into active profile;

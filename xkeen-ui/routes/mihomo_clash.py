@@ -1,7 +1,7 @@
-"""Mihomo Clash API integration for the Xkeen UI panel.
+"""Mihomo Clash API integration for the Unified UI panel.
 
 This blueprint exposes a small safe subset of Mihomo's external-controller API
-through the authenticated Xkeen UI origin. It lets users manage runtime
+through the authenticated Unified UI origin. It lets users manage runtime
 selectors from :8088 without opening the standalone dashboard on :9090.
 """
 
@@ -434,7 +434,7 @@ def _download_rule_provider_source(url: str, *, max_bytes: int = 16 * 1024 * 102
         except Exception:
             timeout = 5.0
     timeout = max(2.0, min(float(timeout), 12.0))
-    req = urllib.request.Request(raw, headers={"User-Agent": "Xkeen-UI/selector-inspector", "Accept": "*/*"})
+    req = urllib.request.Request(raw, headers={"User-Agent": "Unified-UI/selector-inspector", "Accept": "*/*"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         chunks: list[bytes] = []
         total = 0

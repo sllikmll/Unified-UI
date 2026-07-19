@@ -1,4 +1,4 @@
-"""Server-side Mihomo config.yaml generator for XKeen UI (new state format).
+"""Server-side Mihomo config.yaml generator for Unified UI (new state format).
 
 This module takes a high-level `state` object coming from the web UI
 (mihomo_generator.html) and turns it into a full Mihomo config.yaml

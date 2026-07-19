@@ -190,7 +190,7 @@ def _looks_like_shell_syntax_error(text: str) -> bool:
 
 def _download_to_file(url: str, tmp_path: str, max_bytes: int | None) -> int:
     """Download URL to tmp_path with an optional size cap (bytes)."""
-    req = urllib.request.Request(url, headers={"User-Agent": "Xkeen-UI"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Unified-UI"})
     with urllib.request.urlopen(req, timeout=45) as resp:
         status = getattr(resp, "status", None)
         if isinstance(status, int) and status >= 400:

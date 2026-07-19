@@ -209,7 +209,7 @@ Device follow-up 2026-07-16:
 - `RoutingValidation` разделяет local JSONC syntax, server и transport diagnostics (`source`, `severity`, `code`, message, optional hint/phase/path/line/column); активная editor surface показывает их раздельно.
 - Добавлены `Validating`, repeat guard и stale-result guard: новый draft или другой документ не могут получить поздний результат старого запроса.
 - Добавлены backend contract и Android unit tests для payload/parsing, syntax/preflight diagnostics, CSRF/auth, body limit, `401` fallback и stale/repeat behavior.
-- Первый device smoke-test обнаружил rollout mismatch: новый APK обращался к старому Xkeen UI, поэтому сервер вернул `404`. Актуальный `xkeen-ui-routing.tar.gz` пересобран с validate endpoint; Android отдельно распознаёт такой `404` как `validation_endpoint_unavailable` и предлагает обновить backend.
+- Первый device smoke-test обнаружил rollout mismatch: новый APK обращался к старому Unified UI, поэтому сервер вернул `404`. Актуальный `unified-ui-routing.tar.gz` пересобран с validate endpoint; Android отдельно распознаёт такой `404` как `validation_endpoint_unavailable` и предлагает обновить backend.
 
 Что делаем:
 
@@ -258,7 +258,7 @@ Device follow-up 2026-07-16:
 - [x] Backend и полный Android unit suite пройдены 2026-07-16.
 - [ ] На реальном узле установить согласованные backend archive и APK и пройти device smoke-test `load -> edit -> validate -> save -> apply`, а затем внешний конфликт.
 
-Rollout dependency: APK этого этапа требует backend с новыми mobile routing endpoints. Старый Xkeen UI вернёт `404`, и приложение покажет инструкцию обновить backend вместо локального success.
+Rollout dependency: APK этого этапа требует backend с новыми mobile routing endpoints. Старый Unified UI вернёт `404`, и приложение покажет инструкцию обновить backend вместо локального success.
 
 ## Этап 9. Logs transport и reconnect behavior
 

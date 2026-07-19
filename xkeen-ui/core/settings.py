@@ -1,4 +1,4 @@
-"""Centralized Settings for Xkeen UI.
+"""Centralized Settings for Unified UI.
 
 Goal (Commit A): introduce a single, explicit settings object without changing
 runtime behavior.

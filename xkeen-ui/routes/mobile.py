@@ -419,7 +419,7 @@ def register_mobile_routes(app: Flask) -> None:
         if not auth_is_configured():
             return error(
                 "not_configured",
-                "На Xkeen UI нужно завершить начальную настройку.",
+                "На Unified UI нужно завершить начальную настройку.",
                 428,
             )
 

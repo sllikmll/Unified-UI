@@ -1,4 +1,4 @@
-"""Centralized logging setup for Xkeen UI.
+"""Centralized logging setup for Unified UI.
 
 Design goals
 - Logging must never be required for functionality.

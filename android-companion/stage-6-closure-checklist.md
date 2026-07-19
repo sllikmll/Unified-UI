@@ -7,7 +7,7 @@ Updated: 2026-07-16
 
 ## Граница этапа
 
-Этап переиспользует существующие browser-compatible service endpoint'ы Xkeen UI и cookie+CSRF сессию этапа 5. Отдельный агрегированный `/api/mobile/v1` ready/actions envelope и `operation_id` для долгих операций остаются будущим backend-hardening; Android изолирует текущую совместимость внутри `WebPanelServiceActionsPort`.
+Этап переиспользует существующие browser-compatible service endpoint'ы Unified UI и cookie+CSRF сессию этапа 5. Отдельный агрегированный `/api/mobile/v1` ready/actions envelope и `operation_id` для долгих операций остаются будущим backend-hardening; Android изолирует текущую совместимость внутри `WebPanelServiceActionsPort`.
 
 | Действие | Write endpoint | Обязательное подтверждение |
 | --- | --- | --- |

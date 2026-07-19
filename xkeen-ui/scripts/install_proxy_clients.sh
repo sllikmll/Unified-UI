@@ -1,13 +1,13 @@
 #!/bin/sh
 set -eu
 
-# Optional proxy runtime installer for unified Xkeen UI.
+# Optional proxy runtime installer for unified Unified UI.
 # Mihomo-native protocols do not need separate binaries. This script installs
 # optional external runtimes from bundled files or this fork's GitHub Release
 # assets when they exist.
 
 OWNER="${XKEEN_PROXY_CLIENTS_OWNER:-sllikmll}"
-REPO="${XKEEN_PROXY_CLIENTS_REPO:-Xkeen-UI-umarcheh}"
+REPO="${XKEEN_PROXY_CLIENTS_REPO:-Unified-UI}"
 TAG="${XKEEN_PROXY_CLIENTS_TAG:-${XKEEN_UI_UPDATE_TAG:-latest}}"
 DEST_DIR="${XKEEN_PROXY_CLIENTS_DEST:-/opt/sbin}"
 STATUS_DIR="${XKEEN_PROXY_CLIENTS_STATUS_DIR:-/opt/var/lib/xkeen-ui}"

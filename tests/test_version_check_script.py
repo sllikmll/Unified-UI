@@ -134,7 +134,7 @@ def test_version_check_reads_panel_version_from_build_json(tmp_path: Path) -> No
     output = _run_version_check(
         tmp_path,
         "xkeen-ui",
-        build_info={"version": "v1.7.7", "repo": "umarcheh001/Xkeen-UI"},
+        build_info={"version": "v1.7.7", "repo": "sllikmll/Unified-UI"},
     )
 
     assert "xkeen-ui" in output
@@ -177,10 +177,10 @@ def test_version_check_ignores_legacy_cached_bad_ui_version(tmp_path: Path) -> N
     output = _run_version_check(
         tmp_path,
         "xkeen-ui",
-        build_info={"version": "v1.7.7", "repo": "umarcheh001/Xkeen-UI"},
-        legacy_cache_entries={"github_umarcheh001_Xkeen-UI": "7.7"},
+        build_info={"version": "v1.7.7", "repo": "sllikmll/Unified-UI"},
+        legacy_cache_entries={"github_sllikmll_Unified-UI": "7.7"},
         curl_payloads={
-            "https://api.github.com/repos/umarcheh001/Xkeen-UI/releases/latest":
+            "https://api.github.com/repos/sllikmll/Unified-UI/releases/latest":
                 '{"tag_name":"v1.7.7"}'
         },
         offline=False,

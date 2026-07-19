@@ -118,8 +118,8 @@ internal class WebPanelRoutingWritePort(
             }
             if (error.failure.statusCode == 404) {
                 throw RoutingWriteException(
-                    "На роутере установлена версия Xkeen UI без API routing save/apply. " +
-                        "Обновите Xkeen UI и повторите операцию.",
+                    "На роутере установлена версия Unified UI без API routing save/apply. " +
+                        "Обновите Unified UI и повторите операцию.",
                     code = "routing_write_endpoint_unavailable",
                     cause = error,
                 )
@@ -155,17 +155,17 @@ internal fun parseRoutingDocumentEnvelope(body: String): RoutingServerDocument {
     val root = try {
         JSONObject(body)
     } catch (error: Exception) {
-        throw RoutingWriteException("Xkeen UI вернул некорректный routing document response.", cause = error)
+        throw RoutingWriteException("Unified UI вернул некорректный routing document response.", cause = error)
     }
     if (!root.optBoolean("ok", false)) {
-        throw RoutingWriteException("Xkeen UI не вернул routing-документ.")
+        throw RoutingWriteException("Unified UI не вернул routing-документ.")
     }
     val data = root.optJSONObject("data") ?: throw RoutingWriteException(
-        "В ответе Xkeen UI отсутствует data.",
+        "В ответе Unified UI отсутствует data.",
     )
     return parseRoutingServerDocument(
         data.optJSONObject("document") ?: throw RoutingWriteException(
-            "В ответе Xkeen UI отсутствует routing-документ.",
+            "В ответе Unified UI отсутствует routing-документ.",
         ),
     )
 }
@@ -174,13 +174,13 @@ private fun parseRoutingWriteRoot(body: String, operation: String): JSONObject {
     val root = try {
         JSONObject(body)
     } catch (error: Exception) {
-        throw RoutingWriteException("Xkeen UI вернул некорректный ответ на $operation.", cause = error)
+        throw RoutingWriteException("Unified UI вернул некорректный ответ на $operation.", cause = error)
     }
     if (!root.optBoolean("ok", false)) {
-        throw RoutingWriteException("Xkeen UI не подтвердил $operation.")
+        throw RoutingWriteException("Unified UI не подтвердил $operation.")
     }
     return root.optJSONObject("data") ?: throw RoutingWriteException(
-        "В ответе Xkeen UI отсутствует результат операции.",
+        "В ответе Unified UI отсутствует результат операции.",
     )
 }
 

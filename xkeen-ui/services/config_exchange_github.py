@@ -28,8 +28,8 @@ from services.net import net_call, NET_EXECUTOR
 # Environment / configuration
 # ---------------------------
 
-GITHUB_OWNER = os.environ.get("XKEEN_GITHUB_OWNER", "umarcheh001")
-GITHUB_REPO = os.environ.get("XKEEN_GITHUB_REPO", "xkeen-community-configs")
+GITHUB_OWNER = os.environ.get("XKEEN_GITHUB_OWNER", "sllikmll")
+GITHUB_REPO = os.environ.get("XKEEN_GITHUB_REPO", "unified-ui-community-configs")
 GITHUB_BRANCH = os.environ.get("XKEEN_GITHUB_BRANCH", "main")
 
 CONFIG_SERVER_BASE_ENV = "XKEEN_CONFIG_SERVER_BASE"

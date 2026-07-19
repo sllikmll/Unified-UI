@@ -117,17 +117,17 @@ import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } f
   // ------------------------- ENV -------------------------
 
   const ENV_HELP = {
-    'XKEEN_UI_PORT': 'Порт веб-панели Xkeen UI. По умолчанию: 8088. Installer сохраняет его в devtools.env, чтобы обновления не сбрасывали порт назад на дефолт. После изменения нужен Restart UI.',
+    'XKEEN_UI_PORT': 'Порт веб-панели Unified UI. По умолчанию: 8088. Installer сохраняет его в devtools.env, чтобы обновления не сбрасывали порт назад на дефолт. После изменения нужен Restart UI.',
     'XKEEN_UI_STATE_DIR': 'Каталог состояния UI (auth, devtools.env, restart.log и т.п.). По умолчанию: /opt/etc/xkeen-ui.',
     'XKEEN_UI_ENV_FILE': 'Путь к env‑файлу DevTools (по умолчанию <UI_STATE_DIR>/devtools.env). Обычно менять не нужно. Эта переменная отображается только для информации (read‑only).',
     'XKEEN_UI_SECRET_KEY': 'Секретный ключ Flask/сессий. При смене ключа текущие сессии станут недействительными. Значение не отображается.',
     'XKEEN_RESTART_LOG_FILE': 'Файл, куда пишутся сообщения/ошибки при запуске/перезапуске UI (для диагностики). По умолчанию: <UI_STATE_DIR>/restart.log.',
 
     // Self-update (GitHub)
-    'XKEEN_UI_UPDATE_REPO': 'Репозиторий UI для обновления (owner/repo). По умолчанию: umarcheh001/Xkeen-UI.',
+    'XKEEN_UI_UPDATE_REPO': 'Репозиторий UI для обновления (owner/repo). По умолчанию: sllikmll/Unified-UI.',
     'XKEEN_UI_UPDATE_CHANNEL': 'Канал обновлений UI: stable (релизы) или main (tarball из ветки).',
     'XKEEN_UI_UPDATE_BRANCH': 'Ветка для канала main (по умолчанию: main).',
-    'XKEEN_UI_UPDATE_ASSET_NAME': 'Имя tar.gz ассета в релизе (канал stable). По умолчанию: xkeen-ui-routing.tar.gz.',
+    'XKEEN_UI_UPDATE_ASSET_NAME': 'Имя tar.gz ассета в релизе (канал stable). По умолчанию: unified-ui-routing.tar.gz.',
     'XKEEN_UI_UPDATE_ALLOW_HOSTS': 'Allow‑list хостов, откуда разрешено скачивать обновления. Формат: через запятую. По умолчанию: github.com,objects.githubusercontent.com,codeload.github.com.',
     'XKEEN_UI_UPDATE_ALLOW_HTTP': 'Разрешить HTTP (не рекомендуется). Значения: 1/0. По умолчанию: 0 (только HTTPS).',
     'XKEEN_UI_UPDATE_MAX_BYTES': 'Максимальный размер tar.gz (в байтах), который разрешено скачать.',

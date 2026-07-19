@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-# Install standalone Mihomo core for unified Xkeen UI + Mihomo setups.
+# Install standalone Mihomo core for unified Unified UI + Mihomo setups.
 # Defaults are intentionally conservative: user config is backed up/not overwritten,
 # and the core is installed from the user's fork so releases can be pinned/customized.
 

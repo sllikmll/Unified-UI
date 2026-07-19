@@ -71,7 +71,7 @@ jobs:
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             TAG="${GITHUB_REF#refs/tags/}"
             VERSION="${TAG#v}"
-            UPDATE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/xkeen-ui-routing.tar.gz"
+            UPDATE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/unified-ui-routing.tar.gz"
           else
             VERSION="${GITHUB_SHA::7}"
             UPDATE_URL=""
@@ -98,8 +98,8 @@ jobs:
 
       - name: Create user archive
         run: |
-          tar -czf dist/xkeen-ui-routing.tar.gz -C package-root xkeen-ui
-          sha256sum dist/xkeen-ui-routing.tar.gz > dist/xkeen-ui-routing.tar.gz.sha256
+          tar -czf dist/unified-ui-routing.tar.gz -C package-root xkeen-ui
+          sha256sum dist/unified-ui-routing.tar.gz > dist/unified-ui-routing.tar.gz.sha256
 
       - name: Build xk-geodat binaries
         working-directory: tools/xk-geodat
@@ -123,13 +123,13 @@ jobs:
 
       - name: Create checksums
         run: |
-          sha256sum dist/xkeen-ui-routing.tar.gz > dist/xkeen-ui-routing.tar.gz.sha256
+          sha256sum dist/unified-ui-routing.tar.gz > dist/unified-ui-routing.tar.gz.sha256
           sha256sum dist/xk-geodat-linux-arm64 > dist/xk-geodat-linux-arm64.sha256
           sha256sum dist/xk-geodat-linux-mips > dist/xk-geodat-linux-mips.sha256
           sha256sum dist/xk-geodat-linux-mipsle > dist/xk-geodat-linux-mipsle.sha256
 
           sha256sum \
-            dist/xkeen-ui-routing.tar.gz \
+            dist/unified-ui-routing.tar.gz \
             dist/xk-geodat-linux-arm64 \
             dist/xk-geodat-linux-mips \
             dist/xk-geodat-linux-mipsle \
@@ -140,8 +140,8 @@ jobs:
         with:
           name: release-assets
           path: |
-            dist/xkeen-ui-routing.tar.gz
-            dist/xkeen-ui-routing.tar.gz.sha256
+            dist/unified-ui-routing.tar.gz
+            dist/unified-ui-routing.tar.gz.sha256
             dist/xk-geodat-linux-arm64
             dist/xk-geodat-linux-arm64.sha256
             dist/xk-geodat-linux-mips
@@ -167,8 +167,8 @@ jobs:
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" \
-              dist/xkeen-ui-routing.tar.gz \
-              dist/xkeen-ui-routing.tar.gz.sha256 \
+              dist/unified-ui-routing.tar.gz \
+              dist/unified-ui-routing.tar.gz.sha256 \
               dist/xk-geodat-linux-arm64 \
               dist/xk-geodat-linux-arm64.sha256 \
               dist/xk-geodat-linux-mips \
@@ -179,8 +179,8 @@ jobs:
               --clobber
           else
             gh release create "$TAG" \
-              dist/xkeen-ui-routing.tar.gz \
-              dist/xkeen-ui-routing.tar.gz.sha256 \
+              dist/unified-ui-routing.tar.gz \
+              dist/unified-ui-routing.tar.gz.sha256 \
               dist/xk-geodat-linux-arm64 \
               dist/xk-geodat-linux-arm64.sha256 \
               dist/xk-geodat-linux-mips \

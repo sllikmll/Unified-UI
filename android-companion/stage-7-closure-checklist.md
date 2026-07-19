@@ -3,16 +3,16 @@
 Status: implementation and package ready; real-node retest pending
 Updated: 2026-07-16
 
-Этот документ фиксирует приемку этапа 7 из [next-practical-step-plan.md](next-practical-step-plan.md). Кнопка `validate` больше не принимает решение по строковой эвристике клиента: финальный результат приходит от Xray preflight на выбранном Xkeen UI.
+Этот документ фиксирует приемку этапа 7 из [next-practical-step-plan.md](next-practical-step-plan.md). Кнопка `validate` больше не принимает решение по строковой эвристике клиента: финальный результат приходит от Xray preflight на выбранном Unified UI.
 
 ## Результат первого device smoke-test
 
-Первый тест 2026-07-16 вернул HTTP `404`, потому что на устройстве был новый APK, а на роутере оставался Xkeen UI из архива, собранного до добавления mobile validate endpoint. Сам draft до Xray preflight не дошёл; изменение только комментария не было причиной ошибки.
+Первый тест 2026-07-16 вернул HTTP `404`, потому что на устройстве был новый APK, а на роутере оставался Unified UI из архива, собранного до добавления mobile validate endpoint. Сам draft до Xray preflight не дошёл; изменение только комментария не было причиной ошибки.
 
 Rollout mismatch устранён на уровне поставки и диагностики:
 
-- локальный `xkeen-ui-routing.tar.gz` пересобран и проверен на наличие `POST /api/mobile/v1/xray/routing/validate`;
-- Android преобразует `404` именно этого запроса в transport diagnostic `validation_endpoint_unavailable` с явным требованием обновить Xkeen UI;
+- локальный `unified-ui-routing.tar.gz` пересобран и проверен на наличие `POST /api/mobile/v1/xray/routing/validate`;
+- Android преобразует `404` именно этого запроса в transport diagnostic `validation_endpoint_unavailable` с явным требованием обновить Unified UI;
 - fallback на старый `POST /api/routing` намеренно отсутствует, потому что этот endpoint сохраняет конфиг и может перезапустить сервис, то есть нарушает read-only границу этапа 7.
 
 Финальное закрытие требует установить согласованные backend-архив и APK, затем получить server-confirmed `valid: true` или структурированный `valid: false` на реальном узле.
@@ -73,7 +73,7 @@ Rollout mismatch устранён на уровне поставки и диаг
        ├─ valid: true  -> Valid + server-confirmed message
        ├─ valid: false -> Invalid + structured server diagnostics
        ├─ 401          -> очистить material выбранного connection -> Pair/Login
-       ├─ 404          -> validation_endpoint_unavailable -> обновить Xkeen UI на роутере
+       ├─ 404          -> validation_endpoint_unavailable -> обновить Unified UI на роутере
        └─ offline/timeout/invalid response -> Invalid + Transport diagnostic, без ложного success
 ```
 
@@ -106,7 +106,7 @@ cd android-companion
 
 ## Минимальная ручная приемка на реальном узле
 
-1. Установить на роутер актуальный `xkeen-ui-routing.tar.gz`, перезапустить Xkeen UI и только затем установить согласованный APK.
+1. Установить на роутер актуальный `unified-ui-routing.tar.gz`, перезапустить Unified UI и только затем установить согласованный APK.
 2. Открыть существующий Xray fragment с действующей mobile session, изменить JSONC и нажать `validate`: должен появиться pending, затем server-confirmed result без save/restart.
 3. Вставить синтаксическую ошибку: увидеть отдельно локальный syntax issue и server `invalid_json` с позицией, если её вернул parser.
 4. Сделать semantic ошибку, например сослаться на отсутствующий `outboundTag`: получить Xray diagnostic, а не клиентское предположение о валидности.

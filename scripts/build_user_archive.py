@@ -17,7 +17,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_DIRNAME = "xkeen-ui"
 PROJECT_ROOT = REPO_ROOT / PROJECT_DIRNAME
-DEFAULT_ARCHIVE_PATH = REPO_ROOT / "xkeen-ui-routing.tar.gz"
+DEFAULT_ARCHIVE_PATH = REPO_ROOT / "unified-ui-routing.tar.gz"
 EXCLUDED_DIR_NAMES = {
     "__pycache__",
 }
@@ -44,7 +44,7 @@ EXECUTABLE_BIN_NAMES = {
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Build local xkeen-ui-routing.tar.gz from the working tree."
+        description="Build local unified-ui-routing.tar.gz from the working tree."
     )
     parser.add_argument(
         "--skip-frontend-build",
@@ -208,7 +208,7 @@ def main() -> int:
         write_build_json(package_root, version=version, update_url=update_url)
 
         fd, temp_archive_raw = tempfile.mkstemp(
-            prefix="xkeen-ui-routing-",
+            prefix="unified-ui-routing-",
             suffix=".tar.gz",
             dir=str(archive_path.parent),
         )
