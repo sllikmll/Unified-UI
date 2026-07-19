@@ -243,9 +243,6 @@
         <button class="top-tab-btn xk-top-tab xk-top-tab-mihomo-connections" data-view="mihomo-connections" data-xk-section="mihomo-connections">
           Соединения
         </button>
-        <button class="top-tab-btn xk-top-tab xk-top-tab-geodat" data-view="geodat" data-xk-section="geodat">
-          DAT GeoIP / GeoSite
-        </button>
         <button class="top-tab-btn xk-top-tab xk-top-tab-protocol" data-view="protocol-wireguard" data-xk-section="protocol-wireguard proxy-protocols">
           WireGuard
         </button>
@@ -268,25 +265,13 @@
           NaiveProxy
         </button>
         {% endif %}
-        <button class="top-tab-btn xk-top-tab xk-top-tab-unified" data-view="unified" data-xk-section="unified">
-          Порты и Исключения
-        </button>
         {% if has_xray %}
         <button class="top-tab-btn xk-top-tab xk-top-tab-logs" data-view="xray-logs" data-xk-section="xray-logs">
           Логи Xray онлайн
         </button>
         {% endif %}
-        <button class="top-tab-btn xk-top-tab xk-top-tab-commands" data-view="commands" data-xk-section="commands">
-          Команды
-        </button>
         <button class="top-tab-btn xk-top-tab xk-top-tab-files" data-view="files" data-xk-section="files" id="top-tab-files">
           Файлы
-        </button>
-        <button class="top-tab-btn xk-top-tab xk-top-tab-ui-settings" type="button" data-view="ui-settings" data-xk-section="ui-settings">
-          Интерфейс
-        </button>
-        <button class="top-tab-btn xk-top-tab xk-top-tab-devtools" type="button" data-view="devtools" data-xk-section="devtools settings">
-          Настройки
         </button>
         {% if has_mihomo %}
         <button class="top-tab-btn xk-top-tab xk-top-tab-generator" type="button" data-view="mihomo-generator" data-xk-section="mihomo-generator" id="top-tab-mihomo-generator">
