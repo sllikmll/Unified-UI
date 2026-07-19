@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import uuid
 
 from typing import Any, Dict, Optional
@@ -13,10 +14,50 @@ from core.paths import UI_STATE_DIR
 # Auth / first-run setup
 # --------------------
 
-# Auth state is stored in UI_STATE_DIR so it persists across restarts.
-AUTH_DIR = UI_STATE_DIR
+# Auth must survive code-directory replacements during self-update/manual deploy.
+# Router persistent default: /opt/var/lib/xkeen-ui.  Dev/tests keep using
+# XKEEN_UI_STATE_DIR to avoid touching /opt.
+def _auth_state_dir() -> str:
+    explicit = os.environ.get("XKEEN_AUTH_STATE_DIR")
+    if explicit:
+        return explicit
+    if os.environ.get("XKEEN_UI_STATE_DIR"):
+        return UI_STATE_DIR
+    persistent = "/opt/var/lib/xkeen-ui"
+    try:
+        os.makedirs(persistent, exist_ok=True)
+        test_path = os.path.join(persistent, ".writetest")
+        with open(test_path, "w", encoding="utf-8") as f:
+            f.write("")
+        os.remove(test_path)
+        return persistent
+    except Exception:
+        return UI_STATE_DIR
+
+
+AUTH_DIR = _auth_state_dir()
 AUTH_FILE = os.path.join(AUTH_DIR, "auth.json")
 SECRET_KEY_FILE = os.path.join(AUTH_DIR, "secret.key")
+LEGACY_AUTH_DIR = UI_STATE_DIR
+LEGACY_AUTH_FILE = os.path.join(LEGACY_AUTH_DIR, "auth.json")
+LEGACY_SECRET_KEY_FILE = os.path.join(LEGACY_AUTH_DIR, "secret.key")
+
+
+def _migrate_legacy_auth_file(src: str, dst: str, *, mode: int = 0o600) -> None:
+    if not src or not dst or src == dst:
+        return
+    try:
+        if os.path.isfile(dst) or not os.path.isfile(src):
+            return
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.copy2(src, dst)
+        try:
+            os.chmod(dst, mode)
+        except Exception:
+            pass
+    except Exception:
+        # Auth migration is best-effort; callers will gracefully fall back.
+        pass
 
 
 def _atomic_write(path: str, data: str, *, mode: int = 0o600) -> None:
@@ -43,6 +84,7 @@ def _load_or_create_secret_key() -> str:
 
     This is critical for session security. We keep it on disk with 0600 perms.
     """
+    _migrate_legacy_auth_file(LEGACY_SECRET_KEY_FILE, SECRET_KEY_FILE, mode=0o600)
     try:
         with open(SECRET_KEY_FILE, "r", encoding="utf-8") as f:
             key = (f.read() or "").strip()
@@ -70,6 +112,7 @@ def _load_or_create_secret_key() -> str:
 
 
 def _auth_load() -> Optional[Dict[str, Any]]:
+    _migrate_legacy_auth_file(LEGACY_AUTH_FILE, AUTH_FILE, mode=0o600)
     try:
         with open(AUTH_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
