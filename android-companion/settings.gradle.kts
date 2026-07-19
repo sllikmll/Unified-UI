@@ -17,6 +17,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "xkeen-mobile-companion"
+rootProject.name = "unified-mobile-companion"
 include(":app")
 

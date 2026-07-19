@@ -169,7 +169,7 @@ Post-stage editor UX hardening 2026-07-16:
 Что сделано:
 
 - Production composition переведен с `DemoServiceActionsPort` на `WebPanelServiceActionsPort`: `start`, `stop`, `restart` и смена ядра вызывают реальные CSRF-protected backend endpoint'ы.
-- Успешный POST больше не меняет dashboard сам по себе: клиент перечитывает `GET /api/xkeen/status` и `GET /api/xkeen/core`, проверяет ожидаемый runtime state и только затем публикует `Success`.
+- Успешный POST больше не меняет dashboard сам по себе: клиент перечитывает `GET /api/unified/status` и `GET /api/unified/core`, проверяет ожидаемый runtime state и только затем публикует `Success`.
 - Добавлено единое состояние `Idle / Pending / Success / Failure`, глобальная result surface, явная ошибка в dashboard/diagnostics/logs и блокировка повторных service/core действий во время запроса.
 - Confirm dialog запускает suspend-operation из coroutine; core dialog остается в pending/error flow и закрывается автоматически только после server-confirmed success.
 - Для потенциально долгого core switch используется отдельный action transport с read timeout 90 секунд; обычные read/session запросы сохраняют прежние timeout'ы.
@@ -242,7 +242,7 @@ Device follow-up 2026-07-16:
 - Добавлены authenticated/CSRF-protected mobile endpoints `GET /api/mobile/v1/xray/routing/document`, `POST /api/mobile/v1/xray/routing/save` и `POST /api/mobile/v1/xray/routing/apply`.
 - `document` возвращает раздельные `published` и `saved` snapshots с SHA-256 revision tokens, content/timestamps и явным `conflict`, если server draft основан на устаревшей published revision.
 - `save` повторно выполняет read-only Xray preflight и хранит проверенный draft отдельно в app-private `mobile-routing-drafts`; live Xray fragment и сервис при этом не меняются.
-- `apply` принимает только revision уже сохранённого server draft, повторяет preflight, создаёт существующие Xray backup snapshots, атомарно пишет clean JSON + JSONC sidecar и публикует success только после подтверждённого restart xkeen. При failed restart прежние файлы восстанавливаются, а draft сохраняется для повторной попытки.
+- `apply` принимает только revision уже сохранённого server draft, повторяет preflight, создаёт существующие Xray backup snapshots, атомарно пишет clean JSON + JSONC sidecar и публикует success только после подтверждённого restart unified. При failed restart прежние файлы восстанавливаются, а draft сохраняется для повторной попытки.
 - Optimistic concurrency проверяет независимо `published_revision` и `saved_revision`: внешний апдейт live-файла, stale mobile draft и mismatch saved/published возвращаются как HTTP `409` с актуальным server snapshot.
 - Production Android composition переведена с `DemoRoutingWritePort` на `WebPanelRoutingWritePort`; локальный document state после `save/apply` обновляется только содержимым backend response.
 - Добавлен отдельный `RoutingWritePhase.Conflict`: conflict не маскируется под invalid validation, сохраняет локальный editor text, показывает server revision metadata и блокирует слепой apply.
@@ -333,11 +333,11 @@ Rollout dependency: APK этого этапа требует backend с новы
 
 С высокой вероятностью основная работа начнется вокруг этих файлов:
 
-- `app/src/main/java/io/xkeen/mobile/app/CompanionController.kt`
-- `app/src/main/java/io/xkeen/mobile/app/CompanionControllerDependencies.kt`
-- `app/src/main/java/io/xkeen/mobile/app/CompanionHttpTransport.kt`
-- `app/src/main/java/io/xkeen/mobile/app/CompanionModels.kt`
-- `app/src/main/java/io/xkeen/mobile/app/XrayConfigSource.kt`
-- `app/src/main/java/io/xkeen/mobile/app/CoreStatusSource.kt`
+- `app/src/main/java/io/unified/mobile/app/CompanionController.kt`
+- `app/src/main/java/io/unified/mobile/app/CompanionControllerDependencies.kt`
+- `app/src/main/java/io/unified/mobile/app/CompanionHttpTransport.kt`
+- `app/src/main/java/io/unified/mobile/app/CompanionModels.kt`
+- `app/src/main/java/io/unified/mobile/app/XrayConfigSource.kt`
+- `app/src/main/java/io/unified/mobile/app/CoreStatusSource.kt`
 
-Новые реальные реализации логично держать рядом с ними в том же `io.xkeen.mobile.app`, пока не станет очевидна необходимость выносить их в отдельные `data` / `domain` пакеты.
+Новые реальные реализации логично держать рядом с ними в том же `io.unified.mobile.app`, пока не станет очевидна необходимость выносить их в отдельные `data` / `domain` пакеты.

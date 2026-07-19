@@ -2,15 +2,15 @@ from pathlib import Path
 
 
 def test_ws_token_scopes_cover_logs_and_events():
-    text = Path('xkeen-ui/services/ws_tokens.py').read_text(encoding='utf-8')
+    text = Path('unified-ui/services/ws_tokens.py').read_text(encoding='utf-8')
 
     assert 'WS_TOKEN_SCOPES = {"pty", "cmd", "logs", "events"}' in text
     assert '_cleanup_ws_tokens_locked(now)' in text
 
 
 def test_wsgi_ws_handlers_require_scoped_tokens_for_raw_logs_and_events_and_redact_qs():
-    text = Path('xkeen-ui/services/ws_wsgi.py').read_text(encoding='utf-8')
-    pty_text = Path('xkeen-ui/services/ws_pty.py').read_text(encoding='utf-8')
+    text = Path('unified-ui/services/ws_wsgi.py').read_text(encoding='utf-8')
+    pty_text = Path('unified-ui/services/ws_pty.py').read_text(encoding='utf-8')
 
     assert 'def redact_ws_query_string(qs: str) -> str:' in text
     assert 'params["token"] = ["***" for _ in vals] or ["***"]' in text
@@ -20,7 +20,7 @@ def test_wsgi_ws_handlers_require_scoped_tokens_for_raw_logs_and_events_and_reda
 
 
 def test_run_server_delegates_ws_runtime_to_extracted_service_modules():
-    text = Path('xkeen-ui/run_server.py').read_text(encoding='utf-8')
+    text = Path('unified-ui/run_server.py').read_text(encoding='utf-8')
 
     assert 'from services.ws_pty import handle_pty_request, start_cleanup_loop as start_pty_cleanup_loop' in text
     assert 'from services.ws_wsgi import (' in text
@@ -32,7 +32,7 @@ def test_run_server_delegates_ws_runtime_to_extracted_service_modules():
 
 
 def test_xray_logs_frontend_requests_logs_ws_token_before_opening_socket():
-    text = Path('xkeen-ui/static/js/features/xray_logs.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/xray_logs.js').read_text(encoding='utf-8')
 
     assert "async function requestXrayLogsWsToken(scope)" in text
     assert "fetch('/api/ws-token'" in text
@@ -45,7 +45,7 @@ def test_xray_logs_frontend_requests_logs_ws_token_before_opening_socket():
 
 
 def test_flask_ws_stream_routes_match_logs_token_contract():
-    text = Path('xkeen-ui/routes/ws_streams.py').read_text(encoding='utf-8')
+    text = Path('unified-ui/routes/ws_streams.py').read_text(encoding='utf-8')
 
     assert 'from services.ws_tokens import validate_ws_token' in text
     assert text.count('if not validate_ws_token(token, scope="logs"):') >= 2

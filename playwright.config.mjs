@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const E2E_PORT = Number(process.env.XKEEN_E2E_PORT || '18188');
+const E2E_PORT = Number(process.env.UNIFIED_E2E_PORT || '18188');
 const BASE_URL = process.env.E2E_BASE_URL || `http://127.0.0.1:${E2E_PORT}`;
 
 export default defineConfig({

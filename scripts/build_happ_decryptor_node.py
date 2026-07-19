@@ -13,7 +13,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_UPSTREAM_REPO = "https://github.com/LeeeeT/happ-decryptor.git"
 DEFAULT_SOURCE_DIR = REPO_ROOT / ".tmp" / "leeeet-happ-decryptor"
-DEFAULT_OUTPUT = REPO_ROOT / "xkeen-ui" / "bin" / "happ-decrypt-universal"
+DEFAULT_OUTPUT = REPO_ROOT / "unified-ui" / "bin" / "happ-decrypt-universal"
 ASSET_DIR_SUFFIX = ".assets"
 
 REQUIRED_ASSETS = (
@@ -307,7 +307,7 @@ def main() -> int:
 
     print(f"[*] output: {output}", flush=True)
     print(f"[*] assets: {asset_dir}", flush=True)
-    print("[*] command: XKEEN_HAPP_DECRYPTOR_CMD='{} %LINK%'".format(output.as_posix()), flush=True)
+    print("[*] command: UNIFIED_HAPP_DECRYPTOR_CMD='{} %LINK%'".format(output.as_posix()), flush=True)
     return 0
 
 

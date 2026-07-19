@@ -12,7 +12,7 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SCRIPT_SRC = REPO_ROOT / "xkeen-ui" / "tools" / "version_check.sh"
+SCRIPT_SRC = REPO_ROOT / "unified-ui" / "tools" / "version_check.sh"
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
@@ -46,14 +46,14 @@ def _run_version_check(
     component: str,
     *,
     build_info: dict[str, str] | None = None,
-    xkeen_output: str | None = None,
+    unified_output: str | None = None,
     opkg_lines: list[str] | None = None,
     cache_ns: str = "v2",
     legacy_cache_entries: dict[str, str] | None = None,
     curl_payloads: dict[str, str] | None = None,
     offline: bool = True,
 ) -> str:
-    project_dir = tmp_path / "xkeen-ui"
+    project_dir = tmp_path / "unified-ui"
     tools_dir = project_dir / "tools"
     bin_dir = tmp_path / "bin"
     cache_dir = tmp_path / "cache"
@@ -69,12 +69,12 @@ def _run_version_check(
     if build_info is not None:
         (project_dir / "BUILD.json").write_text(json.dumps(build_info), encoding="utf-8")
 
-    if xkeen_output is not None:
+    if unified_output is not None:
         _write_exec(
-            bin_dir / "xkeen",
+            bin_dir / "unified",
             "#!/bin/sh\n"
             "if [ \"$1\" = \"-v\" ] || [ \"$1\" = \"--version\" ]; then\n"
-            f"  printf '%s\\n' '{xkeen_output}'\n"
+            f"  printf '%s\\n' '{unified_output}'\n"
             "  exit 0\n"
             "fi\n"
             "exit 1\n",
@@ -107,8 +107,8 @@ def _run_version_check(
 
     env = os.environ.copy()
     env["PATH"] = str(bin_dir) + os.pathsep + env.get("PATH", "")
-    env["XKEEN_UI_CACHE_DIR"] = str(cache_dir)
-    env["XKEEN_UI_CACHE_NS"] = cache_ns
+    env["UNIFIED_UI_CACHE_DIR"] = str(cache_dir)
+    env["UNIFIED_UI_CACHE_NS"] = cache_ns
 
     args = [SH_PATH, str(script_dst)]
     if offline:
@@ -133,25 +133,25 @@ def _run_version_check(
 def test_version_check_reads_panel_version_from_build_json(tmp_path: Path) -> None:
     output = _run_version_check(
         tmp_path,
-        "xkeen-ui",
+        "unified-ui",
         build_info={"version": "v1.7.7", "repo": "sllikmll/Unified-UI"},
     )
 
-    assert "xkeen-ui" in output
+    assert "unified-ui" in output
     assert "1.7.7" in output
     assert "7.7" not in output.replace("1.7.7", "")
     assert "╔" in output
     assert "╚" in output
 
 
-def test_version_check_reads_xkeen_version_from_cli_output(tmp_path: Path) -> None:
+def test_version_check_reads_unified_version_from_cli_output(tmp_path: Path) -> None:
     output = _run_version_check(
         tmp_path,
-        "xkeen",
-        xkeen_output="XKeen 1.1.3.10 Beta (build time: 2026-03-01 15:09:25 MSK)",
+        "unified",
+        unified_output="UnifiedUI 1.1.3.10 Beta (build time: 2026-03-01 15:09:25 MSK)",
     )
 
-    assert "xkeen" in output
+    assert "unified" in output
     assert "1.1.3.10 Beta" in output
     assert "3.10 Beta" not in output.replace("1.1.3.10 Beta", "")
 
@@ -176,7 +176,7 @@ def test_version_check_lists_installed_entware_packages(tmp_path: Path) -> None:
 def test_version_check_ignores_legacy_cached_bad_ui_version(tmp_path: Path) -> None:
     output = _run_version_check(
         tmp_path,
-        "xkeen-ui",
+        "unified-ui",
         build_info={"version": "v1.7.7", "repo": "sllikmll/Unified-UI"},
         legacy_cache_entries={"github_sllikmll_Unified-UI": "7.7"},
         curl_payloads={

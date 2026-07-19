@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SCRIPT_SRC = REPO_ROOT / "xkeen-ui" / "tools" / "sysmon_keenetic.sh"
+SCRIPT_SRC = REPO_ROOT / "unified-ui" / "tools" / "sysmon_keenetic.sh"
 
 
 def test_sysmon_banner_uses_wider_first_value_column() -> None:
@@ -20,7 +20,7 @@ def test_sysmon_banner_accessed_ip_uses_helper_with_fallbacks() -> None:
     assert "get_banner_accessed_ip()" in source
     assert '_accessed_ip="$(get_banner_accessed_ip 2>/dev/null || echo' in source
     assert 'SSH_CONNECTION' in source
-    assert 'XKEEN_UI_ACCESSED_IP' in source
+    assert 'UNIFIED_UI_ACCESSED_IP' in source
     assert 'hostname -i' in source
     assert 'ip -4 -o addr show scope global' in source
     assert 'ifconfig 2>/dev/null' in source

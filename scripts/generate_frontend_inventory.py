@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-PROJECT_DIRNAME = "xkeen-ui"
+PROJECT_DIRNAME = "unified-ui"
 
 PAGE_SPECS = {
     "panel": {
@@ -29,11 +29,11 @@ PAGE_SPECS = {
         "entry": "static/js/pages/devtools.entry.js",
         "init": "static/js/pages/devtools.init.js",
     },
-    "xkeen": {
-        "route": "/xkeen",
-        "template": "templates/xkeen.html",
-        "entry": "static/js/pages/xkeen.entry.js",
-        "init": "static/js/pages/xkeen.init.js",
+    "unified": {
+        "route": "/unified",
+        "template": "templates/unified.html",
+        "entry": "static/js/pages/unified.entry.js",
+        "init": "static/js/pages/unified.init.js",
     },
     "mihomo_generator": {
         "route": "/mihomo_generator",
@@ -48,7 +48,7 @@ STATIC_IMPORT_RE = re.compile(
 )
 DYNAMIC_IMPORT_RE = re.compile(r"""import\(\s*['"]([^'"]+)['"]\s*\)""")
 SCRIPT_TAG_SRC_RE = re.compile(r'<script\b[^>]*\bsrc="([^"]+)"', re.IGNORECASE)
-GLOBAL_REF_RE = re.compile(r"""(?<![\w$])(?:window\.)?(XKeen|XK)(\.[A-Za-z_$][\w$]*)+""")
+GLOBAL_REF_RE = re.compile(r"""(?<![\w$])(?:window\.)?(UnifiedUI|XK)(\.[A-Za-z_$][\w$]*)+""")
 LAZY_FEATURE_RE = re.compile(
     r"""(?:ensurePanelLazyFeature|ensureFeature)\(\s*['"]([^'"]+)['"]\s*\)"""
 )
@@ -190,7 +190,7 @@ class InventoryGenerator:
         for match in GLOBAL_REF_RE.finditer(text):
             normalized = match.group(0).replace("window.", "")
             if normalized.startswith("XK."):
-                normalized = "XKeen" + normalized[len("XK") :]
+                normalized = "UnifiedUI" + normalized[len("XK") :]
             if normalized not in seen:
                 seen.add(normalized)
                 ordered.append(normalized)

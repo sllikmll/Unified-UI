@@ -10,7 +10,7 @@ from werkzeug.security import generate_password_hash
 
 
 ROOT = Path(__file__).resolve().parents[1]
-APP_DIR = ROOT / "xkeen-ui"
+APP_DIR = ROOT / "unified-ui"
 
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
@@ -26,8 +26,8 @@ def _reload(name: str):
 def _build_client(tmp_path: Path, monkeypatch, *, install_size_guard: bool = False):
     state_dir = tmp_path / "state"
     state_dir.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setenv("XKEEN_UI_STATE_DIR", str(state_dir))
-    monkeypatch.setenv("XKEEN_UI_SECRET_KEY", "test-secret-key")
+    monkeypatch.setenv("UNIFIED_UI_STATE_DIR", str(state_dir))
+    monkeypatch.setenv("UNIFIED_UI_SECRET_KEY", "test-secret-key")
 
     _reload("core.paths")
     auth_setup = _reload("services.auth_setup")
@@ -290,7 +290,7 @@ def test_mobile_routing_validate_keeps_preflight_timeout_as_server_diagnostic(tm
 
 
 def test_mobile_routing_validate_uses_routing_body_limit(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("XKEEN_ROUTING_SAVE_MAX_BYTES", str(64 * 1024))
+    monkeypatch.setenv("UNIFIED_ROUTING_SAVE_MAX_BYTES", str(64 * 1024))
     client, mobile_routes = _build_client(tmp_path, monkeypatch, install_size_guard=True)
     calls = _install_preflight_stub(mobile_routes, tmp_path, monkeypatch, {"ok": True})
     csrf_token = _login(client)

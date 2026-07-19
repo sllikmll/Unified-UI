@@ -3,7 +3,7 @@ import path from 'node:path';
 import { chromium } from '@playwright/test';
 
 const ROOT = process.cwd();
-const DATA_DIR = process.env.XKEEN_SCREENSHOT_DATA_DIR || '/tmp/xkeen-live';
+const DATA_DIR = process.env.UNIFIED_SCREENSHOT_DATA_DIR || '/tmp/unified-live';
 const OUT_DIR = path.join(ROOT, 'docs/screenshots');
 
 async function readJson(name, fallback = {}) {
@@ -89,31 +89,31 @@ async function render(name, html) {
 const version = await readJson('mihomo-version.json');
 const pData = await readJson('mihomo-proxies.json');
 const cData = await readJson('mihomo-connections.json');
-const registry = await readJson('xkeen-protocol-registry.json');
+const registry = await readJson('unified-protocol-registry.json');
 const proxies = pData.proxies || {};
 const selectors = Object.entries(proxies).filter(([,p]) => Array.isArray(p.all)).sort(([a],[b]) => a.localeCompare(b, 'ru'));
 const priority = ['Ручной список','AI','CDN','Telegram','YouTube','GitHub','Discord','Twitter'];
 const selPriority = priority.map(n => [n, proxies[n]]).filter(([,p]) => p);
 
-await render('xkeen-routing-mihomo.png', frame({
+await render('unified-routing-mihomo.png', frame({
   title: 'Маршрутизация Mihomo', active: 'Маршрутизация',
   subtitle: 'Runtime selector-группы, быстрые ping-и и ручной список в одной панели на 8088.',
   body: `${selectorBlock('AI', proxies.AI, proxies, 12)}${selectorBlock('CDN', proxies.CDN, proxies, 12)}`,
   side: `<h2>Ручной список</h2><p class="muted">/opt/etc/mihomo/rules/manual-proxy.yaml</p><div>${badge('DOMAIN-SUFFIX,example.org','good')}${badge('DOMAIN-SUFFIX,docs.example','good')}${badge('обновить provider')}</div><div class="manual"><pre>- DOMAIN-SUFFIX,example.org\n- DOMAIN-SUFFIX,docs.example\n- DOMAIN-SUFFIX,status.example</pre></div>`
 }));
-await render('xkeen-selectors-tiles.png', frame({
+await render('unified-selectors-tiles.png', frame({
   title: 'Селекторы плитками', active: 'Маршрутизация', subtitle: 'Плиточный режим остаётся вариантом по умолчанию: удобно видеть задержки и активный сервер.',
   body: `${selectorBlock('Ручной список', proxies['Ручной список'], proxies, 18)}${selectorBlock('YouTube', proxies.YouTube, proxies, 12)}`
 }));
-await render('xkeen-selectors-list.png', frame({
+await render('unified-selectors-list.png', frame({
   title: 'Селекторы списком', active: 'Маршрутизация', subtitle: 'Компактный режим: selector + dropdown, чтобы разместить много групп на одной странице.',
   body: `<section class="panel-card">${selectorList(selPriority, proxies)}</section>`
 }));
-await render('xkeen-protocol-connections.png', frame({
+await render('unified-protocol-connections.png', frame({
   title: 'Подключения по протоколам', active: 'WireGuard', subtitle: 'WireGuard, Amnezia, Hysteria2, VLESS, Trojan, Meiru и NaiveProxy импортируются ссылкой или файлом.',
   body: `<section class="panel-card"><div class="proto-grid">${protocolCards(registry, proxies)}</div></section><section class="panel-card"><div class="api-list"><div class="api-card"><b>Registry</b><p class="muted">${(registry.connections||[]).length} подключений</p></div><div class="api-card"><b>Mihomo runtime</b><p class="muted">${Object.keys(proxies).length} proxy/group</p></div><div class="api-card"><b>Version</b><p class="muted">${esc(version.version || 'v1.19.x')}</p></div></div></section>`
 }));
-await render('xkeen-connections-geodat.png', frame({
+await render('unified-connections-geodat.png', frame({
   title: 'Соединения и DAT GeoIP / GeoSite', active: 'Соединения', subtitle: 'Детальный список активных соединений, фильтрация по хостам и служебная вкладка DAT.',
   body: `<section class="panel-card"><table><thead><tr><th>Источник</th><th>Назначение</th><th>Сеть</th><th>Правило</th><th>Цепочка</th><th></th></tr></thead><tbody>${connectionRows(cData.connections || [])}</tbody></table></section>`,
   side: `<h2>DAT GeoIP / GeoSite</h2><p class="muted">Обновление, состав и редактирование источников.</p><div>${badge('GeoIP RU','good')}${badge('GeoSite','good')}${badge('MRS cache')}</div><div class="dat"><pre>ru@ipcidr\ncategory-ai@domain\nmanual-proxy@classical\nspeedtest@domain\nvodafone@ipcidr</pre></div>`

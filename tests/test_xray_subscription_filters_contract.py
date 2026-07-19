@@ -11,7 +11,7 @@ def _read(rel_path: str) -> str:
 
 
 def test_xray_subscription_form_exposes_regex_filters_and_payload_fields():
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
 
     assert "nameFilter: 'outbounds-subscriptions-name-filter'" in outbounds_src
     assert "typeFilter: 'outbounds-subscriptions-type-filter'" in outbounds_src
@@ -52,9 +52,9 @@ def test_xray_subscription_form_exposes_regex_filters_and_payload_fields():
 
 
 def test_outbounds_entware_mark_controls_are_wired_to_payloads():
-    template_src = _read("xkeen-ui/templates/panel.html")
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
-    styles_src = _read("xkeen-ui/static/styles.css")
+    template_src = _read("unified-ui/templates/panel.html")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
+    styles_src = _read("unified-ui/static/styles.css")
 
     assert 'id="outbounds-entware-mark-btn"' in template_src
     assert 'id="outbounds-pool-entware-mark-btn"' in template_src
@@ -67,10 +67,10 @@ def test_outbounds_entware_mark_controls_are_wired_to_payloads():
 
 
 def test_outbounds_single_link_tag_control_is_wired_to_payload():
-    template_src = _read("xkeen-ui/templates/panel.html")
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
-    styles_src = _read("xkeen-ui/static/styles.css")
-    routes_src = _read("xkeen-ui/routes/xray_configs.py")
+    template_src = _read("unified-ui/templates/panel.html")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
+    styles_src = _read("unified-ui/static/styles.css")
+    routes_src = _read("unified-ui/routes/xray_configs.py")
 
     assert 'id="outbounds-tag"' in template_src
     assert "Tag outbound" in template_src
@@ -85,8 +85,8 @@ def test_outbounds_single_link_tag_control_is_wired_to_payload():
 
 
 def test_outbounds_proxy_pool_uses_fragment_summary_without_hiding_pool_button():
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
-    styles_src = _read("xkeen-ui/static/styles.css")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
+    styles_src = _read("unified-ui/static/styles.css")
 
     assert "function setOutboundsSummaryFragmentMode(mode, fileName, summary) {" in outbounds_src
     assert "body.classList.toggle('xk-outbounds-pool-fragment', normalizedMode === 'pool');" in outbounds_src
@@ -106,7 +106,7 @@ def test_outbounds_proxy_pool_uses_fragment_summary_without_hiding_pool_button()
 
 
 def test_outbounds_fragment_selector_keeps_create_single_option_when_pool_is_active():
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
 
     assert "const DEFAULT_SINGLE_OUTBOUNDS_FRAGMENT = '04_outbounds.json';" in outbounds_src
     assert "const CREATE_SINGLE_OUTBOUNDS_LABEL = DEFAULT_SINGLE_OUTBOUNDS_FRAGMENT + ' (" in outbounds_src
@@ -117,12 +117,12 @@ def test_outbounds_fragment_selector_keeps_create_single_option_when_pool_is_act
 
 
 def test_outbounds_card_exposes_current_proxy_nodes_and_ping_controls():
-    template_src = _read("xkeen-ui/templates/panel.html")
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
-    styles_src = _read("xkeen-ui/static/styles.css")
-    routes_src = _read("xkeen-ui/routes/xray_configs.py")
-    settings_src = _read("xkeen-ui/static/js/ui/settings.js")
-    settings_panel_src = _read("xkeen-ui/static/js/ui/settings_panel.js")
+    template_src = _read("unified-ui/templates/panel.html")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
+    styles_src = _read("unified-ui/static/styles.css")
+    routes_src = _read("unified-ui/routes/xray_configs.py")
+    settings_src = _read("unified-ui/static/js/ui/settings.js")
+    settings_panel_src = _read("unified-ui/static/js/ui/settings_panel.js")
 
     assert 'id="outbounds-nodes-panel"' in template_src
     assert 'id="outbounds-nodes-pingall"' in template_src
@@ -207,9 +207,9 @@ def test_outbounds_card_exposes_current_proxy_nodes_and_ping_controls():
 
 
 def test_outbounds_pool_nodes_relayout_after_card_open_and_async_load():
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
-    config_shell_src = _read("xkeen-ui/static/js/pages/config_shell.shared.js")
-    panel_runtime_src = _read("xkeen-ui/static/js/pages/panel.view_runtime.js")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
+    config_shell_src = _read("unified-ui/static/js/pages/config_shell.shared.js")
+    panel_runtime_src = _read("unified-ui/static/js/pages/panel.view_runtime.js")
 
     assert "let _outboundsNodeLayoutSeq = 0;" in outbounds_src
     assert "function outboundsCanRelayoutNodeList() {" in outbounds_src
@@ -230,7 +230,7 @@ def test_outbounds_pool_nodes_relayout_after_card_open_and_async_load():
 
 
 def test_outbounds_fragment_switch_ignores_stale_load_and_nodes_responses():
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
 
     assert "let _outboundsLoadSeq = 0;" in outbounds_src
     assert "let _outboundsNodesLoadSeq = 0;" in outbounds_src
@@ -245,7 +245,7 @@ def test_outbounds_fragment_switch_ignores_stale_load_and_nodes_responses():
 
 
 def test_outbounds_initial_load_is_not_blocked_by_subscription_modal_wiring():
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
 
     assert "const safeInitStep = (label, fn) => {" in outbounds_src
     assert "const initialFragmentsReady = safeInitStep('fragments', () => refreshFragmentsList());" in outbounds_src
@@ -259,8 +259,8 @@ def test_outbounds_initial_load_is_not_blocked_by_subscription_modal_wiring():
 
 
 def test_xray_subscription_delete_refreshes_main_fragment_selectors():
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
-    routing_src = _read("xkeen-ui/static/js/features/routing.js")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
+    routing_src = _read("unified-ui/static/js/features/routing.js")
 
     assert "function collectFragmentBasenames(values) {" in outbounds_src
     assert "function forgetRememberedFragmentIfRemoved(removedFiles) {" in outbounds_src
@@ -277,8 +277,8 @@ def test_xray_subscription_delete_refreshes_main_fragment_selectors():
 
 
 def test_xray_subscription_modal_exposes_transport_preview_and_manual_exclusions():
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
-    styles_src = _read("xkeen-ui/static/styles.css")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
+    styles_src = _read("unified-ui/static/styles.css")
 
     assert 'delete modal.dataset.modalRemember;' in outbounds_src
     assert 'delete modal.dataset.modalNopos;' in outbounds_src
@@ -411,9 +411,9 @@ def test_xray_subscription_modal_exposes_transport_preview_and_manual_exclusions
 
 
 def test_subscription_control_tooltips_can_prefer_bottom_placement():
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
-    tooltips_src = _read("xkeen-ui/static/js/ui/tooltips_auto.js")
-    styles_src = _read("xkeen-ui/static/styles.css")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
+    tooltips_src = _read("unified-ui/static/js/ui/tooltips_auto.js")
+    styles_src = _read("unified-ui/static/styles.css")
 
     assert "const PLACEMENT_ATTR = 'data-tooltip-placement';" in tooltips_src
     assert "function tooltipPlacementPreference(el) {" in tooltips_src
@@ -434,9 +434,9 @@ def test_subscription_control_tooltips_can_prefer_bottom_placement():
 
 
 def test_xray_subscription_modal_protects_drafts_and_explains_autofill():
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
-    styles_src = _read("xkeen-ui/static/styles.css")
-    modal_src = _read("xkeen-ui/static/js/ui/modal.js")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
+    styles_src = _read("unified-ui/static/styles.css")
+    modal_src = _read("unified-ui/static/js/ui/modal.js")
 
     assert "nameNote: 'outbounds-subscriptions-name-note'" in outbounds_src
     assert "tagNote: 'outbounds-subscriptions-tag-note'" in outbounds_src
@@ -511,8 +511,8 @@ def test_xray_subscription_modal_protects_drafts_and_explains_autofill():
 
 
 def test_xray_subscription_list_surfaces_operational_status_badges():
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
-    styles_src = _read("xkeen-ui/static/styles.css")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
+    styles_src = _read("unified-ui/static/styles.css")
 
     assert "function subsIsDue(sub, nowTs) {" in outbounds_src
     assert "function subsRelativeUpdateLabel(ts, nowTs) {" in outbounds_src
@@ -545,8 +545,8 @@ def test_xray_subscription_list_surfaces_operational_status_badges():
 
 
 def test_xray_subscription_modal_surfaces_refresh_diagnostics_details():
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
-    styles_src = _read("xkeen-ui/static/styles.css")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
+    styles_src = _read("unified-ui/static/styles.css")
 
     assert "diagnostics: 'outbounds-subscriptions-diagnostics'" in outbounds_src
     assert "diagnosticsTitle: 'outbounds-subscriptions-diagnostics-title'" in outbounds_src
@@ -581,7 +581,7 @@ def test_xray_subscription_modal_surfaces_refresh_diagnostics_details():
 
 
 def test_xray_subscription_only_mode_does_not_warn_about_shadowed_manual_pool():
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
 
     assert "routingMode === SUB_ROUTING_MODE_SUBSCRIPTION_ONLY && (shadowRuleTag || shadowTargetLabel)" in outbounds_src
     assert "будет оставлено ниже служебного правила" in outbounds_src

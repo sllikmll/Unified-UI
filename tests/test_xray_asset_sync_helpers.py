@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TRANSFER_PATH = ROOT / "xkeen-ui" / "routes" / "fs" / "endpoints_transfer.py"
+TRANSFER_PATH = ROOT / "unified-ui" / "routes" / "fs" / "endpoints_transfer.py"
 
 
 def _load_transfer_module():
@@ -14,7 +14,7 @@ def _load_transfer_module():
     prev_module = sys.modules.get(module_name)
     prev_path = list(sys.path)
     try:
-        sys.path.insert(0, str(ROOT / "xkeen-ui"))
+        sys.path.insert(0, str(ROOT / "unified-ui"))
         spec = importlib.util.spec_from_file_location(module_name, TRANSFER_PATH)
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module

@@ -47,7 +47,7 @@ def test_service_route_returns_operation_diagnostic_snapshot(tmp_path):
     app = Flask("operation-diagnostics-route")
     app.register_blueprint(
         service.create_service_blueprint(
-            restart_xkeen=lambda **_kwargs: True,
+            restart_unified=lambda **_kwargs: True,
             append_restart_log=lambda *_args, **_kwargs: None,
             XRAY_ERROR_LOG=str(tmp_path / "xray-error.log"),
             read_operation_diagnostic=lambda ref: {

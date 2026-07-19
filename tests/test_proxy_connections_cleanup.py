@@ -12,11 +12,11 @@ def _reload(name: str):
 def test_remove_proxy_from_groups_removes_inline_and_block_lists():
     mod = _reload("services.mihomo_proxy_config")
     content = """proxies:
-  # xkeen-managed-proxies:start
+  # unified-managed-proxies:start
   # amnezia / amnezia-old
   - name: AWG-old
     type: wireguard
-  # xkeen-managed-proxies:end
+  # unified-managed-proxies:end
 proxy-groups:
   - name: AI
     type: select
@@ -38,11 +38,11 @@ def test_apply_rebuild_removes_deleted_managed_proxy_from_selectors(tmp_path: Pa
     cfg = tmp_path / "config.yaml"
     registry = tmp_path / "proxy-connections.json"
     cfg.write_text("""proxies:
-  # xkeen-managed-proxies:start
+  # unified-managed-proxies:start
   # amnezia / amnezia-old
   - name: AWG-old
     type: wireguard
-  # xkeen-managed-proxies:end
+  # unified-managed-proxies:end
 proxy-groups:
   - name: AI
     type: select
@@ -57,7 +57,7 @@ rules: []
 """, encoding="utf-8")
     registry.write_text('{"version":1,"connections":[]}', encoding="utf-8")
     monkeypatch.setenv("MIHOMO_CONFIG", str(cfg))
-    monkeypatch.setenv("XKEEN_PROXY_CONNECTIONS_FILE", str(registry))
+    monkeypatch.setenv("UNIFIED_PROXY_CONNECTIONS_FILE", str(registry))
 
     mod = _reload("routes.proxy_connections")
     result = mod._apply_to_mihomo(restart=False)
@@ -65,6 +65,6 @@ rules: []
     assert result["changed"] is True
     text = cfg.read_text(encoding="utf-8")
     assert "AWG-old" not in text.split("proxy-groups:", 1)[1]
-    assert "xkeen-managed-proxies:start" in text
-    assert "xkeen-managed-proxies:end" in text
+    assert "unified-managed-proxies:start" in text
+    assert "unified-managed-proxies:end" in text
     assert "VLESS-live" in text

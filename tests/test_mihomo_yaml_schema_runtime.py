@@ -17,9 +17,9 @@ def _run_mihomo_yaml_schema(doc: str) -> dict[str, object]:
 
     script = f"""
 import fs from 'node:fs';
-import {{ validateYamlTextAgainstSchema }} from './xkeen-ui/static/js/ui/yaml_schema.js';
+import {{ validateYamlTextAgainstSchema }} from './unified-ui/static/js/ui/yaml_schema.js';
 
-const schema = JSON.parse(fs.readFileSync('./xkeen-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
+const schema = JSON.parse(fs.readFileSync('./unified-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
 const result = validateYamlTextAgainstSchema({json.dumps(doc)}, schema, {{ maxErrors: 12 }});
 console.log(JSON.stringify({{
   ok: !!result.ok,
@@ -179,7 +179,7 @@ def test_mihomo_yaml_schema_runtime_accepts_tailscale_proxy_without_server_port(
             "proxies:",
             "  - name: tailscale",
             "    type: tailscale",
-            "    hostname: xkeen",
+            "    hostname: unified",
             "    state-dir: ./tailscale",
             "    udp: true",
             "    accept-routes: true",

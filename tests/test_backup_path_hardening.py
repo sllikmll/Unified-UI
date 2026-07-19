@@ -74,7 +74,7 @@ def _build_client(tmp_path: Path):
             _detect_backup_target_file=detect_backup_target_file,
             _find_latest_auto_backup_for=find_latest_auto_backup_for,
             strip_json_comments_text=lambda text: text,
-            restart_xkeen=lambda **_kwargs: True,
+            restart_unified=lambda **_kwargs: True,
         )
     )
 

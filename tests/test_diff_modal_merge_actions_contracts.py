@@ -7,13 +7,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_diff_modal_exposes_bidirectional_apply_and_save_contracts():
-    diff_modal = (ROOT / "xkeen-ui" / "static" / "js" / "ui" / "diff_modal.js").read_text(encoding="utf-8")
-    routing = (ROOT / "xkeen-ui" / "static" / "js" / "features" / "routing.js").read_text(encoding="utf-8")
-    mihomo = (ROOT / "xkeen-ui" / "static" / "js" / "features" / "mihomo_panel.js").read_text(encoding="utf-8")
-    json_modal = (ROOT / "xkeen-ui" / "static" / "js" / "ui" / "json_editor_modal.js").read_text(encoding="utf-8")
-    editor_shared = (ROOT / "xkeen-ui" / "static" / "js" / "pages" / "editor.shared.js").read_text(encoding="utf-8")
-    cm6_runtime = (ROOT / "xkeen-ui" / "static" / "js" / "ui" / "codemirror6_boot.js").read_text(encoding="utf-8")
-    styles = (ROOT / "xkeen-ui" / "static" / "styles.css").read_text(encoding="utf-8")
+    diff_modal = (ROOT / "unified-ui" / "static" / "js" / "ui" / "diff_modal.js").read_text(encoding="utf-8")
+    routing = (ROOT / "unified-ui" / "static" / "js" / "features" / "routing.js").read_text(encoding="utf-8")
+    mihomo = (ROOT / "unified-ui" / "static" / "js" / "features" / "mihomo_panel.js").read_text(encoding="utf-8")
+    json_modal = (ROOT / "unified-ui" / "static" / "js" / "ui" / "json_editor_modal.js").read_text(encoding="utf-8")
+    editor_shared = (ROOT / "unified-ui" / "static" / "js" / "pages" / "editor.shared.js").read_text(encoding="utf-8")
+    cm6_runtime = (ROOT / "unified-ui" / "static" / "js" / "ui" / "codemirror6_boot.js").read_text(encoding="utf-8")
+    styles = (ROOT / "unified-ui" / "static" / "styles.css").read_text(encoding="utf-8")
 
     assert "_applyToLeftBtnEl = makeBtn(" in diff_modal
     assert "_applyToRightBtnEl = makeBtn(" in diff_modal
@@ -132,21 +132,21 @@ def test_diff_modal_exposes_bidirectional_apply_and_save_contracts():
     assert "async function _confirmDiscardDraft()" in diff_modal
     assert "if (r !== 'save' && _hasAnyDraft()) {" in diff_modal
 
-    assert ".xkeen-diff-apply-group {" in styles
-    assert ".xkeen-diff-modal .xkeen-diff-helper {" in styles
-    assert ".xkeen-diff-foot-actions {" in styles
-    assert ".xkeen-diff-save-btn {" in styles
-    assert ".xkeen-diff-revert-btn {" in styles
-    assert ".xkeen-diff-modal .xkeen-diff-ignore-toggle {" in styles
-    assert ".xkeen-diff-modal .xkeen-diff-ignore-toggle input {" in styles
-    assert ".xkeen-diff-modal .xkeen-diff-ignore-toggle.is-disabled {" in styles
-    assert ".xkeen-diff-modal .monaco-editor .xkeen-diff-active-hunk-line {" in styles
-    assert ".xkeen-diff-modal .monaco-editor .xkeen-diff-active-hunk-line-left {" in styles
-    assert ".xkeen-diff-modal .monaco-editor .xkeen-diff-active-hunk-line-right {" in styles
-    assert ".xkeen-diff-apply-btn.is-disabled" in styles
-    assert ".xkeen-diff-revert-btn.is-disabled" in styles
-    assert ".xkeen-diff-save-btn.is-disabled" in styles
-    assert ".xkeen-diff-save-btn.is-dirty::before" in styles
+    assert ".unified-diff-apply-group {" in styles
+    assert ".unified-diff-modal .unified-diff-helper {" in styles
+    assert ".unified-diff-foot-actions {" in styles
+    assert ".unified-diff-save-btn {" in styles
+    assert ".unified-diff-revert-btn {" in styles
+    assert ".unified-diff-modal .unified-diff-ignore-toggle {" in styles
+    assert ".unified-diff-modal .unified-diff-ignore-toggle input {" in styles
+    assert ".unified-diff-modal .unified-diff-ignore-toggle.is-disabled {" in styles
+    assert ".unified-diff-modal .monaco-editor .unified-diff-active-hunk-line {" in styles
+    assert ".unified-diff-modal .monaco-editor .unified-diff-active-hunk-line-left {" in styles
+    assert ".unified-diff-modal .monaco-editor .unified-diff-active-hunk-line-right {" in styles
+    assert ".unified-diff-apply-btn.is-disabled" in styles
+    assert ".unified-diff-revert-btn.is-disabled" in styles
+    assert ".unified-diff-save-btn.is-disabled" in styles
+    assert ".unified-diff-save-btn.is-dirty::before" in styles
 
     # CM6 backend visual contracts: vibrant Monaco-like syntax highlight,
     # synchronized two-pane scrolling.
@@ -172,19 +172,19 @@ def test_diff_modal_exposes_bidirectional_apply_and_save_contracts():
     assert "function reportBackendFallback(fromKind, err)" in diff_modal
     assert "CodeMirror diff временно недоступен, открываю сравнение через Monaco" in diff_modal
     assert "await renderMonacoDiff(_hostEl, {" in diff_modal
-    # CM6 palette must cascade to .xkeen-diff-host so var(--xk-cm-keyword) etc.
+    # CM6 palette must cascade to .unified-diff-host so var(--xk-cm-keyword) etc.
     # resolve to the shared dark-Monaco-like palette and selection stays visible.
     assert "--xk-cm-keyword: #569cd6;" in styles
-    assert ".xkeen-diff-modal .xkeen-diff-host .cm-selectionBackground" in styles
-    assert ".xkeen-diff-modal .xkeen-diff-host .cm-lineWrapping {" in styles
-    assert ".xkeen-diff-modal .xkeen-diff-host .cm-lineWrapping .cm-line {" in styles
-    assert ".xkeen-diff-modal .xkeen-diff-host .cm-gutters {" in styles
-    assert ".xkeen-diff-modal .xkeen-diff-host.xkeen-cm6-host .cm-editor {" in styles
-    assert ".xkeen-diff-modal .xkeen-diff-host .cm-line.xkeen-diff-cm6-active-hunk-line {" in styles
-    assert ".xkeen-diff-modal .xkeen-diff-host .cm-line.xkeen-diff-cm6-active-hunk-line-left {" in styles
-    assert ".xkeen-diff-modal .xkeen-diff-host .cm-line.xkeen-diff-cm6-active-hunk-line-right {" in styles
-    assert ".xkeen-diff-modal .xkeen-diff-host .cm-line.xkeen-diff-cm6-active-hunk-start {" in styles
-    assert ".xkeen-diff-modal .xkeen-diff-host .cm-line.xkeen-diff-cm6-active-hunk-end {" in styles
+    assert ".unified-diff-modal .unified-diff-host .cm-selectionBackground" in styles
+    assert ".unified-diff-modal .unified-diff-host .cm-lineWrapping {" in styles
+    assert ".unified-diff-modal .unified-diff-host .cm-lineWrapping .cm-line {" in styles
+    assert ".unified-diff-modal .unified-diff-host .cm-gutters {" in styles
+    assert ".unified-diff-modal .unified-diff-host.unified-cm6-host .cm-editor {" in styles
+    assert ".unified-diff-modal .unified-diff-host .cm-line.unified-diff-cm6-active-hunk-line {" in styles
+    assert ".unified-diff-modal .unified-diff-host .cm-line.unified-diff-cm6-active-hunk-line-left {" in styles
+    assert ".unified-diff-modal .unified-diff-host .cm-line.unified-diff-cm6-active-hunk-line-right {" in styles
+    assert ".unified-diff-modal .unified-diff-host .cm-line.unified-diff-cm6-active-hunk-start {" in styles
+    assert ".unified-diff-modal .unified-diff-host .cm-line.unified-diff-cm6-active-hunk-end {" in styles
     assert "background: var(--xk-cm-bg, #01030a);" in styles
     assert "background-color: var(--xk-cm-bg, #01030a);" in styles
     assert "background-color: var(--xk-cm-gutter-bg, var(--xk-cm-bg, #01030a));" in styles

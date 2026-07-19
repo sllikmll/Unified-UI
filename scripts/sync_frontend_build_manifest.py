@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-PROJECT_DIRNAME = "xkeen-ui"
+PROJECT_DIRNAME = "unified-ui"
 RAW_MANIFEST_RELATIVE_PATH = Path("static/frontend-build/.vite/manifest.build.json")
 BRIDGE_MANIFEST_RELATIVE_PATH = Path("static/frontend-build/.vite/manifest.json")
 BUILD_ROOT_RELATIVE_PATH = Path("static/frontend-build")
@@ -311,7 +311,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--repo-root",
         type=Path,
         default=None,
-        help="Repository root containing xkeen-ui/ (defaults to auto-detect from the current working directory)",
+        help="Repository root containing unified-ui/ (defaults to auto-detect from the current working directory)",
     )
     parser.add_argument(
         "--check",

@@ -16,9 +16,9 @@
 
 На текущем состоянии репозитория feature/runtime consumers для stages 4-6 считаются закрытыми:
 
-- `window.XKeen.features.*` не является canonical read-path;
+- `window.UnifiedUI.features.*` не является canonical read-path;
 - routing, Mihomo, editor/json/terminal и page runtime читают состояние через import/getter/helper-layer;
-- `window.XKeen.pageConfig` остаётся единственным server-owned runtime contract.
+- `window.UnifiedUI.pageConfig` остаётся единственным server-owned runtime contract.
 
 ## Каноническая точка входа
 
@@ -31,7 +31,7 @@
 - либо напрямую из конкретного feature-модуля;
 - либо из общего registry.
 
-`window.XKeen.features.*` допустим только как compatibility path, но не как основной источник истины.
+`window.UnifiedUI.features.*` допустим только как compatibility path, но не как основной источник истины.
 
 ## Текущий набор top-level feature roots
 
@@ -63,7 +63,7 @@
 - `typography`
 - `uiPrefsIo`
 - `updateNotifier`
-- `xkeenTexts`
+- `unifiedTexts`
 - `xrayLogs`
 
 ## Нормальный контракт для feature-модуля
@@ -103,7 +103,7 @@ export function initFeature() {
 
 После полного закрытия stages 0-6 canonical path считается закрытым:
 
-- business-код не должен читать `window.XKeen.features.*` как source of truth;
+- business-код не должен читать `window.UnifiedUI.features.*` как source of truth;
 - compat publish допустим только как узкий мост для старых скриптов;
 - canonical imports/getters остаются обязательным путём для нового кода.
 
@@ -149,8 +149,8 @@ const api = getMihomoPanelApi();
 Нежелательный вариант для нового кода:
 
 ```js
-const api = window.XKeen && window.XKeen.features
-  ? window.XKeen.features.mihomoPanel
+const api = window.UnifiedUI && window.UnifiedUI.features
+  ? window.UnifiedUI.features.mihomoPanel
   : null;
 ```
 

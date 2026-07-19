@@ -11,7 +11,7 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SCRIPT_SRC = REPO_ROOT / "xkeen-ui" / "tools" / "device_lock_detector.sh"
+SCRIPT_SRC = REPO_ROOT / "unified-ui" / "tools" / "device_lock_detector.sh"
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
@@ -88,7 +88,7 @@ def test_device_lock_detector_deduplicates_alias_mounts_and_pids(tmp_path: Path)
 
     env = os.environ.copy()
     env["PATH"] = str(bin_dir) + os.pathsep + env.get("PATH", "")
-    env["XKEEN_PROC_MOUNTS_FILE"] = _to_sh_path(mounts_file)
+    env["UNIFIED_PROC_MOUNTS_FILE"] = _to_sh_path(mounts_file)
 
     result = subprocess.run(
         [SH_PATH, str(script_dst)],

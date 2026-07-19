@@ -53,18 +53,18 @@ Android companion-приложение для Unified-UI. Каталог `androi
 
 ## Что уже подключено к backend
 
-- `GET /api/xkeen/core` загружает список установленных ядер и автоматически скрывает недоступные вкладки и drawer-секции.
+- `GET /api/unified/core` загружает список установленных ядер и автоматически скрывает недоступные вкладки и drawer-секции.
 - `GET /api/routing/fragments` загружает список Xray routing-документов.
 - `GET /api/mobile/v1/xray/routing/document?document=...` загружает единый server-authoritative snapshot выбранного routing-документа: published content/revision, сохранённый server draft и conflict metadata.
 - `POST /api/mobile/v1/xray/routing/validate` принимает raw JSONC draft выбранного документа и запускает read-only server Xray preflight; invalid draft возвращает structured diagnostics без persistent config save, restart или DAT-asset sync side effect.
-- `POST /api/mobile/v1/xray/routing/save` сохраняет проверенный draft отдельно от live Xray fragment; `POST /api/mobile/v1/xray/routing/apply` применяет exact saved revision и подтверждает restart xkeen.
+- `POST /api/mobile/v1/xray/routing/save` сохраняет проверенный draft отдельно от live Xray fragment; `POST /api/mobile/v1/xray/routing/apply` применяет exact saved revision и подтверждает restart unified.
 - `GET/POST /api/xray/subscriptions` загружает список подписок Xray и сохраняет новую или изменённую запись; `POST /api/xray/subscriptions/preview` получает серверный preview узлов без сохранения, записи fragment, изменения routing/observatory или restart.
 - `POST /api/xray/subscriptions/<id>/refresh` и `POST /api/xray/subscriptions/refresh-due` явно обновляют одну подписку или только просроченные; `DELETE /api/xray/subscriptions/<id>` удаляет managed fragment и безопасно пересобирает связанный runtime state.
 - `POST /api/xray/subscriptions/<id>/nodes/ping` проверяет отдельный узел подписки. Параметры restart и удаления managed-файла передаются явно, а разрушительные действия подтверждаются в приложении.
 - `GET /api/fs/list`, `GET /api/routing/dat/tags`, `GET /api/routing/dat/tag`, `GET /api/routing/dat/search` и `POST /api/routing/dat/lookup` образуют read-only мобильный DAT Explorer. Он автоматически находит GeoIP / GeoSite файлы, показывает теги, страницы элементов и серверный поиск, но не обновляет файлы и не меняет routing.
 - `GET /api/mobile/v1/logs` возвращает Xray `error`/`access` history и инкрементальные записи по per-source opaque cursor. Android пользуется этим контрактом для live logs, а не web WebSocket endpoint'ами.
 - Нативный просмотрщик логов разделяет `access.log` и `error.log`, фильтрует уровни, поддерживает локальный текстовый/RE2 Regex-поиск, паузу, follow-tail, ограниченное копирование и компактный раскрываемый список. Polling работает только пока открыт раздел логов; история и cursor сохраняются при уходе с экрана.
-- `POST /api/xkeen/start`, `POST /api/xkeen/stop`, `POST /api/restart` и `POST /api/xkeen/core` выполняют service/core actions; после каждого принятого POST приложение сверяет результат через `GET /api/xkeen/status` и `GET /api/xkeen/core`.
+- `POST /api/unified/start`, `POST /api/unified/stop`, `POST /api/restart` и `POST /api/unified/core` выполняют service/core actions; после каждого принятого POST приложение сверяет результат через `GET /api/unified/status` и `GET /api/unified/core`.
 - Эти read-only запросы идут через единый `CompanionHttpTransport`: он нормализует безопасный `baseUrl`, добавляет common headers, применяет timeout и оставляет seam для session auth headers. Validate и service actions используют отдельный `90 s` transport, потому что server Xray preflight может быть долгим.
 - Keenetic Digest challenge, `401`, `403`, `428`, HTML login page, offline и timeout переводятся в отдельные типизированные app-level состояния. `Core` отражает их в dashboard, diagnostics и logs, а `Routing Xray` — в retryable load state.
 - Во время core switch pending/failure показывается внутри modal без дублирующего глобального сообщения; после подтверждённого успеха modal закрывается и появляется одна непрозрачная контрастная success-карточка.
@@ -106,7 +106,7 @@ Android companion-приложение для Unified-UI. Каталог `androi
 - Двойной тап выделяет слово, длинный тап открывает системные действия `вырезать / копировать / вставить / выделить всё`; дополнительное меню содержит undo/redo, выделение и дублирование строки, переход к строке.
 - Длинные строки мягко переносятся по ширине экрана без горизонтального скроллинга; продолжения не получают ложных номеров строк. Компактный gutter и tab stop оставляют больше ширины коду, а статус показывает число символов, слов, строк и позицию курсора.
 - Подсветка JSON/JSONC сохраняет прежнюю цветовую схему; в больших документах она ограничивается видимой областью с буфером, чтобы скроллинг не зависел от количества строк.
-- Поддерживаются `.json` и `.jsonc`, а также заголовки `x-xkeen-jsonc` и `x-xkeen-jsonc-using`.
+- Поддерживаются `.json` и `.jsonc`, а также заголовки `x-unified-jsonc` и `x-unified-jsonc-using`.
 - Панель действий включает `edit`, `validate`, `revert`, `save`, `apply`.
 - `validate` делает реальный authenticated/CSRF backend round-trip через `POST /api/mobile/v1/xray/routing/validate`. Backend запускает Xray preflight только во temporary confdir: routing-файл и DAT symlink assets не меняются, сервис не перезапускается.
 - Validate endpoint добавлен одновременно в backend и Android-клиент, поэтому один новый APK недостаточен: на роутере должен быть установлен актуальный `unified-ui-routing.tar.gz`. Старый backend отвечает `404`; приложение показывает для этого отдельный код `validation_endpoint_unavailable` и инструкцию обновить Unified UI.

@@ -11,7 +11,7 @@ Updated: 2026-07-16
 - `Phase 2` идет фактически: в репозитории есть `android-companion/` с рабочим Compose baseline и экранным циклом `Launching -> Connections -> Pair/Login -> Ready`.
 - Android-клиент подтвержденно собирается командой `.\gradlew.bat testDebugUnitTest assembleDebug`.
 - В `Ready` workspace уже есть capability-aware нижняя навигация `Xray`, `Mihomo`, `Ports`, `Shell`, `Generator` и контекстные drawer-разделы.
-- Уже подключены первые read-only backend flows: `GET /api/xkeen/core`, `GET /api/routing/fragments`, `GET /api/routing?file=...`; они используют единый transport с `baseUrl` normalization, timeout, common headers/auth hook и typed error states для `401/403/428`, login HTML, offline и timeout.
+- Уже подключены первые read-only backend flows: `GET /api/unified/core`, `GET /api/routing/fragments`, `GET /api/routing?file=...`; они используют единый transport с `baseUrl` normalization, timeout, common headers/auth hook и typed error states для `401/403/428`, login HTML, offline и timeout.
 - Уже подключен app-private persistence списка узлов, базового metadata и последнего выбранного подключения; cold start больше не зависит от demo-списка.
 - Уже подключен per-connection secure storage session material: AES-GCM payload с ключом Android Keystore, encrypted trusted-restore marker и очистка выбранного record при logout. Обычный `Configured` node не является trusted session.
 - Этап 5 закрыт: real alpha session slice включает `/api/mobile/v1/bootstrap`, login и logout, `MobileSessionPort`, cookie+CSRF auth hook, server-validated trusted restore, явный `Pair/Login` fallback и обработку `401` из `Ready`; backend contract и Android unit/build verification green.

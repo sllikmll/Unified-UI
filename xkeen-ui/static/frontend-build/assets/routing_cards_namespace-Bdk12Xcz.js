@@ -1,1 +1,0 @@
-var e=null;function t(){if(e&&typeof e==`object`)return e;let t={};return e=t,t.state=t.state||{},t.__nsReady=!0,t}function n(){try{return t()}catch{}return null}Object.freeze({get:n,init:t});export{t as n,n as t};

@@ -1,0 +1,778 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Маршрутизация Xray — комментарии и примеры (05_routing*.jsonc)</title>
+  <style>
+    :root{
+      --bg: #f5f5f7;
+      --text: #111827;
+      --muted: #374151;
+      --card-bg: #ffffff;
+      --border: #d1d5db;
+      --code-bg: #e5e7eb;
+      --code-border: #cbd5e1;
+      --code-text: #0f172a;
+      --pre-bg: rgba(15, 23, 42, 0.04);
+      --tag-bg: #eff6ff;
+      --tag-text: #1f2937;
+      --link: #2563eb;
+    }
+
+    /* Match the surrounding UI theme when user/device prefers dark mode. */
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg: #0f172a;
+        --text: #e5e7eb;
+        --muted: #cbd5e1;
+        --card-bg: #020617;
+        --border: #1f2937;
+        --code-bg: #1e293b;
+        --code-border: #334155;
+        --code-text: #e5e7eb;
+        --pre-bg: rgba(148, 163, 184, 0.10);
+        --tag-bg: rgba(96, 165, 250, 0.18);
+        --tag-text: #e5e7eb;
+        --link: #60a5fa;
+      }
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px;
+      line-height: 1.6;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    h1 {
+      font-size: 26px;
+      margin: 0 0 12px;
+      color: var(--text);
+    }
+
+    h2 {
+      font-size: 20px;
+      margin: 24px 0 8px;
+      color: var(--text);
+    }
+
+    h3 {
+      font-size: 16px;
+      margin: 20px 0 6px;
+      color: var(--text);
+    }
+
+    p {
+      margin: 0 0 12px;
+      color: var(--muted);
+    }
+
+    ul {
+      padding-left: 20px;
+      margin: 8px 0 12px;
+      color: var(--muted);
+    }
+
+    a{ color: var(--link); }
+    a:hover{ text-decoration: underline; }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 13px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      color: var(--code-text);
+      white-space: nowrap;
+    }
+
+    pre {
+      margin: 12px 0 16px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: var(--pre-bg);
+      border: 1px solid var(--border);
+      overflow: auto;
+    }
+
+    pre code {
+      padding: 0;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      display: block;
+      white-space: pre;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin: 16px 0 20px;
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 24px 0;
+    }
+
+    button.back-to-panel {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 16px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
+    }
+
+    button.back-to-panel:hover {
+      background: color-mix(in srgb, var(--card-bg) 85%, var(--text) 15%);
+    }
+
+    button.back-to-panel:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 16px;
+      }
+
+      pre {
+        font-size: 12px;
+        padding: 10px 12px;
+      }
+
+      .card {
+        padding: 12px;
+      }
+
+      button.back-to-panel {
+        width: 100%;
+        max-width: 320px;
+        justify-content: center;
+      }
+    }
+  
+    /* Подсветка комментариев в примерах кода */
+    .code-comment {
+      color: #6b7280;
+      font-style: italic;
+    }
+    html[data-theme="dark"] .code-comment {
+      color: #9ca3af;
+    }
+
+    /* Тёмная тема для этой страницы помощи */
+    html[data-theme="dark"] body {
+      background: #020617;
+      color: #e5e7eb;
+    }
+
+    html[data-theme="dark"] h1,
+    html[data-theme="dark"] h2,
+    html[data-theme="dark"] h3 {
+      color: #e5e7eb;
+    }
+
+    html[data-theme="dark"] p,
+    html[data-theme="dark"] ul,
+    html[data-theme="dark"] li {
+      color: #d1d5db;
+    }
+
+    html[data-theme="dark"] code {
+      background: #020617;
+      color: #e5e7eb;
+    }
+
+    html[data-theme="dark"] pre {
+      background: #020617;
+      border-color: #1f2937;
+    }
+
+    html[data-theme="dark"] .card {
+      background: #020617;
+      border-color: #1f2937;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.85);
+    }
+
+    html[data-theme="dark"] .tag {
+      background: #1f2937;
+      color: #e5e7eb;
+    }
+
+    html[data-theme="dark"] hr {
+      border-top-color: #374151;
+    }
+
+  
+    /* === Подсветка кода как в редакторе JSON (CodeMirror material-darker + правки UnifiedUI) === */
+    :root {
+      --xk-code-bg: #f9fafb;
+      --xk-code-fg: #111827;
+      --xk-code-border: #d1d5db;
+
+      --xk-comment: #6b7280;
+      --xk-property: #1f2937;
+      --xk-string: #b91c1c;
+      --xk-number: #047857;
+      --xk-atom: #047857;
+      --xk-keyword: #7c3aed;
+      --xk-punct: #111827;
+    }
+
+    html[data-theme="dark"] {
+      --xk-code-bg: #020617;
+      --xk-code-fg: #e5e7eb;
+      --xk-code-border: #111827;
+
+      --xk-comment: #64748b;
+      --xk-property: #60a5fa;
+      --xk-string: #a3e635;
+      --xk-number: #f97316;
+      --xk-atom: #22d3ee;
+      --xk-keyword: #facc15;
+      --xk-punct: #9ca3af;
+    }
+
+    /* Кодовые блоки */
+    pre {
+      background: var(--xk-code-bg);
+      border: 1px solid var(--xk-code-border);
+      border-radius: 8px;
+    }
+
+    pre code {
+      color: var(--xk-code-fg);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    /* Токены */
+    pre code .cm-comment { color: var(--xk-comment); }
+    html[data-theme="dark"] pre code .cm-comment { font-style: italic; }
+
+    pre code .cm-property { color: var(--xk-property); }
+    pre code .cm-string { color: var(--xk-string); }
+    pre code .cm-number { color: var(--xk-number); }
+    pre code .cm-atom { color: var(--xk-atom); }
+    pre code .cm-keyword { color: var(--xk-keyword); }
+    pre code .cm-punctuation,
+    pre code .cm-bracket { color: var(--xk-punct); }
+
+  </style>
+</head>
+<body>
+
+  <h1>Маршрутизация Xray (JSONC)</h1>
+  <p>Эта страница объясняет, как правильно писать комментарии и правила в файле routing-части Xray в формате <code>.jsonc</code> (JSON с комментариями), чтобы панель Unified UI могла его загрузить и применить.</p>
+  <p><b>Важно:</b> имя файла <b>определяется</b> профилем/ядром. Обычно это <code>05_routing.jsonc</code>, но для Hysteria2 может использоваться <code>05_routing_hys2.jsonc</code>.</p>
+
+  <div class="card">
+    <div class="tag">Кратко</div>
+    <ul>
+      <li>Поддерживаются комментарии: <code>//</code>, <code>#</code>, <code>/* ... */</code>.</li>
+      <li>При сохранении комментарии удаляются, а файл проверяется как обычный JSON.</li>
+      <li>После удаления комментариев не должно быть синтаксических ошибок (висячих запятых, незакрытых скобок и т.п.).</li>
+    </ul>
+  </div>
+
+  <h2>1. Виды поддерживаемых комментариев</h2>
+
+  <h3>1.1. Однострочный комментарий <code>//</code></h3>
+  <pre><code>// Комментарий целой строки
+{
+  "rules": [
+    // Комментарий перед правилом
+    { "type": "field", "outboundTag": "proxy" } // Комментарий в конце строки
+  ]
+}</code></pre>
+
+  <h3>1.2. Однострочный комментарий <code>#</code></h3>
+  <pre><code># Комментарий целой строки
+{
+  "domainStrategy": "AsIs",  # Комментарий в конце строки
+  "rules": [
+    # комментарий внутри списка
+    { "type": "field", "outboundTag": "direct" }
+  ]
+}</code></pre>
+
+  <h3>1.3. Многострочный комментарий <code>/* ... */</code></h3>
+  <pre><code>{
+  /*
+    Большой блок комментария:
+    - можно описать, что делает конфиг
+    - кто его правил
+    - когда вносились изменения
+  */
+  "rules": [
+    {
+      "type": "field",
+      "ip": ["geoip:private"],
+      "outboundTag": "direct"
+    }
+  ]
+}</code></pre>
+
+  <p><strong>Важно:</strong> каждый многострочный комментарий должен быть закрыт <code>*/</code>. Незакрытый блок-сomментарий сломает весь файл.</p>
+
+  <hr>
+
+  <h2>2. Типичные ошибки</h2>
+
+  <h3>2.1. Висячая запятая перед закрывающей скобкой</h3>
+  <p>После удаления комментариев JSON не должен содержать лишних запятых.</p>
+
+  <p><strong>Неправильно:</strong></p>
+  <pre><code>{
+  "rules": [
+    { "type": "field", "outboundTag": "proxy" }, // последний элемент,
+  ] # после удаления комментариев останется лишняя запятая
+}</code></pre>
+
+  <p><strong>Правильно:</strong></p>
+  <pre><code>{
+  "rules": [
+    { "type": "field", "outboundTag": "proxy" } // последний элемент, без запятой
+  ]
+}</code></pre>
+
+  <h3>2.2. Незакрытый многострочный комментарий</h3>
+
+  <p><strong>Неправильно:</strong></p>
+  <pre><code>{
+  /* Начали писать
+     большой комментарий и забыли закрыть
+  "rules": [
+    ...
+  ]
+}</code></pre>
+
+  <p><strong>Правильно:</strong></p>
+  <pre><code>{
+  /* Всё ОК */
+  "rules": [
+    ...
+  ]
+}</code></pre>
+
+  <h3>2.3. Комментарии внутри строк</h3>
+  <p>Последовательности <code>//</code>, <code>#</code> и <code>/*</code> внутри строк не считаются комментариями:</p>
+  <pre><code>{
+  "note": "это просто текст // а не комментарий"
+}</code></pre>
+
+  <hr>
+
+  <h2>3. Как устроены правила маршрутизации</h2>
+
+  <p>Внутри поля <code>"rules"</code> каждый объект — это отдельное правило. Основные поля:</p>
+  <ul>
+    <li><code>"type": "field"</code> — тип правила (обычно его не меняют).</li>
+    <li><code>"domain": [...]</code> — список доменов или групп доменов (<code>geosite:...</code>).</li>
+    <li><code>"ip": [...]</code> — список IP или групп IP (<code>geoip:...</code>).</li>
+    <li><code>"outboundTag": "proxy"</code> — тег, который должен существовать в <code>04_outbounds.json</code>.</li>
+  </ul>
+
+  <p>Пример: отправить Netflix через прокси:</p>
+  <pre><code>{
+  "type": "field",
+  "domain": [
+    "geosite:netflix",
+    "netflix.com"
+  ],
+  "outboundTag": "proxy"
+}</code></pre>
+
+  <p>Пример: локальные сети в обход прокси:</p>
+  <pre><code>{
+  "type": "field",
+  "ip": [
+    "geoip:private"
+  ],
+  "outboundTag": "direct"
+}</code></pre>
+
+  <hr>
+
+  <h2>4. Готовый пример 05_routing*.jsonc</h2>
+
+  <p>Ниже — рабочий шаблон <code>05_routing*.jsonc</code>, который можно использовать как базу и редактировать под себя.</p>
+
+  <pre><code>/*
+ * 05_routing*.jsonc — пример с комментариями
+ *
+ * Поддерживаются комментарии:
+ *   // однострочный комментарий
+ *   # однострочный комментарий
+ *   /* многострочный комментарий *\/
+ *
+ * После удаления комментариев файл превращается в обычный валидный JSON.
+ * Следи только за тем, чтобы не было "висячих" запятых после последнего элемента.
+ */
+
+# Общие настройки маршрутизатора Xray
+{
+  // Как обрабатывать домены (AsIs / IPIfNonMatch / IPOnDemand)
+  "domainStrategy": "AsIs",
+
+  // Как сопоставлять домены (plain / vdomain / mph / hybrid)
+  "domainMatcher": "hybrid",
+
+  // Основные правила маршрутизации
+  "rules": [
+    // ===================== ЛОКАЛЬНЫЕ СЕТИ / ЛОКАЛЬНЫЕ ДОМЕНЫ =====================
+
+    {
+      // Весь приватный диапазон IP → direct
+      "type": "field",
+      "ip": [
+        "geoip:private",         // RFC1918, локальные сети
+        "geoip:cn"               // пример: Китай напрямую (можно удалить, если не нужно)
+      ],
+      "outboundTag": "direct"    // тег должен существовать в 04_outbounds.json
+    },
+
+    {
+      // Локальные домены, типа router.local, *.lan и т.п.
+      "type": "field",
+      "domain": [
+        "geosite:private"
+      ],
+      "outboundTag": "direct"
+    },
+
+    // ===================== БЛОКИРОВКА РЕКЛАМЫ / НЕНУЖНЫЙ ТРАФИК =====================
+
+    {
+      // Рекламные домены по готовым спискам
+      "type": "field",
+      "domain": [
+        "geosite:category-ads-all"  // списки рекламы (если импортированы в geosite)
+      ],
+      "outboundTag": "block"        // тег block должен быть настроен в outbounds
+    },
+
+    // ===================== СТРИМИНГ / МЕДИА ЧЕРЕЗ ПРОКСИ =====================
+
+    {
+      /*
+       * Стриминговые сервисы → proxy
+       * сюда можно добавлять свои геосайты и домены
+       */
+      "type": "field",
+      "domain": [
+        // Сервисы из geosite
+        "geosite:netflix",
+        "geosite:disney",
+        "geosite:youtube",
+
+        // Прямые домены (пример)
+        "netflix.com",
+        "youtube.com"
+      ],
+      "outboundTag": "proxy"
+    },
+
+    // ===================== РАБОТА / VPN ДЛЯ ОФИСА =====================
+
+    {
+      /*
+       * Пример: рабочие ресурсы через отдельный прокси
+       * Можно удалить или раскомментировать и дописать свои домены.
+       */
+      "type": "field",
+      "domain": [
+        "corp.example.com",
+        "jira.example.com",
+        "vpn.example.com"
+      ],
+      "outboundTag": "work-proxy"   // не забудь добавить этот тег в outbounds
+    },
+
+    // ===================== ПРИМЕРЫ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ =====================
+
+    /*
+    {
+      // Пример: игры в Steam идут напрямую
+      "type": "field",
+      "domain": [
+        "store.steampowered.com",
+        "api.steampowered.com"
+      ],
+      "outboundTag": "direct"
+    },
+    */
+
+    /*
+    {
+      // Пример: какие-то сайты всегда через VPN
+      "type": "field",
+      "domain": [
+        "mybank.com",
+        "secure.example.org"
+      ],
+      "outboundTag": "proxy"
+    },
+    */
+
+    // ===================== ПРАВИЛО ПО УМОЛЧАНИЮ =====================
+
+    {
+      /*
+       * Фоллбэк: всё, что не попало ни под одно правило выше,
+       * идёт через proxy (можно сменить на direct, если нужно).
+       */
+      "type": "field",
+      "outboundTag": "proxy"
+    }
+  ]
+}</code></pre>
+
+  <hr>
+
+  <h2>5. Советы</h2>
+  <ul>
+    <li>Если сомневаетесь — закомментируйте правило, а не удаляйте его.</li>
+    <li>После правок убедитесь, что:
+      <ul>
+        <li>все скобки <code>{}</code> и <code>[]</code> закрыты;</li>
+        <li>строки в двойных кавычках <code>"..."</code>;</li>
+        <li>нет лишней запятой перед <code>]</code> или <code>}</code>.</li>
+      </ul>
+    </li>
+  </ul>
+
+
+<script>
+(function () {
+  const THEME_KEY = 'unified-theme';
+
+  function applyTheme(theme) {
+    const next = theme === 'dark' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+  }
+
+  function getInitialTheme() {
+    try {
+      const stored = window.localStorage && localStorage.getItem(THEME_KEY);
+      if (stored === 'light' || stored === 'dark') {
+        return stored;
+      }
+    } catch (e) {}
+
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    return 'light';
+  }
+
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function highlightCodeBlock(codeEl) {
+    const text = codeEl.textContent || '';
+    const len = text.length;
+    let i = 0;
+    let out = '';
+
+    function wrap(cls, raw) {
+      return '<span class="' + cls + '">' + escapeHtml(raw) + '</span>';
+    }
+
+    function isDigit(ch) {
+      return ch >= '0' && ch <= '9';
+    }
+
+    function isWordStart(ch) {
+      return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch === '_';
+    }
+
+    while (i < len) {
+      const ch = text[i];
+      const next = i + 1 < len ? text[i + 1] : '';
+
+      // Line comments: // ... or # ...
+      if (ch === '/' && next === '/') {
+        let j = i + 2;
+        while (j < len && text[j] !== '\n') j++;
+        out += wrap('cm-comment', text.slice(i, j));
+        i = j;
+        continue;
+      }
+      if (ch === '#') {
+        let j = i + 1;
+        while (j < len && text[j] !== '\n') j++;
+        out += wrap('cm-comment', text.slice(i, j));
+        i = j;
+        continue;
+      }
+
+      // Block comments: /* ... */
+      if (ch === '/' && next === '*') {
+        const end = text.indexOf('*/', i + 2);
+        const j = end === -1 ? len : end + 2;
+        out += wrap('cm-comment', text.slice(i, j));
+        i = j;
+        continue;
+      }
+
+      // Strings: "..."
+      if (ch === '"') {
+        let j = i + 1;
+        let esc = false;
+        while (j < len) {
+          const c = text[j];
+          if (esc) {
+            esc = false;
+          } else if (c === '\\') {
+            esc = true;
+          } else if (c === '"') {
+            j++;
+            break;
+          }
+          j++;
+        }
+        const raw = text.slice(i, j);
+
+        // Determine whether this is a property name (look ahead for ':')
+        let k = j;
+        while (k < len && (text[k] === ' ' || text[k] === '\t' || text[k] === '\r' || text[k] === '\n')) k++;
+        const cls = (k < len && text[k] === ':') ? 'cm-property' : 'cm-string';
+
+        out += wrap(cls, raw);
+        i = j;
+        continue;
+      }
+
+      // Numbers
+      if (ch === '-' || isDigit(ch)) {
+        let j = i;
+        if (text[j] === '-') j++;
+        let hasDigits = false;
+        while (j < len && isDigit(text[j])) {
+          hasDigits = true;
+          j++;
+        }
+        if (j < len && text[j] === '.') {
+          j++;
+          while (j < len && isDigit(text[j])) {
+            hasDigits = true;
+            j++;
+          }
+        }
+        if (hasDigits && j < len && (text[j] === 'e' || text[j] === 'E')) {
+          let k = j + 1;
+          if (k < len && (text[k] === '+' || text[k] === '-')) k++;
+          let expDigits = 0;
+          while (k < len && isDigit(text[k])) {
+            expDigits++;
+            k++;
+          }
+          if (expDigits > 0) j = k;
+        }
+        if (hasDigits) {
+          out += wrap('cm-number', text.slice(i, j));
+          i = j;
+          continue;
+        }
+      }
+
+      // Words (true/false/null)
+      if (isWordStart(ch)) {
+        let j = i + 1;
+        while (j < len) {
+          const c = text[j];
+          if (isWordStart(c) || isDigit(c)) j++;
+          else break;
+        }
+        const raw = text.slice(i, j);
+        if (raw === 'true' || raw === 'false' || raw === 'null') {
+          out += wrap('cm-atom', raw);
+        } else {
+          out += escapeHtml(raw);
+        }
+        i = j;
+        continue;
+      }
+
+      // Brackets and punctuation
+      if (ch === '{' || ch === '}' || ch === '[' || ch === ']') {
+        out += wrap('cm-bracket', ch);
+        i++;
+        continue;
+      }
+      if (ch === ':' || ch === ',') {
+        out += wrap('cm-punctuation', ch);
+        i++;
+        continue;
+      }
+
+      // Default: raw char
+      out += escapeHtml(ch);
+      i++;
+    }
+
+    codeEl.innerHTML = out;
+  }
+
+  function init() {
+    const initialTheme = getInitialTheme();
+    applyTheme(initialTheme);
+
+    document.querySelectorAll('pre code').forEach(function (codeEl) {
+      highlightCodeBlock(codeEl);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  // Слушаем переключение темы из основной панели
+  window.addEventListener('storage', function (e) {
+    if (e.key === THEME_KEY && e.newValue) {
+      applyTheme(e.newValue);
+    }
+  });
+})();
+</script>
+
+
+</body>
+</html>

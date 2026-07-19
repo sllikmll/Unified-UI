@@ -7,7 +7,7 @@ from flask import Flask
 
 
 ROOT = Path(__file__).resolve().parents[1]
-APP_DIR = ROOT / "xkeen-ui"
+APP_DIR = ROOT / "unified-ui"
 
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
@@ -29,7 +29,7 @@ def test_get_mihomo_template_reads_utf8_unicode_content(tmp_path: Path):
             MIHOMO_CONFIG_FILE=str(tmp_path / "config.yaml"),
             MIHOMO_TEMPLATES_DIR=str(templates_dir),
             MIHOMO_DEFAULT_TEMPLATE=str(template_path),
-            restart_xkeen=lambda **_: False,
+            restart_unified=lambda **_: False,
         )
     )
 

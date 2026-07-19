@@ -20,7 +20,7 @@ def client(tmp_path):
         MIHOMO_CONFIG_FILE=str(cfg),
         MIHOMO_TEMPLATES_DIR=str(tmp_path),
         MIHOMO_DEFAULT_TEMPLATE=str(tmp_path / "default.yaml"),
-        restart_xkeen=lambda: None,
+        restart_unified=lambda: None,
     )
     app = Flask(__name__)
     app.register_blueprint(bp)
@@ -117,7 +117,7 @@ def test_parse_xray_json_surfaces_happ_landing_page_hint(client):
             body,
             {
                 "content-type": "text/html; charset=utf-8",
-                "x-xkeen-happ-error": "happ_helper_not_configured",
+                "x-unified-happ-error": "happ_helper_not_configured",
             },
         ),
     ):
@@ -129,7 +129,7 @@ def test_parse_xray_json_surfaces_happ_landing_page_hint(client):
     assert r.status_code == 422
     payload = r.get_json()
     assert payload["code"] == "happ_landing_page"
-    assert "XKEEN_HAPP_HELPER_CMD" in payload["hint"]
+    assert "UNIFIED_HAPP_HELPER_CMD" in payload["hint"]
     assert payload["ok"] is False
 
 
@@ -145,7 +145,7 @@ def test_parse_xray_json_surfaces_happ_decryptor_hint(client):
             body,
             {
                 "content-type": "text/html; charset=utf-8",
-                "x-xkeen-happ-error": "happ_decryptor_not_configured",
+                "x-unified-happ-error": "happ_decryptor_not_configured",
             },
         ),
     ):
@@ -157,7 +157,7 @@ def test_parse_xray_json_surfaces_happ_decryptor_hint(client):
     assert r.status_code == 422
     payload = r.get_json()
     assert payload["code"] == "happ_landing_page"
-    assert "XKEEN_HAPP_DECRYPTOR_CMD" in payload["hint"]
+    assert "UNIFIED_HAPP_DECRYPTOR_CMD" in payload["hint"]
     assert payload["ok"] is False
 
 

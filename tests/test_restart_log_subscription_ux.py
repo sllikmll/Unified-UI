@@ -11,8 +11,8 @@ def _read(rel_path: str) -> str:
 
 
 def test_restart_log_formats_subscription_refresh_entries_and_polls_for_updates():
-    restart_log_src = _read("xkeen-ui/static/js/features/restart_log.js")
-    styles_src = _read("xkeen-ui/static/styles.css")
+    restart_log_src = _read("unified-ui/static/js/features/restart_log.js")
+    styles_src = _read("unified-ui/static/styles.css")
 
     assert "const RESTART_LOG_POLL_MS = 15000;" in restart_log_src
     assert "'xray-subscription-refresh': {" in restart_log_src
@@ -67,7 +67,7 @@ def test_restart_log_formats_subscription_refresh_entries_and_polls_for_updates(
 
 
 def test_restart_log_details_toggle_resolves_panel_inside_clicked_log_container():
-    restart_log_src = _read("xkeen-ui/static/js/features/restart_log.js")
+    restart_log_src = _read("unified-ui/static/js/features/restart_log.js")
 
     assert "function getRestartLogScopeId(el)" in restart_log_src
     assert "safeDomIdPart(scopeId)" in restart_log_src
@@ -117,9 +117,9 @@ def test_append_restart_log_swallows_broadcast_failures(monkeypatch, tmp_path):
 
 
 def test_restart_log_renders_summary_above_block():
-    panel_src = _read("xkeen-ui/templates/panel.html")
-    restart_log_src = _read("xkeen-ui/static/js/features/restart_log.js")
-    styles_src = _read("xkeen-ui/static/styles.css")
+    panel_src = _read("unified-ui/templates/panel.html")
+    restart_log_src = _read("unified-ui/static/js/features/restart_log.js")
+    styles_src = _read("unified-ui/static/styles.css")
 
     assert panel_src.count('data-xk-restart-log-summary="1"') == 5
     assert "buildRestartLogSummary" in restart_log_src
@@ -134,9 +134,9 @@ def test_restart_log_renders_summary_above_block():
 
 
 def test_restart_log_has_viewer_ux_without_xray_log_source_duplication():
-    restart_log_src = _read("xkeen-ui/static/js/features/restart_log.js")
-    panel_src = _read("xkeen-ui/templates/panel.html")
-    styles_src = _read("xkeen-ui/static/styles.css")
+    restart_log_src = _read("unified-ui/static/js/features/restart_log.js")
+    panel_src = _read("unified-ui/templates/panel.html")
+    styles_src = _read("unified-ui/static/styles.css")
 
     assert "function entryMatchesSearch(entry)" in restart_log_src
     assert "RL.applyTokenFilter" in restart_log_src
@@ -151,11 +151,11 @@ def test_restart_log_has_viewer_ux_without_xray_log_source_duplication():
 
 
 def test_restart_log_subscribes_to_events_ws_for_instant_refresh():
-    restart_log_src = _read("xkeen-ui/static/js/features/restart_log.js")
+    restart_log_src = _read("unified-ui/static/js/features/restart_log.js")
 
     assert "RESTART_LOG_WS_EVENTS" in restart_log_src
     assert "'restart_log_appended'" in restart_log_src
-    assert "'xkeen_restarted'" in restart_log_src
+    assert "'unified_restarted'" in restart_log_src
     assert "'core_changed'" in restart_log_src
     assert "scope: 'events'" in restart_log_src
     assert "/ws/events?token=" in restart_log_src
@@ -165,7 +165,7 @@ def test_restart_log_subscribes_to_events_ws_for_instant_refresh():
 
 
 def test_outbounds_subscription_refresh_relies_on_restart_log_for_changed_restarts():
-    outbounds_src = _read("xkeen-ui/static/js/features/outbounds.js")
+    outbounds_src = _read("unified-ui/static/js/features/outbounds.js")
     refresh_marker = "async function subsRefresh("
     subs_refresh_src = outbounds_src.split(refresh_marker, 1)[1].split("async function subsRefreshDue() {", 1)[0]
     subs_refresh_due_src = outbounds_src.split("async function subsRefreshDue() {", 1)[1]
@@ -187,7 +187,7 @@ def test_outbounds_subscription_refresh_relies_on_restart_log_for_changed_restar
 
 
 def test_restart_log_parses_mihomo_logfmt_runtime_lines():
-    restart_log_src = _read("xkeen-ui/static/js/features/restart_log.js")
+    restart_log_src = _read("unified-ui/static/js/features/restart_log.js")
 
     assert "RUNTIME_LOGFMT_LINE_RE" in restart_log_src
     assert "decodeLogfmtValue" in restart_log_src

@@ -9,13 +9,13 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-STATIC_DIR = ROOT / "xkeen-ui" / "static"
+STATIC_DIR = ROOT / "unified-ui" / "static"
 BUILD_DIR = STATIC_DIR / "frontend-build"
 MANIFEST_PATH = BUILD_DIR / ".vite" / "manifest.json"
 
 EXPECTED_BUILD_ENTRIES = {
     "panel": "static/js/pages/panel.entry.js",
-    "xkeen": "static/js/pages/xkeen.entry.js",
+    "unified": "static/js/pages/unified.entry.js",
     "backups": "static/js/pages/backups.entry.js",
     "devtools": "static/js/pages/devtools.entry.js",
     "mihomo_generator": "static/js/pages/mihomo_generator.entry.js",
@@ -39,7 +39,7 @@ def _expected_wrapper_text(source_entry: str) -> str:
 
 
 def _write_minimal_sync_fixture(repo_root: Path, *, wrapper_text: str) -> Path:
-    project_root = repo_root / "xkeen-ui"
+    project_root = repo_root / "unified-ui"
     manifest_dir = project_root / "static" / "frontend-build" / ".vite"
     asset_dir = project_root / "static" / "frontend-build" / "assets"
     page_dir = project_root / "static" / "js" / "pages"
@@ -197,7 +197,7 @@ def test_frontend_build_wrapper_sync_script_rewrites_outdated_wrapper(tmp_path):
     )
 
     assert check_result.returncode == 1
-    assert "MISMATCH xkeen-ui/static/frontend-build/assets/panel-test.js" in check_result.stdout
+    assert "MISMATCH unified-ui/static/frontend-build/assets/panel-test.js" in check_result.stdout
 
     sync_result = subprocess.run(
         [sys.executable, str(SYNC_SCRIPT), "--repo-root", str(tmp_path)],
@@ -212,8 +212,8 @@ def test_frontend_build_wrapper_sync_script_rewrites_outdated_wrapper(tmp_path):
 
 def test_frontend_asset_helper_prefers_current_build_wrappers_when_they_are_modern():
     ui_assets = _import_ui_assets_module()
-    previous = os.environ.get("XKEEN_UI_FRONTEND_SOURCE_FALLBACK")
-    os.environ["XKEEN_UI_FRONTEND_SOURCE_FALLBACK"] = "0"
+    previous = os.environ.get("UNIFIED_UI_FRONTEND_SOURCE_FALLBACK")
+    os.environ["UNIFIED_UI_FRONTEND_SOURCE_FALLBACK"] = "0"
 
     try:
         helper = ui_assets.FrontendAssetHelper(static_folder=str(STATIC_DIR))
@@ -227,14 +227,14 @@ def test_frontend_asset_helper_prefers_current_build_wrappers_when_they_are_mode
             assert f"import '../../{source_entry[7:]}';" in text
     finally:
         if previous is None:
-            os.environ.pop("XKEEN_UI_FRONTEND_SOURCE_FALLBACK", None)
+            os.environ.pop("UNIFIED_UI_FRONTEND_SOURCE_FALLBACK", None)
         else:
-            os.environ["XKEEN_UI_FRONTEND_SOURCE_FALLBACK"] = previous
+            os.environ["UNIFIED_UI_FRONTEND_SOURCE_FALLBACK"] = previous
 
 def test_frontend_asset_helper_exposes_stage3_bridge_resolution_for_current_wrappers():
     ui_assets = _import_ui_assets_module()
-    previous = os.environ.get("XKEEN_UI_FRONTEND_SOURCE_FALLBACK")
-    os.environ["XKEEN_UI_FRONTEND_SOURCE_FALLBACK"] = "0"
+    previous = os.environ.get("UNIFIED_UI_FRONTEND_SOURCE_FALLBACK")
+    os.environ["UNIFIED_UI_FRONTEND_SOURCE_FALLBACK"] = "0"
 
     try:
         helper = ui_assets.FrontendAssetHelper(static_folder=str(STATIC_DIR))
@@ -257,9 +257,9 @@ def test_frontend_asset_helper_exposes_stage3_bridge_resolution_for_current_wrap
             assert helper.should_use_build_entry(entry_name) is resolution.should_use_build
     finally:
         if previous is None:
-            os.environ.pop("XKEEN_UI_FRONTEND_SOURCE_FALLBACK", None)
+            os.environ.pop("UNIFIED_UI_FRONTEND_SOURCE_FALLBACK", None)
         else:
-            os.environ["XKEEN_UI_FRONTEND_SOURCE_FALLBACK"] = previous
+            os.environ["UNIFIED_UI_FRONTEND_SOURCE_FALLBACK"] = previous
 
 
 
@@ -267,14 +267,14 @@ def test_frontend_asset_helper_stage8_contract_uses_dev_only_source_fallback_swi
     ui_assets = _import_ui_assets_module()
     helper = ui_assets.FrontendAssetHelper(static_folder=str(STATIC_DIR))
 
-    assert helper.source_fallback_env == "XKEEN_UI_FRONTEND_SOURCE_FALLBACK"
+    assert helper.source_fallback_env == "UNIFIED_UI_FRONTEND_SOURCE_FALLBACK"
     assert not hasattr(ui_assets, "_BUILD_PAGES_ENV")
 
 
 def test_frontend_asset_helper_requires_build_entries_in_build_only_mode(tmp_path):
     ui_assets = _import_ui_assets_module()
-    previous = os.environ.get("XKEEN_UI_FRONTEND_SOURCE_FALLBACK")
-    os.environ["XKEEN_UI_FRONTEND_SOURCE_FALLBACK"] = "0"
+    previous = os.environ.get("UNIFIED_UI_FRONTEND_SOURCE_FALLBACK")
+    os.environ["UNIFIED_UI_FRONTEND_SOURCE_FALLBACK"] = "0"
 
     try:
         static_dir = tmp_path / "static"
@@ -300,18 +300,18 @@ def test_frontend_asset_helper_requires_build_entries_in_build_only_mode(tmp_pat
         assert "missing_build_entry" in message
     finally:
         if previous is None:
-            os.environ.pop("XKEEN_UI_FRONTEND_SOURCE_FALLBACK", None)
+            os.environ.pop("UNIFIED_UI_FRONTEND_SOURCE_FALLBACK", None)
         else:
-            os.environ["XKEEN_UI_FRONTEND_SOURCE_FALLBACK"] = previous
+            os.environ["UNIFIED_UI_FRONTEND_SOURCE_FALLBACK"] = previous
 
 
 def test_frontend_asset_helper_allows_source_fallback_in_testing_app_context(tmp_path):
     ui_assets = _import_ui_assets_module()
-    previous = os.environ.get("XKEEN_UI_FRONTEND_SOURCE_FALLBACK")
+    previous = os.environ.get("UNIFIED_UI_FRONTEND_SOURCE_FALLBACK")
     if previous is None:
-        os.environ.pop("XKEEN_UI_FRONTEND_SOURCE_FALLBACK", None)
+        os.environ.pop("UNIFIED_UI_FRONTEND_SOURCE_FALLBACK", None)
     else:
-        os.environ.pop("XKEEN_UI_FRONTEND_SOURCE_FALLBACK", None)
+        os.environ.pop("UNIFIED_UI_FRONTEND_SOURCE_FALLBACK", None)
 
     previous_current_app = getattr(ui_assets, "current_app", None)
     ui_assets.current_app = types.SimpleNamespace(debug=False, testing=True, config={"TESTING": True})
@@ -328,9 +328,9 @@ def test_frontend_asset_helper_allows_source_fallback_in_testing_app_context(tmp
     finally:
         ui_assets.current_app = previous_current_app
         if previous is None:
-            os.environ.pop("XKEEN_UI_FRONTEND_SOURCE_FALLBACK", None)
+            os.environ.pop("UNIFIED_UI_FRONTEND_SOURCE_FALLBACK", None)
         else:
-            os.environ["XKEEN_UI_FRONTEND_SOURCE_FALLBACK"] = previous
+            os.environ["UNIFIED_UI_FRONTEND_SOURCE_FALLBACK"] = previous
 
 
 def test_frontend_asset_helper_exposes_normalized_page_config_contract():
@@ -428,7 +428,7 @@ def test_init_ui_assets_helpers_registers_page_config_template_global():
     helper = ui_assets.init_ui_assets_helpers(app)
 
     assert isinstance(helper, ui_assets.FrontendAssetHelper)
-    assert app.extensions["xkeen_ui_assets"] is helper
+    assert app.extensions["unified_ui_assets"] is helper
 
     entry_global = app.template_globals["frontend_page_entry_url"]
     page_config_global = app.template_globals["frontend_page_config"]

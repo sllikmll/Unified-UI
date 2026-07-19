@@ -9,7 +9,7 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMAS_DIR = Path(__file__).resolve().parents[1] / "xkeen-ui" / "static" / "schemas"
+SCHEMAS_DIR = Path(__file__).resolve().parents[1] / "unified-ui" / "static" / "schemas"
 
 
 def _load(path: Path) -> dict:
@@ -275,9 +275,9 @@ def test_mihomo_deep_beginner_metadata_covers_timing_and_override_fields(definit
 def test_mihomo_yaml_hover_uses_beginner_metadata_for_provider_details(doc_with_marker, expected_path, expected_substring):
     script = f"""
 import fs from 'node:fs';
-import {{ hoverYamlTextFromSchema }} from './xkeen-ui/static/js/ui/yaml_schema.js';
+import {{ hoverYamlTextFromSchema }} from './unified-ui/static/js/ui/yaml_schema.js';
 
-const schema = JSON.parse(fs.readFileSync('./xkeen-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
+const schema = JSON.parse(fs.readFileSync('./unified-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
 const marker = '__CURSOR__';
 const docWithMarker = {json.dumps(doc_with_marker)};
 const offset = docWithMarker.indexOf(marker);
@@ -340,9 +340,9 @@ console.log(JSON.stringify(result));
 def test_xray_json_hover_uses_beginner_metadata_for_transport_blocks(doc_with_marker, expected_pointer, expected_substring):
     script = f"""
 import fs from 'node:fs';
-import {{ buildJsonSchemaHoverInfo }} from './xkeen-ui/static/js/vendor/codemirror_json_schema.js';
+import {{ buildJsonSchemaHoverInfo }} from './unified-ui/static/js/vendor/codemirror_json_schema.js';
 
-const schema = JSON.parse(fs.readFileSync('./xkeen-ui/static/schemas/xray-outbounds.schema.json', 'utf8'));
+const schema = JSON.parse(fs.readFileSync('./unified-ui/static/schemas/xray-outbounds.schema.json', 'utf8'));
 const marker = '__CURSOR__';
 const docWithMarker = {json.dumps(doc_with_marker)};
 const offset = docWithMarker.indexOf(marker);

@@ -27,8 +27,8 @@ def _build_client(tmp_path: Path, monkeypatch):
     )
     access_log.write_text("2026/07/16 18:01:04 accepted tcp:127.0.0.1:443\n", encoding="utf-8")
 
-    monkeypatch.setenv("XKEEN_UI_STATE_DIR", str(state_dir))
-    monkeypatch.setenv("XKEEN_UI_SECRET_KEY", "mobile-logs-test-secret")
+    monkeypatch.setenv("UNIFIED_UI_STATE_DIR", str(state_dir))
+    monkeypatch.setenv("UNIFIED_UI_SECRET_KEY", "mobile-logs-test-secret")
     _reload("core.paths")
     auth_setup = _reload("services.auth_setup")
     _reload("services.auth_rate_limit")

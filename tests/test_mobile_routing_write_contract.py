@@ -11,7 +11,7 @@ from werkzeug.security import generate_password_hash
 
 
 ROOT = Path(__file__).resolve().parents[1]
-APP_DIR = ROOT / "xkeen-ui"
+APP_DIR = ROOT / "unified-ui"
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
@@ -34,8 +34,8 @@ def _build_client(tmp_path: Path, monkeypatch, *, restart_ok: bool = True):
     main_path = configs_dir / "05_routing.json"
     main_path.write_text(initial, encoding="utf-8")
 
-    monkeypatch.setenv("XKEEN_UI_STATE_DIR", str(state_dir))
-    monkeypatch.setenv("XKEEN_UI_SECRET_KEY", "test-secret-key")
+    monkeypatch.setenv("UNIFIED_UI_STATE_DIR", str(state_dir))
+    monkeypatch.setenv("UNIFIED_UI_SECRET_KEY", "test-secret-key")
     _reload("core.paths")
     auth_setup = _reload("services.auth_setup")
     _reload("services.auth_rate_limit")
@@ -73,7 +73,7 @@ def _build_client(tmp_path: Path, monkeypatch, *, restart_ok: bool = True):
         calls["preflight"].append(kwargs)
         return {"ok": True, "phase": "xray_test"}
 
-    def restart_xkeen(**kwargs):
+    def restart_unified(**kwargs):
         calls["restart"].append(kwargs)
         return restart_ok
 
@@ -86,7 +86,7 @@ def _build_client(tmp_path: Path, monkeypatch, *, restart_ok: bool = True):
         paths_for_routing=paths_for_routing,
         run_preflight=run_preflight,
         snapshot_before_overwrite=lambda path: calls["snapshot"].append(path),
-        restart_xkeen=restart_xkeen,
+        restart_unified=restart_unified,
     )
 
     app = Flask("mobile-routing-write-test")

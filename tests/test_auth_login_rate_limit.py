@@ -10,7 +10,7 @@ from werkzeug.security import generate_password_hash
 
 
 ROOT = Path(__file__).resolve().parents[1]
-APP_DIR = ROOT / "xkeen-ui"
+APP_DIR = ROOT / "unified-ui"
 
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
@@ -27,11 +27,11 @@ def _build_auth_client(tmp_path: Path, monkeypatch, *, max_attempts: int = 3, lo
     state_dir = tmp_path / "state"
     state_dir.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setenv("XKEEN_UI_STATE_DIR", str(state_dir))
-    monkeypatch.setenv("XKEEN_UI_SECRET_KEY", "test-secret-key")
-    monkeypatch.setenv("XKEEN_AUTH_LOGIN_WINDOW_SECONDS", "300")
-    monkeypatch.setenv("XKEEN_AUTH_LOGIN_MAX_ATTEMPTS", str(max_attempts))
-    monkeypatch.setenv("XKEEN_AUTH_LOGIN_LOCKOUT_SECONDS", str(lockout_seconds))
+    monkeypatch.setenv("UNIFIED_UI_STATE_DIR", str(state_dir))
+    monkeypatch.setenv("UNIFIED_UI_SECRET_KEY", "test-secret-key")
+    monkeypatch.setenv("UNIFIED_AUTH_LOGIN_WINDOW_SECONDS", "300")
+    monkeypatch.setenv("UNIFIED_AUTH_LOGIN_MAX_ATTEMPTS", str(max_attempts))
+    monkeypatch.setenv("UNIFIED_AUTH_LOGIN_LOCKOUT_SECONDS", str(lockout_seconds))
 
     _reload("core.paths")
     auth_setup = _reload("services.auth_setup")

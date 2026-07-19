@@ -56,8 +56,8 @@ jobs:
       - name: Prepare package directory
         run: |
           rm -rf dist package-root
-          mkdir -p dist package-root/xkeen-ui
-          rsync -a xkeen-ui/ package-root/xkeen-ui/ \
+          mkdir -p dist package-root/unified-ui
+          rsync -a unified-ui/ package-root/unified-ui/ \
             --exclude '__pycache__' \
             --exclude '.DS_Store'
 
@@ -86,7 +86,7 @@ jobs:
           import os
           from pathlib import Path
 
-          path = Path("package-root/xkeen-ui/BUILD.json")
+          path = Path("package-root/unified-ui/BUILD.json")
           payload = {
               "version": os.environ["VERSION"],
               "release_date": os.environ["RELEASE_DATE"],
@@ -98,7 +98,7 @@ jobs:
 
       - name: Create user archive
         run: |
-          tar -czf dist/unified-ui-routing.tar.gz -C package-root xkeen-ui
+          tar -czf dist/unified-ui-routing.tar.gz -C package-root unified-ui
           sha256sum dist/unified-ui-routing.tar.gz > dist/unified-ui-routing.tar.gz.sha256
 
       - name: Build xk-geodat binaries

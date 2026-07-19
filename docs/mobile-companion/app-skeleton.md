@@ -20,7 +20,7 @@ Updated: 2026-07-16
 - `Ready`-workspace с компактной верхней панелью, confirm-based server-backed `start` / `stop` / `restart` и кнопкой `Core`;
 - capability-aware нижняя навигация `Xray`, `Mihomo`, `Ports`, `Shell`, `Generator`;
 - capability-aware drawer с разделами под каждую рабочую зону;
-- read-only интеграция `GET /api/xkeen/core`;
+- read-only интеграция `GET /api/unified/core`;
 - read-only список `GET /api/routing/fragments` и revision-aware document snapshot `GET /api/mobile/v1/xray/routing/document`;
 - полноэкранный `Routing Xray` editor-flow с JSON/JSONC подсветкой, номерами строк, свайпами между документами и real server-backed `validate/save/apply`;
 - интерактивные demo-поверхности `Shell -> Команды` и `Shell -> Терминал`.

@@ -1,6 +1,6 @@
 """Tests for JSONC sidecar mtime-vs-content logic in routing GET endpoint.
 
-When `xkeen -restart` touches the clean JSON after the UI saved a JSONC
+When `unified -restart` touches the clean JSON after the UI saved a JSONC
 sidecar, the main file gets a newer mtime.  The old code treated this as
 "external edit" and discarded comments.  The fix compares stripped content
 instead of blindly trusting mtime.
@@ -91,7 +91,7 @@ def _make_app(
         backup_dir_real="",
         load_json=_load_json,
         strip_json_comments_text=_strip_json_comments_text,
-        restart_xkeen=_noop_restart,
+        restart_unified=_noop_restart,
     )
     app.register_blueprint(bp)
     return app
@@ -162,17 +162,17 @@ def test_jsonc_returned_when_mtime_newer(routing_env):
             assert resp.status_code == 200
             body = resp.get_data(as_text=True)
             assert "//" in body, "Expected JSONC comments in response"
-            assert resp.headers.get("X-XKeen-JSONC-Using") == "1"
+            assert resp.headers.get("X-UnifiedUI-JSONC-Using") == "1"
 
 
 def test_jsonc_returned_when_main_touched_but_content_same(routing_env):
-    """Bug-fix case: main JSON is newer (e.g. xkeen restart touched it)
+    """Bug-fix case: main JSON is newer (e.g. unified restart touched it)
     but content is identical — must still return JSONC with comments."""
     env = routing_env
     env["main_file"].write_text(SAMPLE_CLEAN, encoding="utf-8")
     env["raw_file"].write_text(SAMPLE_JSONC, encoding="utf-8")
 
-    # Simulate xkeen restart touching main JSON after JSONC was written.
+    # Simulate unified restart touching main JSON after JSONC was written.
     _set_mtime(env["raw_file"], -10)
     _set_mtime(env["main_file"], 0)
 
@@ -189,7 +189,7 @@ def test_jsonc_returned_when_main_touched_but_content_same(routing_env):
             assert resp.status_code == 200
             body = resp.get_data(as_text=True)
             assert "//" in body, "JSONC comments must be preserved when content matches"
-            assert resp.headers.get("X-XKeen-JSONC-Using") == "1"
+            assert resp.headers.get("X-UnifiedUI-JSONC-Using") == "1"
 
 
 def test_clean_json_returned_when_genuinely_edited_externally(routing_env):
@@ -221,7 +221,7 @@ def test_clean_json_returned_when_genuinely_edited_externally(routing_env):
             assert resp.status_code == 200
             body = resp.get_data(as_text=True)
             assert "proxy" in body, "Should return the externally-edited content"
-            assert resp.headers.get("X-XKeen-JSONC-Using") == "0"
+            assert resp.headers.get("X-UnifiedUI-JSONC-Using") == "0"
 
 
 def test_clean_json_returned_when_main_reformatted_externally(routing_env):
@@ -253,7 +253,7 @@ def test_clean_json_returned_when_main_reformatted_externally(routing_env):
             assert resp.status_code == 200
             body = resp.get_data(as_text=True)
             assert "//" in body, "JSONC should be returned when semantic content matches"
-            assert resp.headers.get("X-XKeen-JSONC-Using") == "1"
+            assert resp.headers.get("X-UnifiedUI-JSONC-Using") == "1"
 
 
 def test_selected_fragment_ignores_routing_raw_override(routing_env):
@@ -270,13 +270,13 @@ def test_selected_fragment_ignores_routing_raw_override(routing_env):
     )
 
     # Before the fix, the selected observatory file could still return
-    # 05_routing.jsonc when XKEEN_XRAY_ROUTING_FILE_RAW was configured.
+    # 05_routing.jsonc when UNIFIED_XRAY_ROUTING_FILE_RAW was configured.
     _set_mtime(observatory_file, -20)
     _set_mtime(env["raw_file"], 0)
 
     with patch.object(_routing_config_mod, "XRAY_JSONC_DIR_REAL", env["jsonc_dir"]), \
          patch.object(_xcf_mod, "XRAY_JSONC_DIR", env["jsonc_dir"]), \
-         patch.dict(os.environ, {"XKEEN_XRAY_ROUTING_FILE_RAW": str(env["raw_file"])}, clear=False):
+         patch.dict(os.environ, {"UNIFIED_XRAY_ROUTING_FILE_RAW": str(env["raw_file"])}, clear=False):
         app = _make_app(
             routing_file=str(env["main_file"]),
             routing_file_raw=str(env["raw_file"]),
@@ -289,7 +289,7 @@ def test_selected_fragment_ignores_routing_raw_override(routing_env):
             body = resp.get_data(as_text=True)
             assert "observatory" in body
             assert "routing" not in body
-            assert resp.headers.get("X-XKeen-JSONC-Using") == "0"
+            assert resp.headers.get("X-UnifiedUI-JSONC-Using") == "0"
 
 
 def test_routing_get_loads_cp1251_legacy_json_without_empty_file_fallback(routing_env):
@@ -326,4 +326,4 @@ def test_routing_get_loads_cp1251_legacy_json_without_empty_file_fallback(routin
             assert "domain:рус" in body
             assert "domain:москва" in body
             assert "domain:бел" in body
-            assert resp.headers.get("X-XKeen-JSONC-Using") == "0"
+            assert resp.headers.get("X-UnifiedUI-JSONC-Using") == "0"

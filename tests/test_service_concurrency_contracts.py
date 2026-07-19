@@ -2,10 +2,10 @@ from pathlib import Path
 
 
 def test_events_service_exposes_locked_subscriber_helpers_and_run_server_uses_them():
-    events_text = Path('xkeen-ui/services/events.py').read_text(encoding='utf-8')
-    app_text = Path('xkeen-ui/app.py').read_text(encoding='utf-8')
-    server_text = Path('xkeen-ui/run_server.py').read_text(encoding='utf-8')
-    wsgi_text = Path('xkeen-ui/services/ws_wsgi.py').read_text(encoding='utf-8')
+    events_text = Path('unified-ui/services/events.py').read_text(encoding='utf-8')
+    app_text = Path('unified-ui/app.py').read_text(encoding='utf-8')
+    server_text = Path('unified-ui/run_server.py').read_text(encoding='utf-8')
+    wsgi_text = Path('unified-ui/services/ws_wsgi.py').read_text(encoding='utf-8')
 
     assert 'import threading' in events_text
     assert '_EVENT_SUBSCRIBERS_LOCK: threading.Lock = threading.Lock()' in events_text
@@ -30,8 +30,8 @@ def test_events_service_exposes_locked_subscriber_helpers_and_run_server_uses_th
 
 
 def test_geodat_and_xray_log_caches_are_guarded_by_locks():
-    geodat_text = Path('xkeen-ui/services/geodat/cache.py').read_text(encoding='utf-8')
-    xray_log_api_text = Path('xkeen-ui/services/xray_log_api.py').read_text(encoding='utf-8')
+    geodat_text = Path('unified-ui/services/geodat/cache.py').read_text(encoding='utf-8')
+    xray_log_api_text = Path('unified-ui/services/xray_log_api.py').read_text(encoding='utf-8')
 
     assert '_GEODAT_CACHE_LOCK = threading.Lock()' in geodat_text
     assert geodat_text.count('with _GEODAT_CACHE_LOCK:') >= 2
@@ -42,7 +42,7 @@ def test_geodat_and_xray_log_caches_are_guarded_by_locks():
 
 
 def test_github_index_cache_reads_and_writes_are_locked_around_future_snapshot():
-    text = Path('xkeen-ui/services/config_exchange_github.py').read_text(encoding='utf-8')
+    text = Path('unified-ui/services/config_exchange_github.py').read_text(encoding='utf-8')
 
     assert 'with _GH_INDEX_LOCK:' in text
     assert 'future = _GH_INDEX_FUTURE' in text
@@ -52,15 +52,15 @@ def test_github_index_cache_reads_and_writes_are_locked_around_future_snapshot()
 
 
 def test_mihomo_generator_escapes_rule_group_labels_before_innerhtml_injection():
-    text = Path('xkeen-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
 
     assert 'function escapeHtml(str) {' in text
     assert 'span.innerHTML = "<strong>" + escapeHtml(preset.label) + "</strong>";' in text
 
 
 def test_pty_runtime_is_extracted_from_run_server_into_dedicated_service_module():
-    server_text = Path('xkeen-ui/run_server.py').read_text(encoding='utf-8')
-    pty_text = Path('xkeen-ui/services/ws_pty.py').read_text(encoding='utf-8')
+    server_text = Path('unified-ui/run_server.py').read_text(encoding='utf-8')
+    pty_text = Path('unified-ui/services/ws_pty.py').read_text(encoding='utf-8')
 
     assert 'class PtySession:' in pty_text
     assert 'def cleanup_sessions(now: float | None = None) -> None:' in pty_text
@@ -71,8 +71,8 @@ def test_pty_runtime_is_extracted_from_run_server_into_dedicated_service_module(
 
 
 def test_mihomo_runtime_helpers_are_extracted_from_core_module():
-    core_text = Path('xkeen-ui/mihomo_server_core.py').read_text(encoding='utf-8')
-    runtime_text = Path('xkeen-ui/services/mihomo_runtime.py').read_text(encoding='utf-8')
+    core_text = Path('unified-ui/mihomo_server_core.py').read_text(encoding='utf-8')
+    runtime_text = Path('unified-ui/services/mihomo_runtime.py').read_text(encoding='utf-8')
 
     assert 'from services.mihomo_runtime import (' in core_text
     assert 'def ensure_mihomo_layout() -> None:' in runtime_text
@@ -84,8 +84,8 @@ def test_mihomo_runtime_helpers_are_extracted_from_core_module():
 
 
 def test_mihomo_generator_metadata_is_extracted_from_main_generator_module():
-    generator_text = Path('xkeen-ui/mihomo_config_generator.py').read_text(encoding='utf-8')
-    meta_text = Path('xkeen-ui/services/mihomo_generator_meta.py').read_text(encoding='utf-8')
+    generator_text = Path('unified-ui/mihomo_config_generator.py').read_text(encoding='utf-8')
+    meta_text = Path('unified-ui/services/mihomo_generator_meta.py').read_text(encoding='utf-8')
 
     assert 'from services.mihomo_generator_meta import (' in generator_text
     assert 'def provider_name_for_index(idx: int) -> str:' in meta_text
@@ -97,9 +97,9 @@ def test_mihomo_generator_metadata_is_extracted_from_main_generator_module():
 
 
 def test_mihomo_generator_provider_and_proxy_injection_helpers_are_extracted():
-    generator_text = Path('xkeen-ui/mihomo_config_generator.py').read_text(encoding='utf-8')
-    provider_text = Path('xkeen-ui/services/mihomo_generator_providers.py').read_text(encoding='utf-8')
-    proxy_text = Path('xkeen-ui/services/mihomo_generator_proxies.py').read_text(encoding='utf-8')
+    generator_text = Path('unified-ui/mihomo_config_generator.py').read_text(encoding='utf-8')
+    provider_text = Path('unified-ui/services/mihomo_generator_providers.py').read_text(encoding='utf-8')
+    proxy_text = Path('unified-ui/services/mihomo_generator_proxies.py').read_text(encoding='utf-8')
 
     assert 'from services.mihomo_generator_providers import (' in generator_text
     assert 'from services.mihomo_generator_proxies import (' in generator_text
@@ -118,8 +118,8 @@ def test_mihomo_generator_provider_and_proxy_injection_helpers_are_extracted():
 
 
 def test_mihomo_generator_rule_filtering_helpers_are_extracted():
-    generator_text = Path('xkeen-ui/mihomo_config_generator.py').read_text(encoding='utf-8')
-    rules_text = Path('xkeen-ui/services/mihomo_generator_rules.py').read_text(encoding='utf-8')
+    generator_text = Path('unified-ui/mihomo_config_generator.py').read_text(encoding='utf-8')
+    rules_text = Path('unified-ui/services/mihomo_generator_rules.py').read_text(encoding='utf-8')
 
     assert 'from services.mihomo_generator_rules import (' in generator_text
     assert 'def apply_rule_group_filtering(content: str, enabled_ids: Sequence[str], profile: str | None = None) -> str:' in rules_text
@@ -130,10 +130,10 @@ def test_mihomo_generator_rule_filtering_helpers_are_extracted():
 
 
 def test_mihomo_proxy_config_edit_helpers_are_extracted_from_core_module():
-    core_text = Path('xkeen-ui/mihomo_server_core.py').read_text(encoding='utf-8')
-    proxy_cfg_text = Path('xkeen-ui/services/mihomo_proxy_config.py').read_text(encoding='utf-8')
-    routes_text = Path('xkeen-ui/routes/mihomo.py').read_text(encoding='utf-8')
-    generator_proxy_text = Path('xkeen-ui/services/mihomo_generator_proxies.py').read_text(encoding='utf-8')
+    core_text = Path('unified-ui/mihomo_server_core.py').read_text(encoding='utf-8')
+    proxy_cfg_text = Path('unified-ui/services/mihomo_proxy_config.py').read_text(encoding='utf-8')
+    routes_text = Path('unified-ui/routes/mihomo.py').read_text(encoding='utf-8')
+    generator_proxy_text = Path('unified-ui/services/mihomo_generator_proxies.py').read_text(encoding='utf-8')
 
     assert 'from services.mihomo_proxy_config import (' in core_text
     assert 'def insert_proxy_into_groups(content: str, proxy_name: str, target_groups: Iterable[str]) -> str:' in proxy_cfg_text
@@ -149,10 +149,10 @@ def test_mihomo_proxy_config_edit_helpers_are_extracted_from_core_module():
 
 
 def test_mihomo_proxy_parsers_are_extracted_from_core_module():
-    core_text = Path('xkeen-ui/mihomo_server_core.py').read_text(encoding='utf-8')
-    parser_text = Path('xkeen-ui/services/mihomo_proxy_parsers.py').read_text(encoding='utf-8')
-    routes_text = Path('xkeen-ui/routes/mihomo.py').read_text(encoding='utf-8')
-    generator_proxy_text = Path('xkeen-ui/services/mihomo_generator_proxies.py').read_text(encoding='utf-8')
+    core_text = Path('unified-ui/mihomo_server_core.py').read_text(encoding='utf-8')
+    parser_text = Path('unified-ui/services/mihomo_proxy_parsers.py').read_text(encoding='utf-8')
+    routes_text = Path('unified-ui/routes/mihomo.py').read_text(encoding='utf-8')
+    generator_proxy_text = Path('unified-ui/services/mihomo_generator_proxies.py').read_text(encoding='utf-8')
 
     assert 'from services.mihomo_proxy_parsers import (' in core_text
     assert 'class ProxyParseResult:' in parser_text

@@ -1,1 +1,0 @@
-(()=>{window.XKeen=window.XKeen||{};let e=window.XKeen;e.util=e.util||{},e.util.escapeHtml||(e.util.escapeHtml=function(e){return e==null?``:String(e).replace(/&/g,`&amp;`).replace(/</g,`&lt;`).replace(/>/g,`&gt;`)}),typeof window.escapeHtml!=`function`&&(window.escapeHtml=e.util.escapeHtml)})();

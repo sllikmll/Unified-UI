@@ -10,7 +10,7 @@ from services import mihomo_hwid_sub as hwid
 
 
 def test_hwid_probe_blocks_private_hosts_by_default(monkeypatch):
-    monkeypatch.delenv("XKEEN_MIHOMO_HWID_ALLOW_PRIVATE_HOSTS", raising=False)
+    monkeypatch.delenv("UNIFIED_MIHOMO_HWID_ALLOW_PRIVATE_HOSTS", raising=False)
 
     result = hwid.probe_subscription(
         "https://127.0.0.1/sub",
@@ -21,11 +21,11 @@ def test_hwid_probe_blocks_private_hosts_by_default(monkeypatch):
     err = result["error"]
     assert err["code"] == "URL_BLOCKED"
     assert err["reason"] == "private_host_not_allowed:127.0.0.1"
-    assert "XKEEN_MIHOMO_HWID_ALLOW_PRIVATE_HOSTS=1" in err["hint"]
+    assert "UNIFIED_MIHOMO_HWID_ALLOW_PRIVATE_HOSTS=1" in err["hint"]
 
 
 def test_hwid_probe_blocks_plain_http_by_default(monkeypatch):
-    monkeypatch.delenv("XKEEN_MIHOMO_HWID_ALLOW_HTTP", raising=False)
+    monkeypatch.delenv("UNIFIED_MIHOMO_HWID_ALLOW_HTTP", raising=False)
 
     result = hwid.probe_subscription(
         "http://example.com/sub",
@@ -36,7 +36,7 @@ def test_hwid_probe_blocks_plain_http_by_default(monkeypatch):
     err = result["error"]
     assert err["code"] == "URL_BLOCKED"
     assert err["reason"] == "http_not_allowed"
-    assert "XKEEN_MIHOMO_HWID_ALLOW_HTTP=1" in err["hint"]
+    assert "UNIFIED_MIHOMO_HWID_ALLOW_HTTP=1" in err["hint"]
 
 
 def test_hwid_probe_allows_public_custom_https_by_default(monkeypatch):
@@ -86,7 +86,7 @@ def test_hwid_probe_allows_public_custom_https_by_default(monkeypatch):
 
 def test_hwid_probe_private_host_can_be_enabled(monkeypatch):
     calls = []
-    monkeypatch.setenv("XKEEN_MIHOMO_HWID_ALLOW_PRIVATE_HOSTS", "1")
+    monkeypatch.setenv("UNIFIED_MIHOMO_HWID_ALLOW_PRIVATE_HOSTS", "1")
 
     def fake_probe_once(url, *, method, headers, insecure, timeout, policy):
         calls.append(url)
@@ -118,8 +118,8 @@ def test_hwid_probe_private_host_can_be_enabled(monkeypatch):
 
 
 def test_hwid_device_info_uses_stored_generated_fallback_when_mac_missing(monkeypatch, tmp_path):
-    monkeypatch.delenv("XKEEN_MIHOMO_HWID", raising=False)
-    monkeypatch.delenv("XKEEN_HWID", raising=False)
+    monkeypatch.delenv("UNIFIED_MIHOMO_HWID", raising=False)
+    monkeypatch.delenv("UNIFIED_HWID", raising=False)
     monkeypatch.setattr(hwid, "_pick_mac_address_keenetic", lambda: None)
     monkeypatch.setattr(hwid, "_hwid_from_machine_id", lambda: (None, None))
     monkeypatch.setattr(hwid, "_ui_state_dir", lambda: str(tmp_path))
@@ -142,7 +142,7 @@ def test_hwid_device_info_uses_stored_generated_fallback_when_mac_missing(monkey
     assert "Обычно этого достаточно" in info["hwid_warning"]
     assert "не новый random при каждом клике" in info["hwid_warning"]
     assert "DevTools → ENV" in info["hwid_warning"]
-    assert "XKEEN_MIHOMO_HWID" in info["hwid_warning"]
+    assert "UNIFIED_MIHOMO_HWID" in info["hwid_warning"]
     assert (tmp_path / "mihomo-hwid.txt").read_text(encoding="utf-8").strip() == "12DDB1C0BADF"
 
     monkeypatch.setattr(hwid.os, "urandom", lambda n: b"\xaa\xbb\xcc\xdd\xee\xff")
@@ -151,7 +151,7 @@ def test_hwid_device_info_uses_stored_generated_fallback_when_mac_missing(monkey
 
 
 def test_hwid_device_info_accepts_string_env_override(monkeypatch):
-    monkeypatch.setenv("XKEEN_MIHOMO_HWID", "4194304")
+    monkeypatch.setenv("UNIFIED_MIHOMO_HWID", "4194304")
     monkeypatch.setattr(hwid, "_pick_mac_address_keenetic", lambda: "aa:bb:cc:dd:ee:ff")
     monkeypatch.setattr(hwid, "_ndmc_show_version", lambda: "")
     monkeypatch.setattr(hwid, "_detect_mihomo_version", lambda: "v1.19.25")
@@ -159,7 +159,7 @@ def test_hwid_device_info_accepts_string_env_override(monkeypatch):
     info = hwid.get_device_info()
 
     assert info["hwid"] == "4194304"
-    assert info["hwid_source"] == "XKEEN_MIHOMO_HWID"
+    assert info["hwid_source"] == "UNIFIED_MIHOMO_HWID"
     assert info["hwid_format"] == "string"
     assert info["mac_hwid"] == "AABBCCDDEEFF"
     assert info["has_env_override"] is True
@@ -169,7 +169,7 @@ def test_hwid_device_info_accepts_string_env_override(monkeypatch):
 
 
 def test_hwid_device_info_marks_router_mac_match_when_override_equals_router(monkeypatch):
-    monkeypatch.setenv("XKEEN_MIHOMO_HWID", "aa:bb:cc:dd:ee:ff")
+    monkeypatch.setenv("UNIFIED_MIHOMO_HWID", "aa:bb:cc:dd:ee:ff")
     monkeypatch.setattr(hwid, "_pick_mac_address_keenetic", lambda: "aa:bb:cc:dd:ee:ff")
     monkeypatch.setattr(hwid, "_ndmc_show_version", lambda: "")
     monkeypatch.setattr(hwid, "_detect_mihomo_version", lambda: "v1.19.25")
@@ -474,8 +474,8 @@ def test_hwid_fetch_provider_payload_resolves_html_install_page_via_helper(monke
 
     parsed = yaml.safe_load(payload)
     assert parsed["proxies"][0]["name"] == "Helper Node"
-    assert meta["x-xkeen-happ-resolved"] == "helper"
-    assert meta["x-xkeen-happ-link"] == "happ://crypt5/demo-token"
+    assert meta["x-unified-happ-resolved"] == "helper"
+    assert meta["x-unified-happ-link"] == "happ://crypt5/demo-token"
 
 
 def test_hwid_provider_entry_can_use_local_adapter_url_without_headers():

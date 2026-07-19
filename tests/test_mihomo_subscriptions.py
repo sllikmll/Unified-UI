@@ -110,7 +110,7 @@ def test_refresh_subscription_replaces_managed_yaml_and_restarts(tmp_path, monke
         str(tmp_path),
         "xray-example",
         mihomo_config_file=str(config_path),
-        restart_xkeen=_restart,
+        restart_unified=_restart,
         save_callback=_save,
     )
 
@@ -273,7 +273,7 @@ def test_refresh_mihomo_provider_static_subscription_uses_provider_parser(tmp_pa
         str(tmp_path),
         saved["id"],
         mihomo_config_file=str(config_path),
-        restart_xkeen=_restart,
+        restart_unified=_restart,
         save_callback=_save,
     )
 
@@ -421,7 +421,7 @@ def test_refresh_config_subscription_replaces_imported_proxy_blocks(tmp_path, mo
         str(tmp_path),
         saved["id"],
         mihomo_config_file=str(config_path),
-        restart_xkeen=_restart,
+        restart_unified=_restart,
         save_callback=_save,
     )
 

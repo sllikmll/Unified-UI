@@ -11,7 +11,7 @@ def _read(rel_path: str) -> str:
 
 
 def test_panel_mihomo_bundle_uses_canonical_feature_urls():
-    src = _read("xkeen-ui/static/js/pages/panel.mihomo.bundle.js")
+    src = _read("unified-ui/static/js/pages/panel.mihomo.bundle.js")
 
     assert "../features/mihomo_panel.js?v=" not in src
     assert "../features/mihomo_yaml_patch.js?v=" not in src
@@ -22,10 +22,10 @@ def test_panel_mihomo_bundle_uses_canonical_feature_urls():
 
 def test_mihomo_legacy_global_publish_is_handled_only_by_compat_modules():
     expectations = {
-        "xkeen-ui/static/js/features/compat/mihomo_panel.js": "XKeen.features.mihomoPanel = legacyMihomoPanelApi;",
-        "xkeen-ui/static/js/features/compat/mihomo_import.js": "XKeen.features.mihomoImport = legacyMihomoImportApi;",
-        "xkeen-ui/static/js/features/compat/mihomo_proxy_tools.js": "XKeen.features.mihomoProxyTools = legacyMihomoProxyToolsApi;",
-        "xkeen-ui/static/js/features/compat/mihomo_hwid_sub.js": "XKeen.features.mihomoHwidSub = legacyMihomoHwidSubApi;",
+        "unified-ui/static/js/features/compat/mihomo_panel.js": "UnifiedUI.features.mihomoPanel = legacyMihomoPanelApi;",
+        "unified-ui/static/js/features/compat/mihomo_import.js": "UnifiedUI.features.mihomoImport = legacyMihomoImportApi;",
+        "unified-ui/static/js/features/compat/mihomo_proxy_tools.js": "UnifiedUI.features.mihomoProxyTools = legacyMihomoProxyToolsApi;",
+        "unified-ui/static/js/features/compat/mihomo_hwid_sub.js": "UnifiedUI.features.mihomoHwidSub = legacyMihomoHwidSubApi;",
     }
 
     for rel_path, marker in expectations.items():
@@ -33,25 +33,25 @@ def test_mihomo_legacy_global_publish_is_handled_only_by_compat_modules():
         assert marker in src, f"expected legacy global API marker in {rel_path}"
 
     forbidden = {
-        "xkeen-ui/static/js/features/mihomo_panel.js": [
-            "XKeen.features = XKeen.features || {};",
-            "XKeen.features.mihomoPanel = MP;",
-            "window.XKeen.features.mihomoPanel",
+        "unified-ui/static/js/features/mihomo_panel.js": [
+            "UnifiedUI.features = UnifiedUI.features || {};",
+            "UnifiedUI.features.mihomoPanel = MP;",
+            "window.UnifiedUI.features.mihomoPanel",
         ],
-        "xkeen-ui/static/js/features/mihomo_import.js": [
-            "XKeen.features = XKeen.features || {};",
-            "XKeen.features.mihomoImport = MI;",
-            "window.XKeen.features.mihomoImport",
+        "unified-ui/static/js/features/mihomo_import.js": [
+            "UnifiedUI.features = UnifiedUI.features || {};",
+            "UnifiedUI.features.mihomoImport = MI;",
+            "window.UnifiedUI.features.mihomoImport",
         ],
-        "xkeen-ui/static/js/features/mihomo_proxy_tools.js": [
-            "XKeen.features = XKeen.features || {};",
-            "XKeen.features.mihomoProxyTools = PT;",
-            "window.XKeen.features.mihomoProxyTools",
+        "unified-ui/static/js/features/mihomo_proxy_tools.js": [
+            "UnifiedUI.features = UnifiedUI.features || {};",
+            "UnifiedUI.features.mihomoProxyTools = PT;",
+            "window.UnifiedUI.features.mihomoProxyTools",
         ],
-        "xkeen-ui/static/js/features/mihomo_hwid_sub.js": [
-            "XKeen.features = XKeen.features || {};",
-            "XKeen.features.mihomoHwidSub = HW;",
-            "window.XKeen.features.mihomoHwidSub",
+        "unified-ui/static/js/features/mihomo_hwid_sub.js": [
+            "UnifiedUI.features = UnifiedUI.features || {};",
+            "UnifiedUI.features.mihomoHwidSub = HW;",
+            "window.UnifiedUI.features.mihomoHwidSub",
         ],
     }
 
@@ -62,7 +62,7 @@ def test_mihomo_legacy_global_publish_is_handled_only_by_compat_modules():
 
 
 def test_panel_lazy_bindings_load_mihomo_compat_bridges_for_legacy_consumers():
-    src = _read("xkeen-ui/static/js/pages/panel.lazy_bindings.runtime.js")
+    src = _read("unified-ui/static/js/pages/panel.lazy_bindings.runtime.js")
 
     required_fragments = [
         "mihomoImport: {",
@@ -80,13 +80,13 @@ def test_panel_lazy_bindings_load_mihomo_compat_bridges_for_legacy_consumers():
 
 
 def test_mihomo_menu_feature_flows_keep_editor_patch_integrations_and_single_save_config():
-    panel_src = _read("xkeen-ui/static/js/features/mihomo_panel.js")
+    panel_src = _read("unified-ui/static/js/features/mihomo_panel.js")
     assert panel_src.count("MP.saveConfig = async function saveConfig() {") == 1
-    template_src = _read("xkeen-ui/templates/panel.html")
+    template_src = _read("unified-ui/templates/panel.html")
     assert 'id="mihomo-import-parse-static-btn"' in template_src
 
     expectations = {
-        "xkeen-ui/static/js/features/mihomo_import.js": [
+        "unified-ui/static/js/features/mihomo_import.js": [
             "txt = await applyInsertProxy(txt, o, groups);",
             "setEditorText(txt);",
             "refreshEditor();",
@@ -106,14 +106,14 @@ def test_mihomo_menu_feature_flows_keep_editor_patch_integrations_and_single_sav
             "MI.openWithInput = async function openWithInput(input, options = {}) {",
             "openWithInput: openMihomoImportWithInput,",
         ],
-        "xkeen-ui/static/js/features/mihomo_proxy_tools.js": [
+        "unified-ui/static/js/features/mihomo_proxy_tools.js": [
             "const mi = getMihomoImportApi();",
             "const data = await apiPost('/api/mihomo/patch/rename_proxy', {",
             "const data = await apiPost('/api/mihomo/patch/replace_proxy', {",
             "setEditorText(patched);",
             "refreshEditor();",
         ],
-        "xkeen-ui/static/js/features/mihomo_hwid_sub.js": [
+        "unified-ui/static/js/features/mihomo_hwid_sub.js": [
             "const patch = getMihomoYamlPatchApi();",
             "const next = patch.insertIntoSection(existing, 'proxy-providers', snippet, { avoidDuplicates: true });",
             "setEditorText(next);",
@@ -151,9 +151,9 @@ def test_mihomo_menu_feature_flows_keep_editor_patch_integrations_and_single_sav
 
 
 def test_mihomo_hwid_preview_uses_shared_editor_host_contract():
-    panel_src = _read("xkeen-ui/templates/panel.html")
-    feature_src = _read("xkeen-ui/static/js/features/mihomo_hwid_sub.js")
-    css_src = _read("xkeen-ui/static/styles.css")
+    panel_src = _read("unified-ui/templates/panel.html")
+    feature_src = _read("unified-ui/static/js/features/mihomo_hwid_sub.js")
+    css_src = _read("unified-ui/static/styles.css")
 
     required_panel_fragments = [
         'id="mihomo-hwid-engine-select"',
@@ -183,9 +183,9 @@ def test_mihomo_hwid_preview_uses_shared_editor_host_contract():
 
 
 def test_mihomo_import_is_compact_and_surfaces_hwid_provider_warnings():
-    panel_src = _read("xkeen-ui/templates/panel.html")
-    import_src = _read("xkeen-ui/static/js/features/mihomo_import.js")
-    css_src = _read("xkeen-ui/static/styles.css")
+    panel_src = _read("unified-ui/templates/panel.html")
+    import_src = _read("unified-ui/static/js/features/mihomo_import.js")
+    css_src = _read("unified-ui/static/styles.css")
 
     assert 'id="mihomo-hwid-sub-btn"' in panel_src
     assert "🧬 HWID" in panel_src
@@ -204,8 +204,8 @@ def test_mihomo_import_is_compact_and_surfaces_hwid_provider_warnings():
     assert "xk-mi-status.warning" in css_src
 
 
-def test_mihomo_runtime_helper_exposes_shared_window_xkeen_adapters():
-    src = _read("xkeen-ui/static/js/features/mihomo_runtime.js")
+def test_mihomo_runtime_helper_exposes_shared_window_unified_adapters():
+    src = _read("unified-ui/static/js/features/mihomo_runtime.js")
 
     required_fragments = [
         "export function getMihomoUiApi()",
@@ -227,40 +227,40 @@ def test_mihomo_runtime_helper_exposes_shared_window_xkeen_adapters():
         assert fragment in src, f"missing Mihomo runtime helper fragment: {fragment}"
 
 
-def test_mihomo_track2_modules_use_runtime_helper_instead_of_raw_window_xkeen_globals():
+def test_mihomo_track2_modules_use_runtime_helper_instead_of_raw_window_unified_globals():
     expectations = {
-        "xkeen-ui/static/js/features/mihomo_panel.js": [
-            "window.XKeen && XKeen.util && XKeen.util.commandJob",
-            "window.XKeen && XKeen.ui && typeof XKeen.ui.confirm === 'function'",
-            "XKeen.state.mihomoEditor",
-            "XKeen.ui.formatters.formatYaml",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.editorActions",
+        "unified-ui/static/js/features/mihomo_panel.js": [
+            "window.UnifiedUI && UnifiedUI.util && UnifiedUI.util.commandJob",
+            "window.UnifiedUI && UnifiedUI.ui && typeof UnifiedUI.ui.confirm === 'function'",
+            "UnifiedUI.state.mihomoEditor",
+            "UnifiedUI.ui.formatters.formatYaml",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.editorActions",
         ],
-        "xkeen-ui/static/js/features/mihomo_import.js": [
-            "window.XKeen = window.XKeen || {};",
-            "XKeen.ui.editorEngine",
-            "XKeen.state.mihomoEditor",
-            "XKeen.ui.modal.syncBodyScrollLock",
-            "(window.XKeen && XKeen.core && XKeen.core.http) ? XKeen.core.http : null",
+        "unified-ui/static/js/features/mihomo_import.js": [
+            "window.UnifiedUI = window.UnifiedUI || {};",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.state.mihomoEditor",
+            "UnifiedUI.ui.modal.syncBodyScrollLock",
+            "(window.UnifiedUI && UnifiedUI.core && UnifiedUI.core.http) ? UnifiedUI.core.http : null",
         ],
-        "xkeen-ui/static/js/features/mihomo_proxy_tools.js": [
-            "window.XKeen = window.XKeen || {};",
-            "XKeen.state.mihomoEditor",
-            "(window.XKeen && XKeen.core && XKeen.core.http) ? XKeen.core.http : null",
+        "unified-ui/static/js/features/mihomo_proxy_tools.js": [
+            "window.UnifiedUI = window.UnifiedUI || {};",
+            "UnifiedUI.state.mihomoEditor",
+            "(window.UnifiedUI && UnifiedUI.core && UnifiedUI.core.http) ? UnifiedUI.core.http : null",
         ],
-        "xkeen-ui/static/js/features/mihomo_hwid_sub.js": [
-            "window.XKeen = window.XKeen || {};",
-            "XKeen.util.commandJob",
-            "XKeen.ui.modal.syncBodyScrollLock",
-            "XKeen.core.http",
-            "XKeen.state.mihomoEditor",
+        "unified-ui/static/js/features/mihomo_hwid_sub.js": [
+            "window.UnifiedUI = window.UnifiedUI || {};",
+            "UnifiedUI.util.commandJob",
+            "UnifiedUI.ui.modal.syncBodyScrollLock",
+            "UnifiedUI.core.http",
+            "UnifiedUI.state.mihomoEditor",
         ],
-        "xkeen-ui/static/js/features/mihomo_generator.js": [
-            "window.XKeen = window.XKeen || {};",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.editorActions",
-            "XKeen.util.commandJob",
+        "unified-ui/static/js/features/mihomo_generator.js": [
+            "window.UnifiedUI = window.UnifiedUI || {};",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.editorActions",
+            "UnifiedUI.util.commandJob",
         ],
     }
 
@@ -268,4 +268,4 @@ def test_mihomo_track2_modules_use_runtime_helper_instead_of_raw_window_xkeen_gl
         src = _read(rel_path)
         assert "from './mihomo_runtime.js'" in src, f"expected runtime helper import in {rel_path}"
         for marker in markers:
-            assert marker not in src, f"Track 2 Mihomo module should not use raw window.XKeen.* in {rel_path}: {marker}"
+            assert marker not in src, f"Track 2 Mihomo module should not use raw window.UnifiedUI.* in {rel_path}: {marker}"

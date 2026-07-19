@@ -120,12 +120,12 @@ async function waitForRoutingEditor(page) {
   await expect(page.locator('#view-routing')).toBeVisible();
   await page.waitForFunction(() => {
     return !!(
-      window.XKeen &&
-      window.XKeen.features &&
-      window.XKeen.features.routing &&
-      window.XKeen.features.routingShell &&
-      typeof window.XKeen.features.routing.replaceEditorText === 'function' &&
-      typeof window.XKeen.features.routingShell.getEditorInstance === 'function'
+      window.UnifiedUI &&
+      window.UnifiedUI.features &&
+      window.UnifiedUI.features.routing &&
+      window.UnifiedUI.features.routingShell &&
+      typeof window.UnifiedUI.features.routing.replaceEditorText === 'function' &&
+      typeof window.UnifiedUI.features.routingShell.getEditorInstance === 'function'
     );
   });
 }
@@ -136,11 +136,11 @@ async function ensureCodeMirrorRouting(page) {
   await select.selectOption('codemirror');
 
   await page.waitForFunction(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     const isCm6 = !!(editor && (
-      editor.__xkeenCm6Bridge === true ||
-      editor.__xkeen_cm6_bridge === true ||
+      editor.__unifiedCm6Bridge === true ||
+      editor.__unified_cm6_bridge === true ||
       editor.backend === 'cm6'
     ));
     return !!(isCm6 && typeof editor.getSchema === 'function');
@@ -153,7 +153,7 @@ async function ensureMonacoRouting(page) {
   await select.selectOption('monaco');
 
   await page.waitForFunction(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     return !!(
       editor &&
@@ -166,7 +166,7 @@ async function ensureMonacoRouting(page) {
 
 async function replaceRoutingText(page, text) {
   await page.evaluate((nextText) => {
-    window.XKeen.features.routing.replaceEditorText(nextText, {
+    window.UnifiedUI.features.routing.replaceEditorText(nextText, {
       markDirty: false,
       reason: 'e2e-routing-schema',
       scrollTop: true,
@@ -176,7 +176,7 @@ async function replaceRoutingText(page, text) {
 
 async function waitForRoutingText(page, needle) {
   await expect.poll(() => page.evaluate((target) => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     return editor && typeof editor.getValue === 'function' ? editor.getValue() : '';
   }, needle)).toContain(needle);
@@ -184,7 +184,7 @@ async function waitForRoutingText(page, needle) {
 
 async function waitForRoutingSchema(page) {
   await page.waitForFunction(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     const schema = editor && typeof editor.getSchema === 'function' ? editor.getSchema() : null;
     return schema && schema.title === 'Xray Routing Fragment';
@@ -193,7 +193,7 @@ async function waitForRoutingSchema(page) {
 
 async function waitForUiSettings(page) {
   await page.waitForFunction(() => {
-    return !!window.XKeen?.ui?.settings?.isLoadedFromServer?.();
+    return !!window.UnifiedUI?.ui?.settings?.isLoadedFromServer?.();
   });
 }
 
@@ -239,7 +239,7 @@ async function clearEditorTooltips(page) {
 
 async function showMonacoHoverForToken(page, needle) {
   await page.evaluate(async (target) => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     const model = editor && typeof editor.getModel === 'function' ? editor.getModel() : null;
     if (!editor || !model || typeof model.findMatches !== 'function') {
@@ -276,7 +276,7 @@ async function clickAutocompleteOption(page, label) {
 
 async function moveRoutingCursor(page, pos) {
   await page.evaluate(({ line, ch }) => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     editor.setCursor({ line, ch });
     editor.focus();
@@ -285,7 +285,7 @@ async function moveRoutingCursor(page, pos) {
 
 async function moveRoutingCursorAfterText(page, needle) {
   await page.evaluate((target) => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     const value = editor && typeof editor.getValue === 'function' ? editor.getValue() : '';
     const index = value.indexOf(target);
@@ -298,7 +298,7 @@ async function moveRoutingCursorAfterText(page, needle) {
 
 async function setSchemaHoverEnabled(page, enabled) {
   await page.evaluate((nextEnabled) => {
-    window.XKeen?.ui?.settings?.patchLocal?.({
+    window.UnifiedUI?.ui?.settings?.patchLocal?.({
       editor: { schemaHoverEnabled: !!nextEnabled },
     });
   }, enabled);
@@ -307,7 +307,7 @@ async function setSchemaHoverEnabled(page, enabled) {
 
 async function saveSchemaHoverEnabled(page, enabled) {
   await page.evaluate(async (nextEnabled) => {
-    const api = window.XKeen?.ui?.settings;
+    const api = window.UnifiedUI?.ui?.settings;
     if (!api || typeof api.patch !== 'function') throw new Error('ui settings API missing');
     await api.patch({ editor: { schemaHoverEnabled: !!nextEnabled } });
   }, enabled);
@@ -371,7 +371,7 @@ test('routing CodeMirror keeps JSONC diagnostics and exposes fragment schema hel
   await expect(page.locator('.cm-tooltip-autocomplete')).toContainText('domainStrategy');
   await clickAutocompleteOption(page, 'domainStrategy');
   await expect.poll(() => page.evaluate(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     return editor && typeof editor.getValue === 'function' ? editor.getValue() : '';
   })).toContain('"domainStrategy": "AsIs"');
@@ -394,7 +394,7 @@ test('routing CodeMirror keeps JSONC diagnostics and exposes fragment schema hel
   await expect(page.locator('.cm-tooltip-autocomplete')).toContainText('inboundTag');
   await clickAutocompleteOption(page, 'inboundTag');
   await expect.poll(() => page.evaluate(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     return editor && typeof editor.getValue === 'function' ? editor.getValue() : '';
   })).toContain('"inboundTag": []');
@@ -407,7 +407,7 @@ test('routing CodeMirror keeps JSONC diagnostics and exposes fragment schema hel
   await expect(page.locator('.cm-tooltip-autocomplete')).toContainText('network');
   await clickAutocompleteOption(page, 'network');
   await expect.poll(() => page.evaluate(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     return editor && typeof editor.getValue === 'function' ? editor.getValue() : '';
   })).toContain('"network": ""');
@@ -420,7 +420,7 @@ test('routing CodeMirror keeps JSONC diagnostics and exposes fragment schema hel
   await expect(page.locator('.cm-tooltip-autocomplete')).toContainText('IPIfNonMatch');
   await clickAutocompleteOption(page, 'IPIfNonMatch');
   await expect.poll(() => page.evaluate(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     return editor && typeof editor.getValue === 'function' ? editor.getValue() : '';
   })).toContain('"domainStrategy": "IPIfNonMatch"');
@@ -432,12 +432,12 @@ test('routing CodeMirror keeps JSONC diagnostics and exposes fragment schema hel
   await expect(page.locator('.cm-tooltip-autocomplete')).toContainText('IPIfNonMatch');
   await page.locator('.cm-tooltip-autocomplete li').filter({ hasText: 'IPIfNonMatch' }).first().click();
   await expect.poll(() => page.evaluate(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     return editor && typeof editor.getValue === 'function' ? editor.getValue() : '';
   })).toContain('"domainStrategy": "IPIfNonMatch",');
   await expect.poll(() => page.evaluate(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     return editor && typeof editor.getValue === 'function' ? editor.getValue() : '';
   })).not.toContain('AsIs');
@@ -450,7 +450,7 @@ test('routing CodeMirror keeps JSONC diagnostics and exposes fragment schema hel
   await expect(page.locator('.cm-tooltip-autocomplete')).toContainText('udp');
   await clickAutocompleteOption(page, 'udp');
   await expect.poll(() => page.evaluate(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     return editor && typeof editor.getValue === 'function' ? editor.getValue() : '';
   })).toContain('"network": "udp"');
@@ -463,7 +463,7 @@ test('routing CodeMirror keeps JSONC diagnostics and exposes fragment schema hel
   await expect(page.locator('.cm-tooltip-autocomplete')).toContainText('direct');
   await clickAutocompleteOption(page, 'direct');
   await expect.poll(() => page.evaluate(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     return editor && typeof editor.getValue === 'function' ? editor.getValue() : '';
   })).toContain('"outboundTag": "direct"');
@@ -476,7 +476,7 @@ test('routing CodeMirror keeps JSONC diagnostics and exposes fragment schema hel
   await expect(page.locator('.cm-tooltip-autocomplete')).toContainText('tproxy');
   await clickAutocompleteOption(page, 'tproxy');
   await expect.poll(() => page.evaluate(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     return editor && typeof editor.getValue === 'function' ? editor.getValue() : '';
   })).toContain('"inboundTag": ["tproxy"]');

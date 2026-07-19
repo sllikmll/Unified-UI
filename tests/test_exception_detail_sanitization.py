@@ -14,7 +14,7 @@ from flask import Blueprint, Flask
 
 
 ROOT = Path(__file__).resolve().parents[1]
-APP_DIR = ROOT / "xkeen-ui"
+APP_DIR = ROOT / "unified-ui"
 ROUTES_DIR = APP_DIR / "routes"
 ROUTING_DIR = ROUTES_DIR / "routing"
 
@@ -135,7 +135,7 @@ def test_devtools_spawn_failed_hides_exception_details_in_response_and_status(mo
     monkeypatch.setattr(devtools.shutil, "which", lambda _name: "stub")
 
     def fake_popen(*_args, **_kwargs):
-        raise RuntimeError("/opt/etc/xkeen-ui/scripts/update_xkeen_ui.sh spawn failure")
+        raise RuntimeError("/opt/etc/unified-ui/scripts/update_unified_ui.sh spawn failure")
 
     monkeypatch.setattr(devtools.subprocess, "Popen", fake_popen)
 
@@ -148,7 +148,7 @@ def test_devtools_spawn_failed_hides_exception_details_in_response_and_status(mo
     assert payload["error"] == "spawn_failed"
     assert payload["hint"] == "Не удалось запустить update runner. Подробности смотрите в server logs."
     assert "spawn failure" not in raw
-    assert "/opt/etc/xkeen-ui" not in raw
+    assert "/opt/etc/unified-ui" not in raw
     assert "meta" not in payload
 
     status_response = client.get("/api/devtools/update/status?tail=0")
@@ -157,7 +157,7 @@ def test_devtools_spawn_failed_hides_exception_details_in_response_and_status(mo
     assert status_payload["status"]["error"] == "spawn_failed"
     assert status_payload["status"]["message"] == "Не удалось запустить update runner"
     assert "spawn failure" not in status_raw
-    assert "/opt/etc/xkeen-ui" not in status_raw
+    assert "/opt/etc/unified-ui" not in status_raw
 
 
 def test_geodat_install_hides_exception_details(monkeypatch, tmp_path: Path):
@@ -173,7 +173,7 @@ def test_geodat_install_hides_exception_details(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(geodat, "geodat_platform_info", lambda: {"supported": True})
 
     def fake_run(*_args, **_kwargs):
-        raise OSError("/opt/etc/xkeen-ui/bin/xk-geodat failed to exec")
+        raise OSError("/opt/etc/unified-ui/bin/xk-geodat failed to exec")
 
     monkeypatch.setattr(geodat.subprocess, "run", fake_run)
 
@@ -192,7 +192,7 @@ def test_geodat_install_hides_exception_details(monkeypatch, tmp_path: Path):
     assert payload["error"] == "install_failed"
     assert payload["hint"] == "Не удалось запустить установку xk-geodat. Подробности смотрите в server logs."
     assert "details" not in payload
-    assert "/opt/etc/xkeen-ui" not in raw
+    assert "/opt/etc/unified-ui" not in raw
     assert "failed to exec" not in raw
 
 
@@ -201,7 +201,7 @@ def test_service_core_switch_hides_exception_details(monkeypatch, tmp_path: Path
     app = Flask("service-sanitize-core-switch")
     app.register_blueprint(
         service.create_service_blueprint(
-            restart_xkeen=lambda **_kwargs: True,
+            restart_unified=lambda **_kwargs: True,
             append_restart_log=lambda *_args, **_kwargs: None,
             XRAY_ERROR_LOG=str(tmp_path / "xray-error.log"),
         )
@@ -210,23 +210,23 @@ def test_service_core_switch_hides_exception_details(monkeypatch, tmp_path: Path
 
     def fake_switch_core(*_args, **_kwargs):
         raise service.CoreSwitchError(
-            "/opt/etc/xkeen-ui/bin/xkeen -mihomo failed",
-            details={"cmd": "/opt/etc/xkeen-ui/bin/xkeen -mihomo"},
+            "/opt/etc/unified-ui/bin/unified -mihomo failed",
+            details={"cmd": "/opt/etc/unified-ui/bin/unified -mihomo"},
         )
 
     monkeypatch.setattr(service, "switch_core", fake_switch_core)
 
-    response = client.post("/api/xkeen/core", json={"core": "mihomo"})
+    response = client.post("/api/unified/core", json={"core": "mihomo"})
 
     assert response.status_code == 500
     payload = response.get_json()
     raw = json.dumps(payload, ensure_ascii=False)
     assert payload["ok"] is False
-    assert payload["error"] == "Не удалось переключить ядро xkeen."
+    assert payload["error"] == "Не удалось переключить ядро unified."
     assert payload["code"] == "core_switch_failed"
     assert payload["hint"] == "Подробности смотрите в server logs."
     assert "details" not in payload
-    assert "/opt/etc/xkeen-ui" not in raw
+    assert "/opt/etc/unified-ui" not in raw
     assert "-mihomo failed" not in raw
 
 
@@ -235,7 +235,7 @@ def test_xray_inbounds_write_failure_hides_exception_details(monkeypatch, tmp_pa
     app = Flask("xray-configs-sanitize-write")
     app.register_blueprint(
         xray_configs.create_xray_configs_blueprint(
-            restart_xkeen=lambda **_kwargs: True,
+            restart_unified=lambda **_kwargs: True,
             load_json=lambda _path, default=None: default,
             save_json=lambda _path, data: data,
             strip_json_comments_text=lambda text: text,
@@ -276,13 +276,13 @@ def test_mihomo_preview_hides_exception_details(monkeypatch, tmp_path: Path):
             MIHOMO_CONFIG_FILE=str(tmp_path / "config.yaml"),
             MIHOMO_TEMPLATES_DIR=str(tmp_path / "templates"),
             MIHOMO_DEFAULT_TEMPLATE=str(tmp_path / "default.yaml"),
-            restart_xkeen=lambda **_kwargs: True,
+            restart_unified=lambda **_kwargs: True,
         )
     )
     client = app.test_client()
 
     def fake_generate_preview(_payload):
-        raise RuntimeError("/opt/etc/xkeen-ui/templates/default.yaml failed to load")
+        raise RuntimeError("/opt/etc/unified-ui/templates/default.yaml failed to load")
 
     monkeypatch.setattr(mihomo.mihomo_svc, "generate_preview", fake_generate_preview)
 
@@ -295,7 +295,7 @@ def test_mihomo_preview_hides_exception_details(monkeypatch, tmp_path: Path):
     assert payload["error"] == "Не удалось сгенерировать предпросмотр."
     assert payload["code"] == "preview_failed"
     assert payload["hint"] == "Проверьте входные данные и повторите попытку."
-    assert "/opt/etc/xkeen-ui" not in raw
+    assert "/opt/etc/unified-ui" not in raw
     assert "failed to load" not in raw
 
 
@@ -324,7 +324,7 @@ def test_mihomo_invalid_yaml_hides_parser_details(tmp_path: Path, monkeypatch):
             MIHOMO_CONFIG_FILE=str(tmp_path / "config.yaml"),
             MIHOMO_TEMPLATES_DIR=str(tmp_path / "templates"),
             MIHOMO_DEFAULT_TEMPLATE=str(tmp_path / "default.yaml"),
-            restart_xkeen=lambda **_kwargs: True,
+            restart_unified=lambda **_kwargs: True,
         )
     )
     client = app.test_client()

@@ -2,23 +2,23 @@ from pathlib import Path
 
 
 def test_install_script_supports_pip_mirror_fallbacks_for_flask_and_gevent():
-    text = Path("xkeen-ui/install.sh").read_text(encoding="utf-8")
+    text = Path("unified-ui/install.sh").read_text(encoding="utf-8")
 
     assert 'PIP_FALLBACK_INDEX_DEFAULT="https://mirrors.aliyun.com/pypi/simple/"' in text
-    assert 'GEVENT_PIP_SPEC="${XKEEN_GEVENT_PIP_SPEC:-gevent}"' in text
+    assert 'GEVENT_PIP_SPEC="${UNIFIED_GEVENT_PIP_SPEC:-gevent}"' in text
     assert 'GEVENT_PIP_SPEC="gevent<26"' in text
-    assert 'append_pip_index_candidate "${XKEEN_PIP_INDEX_URL:-}"' in text
+    assert 'append_pip_index_candidate "${UNIFIED_PIP_INDEX_URL:-}"' in text
     assert 'append_pip_index_candidate "$PIP_PRIMARY_INDEX_DEFAULT"' in text
-    assert 'append_pip_index_candidate "${XKEEN_PIP_FALLBACK_INDEX_URL:-$PIP_FALLBACK_INDEX_DEFAULT}"' in text
+    assert 'append_pip_index_candidate "${UNIFIED_PIP_FALLBACK_INDEX_URL:-$PIP_FALLBACK_INDEX_DEFAULT}"' in text
     assert 'pip_install_with_fallback "bootstrap" pip setuptools wheel' in text
     assert 'pip_install_with_fallback "flask" flask' in text
     assert 'pip_install_with_fallback "gevent" "$GEVENT_PIP_SPEC" gevent-websocket' in text
-    assert 'XKEEN_PIP_INDEX_URL=$PIP_FALLBACK_INDEX_DEFAULT sh install.sh' in text
-    assert 'export XKEEN_GEVENT_PIP_SPEC=${XKEEN_GEVENT_PIP_SPEC:-$GEVENT_PIP_SPEC}' in text
+    assert 'UNIFIED_PIP_INDEX_URL=$PIP_FALLBACK_INDEX_DEFAULT sh install.sh' in text
+    assert 'export UNIFIED_GEVENT_PIP_SPEC=${UNIFIED_GEVENT_PIP_SPEC:-$GEVENT_PIP_SPEC}' in text
 
 
 def test_install_script_repairs_entware_pip_truststore_failures():
-    text = Path("xkeen-ui/install.sh").read_text(encoding="utf-8")
+    text = Path("unified-ui/install.sh").read_text(encoding="utf-8")
 
     assert "PIP_REPAIR_ATTEMPTED=0" in text
     assert "repair_python3_pip_package() {" in text
@@ -30,21 +30,21 @@ def test_install_script_repairs_entware_pip_truststore_failures():
 
 
 def test_install_script_falls_back_to_trusted_http_pip_mirrors_without_ssl():
-    text = Path("xkeen-ui/install.sh").read_text(encoding="utf-8")
+    text = Path("unified-ui/install.sh").read_text(encoding="utf-8")
 
     assert 'PIP_HTTP_FALLBACK_INDEX_DEFAULT="http://mirrors.aliyun.com/pypi/simple/"' in text
     assert 'PIP_HTTP_EXTRA_INDEX_DEFAULT="http://mirror.yandex.ru/pypi/simple/"' in text
     assert 'PIP_TRUSTED_HOSTS_DEFAULT="mirrors.aliyun.com mirror.yandex.ru"' in text
     assert 'python_ssl_available() {' in text
-    assert 'append_pip_index_candidate "${XKEEN_PIP_HTTP_INDEX_URL:-$PIP_HTTP_FALLBACK_INDEX_DEFAULT}"' in text
-    assert 'append_pip_index_candidate "${XKEEN_PIP_HTTP_EXTRA_INDEX_URL:-$PIP_HTTP_EXTRA_INDEX_DEFAULT}"' in text
+    assert 'append_pip_index_candidate "${UNIFIED_PIP_HTTP_INDEX_URL:-$PIP_HTTP_FALLBACK_INDEX_DEFAULT}"' in text
+    assert 'append_pip_index_candidate "${UNIFIED_PIP_HTTP_EXTRA_INDEX_URL:-$PIP_HTTP_EXTRA_INDEX_DEFAULT}"' in text
     assert 'build_pip_trusted_host_args' in text
     assert '--trusted-host $HOST' in text
     assert '$PIP_TRUSTED_HOST_ARGS \\' in text
 
 
 def test_install_script_refreshes_bundled_xray_templates_without_touching_custom_names():
-    text = Path("xkeen-ui/install.sh").read_text(encoding="utf-8")
+    text = Path("unified-ui/install.sh").read_text(encoding="utf-8")
 
     assert 'sync_bundled_template_dir() {' in text
     assert 'for f in "$src_dir"/*.json "$src_dir"/*.jsonc; do' in text
@@ -55,7 +55,7 @@ def test_install_script_refreshes_bundled_xray_templates_without_touching_custom
 
 
 def test_install_script_jsonc_migration_leaves_unpaired_user_files_in_configs():
-    text = Path("xkeen-ui/install.sh").read_text(encoding="utf-8")
+    text = Path("unified-ui/install.sh").read_text(encoding="utf-8")
 
     assert 'main_json="${src%?}"' in text
     assert 'if [ ! -f "$main_json" ]; then' in text

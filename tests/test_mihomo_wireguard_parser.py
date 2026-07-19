@@ -68,7 +68,7 @@ MIIBexample
 """
 
 TAILSCALE_SETTINGS = """
-hostname: xkeen
+hostname: unified
 auth-key: tskey-auth-example
 state-dir: ./tailscale
 udp: true
@@ -124,7 +124,7 @@ def test_mihomo_parse_wireguard_route_returns_amnezia_wg_v2_yaml(tmp_path):
         MIHOMO_CONFIG_FILE=str(cfg),
         MIHOMO_TEMPLATES_DIR=str(tmp_path),
         MIHOMO_DEFAULT_TEMPLATE=str(tmp_path / "default.yaml"),
-        restart_xkeen=lambda: None,
+        restart_unified=lambda: None,
     )
     app = Flask(__name__)
     app.register_blueprint(bp)
@@ -203,7 +203,7 @@ def test_parse_tailscale_accepts_key_value_settings_without_server_port():
 
     assert proxy["name"] == "tailnet"
     assert proxy["type"] == "tailscale"
-    assert proxy["hostname"] == "xkeen"
+    assert proxy["hostname"] == "unified"
     assert proxy["auth-key"] == "tskey-auth-example"
     assert proxy["state-dir"] == "./tailscale"
     assert proxy["udp"] is True
@@ -221,7 +221,7 @@ def test_mihomo_parse_openvpn_and_tailscale_routes_return_yaml(tmp_path):
         MIHOMO_CONFIG_FILE=str(cfg),
         MIHOMO_TEMPLATES_DIR=str(tmp_path),
         MIHOMO_DEFAULT_TEMPLATE=str(tmp_path / "default.yaml"),
-        restart_xkeen=lambda: None,
+        restart_unified=lambda: None,
     )
     app = Flask(__name__)
     app.register_blueprint(bp)

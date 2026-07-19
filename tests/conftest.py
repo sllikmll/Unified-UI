@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-APP_DIR = ROOT / "xkeen-ui"
+APP_DIR = ROOT / "unified-ui"
 
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
@@ -47,9 +47,9 @@ def isolated_runtime_env(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(home_dir))
     monkeypatch.setenv("USERPROFILE", str(home_dir))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_dir))
-    monkeypatch.setenv("XKEEN_UI_STATE_DIR", str(state_dir))
-    monkeypatch.setenv("XKEEN_LOG_DIR", str(log_dir))
-    monkeypatch.setenv("XKEEN_UI_SECRET_KEY", "test-secret-key")
+    monkeypatch.setenv("UNIFIED_UI_STATE_DIR", str(state_dir))
+    monkeypatch.setenv("UNIFIED_LOG_DIR", str(log_dir))
+    monkeypatch.setenv("UNIFIED_UI_SECRET_KEY", "test-secret-key")
     monkeypatch.setenv("PYTHONPATH", str(APP_DIR))
 
     return {

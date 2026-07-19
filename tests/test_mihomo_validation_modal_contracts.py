@@ -5,9 +5,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_mihomo_panel_validation_modal_uses_compact_premium_rendering_contract():
-    script = (ROOT / "xkeen-ui" / "static" / "js" / "features" / "mihomo_panel.js").read_text(encoding="utf-8")
-    template = (ROOT / "xkeen-ui" / "templates" / "panel.html").read_text(encoding="utf-8")
-    styles = (ROOT / "xkeen-ui" / "static" / "styles.css").read_text(encoding="utf-8")
+    script = (ROOT / "unified-ui" / "static" / "js" / "features" / "mihomo_panel.js").read_text(encoding="utf-8")
+    template = (ROOT / "unified-ui" / "templates" / "panel.html").read_text(encoding="utf-8")
+    styles = (ROOT / "unified-ui" / "static" / "styles.css").read_text(encoding="utf-8")
 
     assert "validationGrid: 'mihomo-validation-grid'" in script
     assert "validationCopyBtn: 'mihomo-validation-copy-btn'" in script

@@ -82,8 +82,8 @@ def test_fetch_subscription_body_resolves_happ_landing_via_helper(monkeypatch):
     body, headers = subs.fetch_subscription_body("https://landing.example/sub")
 
     assert _vless("Helper Node") in body
-    assert headers["x-xkeen-happ-resolved"] == "helper"
-    assert headers["x-xkeen-happ-link"] == "happ://crypt5/demo-token"
+    assert headers["x-unified-happ-resolved"] == "helper"
+    assert headers["x-unified-happ-link"] == "happ://crypt5/demo-token"
 
 
 def test_preview_subscription_accepts_happ_landing_when_helper_returns_links(monkeypatch):
@@ -135,8 +135,8 @@ def test_fetch_subscription_body_for_xray_retries_raw_happ_with_happ_hwid_after_
             _vless("Recovered"),
             {
                 "content-type": "text/plain; charset=utf-8",
-                "x-xkeen-happ-resolved": "decryptor",
-                "x-xkeen-happ-link": "happ://crypt5/demo-token",
+                "x-unified-happ-resolved": "decryptor",
+                "x-unified-happ-link": "happ://crypt5/demo-token",
             },
         )
 
@@ -145,12 +145,12 @@ def test_fetch_subscription_body_for_xray_retries_raw_happ_with_happ_hwid_after_
         "services.mihomo_hwid_sub.get_device_info",
         lambda: {"headers": {"x-hwid": "hwid-demo", "User-Agent": "router"}},
     )
-    monkeypatch.setenv("XKEEN_SUBSCRIPTION_HAPP_USER_AGENT", "Happ/3.18.3/Android/test-hwid")
+    monkeypatch.setenv("UNIFIED_SUBSCRIPTION_HAPP_USER_AGENT", "Happ/3.18.3/Android/test-hwid")
 
     body, headers, meta = subs.fetch_subscription_body_for_xray("happ://crypt5/demo-token")
 
     assert _vless("Recovered") in body
-    assert headers["x-xkeen-happ-resolved"] == "decryptor"
+    assert headers["x-unified-happ-resolved"] == "decryptor"
     assert meta["fetch_mode"] == "happ_hwid"
     assert any("Happ helper" in line for line in meta["warnings"])
     assert any("Happ User-Agent" in line for line in meta["warnings"])
@@ -299,7 +299,7 @@ def test_refresh_subscription_writes_generated_fragment_and_observatory(tmp_path
         "demo",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **kwargs: restarts.append(kwargs) or True,
+        restart_unified=lambda **kwargs: restarts.append(kwargs) or True,
         restart=True,
     )
 
@@ -337,7 +337,7 @@ def test_refresh_subscription_writes_generated_fragment_and_observatory(tmp_path
         "demo",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **kwargs: restarts.append(kwargs) or True,
+        restart_unified=lambda **kwargs: restarts.append(kwargs) or True,
         restart=True,
     )
     assert second["ok"] is True
@@ -443,7 +443,7 @@ def test_refresh_subscription_does_not_restart_when_provider_reorders_nodes(tmp_
         "demo",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **kwargs: restarts.append(kwargs) or True,
+        restart_unified=lambda **kwargs: restarts.append(kwargs) or True,
         restart=True,
     )
 
@@ -463,7 +463,7 @@ def test_refresh_subscription_does_not_restart_when_provider_reorders_nodes(tmp_
         "demo",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **kwargs: restarts.append(kwargs) or True,
+        restart_unified=lambda **kwargs: restarts.append(kwargs) or True,
         restart=True,
     )
 
@@ -509,7 +509,7 @@ def test_refresh_subscription_preserves_manual_outbound_edits_on_update(tmp_path
         "manual-edit",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
     assert first["ok"] is True
@@ -525,7 +525,7 @@ def test_refresh_subscription_preserves_manual_outbound_edits_on_update(tmp_path
         "manual-edit",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -595,7 +595,7 @@ def test_subscription_refresh_and_delete_preserve_outbounds_sockopt_marks(tmp_pa
         "marked-sub",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -610,7 +610,7 @@ def test_subscription_refresh_and_delete_preserve_outbounds_sockopt_marks(tmp_pa
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
         remove_file=True,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
     )
 
     assert deleted["deleted"]["id"] == "marked-sub"
@@ -655,7 +655,7 @@ def test_subscription_refresh_can_apply_entware_sockopt_mark(tmp_path: Path, mon
         "entware-sub",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -700,7 +700,7 @@ def test_refresh_subscription_turns_manual_node_deletion_into_saved_exclusion(tm
         "manual-delete",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
     assert first["ok"] is True
@@ -718,7 +718,7 @@ def test_refresh_subscription_turns_manual_node_deletion_into_saved_exclusion(tm
         "manual-delete",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -811,7 +811,7 @@ def test_refresh_subscription_failure_schedules_short_retry_and_preserves_fragme
     xray_dir.mkdir(parents=True)
     jsonc_dir.mkdir()
 
-    monkeypatch.setenv("XKEEN_SUBSCRIPTION_ERROR_RETRY_SECONDS", str(subs.DEFAULT_ERROR_RETRY_SECONDS))
+    monkeypatch.setenv("UNIFIED_SUBSCRIPTION_ERROR_RETRY_SECONDS", str(subs.DEFAULT_ERROR_RETRY_SECONDS))
     monkeypatch.setattr(subs, "jsonc_path_for", lambda path: str(jsonc_dir / (Path(path).name + "c")))
     monkeypatch.setattr(subs, "ensure_xray_jsonc_dir", lambda: None)
     monkeypatch.setattr(subs, "fetch_subscription_body", lambda _url: (_vless("Stable Node"), {}))
@@ -833,7 +833,7 @@ def test_refresh_subscription_failure_schedules_short_retry_and_preserves_fragme
         "demo",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=True,
     )
     assert first["ok"] is True
@@ -850,7 +850,7 @@ def test_refresh_subscription_failure_schedules_short_retry_and_preserves_fragme
         "demo",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **kwargs: restarts.append(kwargs) or True,
+        restart_unified=lambda **kwargs: restarts.append(kwargs) or True,
         restart=True,
     )
 
@@ -988,7 +988,7 @@ def test_refresh_subscription_keeps_preview_exclusions_when_reality_sid_and_spx_
         "cp.landing-nl-rfid-technologies",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -1047,7 +1047,7 @@ def test_refresh_subscription_omits_auto_xhttp_mode_for_link_payload(tmp_path: P
         "xhttp-link",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -1126,7 +1126,7 @@ def test_refresh_subscription_json_outbounds_strips_xhttp_auto_mode(tmp_path: Pa
         "json-xhttp",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -1192,7 +1192,7 @@ def test_refresh_subscription_canonicalizes_legacy_root_routing_shape(tmp_path: 
         "canon-route",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -1343,7 +1343,7 @@ def test_refresh_subscription_auto_syncs_routing_and_keeps_vless_reality(tmp_pat
         "auto-route",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -1472,7 +1472,7 @@ def test_refresh_subscription_does_not_replace_mobile_whitelist_scenario_with_au
         "white-list",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -1599,7 +1599,7 @@ def test_refresh_subscription_only_mode_excludes_vless_reality_from_runtime_pool
         "only-subscription",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -1714,7 +1714,7 @@ def test_refresh_subscription_only_mode_removes_existing_manual_proxy_from_runti
         "only-subscription",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -1784,7 +1784,7 @@ def test_refresh_subscription_only_mode_does_not_require_single_outbound(tmp_pat
         "generated-only",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -1866,7 +1866,7 @@ def test_refresh_subscription_service_pool_does_not_depend_on_ping_toggle(tmp_pa
         "pool-without-ping",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -1990,7 +1990,7 @@ def test_refresh_subscription_creates_dedicated_auto_pool_and_keeps_user_balance
         "manual-friendly",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -2102,7 +2102,7 @@ def test_refresh_subscription_syncs_selected_manual_balancers_without_auto_pool(
         "manual-only",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -2236,7 +2236,7 @@ def test_subscription_only_uses_selected_manual_balancers_instead_of_auto_pool(t
         "test-sub-ch",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -2325,7 +2325,7 @@ def test_template_routing_meta_detects_shadowed_auto_pool_and_ru_direct_rules(tm
     from services import xray_subscriptions as subs
 
     repo_root = Path(__file__).resolve().parents[1]
-    template_path = repo_root / "xkeen-ui" / "opt" / "etc" / "xray" / "templates" / "routing" / "05_routing_all_proxy_except_ru.jsonc"
+    template_path = repo_root / "unified-ui" / "opt" / "etc" / "xray" / "templates" / "routing" / "05_routing_all_proxy_except_ru.jsonc"
     raw = template_path.read_text(encoding="utf-8")
 
     xray_dir = tmp_path / "xray" / "configs"
@@ -2350,7 +2350,7 @@ def test_template_zkeen_only_meta_detects_direct_catch_all_shadowing(tmp_path: P
     from services import xray_subscriptions as subs
 
     repo_root = Path(__file__).resolve().parents[1]
-    template_path = repo_root / "xkeen-ui" / "opt" / "etc" / "xray" / "templates" / "routing" / "05_routing_zkeen_only.jsonc"
+    template_path = repo_root / "unified-ui" / "opt" / "etc" / "xray" / "templates" / "routing" / "05_routing_zkeen_only.jsonc"
     raw = template_path.read_text(encoding="utf-8")
 
     xray_dir = tmp_path / "xray" / "configs"
@@ -2469,7 +2469,7 @@ def test_refresh_subscription_preserves_ru_direct_rules_with_shadowed_auto_pool(
         "ru-direct-safe",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -2647,7 +2647,7 @@ def test_refresh_subscription_only_mode_replaces_manual_runtime_and_bypasses_sha
         "subscription-only",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -2694,7 +2694,7 @@ def test_refresh_subscription_only_mode_replaces_manual_runtime_and_bypasses_sha
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
         remove_file=True,
-        restart_xkeen=None,
+        restart_unified=None,
     )
     assert deleted["baseline_restored"] is True
     assert deleted["outbounds_changed"] is True
@@ -2793,7 +2793,7 @@ def test_refresh_subscription_only_reuses_existing_catch_all_and_removes_auto_du
         "subscription-only",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -2920,7 +2920,7 @@ def test_refresh_subscription_only_disables_protocol_redacted_manual_pool(tmp_pa
         "test-sub-ch",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -3039,7 +3039,7 @@ def test_refresh_subscription_only_preserves_manual_edits_after_activation(tmp_p
         "only-subscription",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
     assert first["ok"] is True
@@ -3080,7 +3080,7 @@ def test_refresh_subscription_only_preserves_manual_edits_after_activation(tmp_p
         "only-subscription",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -3177,7 +3177,7 @@ def test_subscription_refresh_preserves_mobile_scenario_after_switch(
         "mobile-sub",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
     assert first["ok"] is True
@@ -3268,7 +3268,7 @@ def test_subscription_refresh_preserves_mobile_scenario_after_switch(
         "mobile-sub",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -3375,7 +3375,7 @@ def test_refresh_subscription_strict_mode_keeps_ru_direct_rules_before_migrated_
         "ru-direct-strict",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -3494,7 +3494,7 @@ def test_refresh_subscription_preserves_user_routing_jsonc_comments(tmp_path: Pa
         "comment-route",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -3627,7 +3627,7 @@ def test_due_refresh_preserves_commented_main_routing_jsonc(tmp_path: Path, monk
         str(ui_state_dir),
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -3701,7 +3701,7 @@ def test_due_refresh_does_not_overwrite_invalid_routing_file(tmp_path: Path, mon
         str(ui_state_dir),
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -3800,7 +3800,7 @@ def test_refresh_subscription_strict_mode_migrates_and_reverts_vless_rules(tmp_p
         "strict-route",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -3833,7 +3833,7 @@ def test_refresh_subscription_strict_mode_migrates_and_reverts_vless_rules(tmp_p
         "strict-route",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -3974,7 +3974,7 @@ def test_delete_last_subscription_restores_pre_subscription_runtime_state(tmp_pa
         "auto-route",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -3984,7 +3984,7 @@ def test_delete_last_subscription_restores_pre_subscription_runtime_state(tmp_pa
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
         remove_file=True,
-        restart_xkeen=None,
+        restart_unified=None,
     )
 
     assert result["routing_changed"] is True
@@ -4084,7 +4084,7 @@ def test_delete_subscription_only_restores_manual_observatory_selector(tmp_path:
         "subscription-only",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -4101,7 +4101,7 @@ def test_delete_subscription_only_restores_manual_observatory_selector(tmp_path:
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
         remove_file=True,
-        restart_xkeen=None,
+        restart_unified=None,
     )
 
     assert deleted["baseline_restored"] is True
@@ -4194,7 +4194,7 @@ def test_refresh_subscription_preserves_cp1251_custom_routing_variant_and_restor
         "legacy-routing",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -4222,7 +4222,7 @@ def test_refresh_subscription_preserves_cp1251_custom_routing_variant_and_restor
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
         remove_file=True,
-        restart_xkeen=None,
+        restart_unified=None,
     )
 
     assert deleted["baseline_restored"] is False
@@ -4282,7 +4282,7 @@ def test_delete_subscription_removes_empty_generated_balancer(tmp_path: Path, mo
         "auto-route",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
     assert refreshed["routing_changed"] is True
@@ -4294,7 +4294,7 @@ def test_delete_subscription_removes_empty_generated_balancer(tmp_path: Path, mo
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
         remove_file=True,
-        restart_xkeen=None,
+        restart_unified=None,
     )
 
     assert result["routing_changed"] is True
@@ -4373,7 +4373,7 @@ def test_delete_subscription_rebuilds_runtime_from_baseline_for_remaining_subscr
         "alpha",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
     second = subs.refresh_subscription(
@@ -4381,7 +4381,7 @@ def test_delete_subscription_rebuilds_runtime_from_baseline_for_remaining_subscr
         "beta",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -4408,7 +4408,7 @@ def test_delete_subscription_rebuilds_runtime_from_baseline_for_remaining_subscr
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
         remove_file=True,
-        restart_xkeen=None,
+        restart_unified=None,
     )
 
     assert result["baseline_restored"] is False
@@ -4492,7 +4492,7 @@ def test_delete_subscription_keeps_unrelated_outbound_fragments(tmp_path: Path, 
         "alpha",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
     assert refreshed["ok"] is True
@@ -4504,7 +4504,7 @@ def test_delete_subscription_keeps_unrelated_outbound_fragments(tmp_path: Path, 
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
         remove_file=True,
-        restart_xkeen=None,
+        restart_unified=None,
     )
 
     assert deleted["output_removed"] is True
@@ -4597,7 +4597,7 @@ def test_refresh_subscription_preserves_manual_routing_and_observatory_edits_aft
         "demo-sub",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -4643,7 +4643,7 @@ def test_refresh_subscription_preserves_manual_routing_and_observatory_edits_aft
         "demo-sub",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -4713,7 +4713,7 @@ def test_refresh_subscription_applies_name_and_type_filters_to_links(tmp_path: P
         "filtered",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -4900,7 +4900,7 @@ def test_refresh_subscription_keeps_curated_manual_selection_closed_to_new_nodes
         "pecan",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -4916,7 +4916,7 @@ def test_refresh_subscription_keeps_curated_manual_selection_closed_to_new_nodes
         "pecan",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -5034,7 +5034,7 @@ def test_refresh_subscription_keeps_long_provider_prefix_in_runtime_selectors(tm
         sub["id"],
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=None,
+        restart_unified=None,
         restart=False,
     )
 
@@ -5152,7 +5152,7 @@ def test_refresh_subscription_persists_preview_exclusions_and_applies_saved_excl
         "json-edit",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -5188,7 +5188,7 @@ def test_refresh_subscription_persists_preview_exclusions_and_applies_saved_excl
         "json-edit",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -5267,7 +5267,7 @@ def test_refresh_subscription_accepts_xray_json_config_arrays(tmp_path: Path, mo
         "json-demo",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=True,
     )
 
@@ -5355,7 +5355,7 @@ def test_refresh_subscription_applies_filters_to_xray_json_payloads(tmp_path: Pa
         "json-filter",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -5456,7 +5456,7 @@ def test_refresh_subscription_persists_last_nodes_with_transport_metadata(tmp_pa
         "json-transport",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -5519,7 +5519,7 @@ def test_probe_subscription_node_latency_updates_state(tmp_path: Path, monkeypat
         "probe-demo",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -5597,8 +5597,8 @@ def test_probe_via_local_proxy_tries_fallback_url(monkeypatch):
         return 1174, ""
 
     monkeypatch.setattr(subs, "_probe_once_via_local_proxy", _fake_once)
-    monkeypatch.setenv("XKEEN_PROBE_REQUEST_ATTEMPTS", "1")
-    monkeypatch.delenv("XKEEN_PROBE_FALLBACK_URLS", raising=False)
+    monkeypatch.setenv("UNIFIED_PROBE_REQUEST_ATTEMPTS", "1")
+    monkeypatch.delenv("UNIFIED_PROBE_FALLBACK_URLS", raising=False)
 
     delay_ms, error = subs._probe_via_local_proxy(18080, subs.DEFAULT_PROBE_URL, 8.0)
 
@@ -5652,7 +5652,7 @@ def test_probe_subscription_nodes_latency_updates_state_once(tmp_path: Path, mon
         "probe-bulk",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 
@@ -5750,7 +5750,7 @@ def test_probe_subscription_nodes_latency_retries_process_start(tmp_path: Path, 
         "probe-retry",
         xray_configs_dir=str(xray_dir),
         snapshot=lambda _path: None,
-        restart_xkeen=lambda **_kwargs: True,
+        restart_unified=lambda **_kwargs: True,
         restart=False,
     )
 

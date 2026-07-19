@@ -68,7 +68,7 @@ Android хранит отдельный `RoutingWritePhase` (`Idle`, `Saving`, `
 
 ```powershell
 python -m pytest -q tests/test_mobile_routing_write_contract.py tests/test_mobile_routing_validate_contract.py tests/test_mobile_session_contract.py tests/test_request_size_limit_contracts.py
-python -m ruff check xkeen-ui/services/mobile_routing.py xkeen-ui/routes/mobile.py xkeen-ui/services/request_limits.py tests/test_mobile_routing_write_contract.py
+python -m ruff check unified-ui/services/mobile_routing.py unified-ui/routes/mobile.py unified-ui/services/request_limits.py tests/test_mobile_routing_write_contract.py
 cd android-companion
 .\gradlew.bat testDebugUnitTest assembleDebug
 ```

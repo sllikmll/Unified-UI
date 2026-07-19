@@ -9,7 +9,7 @@ def test_helper_command_uses_bundled_helper_when_env_is_missing(monkeypatch):
     command = happ_links.helper_command()
 
     assert "happ_transport_helper.py" in command
-    assert "xkeen-ui" in command
+    assert "unified-ui" in command
     assert happ_links.helper_configured() is True
 
 

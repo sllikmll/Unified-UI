@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
-const projectRoot = path.join(repoRoot, 'xkeen-ui');
+const projectRoot = path.join(repoRoot, 'unified-ui');
 const buildRoot = path.join(projectRoot, 'static', 'frontend-build');
 const vendorRoot = path.join(projectRoot, 'static', 'vendor');
 const bridgeManifestPath = path.join(buildRoot, '.vite', 'manifest.json');
@@ -30,7 +30,7 @@ const RELATIVE_IMPORT_PATTERNS = [
 
 const EXPECTED_PAGE_ENTRIES = {
   panel: 'js/pages/panel.entry.js',
-  xkeen: 'js/pages/xkeen.entry.js',
+  unified: 'js/pages/unified.entry.js',
   backups: 'js/pages/backups.entry.js',
   devtools: 'js/pages/devtools.entry.js',
   mihomo_generator: 'js/pages/mihomo_generator.entry.js',

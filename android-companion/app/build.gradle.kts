@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "io.xkeen.mobile"
+    namespace = "io.unified.mobile"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "io.xkeen.mobile"
+        applicationId = "io.unified.mobile"
         minSdk = 28
         targetSdk = 36
         versionCode = 4

@@ -1,4 +1,4 @@
-# Целевая архитектура фронтенда xkeen-ui
+# Целевая архитектура фронтенда unified-ui
 
 ## Для чего этот документ
 
@@ -13,7 +13,7 @@
 Что это значит на практике:
 
 - entrypoint поднимает страницу через обычные `import` и общий shell bootstrap, который в итоге вызывает `boot*Page()`;
-- top-level entrypoints для `/`, `/backups`, `/devtools`, `/xkeen` и `/mihomo_generator` остаются thin wrappers над `bootTopLevelShell(...)` и screen bootstrap, без собственной DOM/network/runtime-логики;
+- top-level entrypoints для `/`, `/backups`, `/devtools`, `/unified` и `/mihomo_generator` остаются thin wrappers над `bootTopLevelShell(...)` и screen bootstrap, без собственной DOM/network/runtime-логики;
 - порядок зависимостей фиксируется модульным графом, а не URL-списком legacy-скриптов;
 - source entry остаётся источником истины и для dev, и для build-managed production path.
 
@@ -22,7 +22,7 @@
 - `panel.entry.js`
 - `backups.entry.js`
 - `devtools.entry.js`
-- `xkeen.entry.js`
+- `unified.entry.js`
 - `mihomo_generator.entry.js`
 
 ### 2. Shared runtime = обычные импорты
@@ -33,8 +33,8 @@ Shared-слои страницы подключаются через `import` и
 
 - `panel.entry.js` импортирует shared shell/runtime, затем передаёт управление `top_level_shell.shared.js` и подгружает feature bundles;
 - все пять canonical page entrypoints используют общий `top_level_shell.shared.js`, а page-specific boot остаётся в `*.screen.bootstrap.js` и `*.init.js`;
-- top-level templates `/`, `/backups`, `/devtools`, `/xkeen` и `/mihomo_generator` могут оставаться отдельными, но общий host-каркас должен выноситься в shared Jinja partials вместо copy-paste head/spinner/theme bootstrap блоков;
-- top-level router для `/`, `/backups`, `/devtools`, `/xkeen` и `/mihomo_generator` использует фиксированный route registry и `pushState`/`popstate` как normal path, а hard navigation остаётся только fallback-путём для direct entry, missing screen или transition failure.
+- top-level templates `/`, `/backups`, `/devtools`, `/unified` и `/mihomo_generator` могут оставаться отдельными, но общий host-каркас должен выноситься в shared Jinja partials вместо copy-paste head/spinner/theme bootstrap блоков;
+- top-level router для `/`, `/backups`, `/devtools`, `/unified` и `/mihomo_generator` использует фиксированный route registry и `pushState`/`popstate` как normal path, а hard navigation остаётся только fallback-путём для direct entry, missing screen или transition failure.
 
 ### 3. Feature-модули = ESM с явным API
 
@@ -42,7 +42,7 @@ Shared-слои страницы подключаются через `import` и
 
 - модуль экспортирует `get*Api()`;
 - модуль экспортирует явный `*Api`-объект и тонкие named wrappers;
-- новый consumer получает API через прямой `import`, а не через поиск по `window.XKeen`.
+- новый consumer получает API через прямой `import`, а не через поиск по `window.UnifiedUI`.
 
 Единая registry-точка для top-level features:
 
@@ -93,7 +93,7 @@ Backend не должен снова становиться местом, где
 
 Допустимое направление только одно: держать этот файл узким и не превращать его обратно в общий migration bucket.
 
-### `window.XKeen`
+### `window.UnifiedUI`
 
 Текущий статус:
 
@@ -104,7 +104,7 @@ Backend не должен снова становиться местом, где
 
 1. module-local API;
 2. `features/index.js` или direct module import;
-3. compatibility publish в `window.XKeen` только если это действительно нужно для старого consumer-а.
+3. compatibility publish в `window.UnifiedUI` только если это действительно нужно для старого consumer-а.
 
 ## Что считается готовой миграцией
 
@@ -114,7 +114,7 @@ Backend не должен снова становиться местом, где
 - `legacy_script_loader.js` отсутствует как активный runtime artifact;
 - build wrappers остаются thin и импортируют canonical source entrypoints;
 - `lazy_runtime.js` не делает DOM script injection и не растёт как отдельный runtime framework;
-- новые feature-модули не строятся вокруг `window.XKeen`;
+- новые feature-модули не строятся вокруг `window.UnifiedUI`;
 - canonical feature API живёт в модуле и доступен через явный `get*Api()`;
 - compatibility bridges либо локализованы, либо удалены.
 
@@ -132,4 +132,4 @@ Backend не должен снова становиться местом, где
 - возвращать `bootLegacyEntry(...)` в source entrypoints;
 - добавлять новые script-based lazy loaders;
 - плодить новые `window.*` алиасы без реального legacy-consumer-а;
-- считать `window.XKeen.features.*` canonical API для нового кода.
+- считать `window.UnifiedUI.features.*` canonical API для нового кода.

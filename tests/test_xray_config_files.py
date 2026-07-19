@@ -14,15 +14,15 @@ def test_routing_auto_pick_uses_prefixed_variant_when_default_missing(tmp_path: 
     custom = configs_dir / "05_routing-2.json"
     custom.write_text('{"routing":{"rules":[]}}\n', encoding="utf-8")
 
-    old_configs = os.environ.get("XKEEN_XRAY_CONFIGS_DIR")
-    old_jsonc = os.environ.get("XKEEN_XRAY_JSONC_DIR")
-    old_routing = os.environ.get("XKEEN_XRAY_ROUTING_FILE")
-    old_routing_raw = os.environ.get("XKEEN_XRAY_ROUTING_FILE_RAW")
+    old_configs = os.environ.get("UNIFIED_XRAY_CONFIGS_DIR")
+    old_jsonc = os.environ.get("UNIFIED_XRAY_JSONC_DIR")
+    old_routing = os.environ.get("UNIFIED_XRAY_ROUTING_FILE")
+    old_routing_raw = os.environ.get("UNIFIED_XRAY_ROUTING_FILE_RAW")
 
-    os.environ["XKEEN_XRAY_CONFIGS_DIR"] = str(configs_dir)
-    os.environ["XKEEN_XRAY_JSONC_DIR"] = str(jsonc_dir)
-    os.environ.pop("XKEEN_XRAY_ROUTING_FILE", None)
-    os.environ.pop("XKEEN_XRAY_ROUTING_FILE_RAW", None)
+    os.environ["UNIFIED_XRAY_CONFIGS_DIR"] = str(configs_dir)
+    os.environ["UNIFIED_XRAY_JSONC_DIR"] = str(jsonc_dir)
+    os.environ.pop("UNIFIED_XRAY_ROUTING_FILE", None)
+    os.environ.pop("UNIFIED_XRAY_ROUTING_FILE_RAW", None)
 
     import services.xray_config_files as xcf
 
@@ -32,21 +32,21 @@ def test_routing_auto_pick_uses_prefixed_variant_when_default_missing(tmp_path: 
         assert Path(xcf.ROUTING_FILE_RAW).name == "05_routing-2.jsonc"
     finally:
         if old_configs is None:
-            os.environ.pop("XKEEN_XRAY_CONFIGS_DIR", None)
+            os.environ.pop("UNIFIED_XRAY_CONFIGS_DIR", None)
         else:
-            os.environ["XKEEN_XRAY_CONFIGS_DIR"] = old_configs
+            os.environ["UNIFIED_XRAY_CONFIGS_DIR"] = old_configs
         if old_jsonc is None:
-            os.environ.pop("XKEEN_XRAY_JSONC_DIR", None)
+            os.environ.pop("UNIFIED_XRAY_JSONC_DIR", None)
         else:
-            os.environ["XKEEN_XRAY_JSONC_DIR"] = old_jsonc
+            os.environ["UNIFIED_XRAY_JSONC_DIR"] = old_jsonc
         if old_routing is None:
-            os.environ.pop("XKEEN_XRAY_ROUTING_FILE", None)
+            os.environ.pop("UNIFIED_XRAY_ROUTING_FILE", None)
         else:
-            os.environ["XKEEN_XRAY_ROUTING_FILE"] = old_routing
+            os.environ["UNIFIED_XRAY_ROUTING_FILE"] = old_routing
         if old_routing_raw is None:
-            os.environ.pop("XKEEN_XRAY_ROUTING_FILE_RAW", None)
+            os.environ.pop("UNIFIED_XRAY_ROUTING_FILE_RAW", None)
         else:
-            os.environ["XKEEN_XRAY_ROUTING_FILE_RAW"] = old_routing_raw
+            os.environ["UNIFIED_XRAY_ROUTING_FILE_RAW"] = old_routing_raw
         importlib.reload(xcf)
 
 
@@ -60,11 +60,11 @@ def test_jsonc_migration_keeps_unpaired_user_fragments(tmp_path: Path):
     (configs_dir / "05_routing.jsonc").write_text('// routing sidecar\n{"routing":{"rules":[]}}\n', encoding="utf-8")
     (configs_dir / "99_user_extra.jsonc").write_text('// user fragment\n{"observatory":{}}\n', encoding="utf-8")
 
-    old_configs = os.environ.get("XKEEN_XRAY_CONFIGS_DIR")
-    old_jsonc = os.environ.get("XKEEN_XRAY_JSONC_DIR")
+    old_configs = os.environ.get("UNIFIED_XRAY_CONFIGS_DIR")
+    old_jsonc = os.environ.get("UNIFIED_XRAY_JSONC_DIR")
 
-    os.environ["XKEEN_XRAY_CONFIGS_DIR"] = str(configs_dir)
-    os.environ["XKEEN_XRAY_JSONC_DIR"] = str(jsonc_dir)
+    os.environ["UNIFIED_XRAY_CONFIGS_DIR"] = str(configs_dir)
+    os.environ["UNIFIED_XRAY_JSONC_DIR"] = str(jsonc_dir)
 
     import services.xray_config_files as xcf
 
@@ -81,13 +81,13 @@ def test_jsonc_migration_keeps_unpaired_user_fragments(tmp_path: Path):
         assert not (jsonc_dir / "99_user_extra.jsonc").exists()
     finally:
         if old_configs is None:
-            os.environ.pop("XKEEN_XRAY_CONFIGS_DIR", None)
+            os.environ.pop("UNIFIED_XRAY_CONFIGS_DIR", None)
         else:
-            os.environ["XKEEN_XRAY_CONFIGS_DIR"] = old_configs
+            os.environ["UNIFIED_XRAY_CONFIGS_DIR"] = old_configs
         if old_jsonc is None:
-            os.environ.pop("XKEEN_XRAY_JSONC_DIR", None)
+            os.environ.pop("UNIFIED_XRAY_JSONC_DIR", None)
         else:
-            os.environ["XKEEN_XRAY_JSONC_DIR"] = old_jsonc
+            os.environ["UNIFIED_XRAY_JSONC_DIR"] = old_jsonc
         importlib.reload(xcf)
 
 
@@ -106,11 +106,11 @@ def test_jsonc_migration_keeps_extra_outbound_json_fragments(tmp_path: Path):
         (configs_dir / name).write_text('{"outbounds":[]}\n', encoding="utf-8")
     (configs_dir / "04_outbounds_All.jsonc").write_text('// pool sidecar\n{"outbounds":[]}\n', encoding="utf-8")
 
-    old_configs = os.environ.get("XKEEN_XRAY_CONFIGS_DIR")
-    old_jsonc = os.environ.get("XKEEN_XRAY_JSONC_DIR")
+    old_configs = os.environ.get("UNIFIED_XRAY_CONFIGS_DIR")
+    old_jsonc = os.environ.get("UNIFIED_XRAY_JSONC_DIR")
 
-    os.environ["XKEEN_XRAY_CONFIGS_DIR"] = str(configs_dir)
-    os.environ["XKEEN_XRAY_JSONC_DIR"] = str(jsonc_dir)
+    os.environ["UNIFIED_XRAY_CONFIGS_DIR"] = str(configs_dir)
+    os.environ["UNIFIED_XRAY_JSONC_DIR"] = str(jsonc_dir)
 
     import services.xray_config_files as xcf
 
@@ -125,11 +125,11 @@ def test_jsonc_migration_keeps_extra_outbound_json_fragments(tmp_path: Path):
         assert (jsonc_dir / "04_outbounds_All.jsonc").exists()
     finally:
         if old_configs is None:
-            os.environ.pop("XKEEN_XRAY_CONFIGS_DIR", None)
+            os.environ.pop("UNIFIED_XRAY_CONFIGS_DIR", None)
         else:
-            os.environ["XKEEN_XRAY_CONFIGS_DIR"] = old_configs
+            os.environ["UNIFIED_XRAY_CONFIGS_DIR"] = old_configs
         if old_jsonc is None:
-            os.environ.pop("XKEEN_XRAY_JSONC_DIR", None)
+            os.environ.pop("UNIFIED_XRAY_JSONC_DIR", None)
         else:
-            os.environ["XKEEN_XRAY_JSONC_DIR"] = old_jsonc
+            os.environ["UNIFIED_XRAY_JSONC_DIR"] = old_jsonc
         importlib.reload(xcf)

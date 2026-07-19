@@ -16,7 +16,7 @@ def _install(monkeypatch, *, running, control_result):
         state["control_calls"].append((action, kwargs))
         return control_result
 
-    monkeypatch.setattr(xray_svc, "control_xkeen_action", fake_control)
+    monkeypatch.setattr(xray_svc, "control_unified_action", fake_control)
     return state
 
 

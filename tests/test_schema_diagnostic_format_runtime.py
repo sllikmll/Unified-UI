@@ -32,7 +32,7 @@ def _run_node_json(script: str) -> object:
 
 def test_translate_monaco_schema_message_covers_property_pattern():
     script = """
-import { translateMonacoSchemaMessage } from './xkeen-ui/static/js/ui/schema_diagnostic_format.js';
+import { translateMonacoSchemaMessage } from './unified-ui/static/js/ui/schema_diagnostic_format.js';
 
 const cases = [
   'Property domainStrateg is not allowed.',
@@ -69,7 +69,7 @@ console.log(JSON.stringify(cases.map((text) => ({
 
 def test_format_enriched_message_appends_line_column_and_path():
     script = """
-import { formatEnrichedMessage, isEnrichedMessage } from './xkeen-ui/static/js/ui/schema_diagnostic_format.js';
+import { formatEnrichedMessage, isEnrichedMessage } from './unified-ui/static/js/ui/schema_diagnostic_format.js';
 
 const baseMessage = 'Свойство `foo` не разрешено схемой';
 const ctx = { line: 5, column: 12, pathLabel: 'routing.rules[0].domain' };
@@ -94,7 +94,7 @@ console.log(JSON.stringify({
 
 def test_format_enriched_message_handles_root_label_and_missing_position():
     script = """
-import { formatEnrichedMessage } from './xkeen-ui/static/js/ui/schema_diagnostic_format.js';
+import { formatEnrichedMessage } from './unified-ui/static/js/ui/schema_diagnostic_format.js';
 
 console.log(JSON.stringify({
   rootOnly: formatEnrichedMessage('msg', { line: 3, column: 2, pathLabel: 'root' }),
@@ -110,8 +110,8 @@ console.log(JSON.stringify({
 
 def test_find_pointer_at_range_returns_narrowest_match():
     script = """
-import { buildJsoncPointerMap } from './xkeen-ui/static/js/vendor/codemirror_json_schema.js';
-import { findPointerAtRange, diagnosticPointerLabel } from './xkeen-ui/static/js/ui/schema_diagnostic_format.js';
+import { buildJsoncPointerMap } from './unified-ui/static/js/vendor/codemirror_json_schema.js';
+import { findPointerAtRange, diagnosticPointerLabel } from './unified-ui/static/js/ui/schema_diagnostic_format.js';
 
 const text = `{
   "routing": {
@@ -155,7 +155,7 @@ def test_enrich_schema_diagnostic_matches_cm6_format_for_property_error():
     )
 
     script = f"""
-import {{ enrichSchemaDiagnostic }} from './xkeen-ui/static/js/ui/schema_diagnostic_format.js';
+import {{ enrichSchemaDiagnostic }} from './unified-ui/static/js/ui/schema_diagnostic_format.js';
 
 const text = {json.dumps(text)};
 const offset = text.indexOf('"domainStrateg"');
@@ -202,7 +202,7 @@ console.log(JSON.stringify({{
 
 def test_enrich_schema_diagnostic_keeps_raw_message_when_pattern_unknown():
     script = """
-import { enrichSchemaDiagnostic } from './xkeen-ui/static/js/ui/schema_diagnostic_format.js';
+import { enrichSchemaDiagnostic } from './unified-ui/static/js/ui/schema_diagnostic_format.js';
 
 const result = enrichSchemaDiagnostic({
   message: 'Some unrecognized schema diagnostic',
@@ -223,7 +223,7 @@ console.log(JSON.stringify(result));
 
 def test_enrich_schema_diagnostic_returns_null_for_empty_message():
     script = """
-import { enrichSchemaDiagnostic } from './xkeen-ui/static/js/ui/schema_diagnostic_format.js';
+import { enrichSchemaDiagnostic } from './unified-ui/static/js/ui/schema_diagnostic_format.js';
 
 const result = enrichSchemaDiagnostic({ message: '', text: '{}', from: 0, to: 0 });
 console.log(JSON.stringify({ result }));
@@ -243,7 +243,7 @@ def test_enriched_message_uses_marker_safe_separator_for_monaco_peek():
     if the formatter is touched later.
     """
     script = """
-import { formatEnrichedMessage } from './xkeen-ui/static/js/ui/schema_diagnostic_format.js';
+import { formatEnrichedMessage } from './unified-ui/static/js/ui/schema_diagnostic_format.js';
 
 const message = formatEnrichedMessage('Свойство `foo` не разрешено схемой', {
   line: 5, column: 5, pathLabel: 'routing.rules[0].domain',
@@ -278,8 +278,8 @@ def test_enrich_schema_diagnostic_matches_cm6_diagnostic_context_format():
     )
 
     script = f"""
-import {{ enrichSchemaDiagnostic }} from './xkeen-ui/static/js/ui/schema_diagnostic_format.js';
-import {{ buildJsoncPointerMap }} from './xkeen-ui/static/js/vendor/codemirror_json_schema.js';
+import {{ enrichSchemaDiagnostic }} from './unified-ui/static/js/ui/schema_diagnostic_format.js';
+import {{ buildJsoncPointerMap }} from './unified-ui/static/js/vendor/codemirror_json_schema.js';
 
 const text = {json.dumps(text)};
 const offset = text.indexOf('"ghost-tag"');

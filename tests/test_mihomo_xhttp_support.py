@@ -211,7 +211,7 @@ def test_non_vless_xhttp_is_still_rejected_for_mihomo():
 
 
 def test_frontend_mihomo_import_has_xhttp_generation_path():
-    src = (ROOT / "xkeen-ui/static/js/features/mihomo_import.js").read_text(encoding="utf-8")
+    src = (ROOT / "unified-ui/static/js/features/mihomo_import.js").read_text(encoding="utf-8")
 
     assert "const cleanDownloadSettings = (download) => {" in src
     assert "const normalizeXhttpSettings = (params) => {" in src
@@ -223,22 +223,22 @@ def test_frontend_mihomo_import_has_xhttp_generation_path():
 
 
 def test_frontend_xray_json_bulk_preview_keeps_blank_lines_between_proxies():
-    generator_src = (ROOT / "xkeen-ui/static/js/features/mihomo_generator.js").read_text(encoding="utf-8")
-    import_src = (ROOT / "xkeen-ui/static/js/features/mihomo_import.js").read_text(encoding="utf-8")
+    generator_src = (ROOT / "unified-ui/static/js/features/mihomo_generator.js").read_text(encoding="utf-8")
+    import_src = (ROOT / "unified-ui/static/js/features/mihomo_import.js").read_text(encoding="utf-8")
 
     assert '.join("\\n\\n")' in generator_src
     assert "group.join('\\n\\n')" in import_src
 
 
 def test_frontend_mihomo_import_skips_empty_grpc_opts_objects():
-    src = (ROOT / "xkeen-ui/static/js/features/mihomo_import.js").read_text(encoding="utf-8")
+    src = (ROOT / "unified-ui/static/js/features/mihomo_import.js").read_text(encoding="utf-8")
 
     assert "const nested = toYaml(value, indent + 2);" in src
     assert "if (grpcServiceName) common['grpc-opts']" in src
 
 
 def test_frontend_mihomo_import_keeps_reality_short_id_as_yaml_string():
-    src = (ROOT / "xkeen-ui/static/js/features/mihomo_import.js").read_text(encoding="utf-8")
+    src = (ROOT / "unified-ui/static/js/features/mihomo_import.js").read_text(encoding="utf-8")
 
     assert "const YAML_STRING_VALUE_KEYS = new Set(['short-id']);" in src
     assert "Number.isFinite(Number(s))" in src
@@ -246,7 +246,7 @@ def test_frontend_mihomo_import_keeps_reality_short_id_as_yaml_string():
 
 
 def test_frontend_mihomo_import_normalizes_vision_flow_suffixes():
-    src = (ROOT / "xkeen-ui/static/js/features/mihomo_import.js").read_text(encoding="utf-8")
+    src = (ROOT / "unified-ui/static/js/features/mihomo_import.js").read_text(encoding="utf-8")
 
     assert "const normalizeMihomoVlessFlow = (value) => {" in src
     assert "flow.startsWith('xtls-rprx-vision-')" in src
@@ -255,7 +255,7 @@ def test_frontend_mihomo_import_normalizes_vision_flow_suffixes():
 
 
 def test_frontend_mihomo_import_reads_reality_short_id_aliases():
-    src = (ROOT / "xkeen-ui/static/js/features/mihomo_import.js").read_text(encoding="utf-8")
+    src = (ROOT / "unified-ui/static/js/features/mihomo_import.js").read_text(encoding="utf-8")
 
     assert "const realityParam = (params, ...keys) => {" in src
     assert "realityParam(params, 'sid', 'shortId', 'short-id', 'short_id', 'shortid')" in src
@@ -263,7 +263,7 @@ def test_frontend_mihomo_import_reads_reality_short_id_aliases():
 
 
 def test_frontend_mihomo_import_does_not_force_mlkem_reality_support():
-    src = (ROOT / "xkeen-ui/static/js/features/mihomo_import.js").read_text(encoding="utf-8")
+    src = (ROOT / "unified-ui/static/js/features/mihomo_import.js").read_text(encoding="utf-8")
 
     assert "supportX25519MLKEM768: boolMaybe(" in src
     assert "'support-x25519mlkem768': supportX25519MLKEM768 === true ? true : undefined" in src
@@ -271,7 +271,7 @@ def test_frontend_mihomo_import_does_not_force_mlkem_reality_support():
 
 
 def test_frontend_mihomo_import_preserves_reality_spider_x():
-    src = (ROOT / "xkeen-ui/static/js/features/mihomo_import.js").read_text(encoding="utf-8")
+    src = (ROOT / "unified-ui/static/js/features/mihomo_import.js").read_text(encoding="utf-8")
 
     assert "spiderX: string(params.spx)" in src
     assert "'spider-x': reality.spiderX == null ? undefined : String(reality.spiderX)" in src

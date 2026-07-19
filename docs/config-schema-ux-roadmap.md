@@ -51,8 +51,8 @@
 
 ## Что Уже Реально Есть
 
-- JSON Schema для Xray-фрагментов в `xkeen-ui/static/schemas/*.json`
-- YAML Schema для Mihomo в `xkeen-ui/static/schemas/mihomo-config.schema.json`
+- JSON Schema для Xray-фрагментов в `unified-ui/static/schemas/*.json`
+- YAML Schema для Mihomo в `unified-ui/static/schemas/mihomo-config.schema.json`
 - schema hover и completion в CodeMirror 6
 - schema hover и completion в Monaco
 - editor-level validation для JSON/JSONC и YAML
@@ -111,7 +111,7 @@
 ### Что закрыто
 
 - Есть отдельный shared semantic layer:
-  - `xkeen-ui/static/js/ui/schema_semantic_validation.js`
+  - `unified-ui/static/js/ui/schema_semantic_validation.js`
 - Для Mihomo уже ловятся:
   - missing `proxy-group.proxies` targets;
   - missing `proxy-group.use` providers;
@@ -183,7 +183,7 @@
 ### Что закрыто
 
 - Есть shared snippets layer:
-  - `xkeen-ui/static/js/ui/schema_snippets.js`
+  - `unified-ui/static/js/ui/schema_snippets.js`
 - Snippet providers подключены в:
   - routing editor
   - mihomo editor
@@ -249,7 +249,7 @@
 ### Что закрыто
 
 - Есть shared quick fixes layer:
-  - `xkeen-ui/static/js/ui/schema_quickfixes.js`
+  - `unified-ui/static/js/ui/schema_quickfixes.js`
 - Quick fixes уже покрывают:
   - missing required fields;
   - scalar -> array coercion;

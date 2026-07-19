@@ -11,15 +11,15 @@ from services.fs_common import local as localfs
 
 
 def test_trash_cfg_preserves_explicit_zero_max_bytes(monkeypatch):
-    monkeypatch.setenv("XKEEN_TRASH_MAX_BYTES", "0")
-    monkeypatch.setenv("XKEEN_TRASH_MAX_GB", "3")
+    monkeypatch.setenv("UNIFIED_TRASH_MAX_BYTES", "0")
+    monkeypatch.setenv("UNIFIED_TRASH_MAX_GB", "3")
 
     assert localfs._trash_cfg()["max_bytes"] == 0
 
 
 def test_trash_cfg_allows_zero_max_gb_when_bytes_unset(monkeypatch):
-    monkeypatch.delenv("XKEEN_TRASH_MAX_BYTES", raising=False)
-    monkeypatch.setenv("XKEEN_TRASH_MAX_GB", "0")
+    monkeypatch.delenv("UNIFIED_TRASH_MAX_BYTES", raising=False)
+    monkeypatch.setenv("UNIFIED_TRASH_MAX_GB", "0")
 
     assert localfs._trash_cfg()["max_bytes"] == 0
 

@@ -15,7 +15,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PROJECT_DIRNAME = "xkeen-ui"
+PROJECT_DIRNAME = "unified-ui"
 PROJECT_ROOT = REPO_ROOT / PROJECT_DIRNAME
 DEFAULT_ARCHIVE_PATH = REPO_ROOT / "unified-ui-routing.tar.gz"
 EXCLUDED_DIR_NAMES = {
@@ -201,7 +201,7 @@ def main() -> int:
     version = str(args.version or "").strip() or git_short_head(REPO_ROOT)
     update_url = str(args.update_url or "").strip()
 
-    with tempfile.TemporaryDirectory(prefix="xkeen-package-", dir=str(REPO_ROOT)) as tmp_dir:
+    with tempfile.TemporaryDirectory(prefix="unified-package-", dir=str(REPO_ROOT)) as tmp_dir:
         temp_root = Path(tmp_dir)
         package_root = temp_root / PROJECT_DIRNAME
         copy_project_tree(PROJECT_ROOT, package_root)

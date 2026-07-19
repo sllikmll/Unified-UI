@@ -14,7 +14,7 @@ from flask import Flask
 
 
 ROOT = Path(__file__).resolve().parents[1]
-APP_DIR = ROOT / "xkeen-ui"
+APP_DIR = ROOT / "unified-ui"
 
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
@@ -144,7 +144,7 @@ class SelfUpdateStatusRecoveryTests(unittest.TestCase):
             )
 
             app = Flask("self-update-status-recovery")
-            with patch.dict(os.environ, {"XKEEN_UI_UPDATE_DIR": tmp}, clear=False):
+            with patch.dict(os.environ, {"UNIFIED_UI_UPDATE_DIR": tmp}, clear=False):
                 app.register_blueprint(devtools.create_devtools_blueprint(tmp))
                 client = app.test_client()
                 response = client.get("/api/devtools/update/status?tail=0")

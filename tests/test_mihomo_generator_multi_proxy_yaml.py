@@ -187,7 +187,7 @@ def test_router_custom_xray_json_import_does_not_duplicate_include_all_group_ent
 
 
 def test_router_custom_keeps_sniffer_rule_provider_when_telegram_group_is_disabled(monkeypatch):
-    bundled_templates = Path("xkeen-ui/opt/etc/mihomo/templates").resolve()
+    bundled_templates = Path("unified-ui/opt/etc/mihomo/templates").resolve()
     monkeypatch.setattr(generator_meta, "TEMPLATES_DIR", bundled_templates)
 
     cfg = build_full_config({
@@ -205,7 +205,7 @@ def test_router_custom_keeps_sniffer_rule_provider_when_telegram_group_is_disabl
 
 
 def test_router_custom_routes_http_subscriptions_through_provider_adapter(monkeypatch):
-    bundled_templates = Path("xkeen-ui/opt/etc/mihomo/templates").resolve()
+    bundled_templates = Path("unified-ui/opt/etc/mihomo/templates").resolve()
     monkeypatch.setattr(generator_meta, "TEMPLATES_DIR", bundled_templates)
 
     cfg = build_full_config({
@@ -226,7 +226,7 @@ def test_router_custom_routes_http_subscriptions_through_provider_adapter(monkey
 
 
 def test_router_custom_keeps_new_community_rule_sets_when_enabled(monkeypatch):
-    bundled_templates = Path("xkeen-ui/opt/etc/mihomo/templates").resolve()
+    bundled_templates = Path("unified-ui/opt/etc/mihomo/templates").resolve()
     monkeypatch.setattr(generator_meta, "TEMPLATES_DIR", bundled_templates)
 
     cfg = build_full_config({
@@ -249,7 +249,7 @@ def test_router_custom_keeps_new_community_rule_sets_when_enabled(monkeypatch):
 
 
 def test_router_custom_removes_new_optional_rule_sets_when_disabled(monkeypatch):
-    bundled_templates = Path("xkeen-ui/opt/etc/mihomo/templates").resolve()
+    bundled_templates = Path("unified-ui/opt/etc/mihomo/templates").resolve()
     monkeypatch.setattr(generator_meta, "TEMPLATES_DIR", bundled_templates)
 
     cfg = build_full_config({
@@ -268,7 +268,7 @@ def test_router_custom_removes_new_optional_rule_sets_when_disabled(monkeypatch)
 
 
 def test_router_zkeen_keeps_geodata_urls_and_new_geo_rules(monkeypatch):
-    bundled_templates = Path("xkeen-ui/opt/etc/mihomo/templates").resolve()
+    bundled_templates = Path("unified-ui/opt/etc/mihomo/templates").resolve()
     monkeypatch.setattr(generator_meta, "TEMPLATES_DIR", bundled_templates)
 
     cfg = build_full_config({

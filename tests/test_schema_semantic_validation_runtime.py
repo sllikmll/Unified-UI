@@ -43,9 +43,9 @@ def test_mihomo_yaml_runtime_reports_semantic_reference_errors():
 
     script = f"""
 import fs from 'node:fs';
-import {{ validateYamlTextAgainstSchema }} from './xkeen-ui/static/js/ui/yaml_schema.js';
+import {{ validateYamlTextAgainstSchema }} from './unified-ui/static/js/ui/yaml_schema.js';
 
-const schema = JSON.parse(fs.readFileSync('./xkeen-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
+const schema = JSON.parse(fs.readFileSync('./unified-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
 const result = validateYamlTextAgainstSchema({json.dumps(doc)}, schema, {{ maxErrors: 12 }});
 console.log(JSON.stringify({{
   ok: !!result.ok,
@@ -91,9 +91,9 @@ def test_mihomo_yaml_runtime_reports_name_collisions_reserved_names_and_info_dia
 
     script = f"""
 import fs from 'node:fs';
-import {{ validateYamlTextAgainstSchema }} from './xkeen-ui/static/js/ui/yaml_schema.js';
+import {{ validateYamlTextAgainstSchema }} from './unified-ui/static/js/ui/yaml_schema.js';
 
-const schema = JSON.parse(fs.readFileSync('./xkeen-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
+const schema = JSON.parse(fs.readFileSync('./unified-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
 const result = validateYamlTextAgainstSchema({json.dumps(doc)}, schema, {{ maxErrors: 16 }});
 console.log(JSON.stringify({{
   ok: !!result.ok,
@@ -118,7 +118,7 @@ console.log(JSON.stringify({{
 
 def test_xray_semantic_validation_runtime_reports_missing_refs_and_duplicates():
     script = """
-import { validateXrayRoutingSemantics } from './xkeen-ui/static/js/ui/schema_semantic_validation.js';
+import { validateXrayRoutingSemantics } from './unified-ui/static/js/ui/schema_semantic_validation.js';
 
 const result = validateXrayRoutingSemantics({
   routing: {
@@ -158,7 +158,7 @@ console.log(JSON.stringify(result.map((item) => ({
 
 def test_xray_semantic_validation_accepts_reverse_proxy_virtual_tags():
     script = """
-import { validateXrayRoutingSemantics } from './xkeen-ui/static/js/ui/schema_semantic_validation.js';
+import { validateXrayRoutingSemantics } from './unified-ui/static/js/ui/schema_semantic_validation.js';
 
 const result = validateXrayRoutingSemantics({
   inbounds: [
@@ -223,7 +223,7 @@ console.log(JSON.stringify(result.map((item) => ({
 
 def test_xray_semantic_validation_accepts_balancer_fallback_generated_prefix():
     script = """
-import { validateXrayRoutingSemantics } from './xkeen-ui/static/js/ui/schema_semantic_validation.js';
+import { validateXrayRoutingSemantics } from './unified-ui/static/js/ui/schema_semantic_validation.js';
 
 const result = validateXrayRoutingSemantics({
   routing: {
@@ -273,7 +273,7 @@ console.log(JSON.stringify(result.map((item) => ({
 
 def test_xray_config_semantic_validation_reports_transport_and_reference_gaps():
     script = """
-import { validateXrayConfigSemantics } from './xkeen-ui/static/js/ui/schema_semantic_validation.js';
+import { validateXrayConfigSemantics } from './unified-ui/static/js/ui/schema_semantic_validation.js';
 
 const result = validateXrayConfigSemantics({
   inbounds: [
@@ -369,7 +369,7 @@ console.log(JSON.stringify(result.map((item) => ({
 
 def test_xray_semantic_validation_accepts_loopback_outbound_inboundtag_refs():
     script = """
-import { validateXrayRoutingSemantics } from './xkeen-ui/static/js/ui/schema_semantic_validation.js';
+import { validateXrayRoutingSemantics } from './unified-ui/static/js/ui/schema_semantic_validation.js';
 
 const result = validateXrayRoutingSemantics({
   outbounds: [
@@ -412,7 +412,7 @@ console.log(JSON.stringify(result.map((item) => ({
 
 def test_xray_semantic_validation_accepts_dns_tag_as_virtual_inbound():
     script = """
-import { validateXrayRoutingSemantics } from './xkeen-ui/static/js/ui/schema_semantic_validation.js';
+import { validateXrayRoutingSemantics } from './unified-ui/static/js/ui/schema_semantic_validation.js';
 
 const result = validateXrayRoutingSemantics({
   dns: {
@@ -450,7 +450,7 @@ console.log(JSON.stringify(result.map((item) => ({
 
 def test_xray_semantic_validation_reports_protocol_specific_settings_gaps():
     script = """
-import { validateXrayConfigSemantics } from './xkeen-ui/static/js/ui/schema_semantic_validation.js';
+import { validateXrayConfigSemantics } from './unified-ui/static/js/ui/schema_semantic_validation.js';
 
 const result = validateXrayConfigSemantics({
   inbounds: [
@@ -549,7 +549,7 @@ console.log(JSON.stringify(result.map((item) => ({
 
 def test_xray_semantic_validation_accepts_compact_vless_outbound_without_vnext():
     script = """
-import { validateXrayConfigSemantics } from './xkeen-ui/static/js/ui/schema_semantic_validation.js';
+import { validateXrayConfigSemantics } from './unified-ui/static/js/ui/schema_semantic_validation.js';
 
 const result = validateXrayConfigSemantics({
   outbounds: [
@@ -593,7 +593,7 @@ console.log(JSON.stringify(result.map((item) => ({
 
 def test_xray_semantic_validation_uses_compact_vless_flow_for_mux_and_network_checks():
     script = """
-import { validateXrayConfigSemantics } from './xkeen-ui/static/js/ui/schema_semantic_validation.js';
+import { validateXrayConfigSemantics } from './unified-ui/static/js/ui/schema_semantic_validation.js';
 
 const result = validateXrayConfigSemantics({
   outbounds: [
@@ -645,7 +645,7 @@ console.log(JSON.stringify(result.map((item) => ({
 
 def test_mihomo_semantic_validation_reports_proxy_group_cycles():
     script = """
-import { validateMihomoConfigSemantics } from './xkeen-ui/static/js/ui/schema_semantic_validation.js';
+import { validateMihomoConfigSemantics } from './unified-ui/static/js/ui/schema_semantic_validation.js';
 
 const result = validateMihomoConfigSemantics({
   'proxy-groups': [
@@ -675,7 +675,7 @@ console.log(JSON.stringify(result.map((item) => ({
 
 def test_mihomo_semantic_validation_uses_suggestion_severity_for_soft_protocol_mismatches():
     script = """
-import { validateMihomoConfigSemantics } from './xkeen-ui/static/js/ui/schema_semantic_validation.js';
+import { validateMihomoConfigSemantics } from './unified-ui/static/js/ui/schema_semantic_validation.js';
 
 const result = validateMihomoConfigSemantics({
   proxies: [
@@ -730,9 +730,9 @@ def test_codemirror_json_schema_linter_supports_xray_semantic_validation():
 import fs from 'node:fs';
 import {{ EditorState }} from '@codemirror/state';
 import {{ json }} from '@codemirror/lang-json';
-import {{ jsonSchemaLinter, stateExtensions }} from './xkeen-ui/static/js/vendor/codemirror_json_schema.js';
+import {{ jsonSchemaLinter, stateExtensions }} from './unified-ui/static/js/vendor/codemirror_json_schema.js';
 
-const schema = JSON.parse(fs.readFileSync('./xkeen-ui/static/schemas/xray-routing.schema.json', 'utf8'));
+const schema = JSON.parse(fs.readFileSync('./unified-ui/static/schemas/xray-routing.schema.json', 'utf8'));
 const state = EditorState.create({{
   doc: {json.dumps(doc)},
   extensions: [json(), stateExtensions(schema)],
@@ -794,9 +794,9 @@ def test_codemirror_json_schema_linter_supports_xray_outbounds_semantic_validati
 import fs from 'node:fs';
 import {{ EditorState }} from '@codemirror/state';
 import {{ json }} from '@codemirror/lang-json';
-import {{ jsonSchemaLinter, stateExtensions }} from './xkeen-ui/static/js/vendor/codemirror_json_schema.js';
+import {{ jsonSchemaLinter, stateExtensions }} from './unified-ui/static/js/vendor/codemirror_json_schema.js';
 
-const schema = JSON.parse(fs.readFileSync('./xkeen-ui/static/schemas/xray-outbounds.schema.json', 'utf8'));
+const schema = JSON.parse(fs.readFileSync('./unified-ui/static/schemas/xray-outbounds.schema.json', 'utf8'));
 const state = EditorState.create({{
   doc: {json.dumps(doc)},
   extensions: [json(), stateExtensions(schema)],
@@ -829,7 +829,7 @@ console.log(JSON.stringify(diagnostics.map((item) => ({{
 def test_editor_schema_resolves_semantic_validation_for_xray_targets():
     payload = _run_node_json(
         """
-import { resolveEditorSemanticValidation } from './xkeen-ui/static/js/ui/editor_schema.js';
+import { resolveEditorSemanticValidation } from './unified-ui/static/js/ui/editor_schema.js';
 
 const routingValidation = resolveEditorSemanticValidation({
   target: 'routing',
@@ -866,7 +866,7 @@ def test_editor_schema_disables_semantic_validation_in_expert_mode():
     payload = _run_node_json(
         """
 global.window = {
-  XKeen: {
+  UnifiedUI: {
     ui: {
       settings: {
         get() {
@@ -877,7 +877,7 @@ global.window = {
   },
 };
 
-const { resolveEditorSemanticValidation } = await import('./xkeen-ui/static/js/ui/editor_schema.js');
+const { resolveEditorSemanticValidation } = await import('./unified-ui/static/js/ui/editor_schema.js');
 
 const routingValidation = resolveEditorSemanticValidation({
   target: 'routing',
@@ -906,7 +906,7 @@ console.log(JSON.stringify({
 def test_xray_semantic_validation_runtime_warns_on_grpc_transport_deprecation():
     payload = _run_node_json(
         """
-import { validateXrayConfigSemantics } from './xkeen-ui/static/js/ui/schema_semantic_validation.js';
+import { validateXrayConfigSemantics } from './unified-ui/static/js/ui/schema_semantic_validation.js';
 
 const result = validateXrayConfigSemantics({
   outbounds: [
@@ -955,7 +955,7 @@ console.log(JSON.stringify(result.map((item) => ({
 def test_xray_routing_semantics_respects_external_observatory_and_flags_local_duplicate():
     payload = _run_node_json(
         """
-import { validateXrayRoutingSemantics } from './xkeen-ui/static/js/ui/schema_semantic_validation.js';
+import { validateXrayRoutingSemantics } from './unified-ui/static/js/ui/schema_semantic_validation.js';
 
 const result = validateXrayRoutingSemantics({
   routing: {

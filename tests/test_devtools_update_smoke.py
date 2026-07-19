@@ -12,7 +12,7 @@ from flask import Flask
 
 
 ROOT = Path(__file__).resolve().parents[1]
-APP_DIR = ROOT / "xkeen-ui"
+APP_DIR = ROOT / "unified-ui"
 
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
@@ -39,7 +39,7 @@ class DevtoolsUpdateSmokeTests(unittest.TestCase):
             app = Flask("devtools-update-info-smoke")
             app.register_blueprint(devtools.create_devtools_blueprint(tmp))
 
-            with patch.dict(os.environ, {"XKEEN_UI_UPDATE_REQUIRE_SHA": "1"}, clear=False), patch.object(
+            with patch.dict(os.environ, {"UNIFIED_UI_UPDATE_REQUIRE_SHA": "1"}, clear=False), patch.object(
                 devtools,
                 "get_build_info",
                 return_value={
@@ -71,10 +71,10 @@ class DevtoolsUpdateSmokeTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             app = Flask("devtools-update-tar-exclude")
-            with patch.dict(os.environ, {"XKEEN_UI_UPDATE_DIR": tmp}, clear=False):
+            with patch.dict(os.environ, {"UNIFIED_UI_UPDATE_DIR": tmp}, clear=False):
                 app.register_blueprint(devtools.create_devtools_blueprint(tmp))
 
-            with patch.dict(os.environ, {"XKEEN_UI_UPDATE_DIR": tmp}, clear=False), patch.object(
+            with patch.dict(os.environ, {"UNIFIED_UI_UPDATE_DIR": tmp}, clear=False), patch.object(
                 devtools.shutil,
                 "which",
                 self._which_with_update_deps,
@@ -107,10 +107,10 @@ class DevtoolsUpdateSmokeTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             app = Flask("devtools-update-skip-backup")
-            with patch.dict(os.environ, {"XKEEN_UI_UPDATE_DIR": tmp}, clear=False):
+            with patch.dict(os.environ, {"UNIFIED_UI_UPDATE_DIR": tmp}, clear=False):
                 app.register_blueprint(devtools.create_devtools_blueprint(tmp))
 
-            with patch.dict(os.environ, {"XKEEN_UI_UPDATE_DIR": tmp}, clear=False), patch.object(
+            with patch.dict(os.environ, {"UNIFIED_UI_UPDATE_DIR": tmp}, clear=False), patch.object(
                 devtools.shutil,
                 "which",
                 self._which_with_update_deps,
@@ -129,7 +129,7 @@ class DevtoolsUpdateSmokeTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertTrue(payload["started"])
         env = captured["kwargs"]["env"]
-        self.assertEqual(env["XKEEN_UI_UPDATE_SKIP_BACKUP"], "1")
+        self.assertEqual(env["UNIFIED_UI_UPDATE_SKIP_BACKUP"], "1")
 
     def test_update_log_is_exposed_in_devtools_logs(self):
         devtools = _reload("routes.devtools")
@@ -139,7 +139,7 @@ class DevtoolsUpdateSmokeTests(unittest.TestCase):
             update_log.write_text("update started\nupdate done\n", encoding="utf-8")
 
             app = Flask("devtools-update-log-smoke")
-            with patch.dict(os.environ, {"XKEEN_UI_UPDATE_DIR": tmp}, clear=False):
+            with patch.dict(os.environ, {"UNIFIED_UI_UPDATE_DIR": tmp}, clear=False):
                 app.register_blueprint(devtools.create_devtools_blueprint(tmp))
                 client = app.test_client()
 
@@ -179,12 +179,12 @@ class DevtoolsUpdateSmokeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             app = Flask("devtools-update-check-smoke")
 
-            with patch.dict(os.environ, {"XKEEN_UI_UPDATE_DIR": tmp}, clear=False):
+            with patch.dict(os.environ, {"UNIFIED_UI_UPDATE_DIR": tmp}, clear=False):
                 app.register_blueprint(devtools.create_devtools_blueprint(tmp))
 
             with patch.dict(
                 os.environ,
-                {"XKEEN_UI_UPDATE_REQUIRE_SHA": "1"},
+                {"UNIFIED_UI_UPDATE_REQUIRE_SHA": "1"},
                 clear=False,
             ), patch.object(
                 devtools,
@@ -243,12 +243,12 @@ class DevtoolsUpdateSmokeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             app = Flask("devtools-update-check-require-sha")
 
-            with patch.dict(os.environ, {"XKEEN_UI_UPDATE_DIR": tmp}, clear=False):
+            with patch.dict(os.environ, {"UNIFIED_UI_UPDATE_DIR": tmp}, clear=False):
                 app.register_blueprint(devtools.create_devtools_blueprint(tmp))
 
             with patch.dict(
                 os.environ,
-                {"XKEEN_UI_UPDATE_REQUIRE_SHA": "1"},
+                {"UNIFIED_UI_UPDATE_REQUIRE_SHA": "1"},
                 clear=False,
             ), patch.object(
                 devtools,

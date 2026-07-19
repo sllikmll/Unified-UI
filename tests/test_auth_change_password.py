@@ -16,8 +16,8 @@ def _reload(name: str):
 def test_authenticated_user_can_change_password(tmp_path: Path, monkeypatch):
     state = tmp_path / "state"
     state.mkdir()
-    monkeypatch.setenv("XKEEN_UI_STATE_DIR", str(state))
-    monkeypatch.setenv("XKEEN_UI_SECRET_KEY", "test-secret-key")
+    monkeypatch.setenv("UNIFIED_UI_STATE_DIR", str(state))
+    monkeypatch.setenv("UNIFIED_UI_SECRET_KEY", "test-secret-key")
 
     auth_setup = _reload("services.auth_setup")
     auth_routes = _reload("routes.auth")

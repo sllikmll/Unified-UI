@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_local_user_archive_script_matches_ci_packaging_expectations():
     script = (ROOT / "scripts" / "build_user_archive.py").read_text(encoding="utf-8")
 
-    assert 'PROJECT_DIRNAME = "xkeen-ui"' in script
+    assert 'PROJECT_DIRNAME = "unified-ui"' in script
     assert '"__pycache__"' in script
     assert '"BUILD.json"' in script
     assert 'Path("opt/etc/mihomo/backup")' in script
@@ -33,8 +33,8 @@ def test_happ_decryptor_aarch64_build_script_is_local_only():
     assert "public/data/expanded_rsa_keys.json" in script
     assert '"GOARCH": goarch' in script
     assert '"arm64"' in script
-    assert "/xkeen-ui/bin/happ-decrypt*" in gitignore
-    assert "!/xkeen-ui/bin/README.happ-decryptor.txt" in gitignore
+    assert "/unified-ui/bin/happ-decrypt*" in gitignore
+    assert "!/unified-ui/bin/README.happ-decryptor.txt" in gitignore
     assert "/.tmp/leeeet-happ-decryptor/" in gitignore
 
 
@@ -46,13 +46,13 @@ def test_happ_decryptor_node_build_script_uses_current_local_emulator_assets():
     assert "public/emu/liberror-code.so" in script
     assert "public/data/keytable.json" in script
     assert "happ-decrypt-universal.assets" in script
-    assert "XKEEN_HAPP_DECRYPTOR_CMD" in script
+    assert "UNIFIED_HAPP_DECRYPTOR_CMD" in script
     assert "async function initRuntime()" in script
     assert "import('node:fs')" in script
     assert "createRequire" in script or "moduleMod.createRequire" in script
     assert "pathToFileURL" in script
     assert "import fs from 'node:fs';" not in script
-    assert "/xkeen-ui/bin/happ-decrypt*" in gitignore
+    assert "/unified-ui/bin/happ-decrypt*" in gitignore
 
 
 def test_package_json_exposes_local_user_archive_commands():

@@ -4,8 +4,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PAGES_DIR = ROOT / "xkeen-ui" / "static" / "js" / "pages"
-RUNTIME_DIR = ROOT / "xkeen-ui" / "static" / "js" / "runtime"
+PAGES_DIR = ROOT / "unified-ui" / "static" / "js" / "pages"
+RUNTIME_DIR = ROOT / "unified-ui" / "static" / "js" / "runtime"
 DOCS_DIR = ROOT / "docs"
 
 
@@ -29,11 +29,11 @@ def test_source_entrypoints_bootstrap_pages_without_legacy_loader():
             "import { bootDevtoolsScreen } from './devtools.screen.bootstrap.js';",
             "initialScreen: 'devtools'",
         ],
-        "xkeen.entry.js": [
+        "unified.entry.js": [
             "import { bootTopLevelShell } from './top_level_shell.shared.js';",
             "import { registerPanelMihomoTopLevelScreens } from './top_level_panel_mihomo.shared.js';",
-            "import { bootXkeenScreen } from './xkeen.screen.bootstrap.js';",
-            "initialScreen: 'xkeen'",
+            "import { bootXkeenScreen } from './unified.screen.bootstrap.js';",
+            "initialScreen: 'unified'",
         ],
         "mihomo_generator.entry.js": [
             "import { bootTopLevelShell } from './top_level_shell.shared.js';",
@@ -53,7 +53,7 @@ def test_source_entrypoints_bootstrap_pages_without_legacy_loader():
             "../features/layout_prefs.js?v=",
             "../features/branding_prefs.js?v=",
         ],
-        "xkeen.entry.js": [
+        "unified.entry.js": [
             "../features/update_notifier.js?v=",
         ],
         "mihomo_generator.entry.js": [
@@ -114,7 +114,7 @@ def test_top_level_source_entrypoints_stay_thin_wrappers_over_shared_shell_boots
 
 
 def test_top_level_bridge_assets_stay_import_only_over_canonical_source_entrypoints():
-    bridge_dir = ROOT / "xkeen-ui" / "static" / "frontend-build" / "assets"
+    bridge_dir = ROOT / "unified-ui" / "static" / "frontend-build" / "assets"
     expectations = {
         "panel-bridge.js": "../../js/pages/panel.entry.js",
         "devtools-bridge.js": "../../js/pages/devtools.entry.js",
@@ -234,9 +234,9 @@ def test_frontend_status_docs_focus_on_closed_current_state():
         "Этот файл больше не является пошаговым rollout-планом.",
         "Исторические stage-by-stage implementation plans удалены из `docs/`",
         "Этапы 4-6 уже закрыты и подтверждены кодом, guardrails и статусной документацией.",
-        "- `panel`/`devtools` публикуют только canonical `window.XKeen.pageConfig`;",
+        "- `panel`/`devtools` публикуют только canonical `window.UnifiedUI.pageConfig`;",
         "Stages 7-9 тоже закрыты и теперь считаются частью обычного repository contract.",
-        "`XKEEN_UI_FRONTEND_SOURCE_FALLBACK=1`",
+        "`UNIFIED_UI_FRONTEND_SOURCE_FALLBACK=1`",
         "`legacy_script_loader.js` удалён",
         "`lazy_runtime.js` остаётся только узким runtime adapter-слоем",
         "`.github/workflows/ci.yml`",
@@ -254,7 +254,7 @@ def test_frontend_status_docs_focus_on_closed_current_state():
         "PR-A...PR-F",
     ]
     inventory_required = [
-        "template публикует только canonical `window.XKeen.pageConfig`",
+        "template публикует только canonical `window.UnifiedUI.pageConfig`",
         "Для stages 0-9 migration contract считается закрытым",
     ]
 
@@ -270,8 +270,8 @@ def test_frontend_status_docs_focus_on_closed_current_state():
     feature_api_required = [
         "migration stages 0-6 считаются закрытыми",
         "## Официальный статус для stages 4-6",
-        "`window.XKeen.features.*` не является canonical read-path",
-        "`window.XKeen.pageConfig` остаётся единственным server-owned runtime contract.",
+        "`window.UnifiedUI.features.*` не является canonical read-path",
+        "`window.UnifiedUI.pageConfig` остаётся единственным server-owned runtime contract.",
     ]
     feature_api_forbidden = [
         "проект всё ещё находится в переходной фазе",
@@ -290,7 +290,7 @@ def test_frontend_status_docs_focus_on_closed_current_state():
 
 def test_terminal_lazy_path_forbids_dom_script_injection_and_uses_vendor_adapter():
     entry_text = (PAGES_DIR / "terminal.lazy.entry.js").read_text(encoding="utf-8")
-    adapter_text = (ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "vendors" / "xterm_import_adapter.js").read_text(encoding="utf-8")
+    adapter_text = (ROOT / "unified-ui" / "static" / "js" / "terminal" / "vendors" / "xterm_import_adapter.js").read_text(encoding="utf-8")
 
     required_entry_fragments = [
         "from '../terminal/vendors/xterm_import_adapter.js';",
@@ -339,7 +339,7 @@ def test_lazy_runtime_keeps_only_generic_compat_feature_paths():
         "serviceStatus: () => import('../features/service_status.js'),",
         "restartLog: () => import('../features/restart_log.js'),",
         "donate: () => import('../features/donate.js'),",
-        "xkeenTexts: () => import('../features/xkeen_texts.js'),",
+        "unifiedTexts: () => import('../features/unified_texts.js'),",
         "commandsList: () => import('../features/commands_list.js'),",
         "coresStatus: () => import('../features/cores_status.js'),",
         "formatters: () => import('../ui/prettier_loader.js').then(() => import('../ui/formatters.js')),",
@@ -377,7 +377,7 @@ def test_panel_lazy_bindings_own_panel_specific_feature_loaders():
         "mihomoImport: {",
         "mihomoProxyTools: {",
         "mihomoHwidSub: {",
-        "xkeenTexts: {",
+        "unifiedTexts: {",
         "commandsList: {",
         "coresStatus: {",
         "import('../features/restart_log.js')",
@@ -397,18 +397,18 @@ def test_panel_lazy_bindings_own_panel_specific_feature_loaders():
         )
 
 
-def test_panel_view_runtime_uses_panel_lazy_bindings_for_xkeen_and_commands_views():
+def test_panel_view_runtime_uses_panel_lazy_bindings_for_unified_and_commands_views():
     text = (PAGES_DIR / "panel.view_runtime.js").read_text(encoding="utf-8")
 
     required_fragments = [
         "import { ensurePanelLazyFeature, getPanelLazyRuntimeApi } from './panel.lazy_bindings.runtime.js';",
-        "const ready = await ensurePanelLazyFeature('xkeenTexts');",
+        "const ready = await ensurePanelLazyFeature('unifiedTexts');",
         "ensurePanelLazyFeature('commandsList'),",
         "ensurePanelLazyFeature('coresStatus'),",
     ]
     forbidden_fragments = [
         "function ensureLazyFeature(name) {",
-        "ensureLazyFeature('xkeenTexts')",
+        "ensureLazyFeature('unifiedTexts')",
         "ensureLazyFeature('commandsList')",
         "ensureLazyFeature('coresStatus')",
     ]
@@ -421,20 +421,20 @@ def test_panel_view_runtime_uses_panel_lazy_bindings_for_xkeen_and_commands_view
 
 def test_formatters_and_xray_preflight_use_direct_imports_in_consumers():
     expectations = {
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "mihomo_panel.js": [
+        ROOT / "unified-ui" / "static" / "js" / "features" / "mihomo_panel.js": [
             "await import('../ui/prettier_loader.js');",
             "await import('../ui/formatters.js');",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "routing.js": [
+        ROOT / "unified-ui" / "static" / "js" / "features" / "routing.js": [
             "await import('../ui/prettier_loader.js');",
             "await import('../ui/formatters.js');",
             "return import('../ui/xray_preflight_modal.js');",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "ui" / "json_editor_modal.js": [
+        ROOT / "unified-ui" / "static" / "js" / "ui" / "json_editor_modal.js": [
             "await import('./prettier_loader.js');",
             "await import('./formatters.js');",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "ui" / "spinner_fetch.js": [
+        ROOT / "unified-ui" / "static" / "js" / "ui" / "spinner_fetch.js": [
             "return import('./xray_preflight_modal.js');",
         ],
     }
@@ -456,8 +456,8 @@ def test_formatters_and_xray_preflight_use_direct_imports_in_consumers():
 def test_routing_jsonc_preserve_uses_canonical_import_urls():
     files = [
         PAGES_DIR / "panel.routing.bundle.js",
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "routing_cards" / "rules" / "apply.js",
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "routing_cards" / "rules" / "model.js",
+        ROOT / "unified-ui" / "static" / "js" / "features" / "routing_cards" / "rules" / "apply.js",
+        ROOT / "unified-ui" / "static" / "js" / "features" / "routing_cards" / "rules" / "model.js",
     ]
 
     for path in files:
@@ -477,23 +477,23 @@ def test_routing_compat_bridges_use_canonical_import_urls_and_explicit_shell_bri
             "import '../features/compat/routing_cards.js';",
             "initRoutingCards();",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "compat" / "routing.js": [
+        ROOT / "unified-ui" / "static" / "js" / "features" / "compat" / "routing.js": [
             "import { getRoutingApi } from '../routing.js';",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "compat" / "routing_cards.js": [
+        ROOT / "unified-ui" / "static" / "js" / "features" / "compat" / "routing_cards.js": [
             "import { getRoutingCardsApi } from '../routing_cards.js';",
             "import { getRoutingCardsNamespace } from '../routing_cards_namespace.js';",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "routing_cards" / "ns.js": [
+        ROOT / "unified-ui" / "static" / "js" / "features" / "routing_cards" / "ns.js": [
             "import { initRoutingCardsNamespace } from '../routing_cards_namespace.js';",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "routing_cards_namespace.js": [
+        ROOT / "unified-ui" / "static" / "js" / "features" / "routing_cards_namespace.js": [
             "let routingCardsNamespace = null;",
             "const RC = {};",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "compat" / "routing_shell.js": [
+        ROOT / "unified-ui" / "static" / "js" / "features" / "compat" / "routing_shell.js": [
             "import { getRoutingShellApi } from '../routing_shell.js';",
-            "XKeen.features.routingShell = legacyRoutingShellApi;",
+            "UnifiedUI.features.routingShell = legacyRoutingShellApi;",
         ],
     }
     forbidden = {
@@ -501,13 +501,13 @@ def test_routing_compat_bridges_use_canonical_import_urls_and_explicit_shell_bri
             "../features/routing.js?v=",
             "../features/routing_cards.js?v=",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "compat" / "routing.js": [
+        ROOT / "unified-ui" / "static" / "js" / "features" / "compat" / "routing.js": [
             "../routing.js?v=",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "compat" / "routing_cards.js": [
+        ROOT / "unified-ui" / "static" / "js" / "features" / "compat" / "routing_cards.js": [
             "../routing_cards.js?v=",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "routing_cards_namespace.js": [
+        ROOT / "unified-ui" / "static" / "js" / "features" / "routing_cards_namespace.js": [
             "XK.features && XK.features.routingCards",
         ],
     }
@@ -525,34 +525,34 @@ def test_routing_compat_bridges_use_canonical_import_urls_and_explicit_shell_bri
             )
 
 
-def test_selected_page_runtime_modules_use_shared_runtime_adapters_instead_of_raw_window_xkeen_reads():
+def test_selected_page_runtime_modules_use_shared_runtime_adapters_instead_of_raw_window_unified_reads():
     expectations = {
         PAGES_DIR / "panel.lazy_bindings.runtime.js": [
-            "from '../features/xkeen_runtime.js';",
+            "from '../features/unified_runtime.js';",
         ],
         PAGES_DIR / "panel.core_ui_watch.runtime.js": [
-            "from '../features/xkeen_runtime.js';",
+            "from '../features/unified_runtime.js';",
         ],
         RUNTIME_DIR / "lazy_runtime.js": [
-            "from '../features/xkeen_runtime.js';",
+            "from '../features/unified_runtime.js';",
         ],
     }
     forbidden = {
         PAGES_DIR / "panel.lazy_bindings.runtime.js": [
-            "window.XKeen.runtime",
-            "window.XKeen.core",
+            "window.UnifiedUI.runtime",
+            "window.UnifiedUI.core",
             "window.openTerminal(",
         ],
         PAGES_DIR / "panel.core_ui_watch.runtime.js": [
-            "window.XKeen && XKeen.core && XKeen.core.http",
-            "window.XKeen && XKeen.ui",
+            "window.UnifiedUI && UnifiedUI.core && UnifiedUI.core.http",
+            "window.UnifiedUI && UnifiedUI.ui",
             "window.toast(",
-            "XKeen.jsonEditor",
+            "UnifiedUI.jsonEditor",
             "window.confirm(",
         ],
         RUNTIME_DIR / "lazy_runtime.js": [
-            "window.XKeen && XKeen.ui && XKeen.ui.cm6Runtime",
-            "window.XKeen && XKeen.ui && XKeen.ui.editorActions",
+            "window.UnifiedUI && UnifiedUI.ui && UnifiedUI.ui.cm6Runtime",
+            "window.UnifiedUI && UnifiedUI.ui && UnifiedUI.ui.editorActions",
             "XK.pages ? XK.pages.logsShell : null",
             "XK.pages ? XK.pages.configShell : null",
         ],
@@ -571,16 +571,16 @@ def test_selected_page_runtime_modules_use_shared_runtime_adapters_instead_of_ra
             )
 
 
-def test_page_shell_helper_modules_use_xkeen_runtime_adapters_for_page_api_and_shell_access():
+def test_page_shell_helper_modules_use_unified_runtime_adapters_for_page_api_and_shell_access():
     expectations = {
         PAGES_DIR / "panel.view_runtime.js": [
-            "from '../features/xkeen_runtime.js';",
+            "from '../features/unified_runtime.js';",
             "getXkeenStateValue(",
             "hasXkeenXrayCore()",
             "syncXkeenBodyScrollLock()",
         ],
         PAGES_DIR / "panel_shell.shared.js": [
-            "from '../features/xkeen_runtime.js';",
+            "from '../features/unified_runtime.js';",
             "getXkeenCoreHttpApi()",
             "getXkeenUiShellApi()",
             "ensureXkeenUiBucket('tabs')",
@@ -588,36 +588,36 @@ def test_page_shell_helper_modules_use_xkeen_runtime_adapters_for_page_api_and_s
             "getXkeenPageApi('panelShell')",
         ],
         PAGES_DIR / "config_shell.shared.js": [
-            "from '../features/xkeen_runtime.js';",
+            "from '../features/unified_runtime.js';",
             "getXkeenUiConfigShellApi()",
             "publishXkeenPageApi('configShell', {",
             "getXkeenPageApi('configShell')",
         ],
         PAGES_DIR / "logs_shell.shared.js": [
-            "from '../features/xkeen_runtime.js';",
+            "from '../features/unified_runtime.js';",
             "publishXkeenPageApi('logsShell', {",
             "getXkeenPageApi('logsShell')",
         ],
     }
     forbidden = {
         PAGES_DIR / "panel.view_runtime.js": [
-            "window.XKeen && XKeen.state",
-            "XKeen.ui.modal.syncBodyScrollLock",
+            "window.UnifiedUI && UnifiedUI.state",
+            "UnifiedUI.ui.modal.syncBodyScrollLock",
         ],
         PAGES_DIR / "panel_shell.shared.js": [
-            "window.XKeen && XKeen.core && XKeen.core.http",
-            "window.XKeen && XKeen.core && XKeen.core.uiShell",
+            "window.UnifiedUI && UnifiedUI.core && UnifiedUI.core.http",
+            "window.UnifiedUI && UnifiedUI.core && UnifiedUI.core.uiShell",
             "XK.pages.panelShell = api;",
-            "window.XKeen && window.XKeen.pages ? window.XKeen.pages.panelShell : null",
+            "window.UnifiedUI && window.UnifiedUI.pages ? window.UnifiedUI.pages.panelShell : null",
         ],
         PAGES_DIR / "config_shell.shared.js": [
             "const api = XK.ui ? XK.ui.configShell : null;",
             "XK.pages.configShell = {",
-            "window.XKeen && window.XKeen.pages ? window.XKeen.pages.configShell : null",
+            "window.UnifiedUI && window.UnifiedUI.pages ? window.UnifiedUI.pages.configShell : null",
         ],
         PAGES_DIR / "logs_shell.shared.js": [
             "XK.pages.logsShell = {",
-            "window.XKeen && window.XKeen.pages ? window.XKeen.pages.logsShell : null",
+            "window.UnifiedUI && window.UnifiedUI.pages ? window.UnifiedUI.pages.logsShell : null",
         ],
     }
 
@@ -632,12 +632,12 @@ def test_page_shell_helper_modules_use_xkeen_runtime_adapters_for_page_api_and_s
         text = path.read_text(encoding="utf-8")
         for fragment in fragments:
             assert fragment not in text, (
-                f"page helper should use xkeen runtime adapters instead of raw globals in {path.relative_to(ROOT).as_posix()}: {fragment}"
+                f"page helper should use unified runtime adapters instead of raw globals in {path.relative_to(ROOT).as_posix()}: {fragment}"
             )
 
 
 def test_terminal_runtime_helper_and_core_modules_use_terminal_runtime_adapters():
-    runtime_src = (ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "runtime.js").read_text(encoding="utf-8")
+    runtime_src = (ROOT / "unified-ui" / "static" / "js" / "terminal" / "runtime.js").read_text(encoding="utf-8")
     required_runtime_fragments = [
         "export function ensureTerminalRoot()",
         "export function ensureTerminalCompatState(defaults)",
@@ -661,51 +661,51 @@ def test_terminal_runtime_helper_and_core_modules_use_terminal_runtime_adapters(
         assert fragment in runtime_src, f"missing terminal runtime helper fragment: {fragment}"
 
     expectations = {
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "_core.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "_core.js": [
             "from './runtime.js';",
             "publishTerminalCompatApi('_core', terminalCoreApi);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "capabilities.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "capabilities.js": [
             "from './runtime.js';",
             "publishTerminalCompatApi('capabilities', {",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "history.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "history.js": [
             "from './runtime.js';",
             "publishTerminalCompatApi('history', {",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "lite_runner.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "lite_runner.js": [
             "from './runtime.js';",
             "publishTerminalCompatApi('lite_runner', terminalLiteRunnerApi);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "terminal.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "terminal.js": [
             "from './runtime.js';",
             "publishWindowCompatFunction('terminalOpen', (a, b) => {",
             "publishWindowCompatFunction('openTerminal', (cmd, mode) => uiActions.openTerminal(cmd, mode || 'shell'));",
         ],
     }
     forbidden = {
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "_core.js": [
-            "window.XKeen.terminal",
-            "window.XKeen.state",
-            "XKeen.util.getTabId",
-            "XKeen.ui.modal",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "_core.js": [
+            "window.UnifiedUI.terminal",
+            "window.UnifiedUI.state",
+            "UnifiedUI.util.getTabId",
+            "UnifiedUI.ui.modal",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "capabilities.js": [
-            "window.XKeen.terminal",
-            "window.XKeen.state",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "capabilities.js": [
+            "window.UnifiedUI.terminal",
+            "window.UnifiedUI.state",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "history.js": [
-            "window.XKeen.terminal",
-            "XKeen.ui.modal",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "history.js": [
+            "window.UnifiedUI.terminal",
+            "UnifiedUI.ui.modal",
             "window.showToast(",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "lite_runner.js": [
-            "(window.XKeen && XKeen.util && XKeen.util.commandJob)",
-            "window.XKeen.terminal",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "lite_runner.js": [
+            "(window.UnifiedUI && UnifiedUI.util && UnifiedUI.util.commandJob)",
+            "window.UnifiedUI.terminal",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "terminal.js": [
-            "window.XKeen.terminal",
-            "window.XKeen.state",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "terminal.js": [
+            "window.UnifiedUI.terminal",
+            "window.UnifiedUI.state",
         ],
     }
 
@@ -722,33 +722,33 @@ def test_terminal_runtime_helper_and_core_modules_use_terminal_runtime_adapters(
             )
 
 
-def test_terminal_side_modules_use_terminal_runtime_adapters_instead_of_raw_window_xkeen_reads():
+def test_terminal_side_modules_use_terminal_runtime_adapters_instead_of_raw_window_unified_reads():
     expectations = {
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "chrome.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "chrome.js": [
             "from './runtime.js';",
             "publishTerminalCompatApi('chrome', terminalChromeApi);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "pty.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "pty.js": [
             "from './runtime.js';",
             "getTerminalContext()",
             "getTerminalMode()",
             "toastTerminal('PTY не подключён', 'info');",
             "publishTerminalCompatApi('pty', terminalPtyApi);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "quick_commands.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "quick_commands.js": [
             "from './runtime.js';",
             "escapeTerminalHtml(",
             "getTerminalExecCommand()",
             "isTerminalPtyConnected()",
             "publishTerminalCompatApi('quick_commands', terminalQuickCommandsApi);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "search.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "search.js": [
             "from './runtime.js';",
             "focusTerminalView()",
             "toastTerminal(",
             "publishTerminalCompatApi('search', terminalSearchApi);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "xray_tail.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "xray_tail.js": [
             "from './runtime.js';",
             "openTerminalCompat({ mode: 'pty', cmd: '' });",
             "isTerminalPtyConnected()",
@@ -757,26 +757,26 @@ def test_terminal_side_modules_use_terminal_runtime_adapters_instead_of_raw_wind
         ],
     }
     forbidden = {
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "chrome.js": [
-            "window.XKeen.terminal",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "chrome.js": [
+            "window.UnifiedUI.terminal",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "pty.js": [
-            "window.XKeen.terminal",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "pty.js": [
+            "window.UnifiedUI.terminal",
             "typeof showToast === 'function'",
-            "window.XKeen && window.XKeen.state",
+            "window.UnifiedUI && window.UnifiedUI.state",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "quick_commands.js": [
-            "window.XKeen.terminal",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "quick_commands.js": [
+            "window.UnifiedUI.terminal",
             "window.showToast(",
             "window.escapeHtml",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "search.js": [
-            "window.XKeen.terminal",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "search.js": [
+            "window.UnifiedUI.terminal",
             "window.showToast(",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "xray_tail.js": [
-            "window.XKeen.terminal",
-            "window.XKeen = window.XKeen || {};",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "xray_tail.js": [
+            "window.UnifiedUI.terminal",
+            "window.UnifiedUI = window.UnifiedUI || {};",
         ],
     }
 
@@ -796,7 +796,7 @@ def test_terminal_side_modules_use_terminal_runtime_adapters_instead_of_raw_wind
 
 
 def test_deeper_terminal_core_transport_and_command_modules_use_runtime_adapter_publishers():
-    runtime_src = (ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "runtime.js").read_text(encoding="utf-8")
+    runtime_src = (ROOT / "unified-ui" / "static" / "js" / "terminal" / "runtime.js").read_text(encoding="utf-8")
     required_runtime_fragments = [
         "export function ensureTerminalCoreRoot()",
         "export function ensureTerminalTransportRoot()",
@@ -811,39 +811,39 @@ def test_deeper_terminal_core_transport_and_command_modules_use_runtime_adapter_
         assert fragment in runtime_src, f"missing deeper terminal runtime helper fragment: {fragment}"
 
     expectations = {
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "api.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "api.js": [
             "from '../runtime.js';",
             "getTerminalCommandJobApi()",
             "publishTerminalCoreCompatApi('createApi', createApi);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "config.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "config.js": [
             "from '../runtime.js';",
             "publishTerminalCoreCompatApi('createConfig', createConfig);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "events.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "events.js": [
             "from '../runtime.js';",
             "publishTerminalCoreCompatApi('createEventBus', createEventBus);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "logger.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "logger.js": [
             "from '../runtime.js';",
             "publishTerminalCoreCompatApi('createLogger', createLogger);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "registry.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "registry.js": [
             "from '../runtime.js';",
             "publishTerminalCoreCompatApi('createRegistry', createRegistry);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "state.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "state.js": [
             "from '../runtime.js';",
             "publishTerminalCoreCompatApi('defaultState', defaultState);",
             "publishTerminalCoreCompatApi('createStateStore', createStateStore);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "ui.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "ui.js": [
             "from '../runtime.js';",
             "getTerminalById(",
             "toastTerminal(",
             "publishTerminalCoreCompatApi('createUiAdapter', createUiAdapter);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "context.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "context.js": [
             "from '../runtime.js';",
             "getTerminalCoreCompatApi('createEventBus')",
             "getTerminalTransportCompatApi('createTransportManager')",
@@ -851,96 +851,96 @@ def test_deeper_terminal_core_transport_and_command_modules_use_runtime_adapter_
             "publishTerminalCoreCompatApi('createTerminalContext', createTerminalContext);",
             "publishTerminalCoreCompatApi('getCtx', getCtx);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "transport" / "index.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "transport" / "index.js": [
             "from '../runtime.js';",
             "getTerminalTransportCompatApi('createPtyTransport')",
             "getTerminalTransportCompatApi('createLiteTransport')",
             "publishTerminalTransportCompatApi('createTransportManager', createTransportManager);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "transport" / "lite_transport.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "transport" / "lite_transport.js": [
             "from '../runtime.js';",
             "getTerminalCommandJobApi()",
             "getTerminalMode(ctx)",
             "publishTerminalTransportCompatApi('createLiteTransport', createLiteTransport);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "transport" / "pty_transport.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "transport" / "pty_transport.js": [
             "from '../runtime.js';",
             "getTerminalPtyApi()",
             "publishTerminalTransportCompatApi('createPtyTransport', createPtyTransport);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "commands" / "registry.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "commands" / "registry.js": [
             "from '../runtime.js';",
             "publishTerminalCommandsCompatApi('createCommandRegistry', createCommandRegistry);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "commands" / "router.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "commands" / "router.js": [
             "from '../runtime.js';",
             "publishTerminalCommandsCompatApi('createCommandRouter', createCommandRouter);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "commands" / "builtins" / "sysmon.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "commands" / "builtins" / "sysmon.js": [
             "from '../../runtime.js';",
             "getTerminalCommandJobApi()",
             "publishTerminalBuiltinCommandCompatApi('sysmon', commandDef);",
             "publishTerminalBuiltinCommandCompatApi('registerSysmon', register);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "commands" / "builtins" / "xkeen_restart.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "commands" / "builtins" / "unified_restart.js": [
             "from '../../runtime.js';",
-            "publishTerminalBuiltinCommandCompatApi('xkeen_restart', commandDef);",
+            "publishTerminalBuiltinCommandCompatApi('unified_restart', commandDef);",
             "publishTerminalBuiltinCommandCompatApi('registerXkeenRestart', register);",
         ],
     }
     forbidden = {
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "api.js": [
-            "window.XKeen.terminal.core",
-            "XKeen.util.commandJob",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "api.js": [
+            "window.UnifiedUI.terminal.core",
+            "UnifiedUI.util.commandJob",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "config.js": [
-            "window.XKeen.terminal.core",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "config.js": [
+            "window.UnifiedUI.terminal.core",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "events.js": [
-            "window.XKeen.terminal.core",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "events.js": [
+            "window.UnifiedUI.terminal.core",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "logger.js": [
-            "window.XKeen.terminal.core",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "logger.js": [
+            "window.UnifiedUI.terminal.core",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "registry.js": [
-            "window.XKeen.terminal.core",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "registry.js": [
+            "window.UnifiedUI.terminal.core",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "state.js": [
-            "window.XKeen.terminal.core",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "state.js": [
+            "window.UnifiedUI.terminal.core",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "ui.js": [
-            "window.XKeen.terminal.core",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "ui.js": [
+            "window.UnifiedUI.terminal.core",
             "window.showToast(",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "context.js": [
-            "window.XKeen.terminal.core.createEventBus",
-            "window.XKeen.terminal.transport",
-            "window.XKeen.terminal.ctx",
-            "window.XKeen.terminal._core",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "context.js": [
+            "window.UnifiedUI.terminal.core.createEventBus",
+            "window.UnifiedUI.terminal.transport",
+            "window.UnifiedUI.terminal.ctx",
+            "window.UnifiedUI.terminal._core",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "transport" / "index.js": [
-            "window.XKeen.terminal.transport",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "transport" / "index.js": [
+            "window.UnifiedUI.terminal.transport",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "transport" / "lite_transport.js": [
-            "window.XKeen.util.commandJob",
-            "window.XKeen.terminal.transport",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "transport" / "lite_transport.js": [
+            "window.UnifiedUI.util.commandJob",
+            "window.UnifiedUI.terminal.transport",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "transport" / "pty_transport.js": [
-            "window.XKeen.terminal.pty",
-            "window.XKeen.terminal.transport",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "transport" / "pty_transport.js": [
+            "window.UnifiedUI.terminal.pty",
+            "window.UnifiedUI.terminal.transport",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "commands" / "registry.js": [
-            "window.XKeen.terminal.commands",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "commands" / "registry.js": [
+            "window.UnifiedUI.terminal.commands",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "commands" / "router.js": [
-            "window.XKeen.terminal.commands",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "commands" / "router.js": [
+            "window.UnifiedUI.terminal.commands",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "commands" / "builtins" / "sysmon.js": [
-            "window.XKeen.terminal.commands",
-            "window.XKeen.util",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "commands" / "builtins" / "sysmon.js": [
+            "window.UnifiedUI.terminal.commands",
+            "window.UnifiedUI.util",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "commands" / "builtins" / "xkeen_restart.js": [
-            "window.XKeen.terminal.commands",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "commands" / "builtins" / "unified_restart.js": [
+            "window.UnifiedUI.terminal.commands",
         ],
     }
 
@@ -961,74 +961,74 @@ def test_deeper_terminal_core_transport_and_command_modules_use_runtime_adapter_
 
 def test_terminal_remaining_core_controllers_and_modules_use_runtime_adapters():
     expectations = {
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "input_controller.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "input_controller.js": [
             "from '../runtime.js';",
             "getTerminalHistoryApi()",
             "publishTerminalCoreCompatApi('createInputController', createInputController);",
             "publishTerminalCompatApi('input_controller', {",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "output_controller.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "output_controller.js": [
             "from '../runtime.js';",
             "getTerminalHistoryApi()",
             "publishTerminalCoreCompatApi('createOutputController', createOutputController);",
             "publishTerminalCompatApi('output_controller', {",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "public_api.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "public_api.js": [
             "from '../runtime.js';",
             "getTerminalContext()",
             "publishTerminalCompatApi('api', createPublicApi());",
             "publishTerminalCoreCompatApi('createPublicApi', createPublicApi);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "session_controller.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "session_controller.js": [
             "from '../runtime.js';",
             "getTerminalPtyApi()",
             "publishTerminalCoreCompatApi('createSessionController', createSessionController);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "xterm_manager.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "xterm_manager.js": [
             "from '../runtime.js';",
             "toastTerminal(String(msg || ''), kind || 'info');",
             "getTerminalCoreApi()",
             "publishTerminalCoreCompatApi('xterm_manager', terminalXtermManagerApi);",
             "publishTerminalCompatApi('xterm_manager', terminalXtermManagerApi);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "modules" / "confirm_prompt.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "modules" / "confirm_prompt.js": [
             "from '../runtime.js';",
             "getTerminalMode(ctx)",
             "getTerminalPublicApi()",
             "publishTerminalCompatApi('confirmPrompt', mod);",
             "publishTerminalCompatApi('confirm_prompt', terminalConfirmPromptCompat);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "modules" / "output_prefs.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "modules" / "output_prefs.js": [
             "from '../runtime.js';",
             "toastTerminal(m, k);",
             "publishTerminalCompatApi('outputPrefs', prefs);",
             "publishTerminalCompatApi('output_prefs', terminalOutputPrefsCompat);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "modules" / "overlay_controller.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "modules" / "overlay_controller.js": [
             "from '../runtime.js';",
             "getTerminalModalApi()",
             "publishTerminalCompatApi('overlay', api);",
             "publishTerminalCompatApi('overlay_controller', terminalOverlayControllerCompat);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "modules" / "reconnect_controller.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "modules" / "reconnect_controller.js": [
             "from '../runtime.js';",
             "getTerminalCoreApi()",
             "getTerminalOverlayApi()",
             "publishTerminalCompatApi('reconnect', controller);",
             "publishTerminalCompatApi('reconnect_controller', terminalReconnectControllerCompat);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "modules" / "status_controller.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "modules" / "status_controller.js": [
             "from '../runtime.js';",
             "getTerminalCoreApi()",
             "publishTerminalCompatApi('status', api);",
             "publishTerminalCompatApi('status_controller', terminalStatusControllerCompat);",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "modules" / "ssh_profiles.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "modules" / "ssh_profiles.js": [
             "from '../runtime.js';",
             "toastTerminal(String(msg || ''), kind || 'info');",
             "publishTerminalCompatApi('ssh_profiles', { createModule });",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "modules" / "terminal_controller.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "modules" / "terminal_controller.js": [
             "from '../runtime.js';",
             "getTerminalContext()",
             "getTerminalChromeApi()",
@@ -1037,7 +1037,7 @@ def test_terminal_remaining_core_controllers_and_modules_use_runtime_adapters():
             "publishTerminalCompatApi('terminalCtrl', api);",
             "publishTerminalCompatApi('terminal_controller', {",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "modules" / "ui_controller.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "modules" / "ui_controller.js": [
             "from '../runtime.js';",
             "getTerminalUiActionsApi() || {};",
             "getTerminalPtyApi()",
@@ -1047,60 +1047,60 @@ def test_terminal_remaining_core_controllers_and_modules_use_runtime_adapters():
         ],
     }
     forbidden = {
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "input_controller.js": [
-            "window.XKeen.terminal.history",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "input_controller.js": [
+            "window.UnifiedUI.terminal.history",
             "window.showToast(",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "output_controller.js": [
-            "window.XKeen.terminal.history",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "output_controller.js": [
+            "window.UnifiedUI.terminal.history",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "public_api.js": [
-            "window.XKeen.terminal.api",
-            "window.XKeen.terminal._legacy",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "public_api.js": [
+            "window.UnifiedUI.terminal.api",
+            "window.UnifiedUI.terminal._legacy",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "session_controller.js": [
-            "window.XKeen.terminal.pty",
-            "window.XKeen.terminal._core",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "session_controller.js": [
+            "window.UnifiedUI.terminal.pty",
+            "window.UnifiedUI.terminal._core",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "xterm_manager.js": [
-            "window.XKeen.terminal",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "xterm_manager.js": [
+            "window.UnifiedUI.terminal",
             "window.showToast(",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "modules" / "confirm_prompt.js": [
-            "window.XKeen.terminal.api",
-            "window.XKeen = window.XKeen || {};",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "modules" / "confirm_prompt.js": [
+            "window.UnifiedUI.terminal.api",
+            "window.UnifiedUI = window.UnifiedUI || {};",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "modules" / "output_prefs.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "modules" / "output_prefs.js": [
             "window.showToast(",
-            "window.XKeen.terminal.output_prefs",
+            "window.UnifiedUI.terminal.output_prefs",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "modules" / "overlay_controller.js": [
-            "window.XKeen.ui.modal",
-            "window.XKeen.terminal.overlay_controller",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "modules" / "overlay_controller.js": [
+            "window.UnifiedUI.ui.modal",
+            "window.UnifiedUI.terminal.overlay_controller",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "modules" / "reconnect_controller.js": [
-            "window.XKeen.terminal.overlay",
-            "window.XKeen.terminal.reconnect_controller",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "modules" / "reconnect_controller.js": [
+            "window.UnifiedUI.terminal.overlay",
+            "window.UnifiedUI.terminal.reconnect_controller",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "modules" / "status_controller.js": [
-            "window.XKeen.terminal.status",
-            "window.XKeen.terminal.status_controller",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "modules" / "status_controller.js": [
+            "window.UnifiedUI.terminal.status",
+            "window.UnifiedUI.terminal.status_controller",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "modules" / "ssh_profiles.js": [
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "modules" / "ssh_profiles.js": [
             "window.showToast(",
-            "window.XKeen.terminal.ssh_profiles",
+            "window.UnifiedUI.terminal.ssh_profiles",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "modules" / "terminal_controller.js": [
-            "window.XKeen.terminal.terminalCtrl",
-            "window.XKeen.terminal.terminal_controller",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "modules" / "terminal_controller.js": [
+            "window.UnifiedUI.terminal.terminalCtrl",
+            "window.UnifiedUI.terminal.terminal_controller",
             "window.showToast(",
         ],
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "modules" / "ui_controller.js": [
-            "window.XKeen.terminal.ui_actions",
-            "window.XKeen.terminal.open",
-            "window.XKeen.terminal.close",
-            "window.XKeen.terminal.pty",
-            "window.XKeen.terminal.ui_controller",
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "modules" / "ui_controller.js": [
+            "window.UnifiedUI.terminal.ui_actions",
+            "window.UnifiedUI.terminal.open",
+            "window.UnifiedUI.terminal.close",
+            "window.UnifiedUI.terminal.pty",
+            "window.UnifiedUI.terminal.ui_controller",
         ],
     }
 
@@ -1120,56 +1120,56 @@ def test_terminal_remaining_core_controllers_and_modules_use_runtime_adapters():
 
 
 def test_templates_publish_final_page_config_contract():
-    panel_src = (ROOT / "xkeen-ui" / "templates" / "panel.html").read_text(encoding="utf-8")
-    devtools_src = (ROOT / "xkeen-ui" / "templates" / "devtools.html").read_text(encoding="utf-8")
-    mihomo_src = (ROOT / "xkeen-ui" / "templates" / "mihomo_generator.html").read_text(encoding="utf-8")
+    panel_src = (ROOT / "unified-ui" / "templates" / "panel.html").read_text(encoding="utf-8")
+    devtools_src = (ROOT / "unified-ui" / "templates" / "devtools.html").read_text(encoding="utf-8")
+    mihomo_src = (ROOT / "unified-ui" / "templates" / "mihomo_generator.html").read_text(encoding="utf-8")
 
     panel_required = [
         "frontend_page_config(",
         "'panel'",
-        "window.XKeen.pageConfig = pageConfig;",
+        "window.UnifiedUI.pageConfig = pageConfig;",
         "<script type=\"module\" src=\"{{ frontend_page_entry_url('panel') }}\"></script>",
     ]
     panel_forbidden = [
-        "window.XKeen.env = window.XKeen.env || {};",
-        "window.XKeen.env.panelSectionsWhitelist",
-        "window.XKeen.env.devtoolsSectionsWhitelist",
-        "window.XKEEN_GITHUB_REPO_URL",
-        "window.XKEEN_STATIC_BASE",
-        "window.XKEEN_IS_MIPS",
-        "window.XKEEN_AVAILABLE_CORES",
-        "window.XKEEN_DETECTED_CORES",
-        "window.XKEEN_CORE_UI_FALLBACK",
-        "window.XKEEN_HAS_XRAY",
-        "window.XKEEN_HAS_MIHOMO",
-        "window.XKEEN_MIHOMO_CONFIG_EXISTS",
-        "window.XKEEN_MULTI_CORE",
-        "window.XKEEN_STATIC_VER",
-        "window.XKEEN_FILES",
-        "window.XKEEN_FM_RIGHT_DEFAULT",
+        "window.UnifiedUI.env = window.UnifiedUI.env || {};",
+        "window.UnifiedUI.env.panelSectionsWhitelist",
+        "window.UnifiedUI.env.devtoolsSectionsWhitelist",
+        "window.UNIFIED_GITHUB_REPO_URL",
+        "window.UNIFIED_STATIC_BASE",
+        "window.UNIFIED_IS_MIPS",
+        "window.UNIFIED_AVAILABLE_CORES",
+        "window.UNIFIED_DETECTED_CORES",
+        "window.UNIFIED_CORE_UI_FALLBACK",
+        "window.UNIFIED_HAS_XRAY",
+        "window.UNIFIED_HAS_MIHOMO",
+        "window.UNIFIED_MIHOMO_CONFIG_EXISTS",
+        "window.UNIFIED_MULTI_CORE",
+        "window.UNIFIED_STATIC_VER",
+        "window.UNIFIED_FILES",
+        "window.UNIFIED_FM_RIGHT_DEFAULT",
     ]
 
     devtools_required = [
         "frontend_page_config(",
         "'devtools'",
-        "window.XKeen.pageConfig = pageConfig;",
+        "window.UnifiedUI.pageConfig = pageConfig;",
         "<script type=\"module\" src=\"{{ frontend_page_entry_url('devtools') }}\"></script>",
     ]
     devtools_forbidden = [
-        "window.XKeen.env = window.XKeen.env || {};",
-        "window.XKeen.env.panelSectionsWhitelist",
-        "window.XKeen.env.devtoolsSectionsWhitelist",
+        "window.UnifiedUI.env = window.UnifiedUI.env || {};",
+        "window.UnifiedUI.env.panelSectionsWhitelist",
+        "window.UnifiedUI.env.devtoolsSectionsWhitelist",
     ]
     mihomo_required = [
         "frontend_page_config(",
         "'mihomo_generator'",
-        "window.XKeen.pageConfig = pageConfig;",
+        "window.UnifiedUI.pageConfig = pageConfig;",
         "<script type=\"module\" src=\"{{ frontend_page_entry_url('mihomo_generator') }}\"></script>",
     ]
     mihomo_forbidden = [
-        "window.XKeen.env = window.XKeen.env || {};",
-        "window.XKeen.env.panelSectionsWhitelist",
-        "window.XKeen.env.devtoolsSectionsWhitelist",
+        "window.UnifiedUI.env = window.UnifiedUI.env || {};",
+        "window.UnifiedUI.env.panelSectionsWhitelist",
+        "window.UnifiedUI.env.devtoolsSectionsWhitelist",
     ]
 
     for fragment in panel_required:
@@ -1189,7 +1189,7 @@ def test_templates_publish_final_page_config_contract():
 
 
 def test_runtime_page_config_contract_no_longer_syncs_legacy_aliases():
-    runtime_src = (ROOT / "xkeen-ui" / "static" / "js" / "features" / "xkeen_runtime.js").read_text(encoding="utf-8")
+    runtime_src = (ROOT / "unified-ui" / "static" / "js" / "features" / "unified_runtime.js").read_text(encoding="utf-8")
 
     required = [
         "export function getXkeenPageConfigValue(path, fallbackValue = undefined)",
@@ -1201,12 +1201,12 @@ def test_runtime_page_config_contract_no_longer_syncs_legacy_aliases():
     forbidden = [
         "syncLegacyPageConfigAlias(",
         "getXkeenLegacyPageConfigValue(",
-        "win.XKeen.env.panelSectionsWhitelist",
-        "win.XKeen.env.devtoolsSectionsWhitelist",
-        "win.XKEEN_FILES",
-        "win.XKEEN_GITHUB_REPO_URL",
-        "win.XKEEN_STATIC_BASE",
-        "win.XKEEN_IS_MIPS",
+        "win.UnifiedUI.env.panelSectionsWhitelist",
+        "win.UnifiedUI.env.devtoolsSectionsWhitelist",
+        "win.UNIFIED_FILES",
+        "win.UNIFIED_GITHUB_REPO_URL",
+        "win.UNIFIED_STATIC_BASE",
+        "win.UNIFIED_IS_MIPS",
         "function getRawWindowFlag(",
         "function getXkeenLegacyEnvValue(",
         "const WINDOW_FLAG_PAGE_CONFIG_PATHS = Object.freeze({",
@@ -1215,24 +1215,24 @@ def test_runtime_page_config_contract_no_longer_syncs_legacy_aliases():
     ]
 
     for fragment in required:
-        assert fragment in runtime_src, f"missing runtime final page-config fragment in xkeen_runtime.js: {fragment}"
+        assert fragment in runtime_src, f"missing runtime final page-config fragment in unified_runtime.js: {fragment}"
     for fragment in forbidden:
         assert fragment not in runtime_src, (
-            f"runtime page-config contract should no longer sync legacy aliases in xkeen_runtime.js: {fragment}"
+            f"runtime page-config contract should no longer sync legacy aliases in unified_runtime.js: {fragment}"
         )
 
 
 
 def test_stage6_consumer_sweep_uses_runtime_page_config_helpers_in_canonical_readers():
     expectations = {
-        ROOT / "xkeen-ui" / "static" / "js" / "ui" / "sections.js": {
+        ROOT / "unified-ui" / "static" / "js" / "ui" / "sections.js": {
             "required": [
                 "typeof XK.runtime.getPageSectionsConfig === 'function'",
                 "XK.pageConfig",
             ],
             "forbidden": [
-                "window.XKeen.env.panelSectionsWhitelist",
-                "window.XKeen.env.devtoolsSectionsWhitelist",
+                "window.UnifiedUI.env.panelSectionsWhitelist",
+                "window.UnifiedUI.env.devtoolsSectionsWhitelist",
                 "const env = (XK && XK.env) ? XK.env : {};",
                 "panelSectionsWhitelist",
                 "devtoolsSectionsWhitelist",
@@ -1244,17 +1244,17 @@ def test_stage6_consumer_sweep_uses_runtime_page_config_helpers_in_canonical_rea
                 "hasXkeenMihomoCore()",
             ],
             "forbidden": [
-                "window.XKEEN_HAS_XRAY",
-                "window.XKEEN_HAS_MIHOMO",
+                "window.UNIFIED_HAS_XRAY",
+                "window.UNIFIED_HAS_MIHOMO",
             ],
         },
         PAGES_DIR / "panel.init.js": {
             "required": [
-                "import { hasXkeenXrayCore } from '../features/xkeen_runtime.js';",
+                "import { hasXkeenXrayCore } from '../features/unified_runtime.js';",
                 "return hasXkeenXrayCore();",
             ],
             "forbidden": [
-                "window.XKEEN_HAS_XRAY",
+                "window.UNIFIED_HAS_XRAY",
             ],
         },
         PAGES_DIR / "panel.core_ui_watch.runtime.js": {
@@ -1263,9 +1263,9 @@ def test_stage6_consumer_sweep_uses_runtime_page_config_helpers_in_canonical_rea
                 "const cores = getXkeenPageCoresConfig();",
             ],
             "forbidden": [
-                "window.XKEEN_DETECTED_CORES",
-                "window.XKEEN_AVAILABLE_CORES",
-                "window.XKEEN_CORE_UI_FALLBACK",
+                "window.UNIFIED_DETECTED_CORES",
+                "window.UNIFIED_AVAILABLE_CORES",
+                "window.UNIFIED_CORE_UI_FALLBACK",
             ],
         },
         PAGES_DIR / "panel.lazy_bindings.runtime.js": {
@@ -1274,178 +1274,178 @@ def test_stage6_consumer_sweep_uses_runtime_page_config_helpers_in_canonical_rea
                 "api.init({ repoUrl: getXkeenGithubRepoUrl() });",
             ],
             "forbidden": [
-                "window.XKEEN_GITHUB_REPO_URL",
+                "window.UNIFIED_GITHUB_REPO_URL",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "ui" / "monaco_loader.js": {
+        ROOT / "unified-ui" / "static" / "js" / "ui" / "monaco_loader.js": {
             "required": [
-                "import { getXkeenStaticBase } from '../features/xkeen_runtime.js';",
+                "import { getXkeenStaticBase } from '../features/unified_runtime.js';",
                 "const configured = String(getXkeenStaticBase() || '').trim();",
             ],
             "forbidden": [
-                "window.XKEEN_STATIC_BASE",
+                "window.UNIFIED_STATIC_BASE",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "ui" / "config_shell.js": {
+        ROOT / "unified-ui" / "static" / "js" / "ui" / "config_shell.js": {
             "required": [
-                "import { setXkeenPageConfigValue } from '../features/xkeen_runtime.js';",
+                "import { setXkeenPageConfigValue } from '../features/unified_runtime.js';",
                 "setXkeenPageConfigValue('files.' + name, nextPath);",
             ],
             "forbidden": [
-                "window.XKEEN_FILES = window.XKEEN_FILES || {};",
+                "window.UNIFIED_FILES = window.UNIFIED_FILES || {};",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "ui" / "last_activity.js": {
+        ROOT / "unified-ui" / "static" / "js" / "ui" / "last_activity.js": {
             "required": [
-                "import { getXkeenFilePath } from '../features/xkeen_runtime.js';",
+                "import { getXkeenFilePath } from '../features/unified_runtime.js';",
                 "getXkeenFilePath('mihomo',",
                 "getXkeenFilePath('routing', \"/opt/etc/xray/configs/05_routing.json\")",
             ],
             "forbidden": [
-                "window.XKEEN_FILES",
+                "window.UNIFIED_FILES",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "ui" / "json_editor_modal.js": {
+        ROOT / "unified-ui" / "static" / "js" / "ui" / "json_editor_modal.js": {
             "required": [
                 "getXkeenFilePath",
                 "getXkeenPageFilesConfig",
             ],
             "forbidden": [
-                "window.XKEEN_FILES && window.XKEEN_FILES",
+                "window.UNIFIED_FILES && window.UNIFIED_FILES",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "routing.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "routing.js": {
             "required": [
                 "getXkeenFilePath",
                 "isXkeenMipsRuntime",
             ],
             "forbidden": [
-                "window.XKEEN_IS_MIPS",
-                "window.XKEEN_FILES",
+                "window.UNIFIED_IS_MIPS",
+                "window.UNIFIED_FILES",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "inbounds.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "inbounds.js": {
             "required": [
                 "getXkeenFilePath('inbounds', '')",
             ],
             "forbidden": [
-                "window.XKEEN_FILES",
+                "window.UNIFIED_FILES",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "outbounds.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "outbounds.js": {
             "required": [
                 "getXkeenFilePath('outbounds', '')",
             ],
             "forbidden": [
-                "window.XKEEN_FILES",
+                "window.UNIFIED_FILES",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "backups.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "backups.js": {
             "required": [
                 "getXkeenPageFilesConfig",
             ],
             "forbidden": [
-                "window.XKEEN_FILES",
+                "window.UNIFIED_FILES",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "github.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "github.js": {
             "required": [
                 "getXkeenGithubRepoUrl",
                 "_repoUrl || getXkeenGithubRepoUrl()",
             ],
             "forbidden": [
-                "window.XKEEN_GITHUB_REPO_URL",
+                "window.UNIFIED_GITHUB_REPO_URL",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "mihomo_panel.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "mihomo_panel.js": {
             "required": [
                 "getXkeenPageFlagsConfig",
                 "setXkeenPageConfigValue('flags.mihomoConfigExists', true);",
                 "getXkeenFilePath('mihomo',",
             ],
             "forbidden": [
-                "window.XKEEN_MIHOMO_CONFIG_EXISTS",
-                "window.XKEEN_FILES",
+                "window.UNIFIED_MIHOMO_CONFIG_EXISTS",
+                "window.UNIFIED_FILES",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "mihomo_import.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "mihomo_import.js": {
             "required": [
                 "getXkeenFilePath('mihomo',",
             ],
             "forbidden": [
-                "window.XKEEN_FILES",
+                "window.UNIFIED_FILES",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "mihomo_proxy_tools.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "mihomo_proxy_tools.js": {
             "required": [
                 "getXkeenFilePath('mihomo',",
             ],
             "forbidden": [
-                "window.XKEEN_FILES",
+                "window.UNIFIED_FILES",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "mihomo_hwid_sub.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "mihomo_hwid_sub.js": {
             "required": [
                 "getXkeenFilePath('mihomo',",
             ],
             "forbidden": [
-                "window.XKEEN_FILES",
+                "window.UNIFIED_FILES",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "file_manager" / "common.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "file_manager" / "common.js": {
             "required": [
-                "import { isXkeenMipsRuntime } from '../xkeen_runtime.js';",
+                "import { isXkeenMipsRuntime } from '../unified_runtime.js';",
                 "return isXkeenMipsRuntime();",
             ],
             "forbidden": [
-                "window.XKEEN_IS_MIPS",
+                "window.UNIFIED_IS_MIPS",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "file_manager" / "state.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "file_manager" / "state.js": {
             "required": [
                 "getXkeenFileManagerDefaults",
                 "isXkeenMipsRuntime(),",
                 "getXkeenFileManagerDefaults().rightDefault || '/tmp/mnt'",
             ],
             "forbidden": [
-                "window.XKEEN_IS_MIPS",
-                "window.XKEEN_FM_RIGHT_DEFAULT",
+                "window.UNIFIED_IS_MIPS",
+                "window.UNIFIED_FM_RIGHT_DEFAULT",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "file_manager.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "file_manager.js": {
             "required": [
-                "import { isXkeenMipsRuntime } from './xkeen_runtime.js';",
+                "import { isXkeenMipsRuntime } from './unified_runtime.js';",
                 "return isXkeenMipsRuntime();",
             ],
             "forbidden": [
-                "window.XKEEN_IS_MIPS",
+                "window.UNIFIED_IS_MIPS",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "xray_logs.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "xray_logs.js": {
             "required": [
                 "isXkeenMipsRuntime",
                 "if (isXkeenMipsRuntime()) return true;",
             ],
             "forbidden": [
-                "window.XKEEN_IS_MIPS",
+                "window.UNIFIED_IS_MIPS",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "routing_cards" / "rules" / "controls.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "routing_cards" / "rules" / "controls.js": {
             "required": [
-                "import { isXkeenMipsRuntime } from '../../xkeen_runtime.js';",
+                "import { isXkeenMipsRuntime } from '../../unified_runtime.js';",
                 "return isXkeenMipsRuntime();",
             ],
             "forbidden": [
-                "window.XKEEN_IS_MIPS",
+                "window.UNIFIED_IS_MIPS",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "routing_cards" / "rules" / "render.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "routing_cards" / "rules" / "render.js": {
             "required": [
-                "import { isXkeenMipsRuntime } from '../../xkeen_runtime.js';",
+                "import { isXkeenMipsRuntime } from '../../unified_runtime.js';",
                 "return isXkeenMipsRuntime();",
             ],
             "forbidden": [
-                "window.XKEEN_IS_MIPS",
+                "window.UNIFIED_IS_MIPS",
             ],
         },
     }
@@ -1467,41 +1467,41 @@ def test_stage6_consumer_sweep_uses_runtime_page_config_helpers_in_canonical_rea
 
 def test_editor_json_and_terminal_cluster_use_runtime_adapters_instead_of_raw_globals():
     expectations = {
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "file_manager" / "editor.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "file_manager" / "editor.js": {
             "required": [
                 "attachXkeenEditorToolbar",
                 "getXkeenEditorToolbarDefaultItems",
                 "getXkeenEditorToolbarIcons",
             ],
             "forbidden": [
-                "window.XKEEN_CM_",
-                "window.xkeenAttachCmToolbar",
+                "window.UNIFIED_CM_",
+                "window.unifiedAttachCmToolbar",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "ui" / "json_editor_modal.js": {
+        ROOT / "unified-ui" / "static" / "js" / "ui" / "json_editor_modal.js": {
             "required": [
                 "attachXkeenEditorToolbar",
                 "getXkeenEditorToolbarMiniItems",
             ],
             "forbidden": [
-                "window.XKEEN_CM_",
-                "window.xkeenAttachCmToolbar",
+                "window.UNIFIED_CM_",
+                "window.unifiedAttachCmToolbar",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "ui" / "editor_toolbar.js": {
+        ROOT / "unified-ui" / "static" / "js" / "ui" / "editor_toolbar.js": {
             "required": [
-                "icons: XKEEN_CM_ICONS",
-                "defaultItems: XKEEN_CM_TOOLBAR_DEFAULT",
-                "miniItems: XKEEN_CM_TOOLBAR_MINI",
-                "window.XKEEN_CM_ICONS = window.XKEEN_CM_ICONS || XKEEN_CM_ICONS;",
+                "icons: UNIFIED_CM_ICONS",
+                "defaultItems: UNIFIED_CM_TOOLBAR_DEFAULT",
+                "miniItems: UNIFIED_CM_TOOLBAR_MINI",
+                "window.UNIFIED_CM_ICONS = window.UNIFIED_CM_ICONS || UNIFIED_CM_ICONS;",
             ],
             "forbidden": [
-                "icons: window.XKEEN_CM_ICONS || XKEEN_CM_ICONS",
-                "defaultItems: window.XKEEN_CM_TOOLBAR_DEFAULT || XKEEN_CM_TOOLBAR_DEFAULT",
-                "miniItems: window.XKEEN_CM_TOOLBAR_MINI || XKEEN_CM_TOOLBAR_MINI",
+                "icons: window.UNIFIED_CM_ICONS || UNIFIED_CM_ICONS",
+                "defaultItems: window.UNIFIED_CM_TOOLBAR_DEFAULT || UNIFIED_CM_TOOLBAR_DEFAULT",
+                "miniItems: window.UNIFIED_CM_TOOLBAR_MINI || UNIFIED_CM_TOOLBAR_MINI",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "xterm_manager.js": {
+        ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "xterm_manager.js": {
             "required": [
                 "shouldEnableXkeenTerminalOptionalAddons",
                 "shouldEnableXkeenTerminalLigatures",
@@ -1511,12 +1511,12 @@ def test_editor_json_and_terminal_cluster_use_runtime_adapters_instead_of_raw_gl
                 "shouldEnableXkeenTerminalWebgl()",
             ],
             "forbidden": [
-                "window.XKEEN_ENABLE_XTERM_OPTIONAL_ADDONS",
-                "window.XKEEN_ENABLE_XTERM_LIGATURES",
-                "window.XKEEN_ENABLE_XTERM_WEBGL",
+                "window.UNIFIED_ENABLE_XTERM_OPTIONAL_ADDONS",
+                "window.UNIFIED_ENABLE_XTERM_LIGATURES",
+                "window.UNIFIED_ENABLE_XTERM_WEBGL",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "runtime" / "lazy_runtime.js": {
+        ROOT / "unified-ui" / "static" / "js" / "runtime" / "lazy_runtime.js": {
             "required": [
                 "getXkeenEditorToolbarApi",
                 "const editorToolbar = getXkeenEditorToolbarApi();",
@@ -1525,8 +1525,8 @@ def test_editor_json_and_terminal_cluster_use_runtime_adapters_instead_of_raw_gl
                 "const isDebug = isXkeenDebugRuntime();",
             ],
             "forbidden": [
-                "window.XKEEN_DEV",
-                "window.xkeenAttachCmToolbar",
+                "window.UNIFIED_DEV",
+                "window.unifiedAttachCmToolbar",
                 "window.buildCmExtraKeysCommon",
                 "XK.lazy = XK.lazy || {}",
             ],
@@ -1547,7 +1547,7 @@ def test_editor_json_and_terminal_cluster_use_runtime_adapters_instead_of_raw_gl
 
 def test_routing_and_mihomo_cluster_use_toolbar_runtime_adapters_instead_of_raw_toolbar_globals():
     expectations = {
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "routing.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "routing.js": {
             "required": [
                 "attachXkeenEditorToolbar",
                 "buildXkeenEditorCommonKeys",
@@ -1555,26 +1555,12 @@ def test_routing_and_mihomo_cluster_use_toolbar_runtime_adapters_instead_of_raw_
                 "getXkeenEditorToolbarIcons",
             ],
             "forbidden": [
-                "window.XKEEN_CM_",
-                "window.xkeenAttachCmToolbar",
+                "window.UNIFIED_CM_",
+                "window.unifiedAttachCmToolbar",
                 "window.buildCmExtraKeysCommon",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "mihomo_panel.js": {
-            "required": [
-                "attachXkeenEditorToolbar",
-                "buildXkeenEditorCommonKeys",
-                "getXkeenEditorToolbarDefaultItems",
-                "getXkeenEditorToolbarMiniItems",
-                "getXkeenEditorToolbarIcons",
-            ],
-            "forbidden": [
-                "window.XKEEN_CM_",
-                "window.xkeenAttachCmToolbar",
-                "window.buildCmExtraKeysCommon",
-            ],
-        },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "mihomo_generator.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "mihomo_panel.js": {
             "required": [
                 "attachXkeenEditorToolbar",
                 "buildXkeenEditorCommonKeys",
@@ -1583,21 +1569,35 @@ def test_routing_and_mihomo_cluster_use_toolbar_runtime_adapters_instead_of_raw_
                 "getXkeenEditorToolbarIcons",
             ],
             "forbidden": [
-                "window.XKEEN_CM_",
-                "window.xkeenAttachCmToolbar",
+                "window.UNIFIED_CM_",
+                "window.unifiedAttachCmToolbar",
                 "window.buildCmExtraKeysCommon",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "routing_cards.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "mihomo_generator.js": {
+            "required": [
+                "attachXkeenEditorToolbar",
+                "buildXkeenEditorCommonKeys",
+                "getXkeenEditorToolbarDefaultItems",
+                "getXkeenEditorToolbarMiniItems",
+                "getXkeenEditorToolbarIcons",
+            ],
+            "forbidden": [
+                "window.UNIFIED_CM_",
+                "window.unifiedAttachCmToolbar",
+                "window.buildCmExtraKeysCommon",
+            ],
+        },
+        ROOT / "unified-ui" / "static" / "js" / "features" / "routing_cards.js": {
             "required": [
                 "isXkeenDebugRuntime",
                 "IS_DEBUG = isXkeenDebugRuntime();",
             ],
             "forbidden": [
-                "window.XKEEN_DEV",
+                "window.UNIFIED_DEV",
             ],
         },
-        ROOT / "xkeen-ui" / "static" / "js" / "features" / "xkeen_runtime.js": {
+        ROOT / "unified-ui" / "static" / "js" / "features" / "unified_runtime.js": {
             "required": [
                 "export function getXkeenEditorToolbarApi()",
                 "export function getXkeenEditorToolbarIcons()",

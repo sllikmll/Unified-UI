@@ -16,7 +16,7 @@ def client(tmp_path):
         MIHOMO_CONFIG_FILE=str(cfg),
         MIHOMO_TEMPLATES_DIR=str(tmp_path),
         MIHOMO_DEFAULT_TEMPLATE=str(tmp_path / "default.yaml"),
-        restart_xkeen=lambda: None,
+        restart_unified=lambda: None,
     )
     app = Flask(__name__)
     app.register_blueprint(bp)
@@ -24,7 +24,7 @@ def client(tmp_path):
 
 
 def test_hwid_probe_route_blocks_private_url_before_probe(monkeypatch, client):
-    monkeypatch.delenv("XKEEN_MIHOMO_HWID_ALLOW_PRIVATE_HOSTS", raising=False)
+    monkeypatch.delenv("UNIFIED_MIHOMO_HWID_ALLOW_PRIVATE_HOSTS", raising=False)
     calls = []
 
     def fake_probe(*args, **kwargs):
@@ -53,7 +53,7 @@ def test_hwid_device_route_returns_diagnostics(monkeypatch, client):
             "mac": "aa:bb:cc:dd:ee:ff",
             "mac_hwid": "AABBCCDDEEFF",
             "hwid": "4194304",
-            "hwid_source": "XKEEN_MIHOMO_HWID",
+            "hwid_source": "UNIFIED_MIHOMO_HWID",
             "hwid_format": "string",
             "has_env_override": True,
             "hwid_matches_router_mac": False,
@@ -80,7 +80,7 @@ def test_hwid_device_route_returns_diagnostics(monkeypatch, client):
 
 
 def test_hwid_apply_route_blocks_http_url_before_probe(monkeypatch, client):
-    monkeypatch.delenv("XKEEN_MIHOMO_HWID_ALLOW_HTTP", raising=False)
+    monkeypatch.delenv("UNIFIED_MIHOMO_HWID_ALLOW_HTTP", raising=False)
     calls = []
 
     def fake_probe(*args, **kwargs):
@@ -104,7 +104,7 @@ def test_hwid_apply_route_blocks_http_url_before_probe(monkeypatch, client):
 
 
 def test_hwid_probe_route_allows_private_url_when_enabled(monkeypatch, client):
-    monkeypatch.setenv("XKEEN_MIHOMO_HWID_ALLOW_PRIVATE_HOSTS", "1")
+    monkeypatch.setenv("UNIFIED_MIHOMO_HWID_ALLOW_PRIVATE_HOSTS", "1")
     calls = []
 
     monkeypatch.setattr(

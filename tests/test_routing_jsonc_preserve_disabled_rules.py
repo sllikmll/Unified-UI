@@ -22,7 +22,7 @@ def test_render_rules_array_keeps_disabled_rule_blocks_when_active_rules_change(
     run_node(
         r"""
         import assert from 'node:assert/strict';
-        import { getRoutingJsoncPreserveApi } from './xkeen-ui/static/js/features/routing_jsonc_preserve.js';
+        import { getRoutingJsoncPreserveApi } from './unified-ui/static/js/features/routing_jsonc_preserve.js';
 
         const jp = getRoutingJsoncPreserveApi();
         assert.ok(jp);

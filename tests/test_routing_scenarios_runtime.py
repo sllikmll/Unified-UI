@@ -37,7 +37,7 @@ import {
   ROUTING_SCENARIO_MOBILE_WHITELIST,
   applyRoutingScenarioText,
   detectRoutingScenarioFromText,
-} from './xkeen-ui/static/js/ui/routing_scenarios.js';
+} from './unified-ui/static/js/ui/routing_scenarios.js';
 
 const source = JSON.stringify({
   routing: {
@@ -96,7 +96,7 @@ import {
   ROUTING_SCENARIO_NORMAL,
   applyRoutingScenarioText,
   detectRoutingScenarioFromText,
-} from './xkeen-ui/static/js/ui/routing_scenarios.js';
+} from './unified-ui/static/js/ui/routing_scenarios.js';
 
 const legacy = JSON.stringify({
   routing: {
@@ -230,7 +230,7 @@ def test_mobile_whitelist_preflight_reports_pool_and_subscription_risks():
 import {
   analyzeRoutingScenarioPreflight,
   formatRoutingScenarioPreflightMessage,
-} from './xkeen-ui/static/js/ui/routing_scenarios.js';
+} from './unified-ui/static/js/ui/routing_scenarios.js';
 
 const ready = analyzeRoutingScenarioPreflight({
   outboundTags: ['direct', 'my_proxy--A', 'reserve_proxy--A', 'white_list--A', 'white_list--B', 'loopback_to_reserv', 'loopback_to_white'],
@@ -285,7 +285,7 @@ import {
   ROUTING_SCENARIO_NORMAL,
   applyRoutingScenarioText,
   detectRoutingScenarioFromText,
-} from './xkeen-ui/static/js/ui/routing_scenarios.js';
+} from './unified-ui/static/js/ui/routing_scenarios.js';
 
 const source = JSON.stringify({
   routing: {
@@ -322,7 +322,7 @@ import {
   ROUTING_SCENARIO_NORMAL,
   applyRoutingScenarioText,
   parseRoutingScenarioText,
-} from './xkeen-ui/static/js/ui/routing_scenarios.js';
+} from './unified-ui/static/js/ui/routing_scenarios.js';
 
 const source = `{
   // user routing header
@@ -390,11 +390,11 @@ console.log(JSON.stringify({
 
 
 def test_routing_scenario_switcher_is_wired_into_panel():
-    template = (ROOT / "xkeen-ui/templates/panel.html").read_text(encoding="utf-8")
-    routing_src = (ROOT / "xkeen-ui/static/js/features/routing.js").read_text(encoding="utf-8")
-    settings_src = (ROOT / "xkeen-ui/static/js/ui/settings.js").read_text(encoding="utf-8")
-    settings_panel_src = (ROOT / "xkeen-ui/static/js/ui/settings_panel.js").read_text(encoding="utf-8")
-    styles = (ROOT / "xkeen-ui/static/styles.css").read_text(encoding="utf-8")
+    template = (ROOT / "unified-ui/templates/panel.html").read_text(encoding="utf-8")
+    routing_src = (ROOT / "unified-ui/static/js/features/routing.js").read_text(encoding="utf-8")
+    settings_src = (ROOT / "unified-ui/static/js/ui/settings.js").read_text(encoding="utf-8")
+    settings_panel_src = (ROOT / "unified-ui/static/js/ui/settings_panel.js").read_text(encoding="utf-8")
+    styles = (ROOT / "unified-ui/static/styles.css").read_text(encoding="utf-8")
 
     assert 'id="routing-scenario-normal"' in template
     assert 'id="routing-scenario-mobile"' in template
@@ -420,7 +420,7 @@ def test_routing_scenario_switcher_is_wired_into_panel():
     assert "ROUTING_SCENARIO_RESERVE_BALANCER_TAG" in routing_src
     assert "ROUTING_SCENARIO_WHITE_LIST_BALANCER_TAG" in routing_src
     assert "result.preserved !== true" in routing_src
-    assert "xkeen:routing-editor-content" in routing_src
+    assert "unified:routing-editor-content" in routing_src
     assert "function applyRoutingScenarioCardSetting(settingsSnapshot)" in routing_src
     assert "xk.routing.scenario.visibility.fix.v1" in routing_src
     assert "let _routingScenarioSettingVisible = null;" in routing_src
@@ -433,7 +433,7 @@ def test_routing_scenario_switcher_is_wired_into_panel():
     assert "_storeSet(ROUTING_SCENARIO_VISIBILITY_FIX_KEY, '1');" in routing_src
     assert "card.dataset.xkUiSettingVisible = settingVisible ? '1' : '0';" in routing_src
     assert "try { delete card.dataset.xkPrevDisplay; } catch (e0) {}" in routing_src
-    assert "document.addEventListener('xkeen:ui-settings-changed'" in routing_src
+    assert "document.addEventListener('unified:ui-settings-changed'" in routing_src
     assert "try { applyRoutingScenarioCardSetting(); } catch (e) {}" in routing_src
     assert "routing.showScenarioCard" in settings_panel_src
     assert "Показывать карточку «Сценарий маршрутизации»" in settings_panel_src
@@ -447,8 +447,8 @@ def test_routing_scenario_switcher_is_wired_into_panel():
 
 
 def test_routing_dat_card_uses_shared_sidebar_collapse_style():
-    template = (ROOT / "xkeen-ui/templates/panel.html").read_text(encoding="utf-8")
-    styles = (ROOT / "xkeen-ui/static/styles.css").read_text(encoding="utf-8")
+    template = (ROOT / "unified-ui/templates/panel.html").read_text(encoding="utf-8")
+    styles = (ROOT / "unified-ui/static/styles.css").read_text(encoding="utf-8")
 
     assert 'class="card routing-dat-card routing-side-card"' in template
     assert 'id="routing-dat-arrow"' in template

@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 
-JS_DIR = Path(__file__).resolve().parents[1] / "xkeen-ui" / "static" / "js"
+JS_DIR = Path(__file__).resolve().parents[1] / "unified-ui" / "static" / "js"
 
 
 def _read(path: Path) -> str:

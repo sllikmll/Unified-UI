@@ -11,8 +11,8 @@ from flask import Blueprint, Flask
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CONFIG_PATH = ROOT / "xkeen-ui" / "routes" / "routing" / "config.py"
-ROUTES_DIR = ROOT / "xkeen-ui" / "routes"
+CONFIG_PATH = ROOT / "unified-ui" / "routes" / "routing" / "config.py"
+ROUTES_DIR = ROOT / "unified-ui" / "routes"
 ROUTING_DIR = ROUTES_DIR / "routing"
 
 
@@ -73,7 +73,7 @@ def test_run_xray_preflight_defaults_to_30_second_timeout_for_all_routers(tmp_pa
     confdir.mkdir()
     (confdir / "00_base.json").write_text('{"log":{}}\n', encoding="utf-8")
 
-    monkeypatch.delenv("XKEEN_XRAY_TEST_TIMEOUT", raising=False)
+    monkeypatch.delenv("UNIFIED_XRAY_TEST_TIMEOUT", raising=False)
 
     def fake_run(cmd, capture_output, text, timeout, check, **_kwargs):
         assert timeout == 30
@@ -96,7 +96,7 @@ def test_run_xray_preflight_includes_timeout_limit_on_failed_check(tmp_path, mon
     confdir.mkdir()
     (confdir / "00_base.json").write_text('{"log":{}}\n', encoding="utf-8")
 
-    monkeypatch.setenv("XKEEN_XRAY_TEST_TIMEOUT", "9")
+    monkeypatch.setenv("UNIFIED_XRAY_TEST_TIMEOUT", "9")
 
     def fake_run(cmd, capture_output, text, timeout, check, **_kwargs):
         assert capture_output is True
@@ -125,7 +125,7 @@ def test_run_xray_preflight_timeout_uses_temp_confdir_in_command(tmp_path, monke
     confdir.mkdir()
     (confdir / "00_base.json").write_text('{"log":{}}\n', encoding="utf-8")
 
-    monkeypatch.setenv("XKEEN_XRAY_TEST_TIMEOUT", "11")
+    monkeypatch.setenv("UNIFIED_XRAY_TEST_TIMEOUT", "11")
 
     def fake_run(cmd, capture_output, text, timeout, check, **_kwargs):
         raise subprocess.TimeoutExpired(cmd, timeout, output="stdout timeout", stderr="stderr timeout")
@@ -325,7 +325,7 @@ def test_routing_save_logs_failed_xray_preflight_with_modal_ref(tmp_path, monkey
         backup_dir_real=str(tmp_path / "backups"),
         load_json=lambda path, default=None: default,
         strip_json_comments_text=lambda text: text,
-        restart_xkeen=lambda source="routing": True,
+        restart_unified=lambda source="routing": True,
         append_restart_log=lambda ok, source="api", **meta: seen.append((ok, source, meta)),
         save_operation_diagnostic=lambda ref, payload, kind="generic": saved.append((ref, payload, kind)),
     )
@@ -386,7 +386,7 @@ def test_routing_save_marks_timed_out_xray_preflight_as_skippable(tmp_path, monk
         backup_dir_real=str(tmp_path / "backups"),
         load_json=lambda path, default=None: default,
         strip_json_comments_text=lambda text: text,
-        restart_xkeen=lambda source="routing": True,
+        restart_unified=lambda source="routing": True,
     )
     app = Flask("routing-preflight-skip-hint-test")
     app.register_blueprint(bp)
@@ -415,7 +415,7 @@ def test_routing_save_can_skip_xray_preflight_when_requested(tmp_path, monkeypat
     bp = Blueprint("routing_preflight_skip_test", __name__)
     main_file = tmp_path / "05_routing.json"
     raw_file = tmp_path / "jsonc" / "05_routing.jsonc"
-    monkeypatch.setenv("XKEEN_XRAY_ROUTING_FILE_RAW", str(raw_file))
+    monkeypatch.setenv("UNIFIED_XRAY_ROUTING_FILE_RAW", str(raw_file))
     routing_config.register_config_routes(
         bp,
         routing_file=str(main_file),
@@ -426,7 +426,7 @@ def test_routing_save_can_skip_xray_preflight_when_requested(tmp_path, monkeypat
         backup_dir_real=str(tmp_path / "backups"),
         load_json=lambda path, default=None: default,
         strip_json_comments_text=lambda text: text,
-        restart_xkeen=lambda source="routing": True,
+        restart_unified=lambda source="routing": True,
     )
     app = Flask("routing-preflight-skip-test")
     app.register_blueprint(bp)

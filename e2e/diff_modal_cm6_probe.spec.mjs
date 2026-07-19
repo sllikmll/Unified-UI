@@ -71,11 +71,11 @@ async function waitForRoutingEditor(page) {
   await expect(page.locator('#view-routing')).toBeVisible();
   await page.waitForFunction(() => {
     return !!(
-      window.XKeen &&
-      window.XKeen.features &&
-      window.XKeen.features.routing &&
-      window.XKeen.features.routingShell &&
-      typeof window.XKeen.features.routingShell.getEditorInstance === 'function'
+      window.UnifiedUI &&
+      window.UnifiedUI.features &&
+      window.UnifiedUI.features.routing &&
+      window.UnifiedUI.features.routingShell &&
+      typeof window.UnifiedUI.features.routingShell.getEditorInstance === 'function'
     );
   });
 }
@@ -85,12 +85,12 @@ async function ensureCodeMirrorRouting(page) {
   await expect(select).toBeVisible();
   await select.selectOption('codemirror');
   await page.waitForFunction(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     return !!(
       editor && (
-        editor.__xkeenCm6Bridge === true ||
-        editor.__xkeen_cm6_bridge === true ||
+        editor.__unifiedCm6Bridge === true ||
+        editor.__unified_cm6_bridge === true ||
         editor.backend === 'cm6'
       )
     );
@@ -102,7 +102,7 @@ async function ensureMonacoRouting(page) {
   await expect(select).toBeVisible();
   await select.selectOption('monaco');
   await page.waitForFunction(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     return !!(
       editor &&
@@ -117,12 +117,12 @@ async function installProbeScope(page, options = {}) {
   const leftText = Object.prototype.hasOwnProperty.call(options, 'leftText') ? options.leftText : LEFT_TEXT;
   const rightText = Object.prototype.hasOwnProperty.call(options, 'rightText') ? options.rightText : RIGHT_TEXT;
   await page.evaluate(({ leftText, rightText }) => {
-    window.__xkeenDiffProbe = {
+    window.__unifiedDiffProbe = {
       leftText,
       rightText,
       saved: 0,
     };
-    const diff = window.XKeen?.ui?.diff;
+    const diff = window.UnifiedUI?.ui?.diff;
     if (!diff || typeof diff.registerScope !== 'function' || typeof diff.openForScope !== 'function') {
       throw new Error('diff API is not ready');
     }
@@ -130,14 +130,14 @@ async function installProbeScope(page, options = {}) {
       scope: 'probe-cm6',
       label: 'Probe CM6',
       language: 'jsonc',
-      getCurrent: () => String(window.__xkeenDiffProbe.leftText || ''),
-      getBaseline: () => String(window.__xkeenDiffProbe.rightText || ''),
+      getCurrent: () => String(window.__unifiedDiffProbe.leftText || ''),
+      getBaseline: () => String(window.__unifiedDiffProbe.rightText || ''),
       applyTextToSide: (side, text) => {
-        if (side === 'right') window.__xkeenDiffProbe.rightText = String(text || '');
-        else window.__xkeenDiffProbe.leftText = String(text || '');
+        if (side === 'right') window.__unifiedDiffProbe.rightText = String(text || '');
+        else window.__unifiedDiffProbe.leftText = String(text || '');
       },
       save: () => {
-        window.__xkeenDiffProbe.saved += 1;
+        window.__unifiedDiffProbe.saved += 1;
         return true;
       },
     });
@@ -146,8 +146,8 @@ async function installProbeScope(page, options = {}) {
 
 async function installWrapProbeScope(page) {
   await page.evaluate(({ text }) => {
-    window.__xkeenDiffWrapProbe = { text };
-    const diff = window.XKeen?.ui?.diff;
+    window.__unifiedDiffWrapProbe = { text };
+    const diff = window.UnifiedUI?.ui?.diff;
     if (!diff || typeof diff.registerScope !== 'function' || typeof diff.openForScope !== 'function') {
       throw new Error('diff API is not ready');
     }
@@ -155,8 +155,8 @@ async function installWrapProbeScope(page) {
       scope: 'probe-cm6-wrap',
       label: 'Probe CM6 Wrap',
       language: 'yaml',
-      getCurrent: () => String(window.__xkeenDiffWrapProbe.text || ''),
-      getBaseline: () => String(window.__xkeenDiffWrapProbe.text || ''),
+      getCurrent: () => String(window.__unifiedDiffWrapProbe.text || ''),
+      getBaseline: () => String(window.__unifiedDiffWrapProbe.text || ''),
       applyTextToSide: () => {},
       save: () => true,
     });
@@ -165,27 +165,27 @@ async function installWrapProbeScope(page) {
 
 async function openScope(page, scopeName) {
   await page.evaluate((scope) => {
-    window.XKeen.ui.diff.openForScope(scope).catch((error) => {
+    window.UnifiedUI.ui.diff.openForScope(scope).catch((error) => {
       console.error('probe diff open failed', error);
     });
   }, scopeName);
-  await expect(page.locator('#xkeen-diff-modal')).toBeVisible();
+  await expect(page.locator('#unified-diff-modal')).toBeVisible();
 }
 
 async function openProbeDiff(page) {
   await openScope(page, 'probe-cm6');
-  await expect(page.locator('#xkeen-diff-modal .xkeen-diff-summary')).toContainText('Изменений: 2');
+  await expect(page.locator('#unified-diff-modal .unified-diff-summary')).toContainText('Изменений: 2');
 }
 
 async function closeDiffModal(page) {
   await page.evaluate(() => {
-    try { window.XKeen?.ui?.diffModal?.close?.('e2e'); } catch (e) {}
+    try { window.UnifiedUI?.ui?.diffModal?.close?.('e2e'); } catch (e) {}
   });
-  await expect(page.locator('#xkeen-diff-modal')).toBeHidden();
+  await expect(page.locator('#unified-diff-modal')).toBeHidden();
 }
 
 async function probeSaveCount(page) {
-  return page.evaluate(() => Number(window.__xkeenDiffProbe?.saved || 0));
+  return page.evaluate(() => Number(window.__unifiedDiffProbe?.saved || 0));
 }
 
 async function expectProbeSaveCount(page, count) {
@@ -193,31 +193,31 @@ async function expectProbeSaveCount(page, count) {
 }
 
 async function expectSaveButtonState(page, enabled) {
-  const saveBtn = page.locator('#xkeen-diff-modal .xkeen-diff-save-btn');
+  const saveBtn = page.locator('#unified-diff-modal .unified-diff-save-btn');
   await expect(saveBtn).toBeVisible();
   if (enabled) await expect(saveBtn).toBeEnabled();
   else await expect(saveBtn).toBeDisabled();
 }
 
 async function focusDiffHotkeyTarget(page) {
-  const monacoEditor = page.locator('#xkeen-diff-modal .monaco-editor').last();
+  const monacoEditor = page.locator('#unified-diff-modal .monaco-editor').last();
   if (await monacoEditor.count()) {
     await monacoEditor.click({ force: true });
     return;
   }
 
-  const cmEditor = page.locator('#xkeen-diff-modal .cm-content').last();
+  const cmEditor = page.locator('#unified-diff-modal .cm-content').last();
   if (await cmEditor.count()) {
     await cmEditor.click({ force: true });
     return;
   }
 
-  await page.locator('#xkeen-diff-modal').click({ force: true });
+  await page.locator('#unified-diff-modal').click({ force: true });
 }
 
 async function installHotkeyLeakProbe(page) {
   await page.evaluate(() => {
-    window.__xkeenDiffHotkeyLeak = {
+    window.__unifiedDiffHotkeyLeak = {
       documentKeydowns: 0,
       hostKeydowns: 0,
       saveRequests: 0,
@@ -228,17 +228,17 @@ async function installHotkeyLeakProbe(page) {
       !event.altKey &&
       String(event.key || '').toLowerCase() === 's'
     );
-    const state = () => window.__xkeenDiffHotkeyLeak || null;
+    const state = () => window.__unifiedDiffHotkeyLeak || null;
     document.addEventListener('keydown', (event) => {
       if (!isSave(event)) return;
       const current = state();
       if (current) current.documentKeydowns += 1;
     }, true);
-    document.addEventListener('xkeen-editor-save-request', () => {
+    document.addEventListener('unified-editor-save-request', () => {
       const current = state();
       if (current) current.saveRequests += 1;
     }, true);
-    const host = document.querySelector('#xkeen-diff-modal .xkeen-diff-host');
+    const host = document.querySelector('#unified-diff-modal .unified-diff-host');
     if (host) {
       host.addEventListener('keydown', (event) => {
         if (!isSave(event)) return;
@@ -250,7 +250,7 @@ async function installHotkeyLeakProbe(page) {
 }
 
 async function expectNoHotkeyLeak(page) {
-  await expect.poll(() => page.evaluate(() => window.__xkeenDiffHotkeyLeak || null)).toEqual({
+  await expect.poll(() => page.evaluate(() => window.__unifiedDiffHotkeyLeak || null)).toEqual({
     documentKeydowns: 0,
     hostKeydowns: 0,
     saveRequests: 0,
@@ -259,7 +259,7 @@ async function expectNoHotkeyLeak(page) {
 
 async function triggerSave(page, via) {
   if (via === 'button') {
-    await page.locator('#xkeen-diff-modal .xkeen-diff-save-btn').click();
+    await page.locator('#unified-diff-modal .unified-diff-save-btn').click();
     return;
   }
   await focusDiffHotkeyTarget(page);
@@ -267,7 +267,7 @@ async function triggerSave(page, via) {
 }
 
 async function triggerDisabledButtonSave(page) {
-  await page.locator('#xkeen-diff-modal .xkeen-diff-save-btn').evaluate((btn) => {
+  await page.locator('#unified-diff-modal .unified-diff-save-btn').evaluate((btn) => {
     btn.click();
   });
 }
@@ -292,7 +292,7 @@ async function runDiffSaveMatrix(page, ensureEngine) {
 
   await installProbeScope(page, { leftText: LEFT_TEXT, rightText: LEFT_TEXT });
   await openScope(page, 'probe-cm6');
-  await expect(page.locator('#xkeen-diff-modal .xkeen-diff-summary')).toContainText('Различий нет');
+  await expect(page.locator('#unified-diff-modal .unified-diff-summary')).toContainText('Различий нет');
   await expectSaveButtonState(page, false);
   await triggerDisabledButtonSave(page);
   await expectProbeSaveCount(page, 0);
@@ -307,8 +307,8 @@ async function runDiffSaveMatrix(page, ensureEngine) {
   for (const item of triggerCases) {
     await installProbeScope(page);
     await openProbeDiff(page);
-    await page.locator('#xkeen-diff-modal .xkeen-diff-apply-group .xkeen-diff-apply-btn').nth(0).click();
-    await expect(page.locator('#xkeen-diff-modal .xkeen-diff-summary')).toContainText('Различий нет');
+    await page.locator('#unified-diff-modal .unified-diff-apply-group .unified-diff-apply-btn').nth(0).click();
+    await expect(page.locator('#unified-diff-modal .unified-diff-summary')).toContainText('Различий нет');
     await expectSaveButtonState(page, true);
     if (item.via === 'hotkey') await installHotkeyLeakProbe(page);
     await item.trigger();
@@ -321,7 +321,7 @@ async function runDiffSaveMatrix(page, ensureEngine) {
 
 async function collectCm6State(page) {
   return page.evaluate(() => {
-    const root = document.querySelector('#xkeen-diff-modal');
+    const root = document.querySelector('#unified-diff-modal');
     const textboxes = Array.from(root?.querySelectorAll('.cm-mergeView [role="textbox"]') || []);
     const leftBox = textboxes[0] || null;
     const rightBox = textboxes[1] || null;
@@ -330,7 +330,7 @@ async function collectCm6State(page) {
     const placeholders = Array.from(root?.querySelectorAll('.cm-collapsedLines, .cm-merge-collapsed') || []).map((el) =>
       String(el.textContent || '').trim()
     );
-    const summary = String(root?.querySelector('.xkeen-diff-summary')?.textContent || '').trim();
+    const summary = String(root?.querySelector('.unified-diff-summary')?.textContent || '').trim();
     const leftVisibleText = Array.from(leftBox?.querySelectorAll('.cm-line') || [])
       .slice(0, 18)
       .map((el) => String(el.textContent || ''));
@@ -346,18 +346,18 @@ async function collectCm6State(page) {
       rightHeight: right ? right.scrollHeight : -1,
       leftVisibleText,
       rightVisibleText,
-      probe: window.__xkeenDiffProbe || null,
+      probe: window.__unifiedDiffProbe || null,
     };
   });
 }
 
 async function collectCm6ActiveHunk(page) {
   return page.evaluate(() => {
-    const root = document.querySelector('#xkeen-diff-modal');
+    const root = document.querySelector('#unified-diff-modal');
     const textboxes = Array.from(root?.querySelectorAll('.cm-mergeView [role="textbox"]') || []);
     const leftBox = textboxes[0] || null;
     const rightBox = textboxes[1] || null;
-    const collect = (box) => Array.from(box?.querySelectorAll('.cm-line.xkeen-diff-cm6-active-hunk-line') || [])
+    const collect = (box) => Array.from(box?.querySelectorAll('.cm-line.unified-diff-cm6-active-hunk-line') || [])
       .map((el) => String(el.textContent || '').trim())
       .filter(Boolean);
     return {
@@ -369,7 +369,7 @@ async function collectCm6ActiveHunk(page) {
 
 async function collectCm6WrapMetrics(page) {
   return page.evaluate(() => {
-    const boxes = Array.from(document.querySelectorAll('#xkeen-diff-modal .cm-mergeView [role="textbox"]'));
+    const boxes = Array.from(document.querySelectorAll('#unified-diff-modal .cm-mergeView [role="textbox"]'));
     return boxes.map((box) => {
       const scroller = box.querySelector('.cm-scroller');
       const content = box.querySelector('.cm-content');
@@ -398,7 +398,7 @@ test('CodeMirror diff modal keeps save button and Ctrl+S behavior identical', as
   await page.goto('/');
   await waitForRoutingEditor(page);
   await ensureCodeMirrorRouting(page);
-  await page.waitForFunction(() => !!window.XKeen?.ui?.diffModal?.open);
+  await page.waitForFunction(() => !!window.UnifiedUI?.ui?.diffModal?.open);
 
   await runDiffSaveMatrix(page, ensureCodeMirrorRouting);
 });
@@ -407,7 +407,7 @@ test('Monaco diff modal keeps save button and Ctrl+S behavior identical', async 
   await page.goto('/');
   await waitForRoutingEditor(page);
   await ensureMonacoRouting(page);
-  await page.waitForFunction(() => !!window.XKeen?.ui?.diffModal?.open);
+  await page.waitForFunction(() => !!window.UnifiedUI?.ui?.diffModal?.open);
 
   await runDiffSaveMatrix(page, ensureMonacoRouting);
 });
@@ -416,15 +416,15 @@ test('CodeMirror diff modal keeps both panes visible after apply-left', async ({
   await page.goto('/');
   await waitForRoutingEditor(page);
   await ensureCodeMirrorRouting(page);
-  await page.waitForFunction(() => !!window.XKeen?.ui?.diffModal?.open);
+  await page.waitForFunction(() => !!window.UnifiedUI?.ui?.diffModal?.open);
   await installProbeScope(page);
   await openProbeDiff(page);
 
   const before = await collectCm6State(page);
   expectPanesVisible(before);
 
-  await page.locator('#xkeen-diff-modal .xkeen-diff-apply-group .xkeen-diff-apply-btn').nth(2).click();
-  await expect(page.locator('#xkeen-diff-modal .xkeen-diff-summary')).toContainText('перенесено: 1');
+  await page.locator('#unified-diff-modal .unified-diff-apply-group .unified-diff-apply-btn').nth(2).click();
+  await expect(page.locator('#unified-diff-modal .unified-diff-summary')).toContainText('перенесено: 1');
   await page.waitForTimeout(300);
 
   const after = await collectCm6State(page);
@@ -439,16 +439,16 @@ test('CodeMirror diff modal keeps save file visible and clickable for writable s
   await page.goto('/');
   await waitForRoutingEditor(page);
   await ensureCodeMirrorRouting(page);
-  await page.waitForFunction(() => !!window.XKeen?.ui?.diffModal?.open);
+  await page.waitForFunction(() => !!window.UnifiedUI?.ui?.diffModal?.open);
   await installProbeScope(page);
   await openProbeDiff(page);
 
-  const saveBtn = page.locator('#xkeen-diff-modal .xkeen-diff-save-btn');
+  const saveBtn = page.locator('#unified-diff-modal .unified-diff-save-btn');
   await expect(saveBtn).toBeVisible();
   await expect(saveBtn).toBeEnabled();
   await saveBtn.click();
   await expect.poll(async () => {
-    return page.evaluate(() => Number(window.__xkeenDiffProbe?.saved || 0));
+    return page.evaluate(() => Number(window.__unifiedDiffProbe?.saved || 0));
   }).toBe(1);
 });
 
@@ -456,31 +456,31 @@ test('CodeMirror diff modal keeps panes stable across apply-right, apply-all, an
   await page.goto('/');
   await waitForRoutingEditor(page);
   await ensureCodeMirrorRouting(page);
-  await page.waitForFunction(() => !!window.XKeen?.ui?.diffModal?.open);
+  await page.waitForFunction(() => !!window.UnifiedUI?.ui?.diffModal?.open);
   await installProbeScope(page);
   await openProbeDiff(page);
 
   const before = await collectCm6State(page);
   expectPanesVisible(before);
 
-  await page.locator('#xkeen-diff-modal .xkeen-diff-apply-group .xkeen-diff-apply-btn').nth(3).click();
-  await expect(page.locator('#xkeen-diff-modal .xkeen-diff-summary')).toContainText('перенесено: 1');
+  await page.locator('#unified-diff-modal .unified-diff-apply-group .unified-diff-apply-btn').nth(3).click();
+  await expect(page.locator('#unified-diff-modal .unified-diff-summary')).toContainText('перенесено: 1');
   await page.waitForTimeout(300);
 
   const afterApplyRight = await collectCm6State(page);
   expectPanesVisible(afterApplyRight);
   expect(afterApplyRight.summary).toContain('Изменений: 1');
 
-  await page.locator('#xkeen-diff-modal .xkeen-diff-apply-group .xkeen-diff-apply-btn').nth(0).click();
-  await expect(page.locator('#xkeen-diff-modal .xkeen-diff-summary')).toContainText('Различий нет');
+  await page.locator('#unified-diff-modal .unified-diff-apply-group .unified-diff-apply-btn').nth(0).click();
+  await expect(page.locator('#unified-diff-modal .unified-diff-summary')).toContainText('Различий нет');
   await page.waitForTimeout(300);
 
   const afterApplyAll = await collectCm6State(page);
   expectPanesVisible(afterApplyAll);
   expect(afterApplyAll.summary).toContain('Различий нет');
 
-  await page.locator('#xkeen-diff-modal .xkeen-diff-revert-btn').click();
-  await expect(page.locator('#xkeen-diff-modal .xkeen-diff-summary')).toContainText('Изменений: 2');
+  await page.locator('#unified-diff-modal .unified-diff-revert-btn').click();
+  await expect(page.locator('#unified-diff-modal .unified-diff-summary')).toContainText('Изменений: 2');
   await page.waitForTimeout(300);
 
   const afterRevert = await collectCm6State(page);
@@ -492,11 +492,11 @@ test('CodeMirror diff modal clearly highlights the hunk clicked with the mouse',
   await page.goto('/');
   await waitForRoutingEditor(page);
   await ensureCodeMirrorRouting(page);
-  await page.waitForFunction(() => !!window.XKeen?.ui?.diffModal?.open);
+  await page.waitForFunction(() => !!window.UnifiedUI?.ui?.diffModal?.open);
   await installProbeScope(page);
   await openProbeDiff(page);
 
-  const rightPane = page.locator('#xkeen-diff-modal .cm-mergeView [role="textbox"]').nth(1);
+  const rightPane = page.locator('#unified-diff-modal .cm-mergeView [role="textbox"]').nth(1);
   await rightPane.locator('.cm-line').filter({ hasText: '"bbb",' }).first().click();
   await page.waitForTimeout(220);
 
@@ -510,10 +510,10 @@ test('CodeMirror diff modal wraps long lines without horizontal pane overflow', 
   await page.goto('/');
   await waitForRoutingEditor(page);
   await ensureCodeMirrorRouting(page);
-  await page.waitForFunction(() => !!window.XKeen?.ui?.diffModal?.open);
+  await page.waitForFunction(() => !!window.UnifiedUI?.ui?.diffModal?.open);
   await installWrapProbeScope(page);
   await openScope(page, 'probe-cm6-wrap');
-  await expect(page.locator('#xkeen-diff-modal .xkeen-diff-summary')).toContainText('Различий нет');
+  await expect(page.locator('#unified-diff-modal .unified-diff-summary')).toContainText('Различий нет');
   await page.waitForTimeout(500);
 
   const panes = await collectCm6WrapMetrics(page);

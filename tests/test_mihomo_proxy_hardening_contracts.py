@@ -2,11 +2,11 @@ from pathlib import Path
 
 
 def test_mihomo_proxy_prefers_direct_origin_and_gates_proxy_fallback():
-    text = Path('xkeen-ui/routes/mihomo.py').read_text(encoding='utf-8')
+    text = Path('unified-ui/routes/mihomo.py').read_text(encoding='utf-8')
 
-    assert '_MIHOMO_UI_ALLOWED_PORTS_ENV = "XKEEN_MIHOMO_UI_ALLOWED_PORTS"' in text
-    assert '_MIHOMO_UI_PUBLIC_SCHEME_ENV = "XKEEN_MIHOMO_UI_PUBLIC_SCHEME"' in text
-    assert '_MIHOMO_UI_ALLOW_PROXY_FALLBACK_ENV = "XKEEN_MIHOMO_UI_ALLOW_PROXY_FALLBACK"' in text
+    assert '_MIHOMO_UI_ALLOWED_PORTS_ENV = "UNIFIED_MIHOMO_UI_ALLOWED_PORTS"' in text
+    assert '_MIHOMO_UI_PUBLIC_SCHEME_ENV = "UNIFIED_MIHOMO_UI_PUBLIC_SCHEME"' in text
+    assert '_MIHOMO_UI_ALLOW_PROXY_FALLBACK_ENV = "UNIFIED_MIHOMO_UI_ALLOW_PROXY_FALLBACK"' in text
     assert 'def _build_mihomo_ui_direct_base(port: int) -> str | None:' in text
     assert 'if not _mihomo_ui_bind_host_is_loopback(bind_host):' in text
     assert 'resp = redirect(direct_url, code=302)' in text
@@ -15,7 +15,7 @@ def test_mihomo_proxy_prefers_direct_origin_and_gates_proxy_fallback():
 
 
 def test_mihomo_proxy_filters_sensitive_request_and_response_headers():
-    text = Path('xkeen-ui/routes/mihomo.py').read_text(encoding='utf-8')
+    text = Path('unified-ui/routes/mihomo.py').read_text(encoding='utf-8')
 
     assert "_MIHOMO_UI_SENSITIVE_REQUEST_HEADERS = {" in text
     assert "'cookie'" in text
@@ -31,6 +31,6 @@ def test_mihomo_proxy_filters_sensitive_request_and_response_headers():
 
 
 def test_mihomo_panel_opens_proxy_entry_without_referer_leak():
-    text = Path('xkeen-ui/static/js/features/mihomo_panel.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/mihomo_panel.js').read_text(encoding='utf-8')
 
     assert "window.open(url, '_blank', 'noopener,noreferrer');" in text

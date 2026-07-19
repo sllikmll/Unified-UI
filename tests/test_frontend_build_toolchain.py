@@ -16,7 +16,7 @@ VERIFY_SCRIPT = ROOT / 'scripts' / 'verify_frontend_build.mjs'
 VENDOR_SYNC_SCRIPT = ROOT / 'scripts' / 'sync_frontend_vendor.py'
 PYTHON_RUNNER = ROOT / 'scripts' / 'run_python.mjs'
 BUILD_WORKFLOW_DOC = ROOT / 'docs' / 'frontend-build-workflow.md'
-RAW_BUILD_MANIFEST = ROOT / 'xkeen-ui' / 'static' / 'frontend-build' / '.vite' / 'manifest.build.json'
+RAW_BUILD_MANIFEST = ROOT / 'unified-ui' / 'static' / 'frontend-build' / '.vite' / 'manifest.build.json'
 CI_WORKFLOW = ROOT / '.github' / 'workflows' / 'ci.yml'
 MIGRATION_PLAN_DOC = ROOT / 'docs' / 'README_frontend_migration_plan.md'
 

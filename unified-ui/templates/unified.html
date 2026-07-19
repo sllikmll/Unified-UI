@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Unified UI — Настройки UnifiedUI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+
+  {% include '_top_level_host_head_assets.html' %}
+  <!-- CM6 assets are provided by the page entry bundle (editor.shared + codemirror6.shared). -->
+  {% include '_codemirror6_importmap.html' %}
+
+  {% set unified_page_config = frontend_page_config(
+    'unified',
+    sections={
+      'panelWhitelist': panel_sections_whitelist,
+      'devtoolsWhitelist': devtools_sections_whitelist,
+    },
+    runtime={
+      'debug': False,
+    },
+    terminal={
+      'supportsPty': False,
+      'enableOptionalAddons': False,
+    },
+  ) %}
+  <script>
+    window.UnifiedUI = window.UnifiedUI || {};
+    var pageConfig = {{ unified_page_config|tojson }};
+    window.UnifiedUI.pageConfig = pageConfig;
+  </script>
+
+  {% include '_top_level_host_theme_bootstrap.html' %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260609b') }}">
+  <link rel="stylesheet" id="xk-terminal-theme-link" href="{{ url_for('terminal_theme_css', v=terminal_theme_v) }}">
+</head>
+<body class="unified-page" data-xk-top-level-screen="unified">
+  {% set top_level_spinner_text = 'Применяем изменения и перезапускаем unified…' %}
+  {% include '_top_level_global_spinner.html' %}
+
+
+  <!-- Wider container (match DevTools page width) -->
+  <div class="container container-wide">
+    <header>
+      <h1>Xkeen — настройки</h1>
+      <p>Порты и IP-исключения для /opt/etc/unified.</p>
+      <div class="actions" style="justify-content: space-between; align-items: center;">
+        <a href="{{ url_for('index') }}" class="btn-link" data-xk-top-nav="1">← Вернуться к основной панели</a>
+        <div class="header-actions">
+
+            <div
+              class="xk-global-header-activity"
+              data-xk-global-spinner-anchor
+              aria-live="polite"
+              aria-atomic="true"
+              aria-label="Операция выполняется…"
+              title="Операция выполняется…"
+            >
+              <span class="xk-global-header-activity__icon" aria-hidden="true"></span>
+              <span class="xk-visually-hidden" data-xk-global-spinner-text>Операция выполняется…</span>
+            </div>
+          <button
+            type="button"
+            id="theme-toggle-btn"
+            class="theme-toggle-btn theme-toggle-header"
+            aria-label="Переключить тему"
+          ><span class="theme-toggle-icon" aria-hidden="true">☀</span><span class="theme-toggle-text">Светлая тема</span></button>
+          <a href="{{ url_for('devtools_page') }}" class="btn-link" data-xk-top-nav="1" title="DevTools">DevTools</a>
+          <a
+            href="{{ url_for('devtools_page') }}#dt-update-card"
+            id="xk-update-link"
+            class="service-core-text hidden"
+            data-xk-top-nav="1"
+            title="Обновление"
+          >
+            <span class="xk-update-dot" aria-hidden="true"></span>
+            <span data-xk-update-label>Обновление</span>
+          </a>
+          {% set logout_button_class = 'btn-link' %}
+          {% include '_logout_button.html' %}
+        </div>
+      </div>
+    </header>
+
+    <div class="layout-single">
+      
+      <section class="card commands-card">
+        <div class="commands-header" data-xk-toggle="unified-settings" role="button" tabindex="0" aria-controls="unified-body" aria-expanded="true">
+          <h2>Порты и исключения UnifiedUI</h2>
+          <span id="unified-arrow">▼</span>
+        </div>
+        <div id="unified-body">
+          <p>Файлы из каталога <code>/opt/etc/unified</code>:</p>
+
+          <div class="unified-files-grid">
+            <div class="unified-mini-editor">
+              <div class="unified-mini-head">
+                <h3>port_proxying.lst</h3>
+                <p class="small xk-card-desc">
+                  Порты и диапазоны, которые нужно отправлять через прокси.
+                </p>
+              </div>
+              <textarea id="port-proxying-editor"
+                        class="unified-textarea"
+                        spellcheck="false"
+                        rows="8"
+                        placeholder="Например:\n80\n443\n596:599\nКаждая строка — порт или диапазон портов."></textarea>
+              <div class="actions">
+                <button id="port-proxying-save-btn" data-tooltip="Сохранить список port_proxying.lst.">💾 Сохранить port_proxying.lst</button>
+              </div>
+              <div id="port-proxying-status" class="status"></div>
+            </div>
+
+            <div class="unified-mini-editor">
+              <div class="unified-mini-head">
+                <h3>port_exclude.lst</h3>
+                <p class="small xk-card-desc">
+                  Порты, которые нужно исключить из проксирования.<br>
+                  <strong>Важно:</strong> одновременно использовать список проксируемых портов и исключения нельзя,
+                  приоритет у портов проксирования.
+                </p>
+              </div>
+              <textarea id="port-exclude-editor"
+                        class="unified-textarea"
+                        spellcheck="false"
+                        rows="8"
+                        placeholder="Порты для исключения из проксирования.\nНапример:\n22\n25\n80:89"></textarea>
+              <div class="actions">
+                <button id="port-exclude-save-btn" data-tooltip="Сохранить список port_exclude.lst.">💾 Сохранить port_exclude.lst</button>
+              </div>
+              <div id="port-exclude-status" class="status"></div>
+            </div>
+
+            <div class="unified-mini-editor">
+              <div class="unified-mini-head">
+                <h3>ip_exclude.lst</h3>
+                <p class="small xk-card-desc">
+                  IP и подсети, которые нужно исключить из проксирования (по одной в строке).
+                </p>
+              </div>
+              <textarea id="ip-exclude-editor"
+                        class="unified-textarea"
+                        spellcheck="false"
+                        rows="8"
+                        placeholder="Например:\n192.168.0.0/16\n2001:db8::/32"></textarea>
+              <div class="actions">
+                <button id="ip-exclude-save-btn" data-tooltip="Сохранить список ip_exclude.lst.">💾 Сохранить ip_exclude.lst</button>
+              </div>
+              <div id="ip-exclude-status" class="status"></div>
+            </div>
+
+            <div class="unified-mini-editor">
+              <div class="unified-mini-head">
+                <h3>unified.json</h3>
+                <p class="small xk-card-desc">
+                Пользовательские политики портов для разных устройств (используются в роутинге через <code>source</code>).<br>
+                Имена policy должны совпадать с политиками в роутере и работают только при наличии дефолтной политики <code>unified</code>.<br>
+                <code>port</code>: <code>""</code> — все, <code>80,443,596:599</code> — список/диапазоны, <code>!7777</code> — исключить.
+                </p>
+              </div>
+              <textarea id="unified-config-editor"
+                        class="unified-textarea unified-json-textarea"
+                        spellcheck="false"
+                        rows="8"
+                        placeholder="{\n  \"example\": true\n}\n"></textarea>
+              <div class="actions">
+                <button id="unified-config-save-btn" data-tooltip="Сохранить файл unified.json.">💾 Сохранить unified.json</button>
+              </div>
+              <div id="unified-config-status" class="status"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <div id="toast-container"></div>
+
+    <footer>
+      <small>Unified UI — страница настроек UnifiedUI</small>
+    </footer>
+  </div>
+
+	<!-- Modularization scaffold (no behavior changes yet) -->
+  <!-- Frontend workspace entrypoint (step 37). -->
+  <script type="module" src="{{ frontend_page_entry_url('unified') }}"></script>
+</body>
+</html>

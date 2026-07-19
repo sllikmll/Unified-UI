@@ -6,7 +6,7 @@ from routes.ui_assets import apply_response_security_headers
 
 
 def test_app_factory_applies_global_security_headers_after_cache_policy():
-    app_factory = Path("xkeen-ui/app_factory.py").read_text(encoding="utf-8")
+    app_factory = Path("unified-ui/app_factory.py").read_text(encoding="utf-8")
 
     assert "from routes.ui_assets import (" in app_factory
     assert "apply_response_cache_policy," in app_factory
@@ -16,7 +16,7 @@ def test_app_factory_applies_global_security_headers_after_cache_policy():
 
 
 def test_ui_assets_exposes_conservative_baseline_security_headers():
-    text = Path("xkeen-ui/routes/ui_assets.py").read_text(encoding="utf-8")
+    text = Path("unified-ui/routes/ui_assets.py").read_text(encoding="utf-8")
 
     assert '_BASELINE_SECURITY_HEADERS = {' in text
     assert '"X-Frame-Options": "DENY"' in text
@@ -46,7 +46,7 @@ def test_regular_static_assets_keep_deny_framing_baseline():
 
 
 def test_routing_comments_help_modal_uses_inline_shadow_dom_loader():
-    text = Path("xkeen-ui/static/js/features/routing.js").read_text(encoding="utf-8")
+    text = Path("unified-ui/static/js/features/routing.js").read_text(encoding="utf-8")
 
     assert "const HELP_PATH = '/static/routing-comments-help.html';" in text
     assert "const HELP_URL = HELP_PATH + '?v=20260415b';" in text

@@ -11,12 +11,12 @@ Updated: 2026-07-16
 
 | Действие | Write endpoint | Обязательное подтверждение |
 | --- | --- | --- |
-| Start | `POST /api/xkeen/start` | bounded reread `GET /api/xkeen/status` возвращает `running` |
-| Stop | `POST /api/xkeen/stop` | bounded reread `GET /api/xkeen/status` возвращает `stopped` |
+| Start | `POST /api/unified/start` | bounded reread `GET /api/unified/status` возвращает `running` |
+| Stop | `POST /api/unified/stop` | bounded reread `GET /api/unified/status` возвращает `stopped` |
 | Restart | `POST /api/restart` | POST принят и bounded status reread возвращает `running` |
-| Core switch | `POST /api/xkeen/core` с `{ "core": ... }` | bounded status/core reread возвращает `running`, а runtime/config core совпадает с выбранным ядром |
+| Core switch | `POST /api/unified/core` с `{ "core": ... }` | bounded status/core reread возвращает `running`, а runtime/config core совпадает с выбранным ядром |
 
-После каждого принятого write также читается `GET /api/xkeen/core`, поэтому `activeCore` и `availableCores` не вычисляются из нажатой кнопки. Проверка повторяется до 16 раз с интервалом 1 секунду: переходное `stopped / Xray` во время фактически успешного перезапуска не превращается в ложный failure, но истечение окна по-прежнему завершается mismatch-ошибкой. На write failure controller по возможности перечитывает тот же snapshot для актуализации dashboard, но исходная операция остаётся `Failure`.
+После каждого принятого write также читается `GET /api/unified/core`, поэтому `activeCore` и `availableCores` не вычисляются из нажатой кнопки. Проверка повторяется до 16 раз с интервалом 1 секунду: переходное `stopped / Xray` во время фактически успешного перезапуска не превращается в ложный failure, но истечение окна по-прежнему завершается mismatch-ошибкой. На write failure controller по возможности перечитывает тот же snapshot для актуализации dashboard, но исходная операция остаётся `Failure`.
 
 ## Action lifecycle
 
@@ -25,8 +25,8 @@ confirm / core apply
   -> Pending + repeat guard
   -> authenticated POST
   -> bounded polling:
-       GET /api/xkeen/status
-       GET /api/xkeen/core
+       GET /api/unified/status
+       GET /api/unified/core
        ├─ ожидаемое состояние совпало -> Success + dashboard/core/events/log
        ├─ переходное состояние ------> пауза 1 s -> следующий server snapshot
        ├─ окно ожидания истекло -----> Failure + явная диагностика
@@ -56,7 +56,7 @@ confirm / core apply
 ## Команды проверки
 
 ```powershell
-python -m pytest -q tests/test_xkeen_service_control_fallback.py tests/test_exception_detail_sanitization.py
+python -m pytest -q tests/test_unified_service_control_fallback.py tests/test_exception_detail_sanitization.py
 cd android-companion
 .\gradlew.bat testDebugUnitTest assembleDebug
 ```
@@ -64,7 +64,7 @@ cd android-companion
 ## Минимальная ручная приемка на реальном узле
 
 1. Нажать `Start`, `Stop` и `Restart`, подтвердить dialog и убедиться, что до server reread показывается progress, а повторные кнопки недоступны.
-2. Для каждой операции сверить итоговый chip/status с `/api/xkeen/status`; success не должен появляться при отклонённом POST или несовпавшем runtime state.
+2. Для каждой операции сверить итоговый chip/status с `/api/unified/status`; success не должен появляться при отклонённом POST или несовпавшем runtime state.
 3. Переключить Xray/Mihomo: core dialog должен ждать backend и закрыться только после того, как reread подтвердил выбранное работающее ядро.
 4. Имитировать backend failure/offline и проверить глобальную error surface, dashboard `lastError`, diagnostic и log entry.
 5. Удалить/просрочить server session перед действием: `401` должен вернуть приложение в `Pair/Login` и очистить material только выбранного connection.

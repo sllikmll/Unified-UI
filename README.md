@@ -12,23 +12,23 @@
 
 ### Маршрутизация Mihomo
 
-![Маршрутизация Mihomo](docs/screenshots/xkeen-routing-mihomo.png)
+![Маршрутизация Mihomo](docs/screenshots/unified-routing-mihomo.png)
 
 ### Селекторы плитками
 
-![Селекторы Mihomo — плитки](docs/screenshots/xkeen-selectors-tiles.png)
+![Селекторы Mihomo — плитки](docs/screenshots/unified-selectors-tiles.png)
 
 ### Селекторы списком
 
-![Селекторы Mihomo — списком](docs/screenshots/xkeen-selectors-list.png)
+![Селекторы Mihomo — списком](docs/screenshots/unified-selectors-list.png)
 
 ### Подключения по протоколам
 
-![Подключения WireGuard, Amnezia, Hysteria2, VLESS, Trojan, Meiru, NaiveProxy](docs/screenshots/xkeen-protocol-connections.png)
+![Подключения WireGuard, Amnezia, Hysteria2, VLESS, Trojan, Meiru, NaiveProxy](docs/screenshots/unified-protocol-connections.png)
 
 ### Соединения и DAT GeoIP / GeoSite
 
-![Соединения и DAT GeoIP / GeoSite](docs/screenshots/xkeen-connections-geodat.png)
+![Соединения и DAT GeoIP / GeoSite](docs/screenshots/unified-connections-geodat.png)
 
 ---
 
@@ -84,15 +84,15 @@
 Registry хранится на роутере:
 
 ```text
-/opt/var/lib/xkeen-ui/proxy-connections.json
+/opt/var/lib/unified-ui/proxy-connections.json
 ```
 
 Mihomo-supported подключения вставляются в активный `config.yaml` между маркерами:
 
 ```yaml
-# xkeen-managed-proxies:start
+# unified-managed-proxies:start
 # ... generated proxy list ...
-# xkeen-managed-proxies:end
+# unified-managed-proxies:end
 ```
 
 При удалении подключения Unified UI должен автоматически:
@@ -117,7 +117,7 @@ cd /opt
 curl -fL -o unified-ui-routing.tar.gz \
   "https://github.com/sllikmll/Unified-UI/releases/latest/download/unified-ui-routing.tar.gz"
 tar -xzf unified-ui-routing.tar.gz
-cd xkeen-ui
+cd unified-ui
 sh install.sh
 ```
 
@@ -171,20 +171,20 @@ https://github.com/sllikmll/Unified-UI/releases/latest/download/unified-ui-routi
 Отключить установку Mihomo:
 
 ```sh
-XKEEN_INSTALL_MIHOMO=0 sh install.sh
+UNIFIED_INSTALL_MIHOMO=0 sh install.sh
 ```
 
 Принудительно переустановить Mihomo:
 
 ```sh
-XKEEN_INSTALL_MIHOMO_FORCE=1 sh install.sh
+UNIFIED_INSTALL_MIHOMO_FORCE=1 sh install.sh
 ```
 
 Задать repo/tag Mihomo:
 
 ```sh
-XKEEN_MIHOMO_REPO=sllikmll/mihomo \
-XKEEN_MIHOMO_TAG=v1.19.29 \
+UNIFIED_MIHOMO_REPO=sllikmll/mihomo \
+UNIFIED_MIHOMO_TAG=v1.19.29 \
 sh install.sh
 ```
 
@@ -201,15 +201,15 @@ sh install.sh
 Или вручную:
 
 ```sh
-/opt/etc/xkeen-ui/scripts/update_xkeen_ui.sh
+/opt/etc/unified-ui/scripts/update_unified_ui.sh
 ```
 
 Для ручного выбора repo/channel:
 
 ```sh
-XKEEN_UI_UPDATE_REPO=sllikmll/Unified-UI \
-XKEEN_UI_UPDATE_CHANNEL=main \
-/opt/etc/xkeen-ui/scripts/update_xkeen_ui.sh
+UNIFIED_UI_UPDATE_REPO=sllikmll/Unified-UI \
+UNIFIED_UI_UPDATE_CHANNEL=main \
+/opt/etc/unified-ui/scripts/update_unified_ui.sh
 ```
 
 ---
@@ -218,8 +218,8 @@ XKEEN_UI_UPDATE_CHANNEL=main \
 
 | Путь | Назначение |
 |---|---|
-| `/opt/etc/xkeen-ui` | Код панели |
-| `/opt/var/lib/xkeen-ui` | State/registry |
+| `/opt/etc/unified-ui` | Код панели |
+| `/opt/var/lib/unified-ui` | State/registry |
 | `/opt/etc/mihomo/config.yaml` | Активный config Mihomo |
 | `/opt/etc/mihomo/profiles/default.yaml` | Default profile |
 | `/opt/etc/mihomo/rules/manual-proxy.yaml` | Ручной список |
@@ -233,8 +233,8 @@ XKEEN_UI_UPDATE_CHANNEL=main \
 Локальная проверка:
 
 ```sh
-python3 -m py_compile xkeen-ui/app_factory.py
-python3 -m pytest -q tests/test_xkeen_service_control_fallback.py tests/test_proxy_connections_cleanup.py tests/test_app_routes_smoke.py
+python3 -m py_compile unified-ui/app_factory.py
+python3 -m pytest -q tests/test_unified_service_control_fallback.py tests/test_proxy_connections_cleanup.py tests/test_app_routes_smoke.py
 npm run frontend:build
 node scripts/verify_frontend_build.mjs
 ```

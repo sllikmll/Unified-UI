@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PROJECT_ROOT = ROOT / "xkeen-ui"
+PROJECT_ROOT = ROOT / "unified-ui"
 NODE_MODULES = ROOT / "node_modules"
 VENDOR_ROOT = PROJECT_ROOT / "static" / "vendor"
 IMPORTMAP_TEMPLATE = PROJECT_ROOT / "templates" / "_codemirror6_importmap.html"

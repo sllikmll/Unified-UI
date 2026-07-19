@@ -12,7 +12,7 @@ from flask import Blueprint, Flask
 
 
 ROOT = Path(__file__).resolve().parents[1]
-APP_DIR = ROOT / "xkeen-ui"
+APP_DIR = ROOT / "unified-ui"
 ROUTES_DIR = APP_DIR / "routes"
 ROUTING_DIR = ROUTES_DIR / "routing"
 ROUTING_CONFIG_PATH = ROUTING_DIR / "config.py"
@@ -125,7 +125,7 @@ def _load_routing_module(module_basename: str):
 
 
 def test_routing_save_rejects_oversized_body_before_preflight(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("XKEEN_ROUTING_SAVE_MAX_BYTES", "64")
+    monkeypatch.setenv("UNIFIED_ROUTING_SAVE_MAX_BYTES", "64")
     routing_config = _load_routing_config_module()
 
     bp = Blueprint("routing_test", __name__)
@@ -147,7 +147,7 @@ def test_routing_save_rejects_oversized_body_before_preflight(tmp_path: Path, mo
         backup_dir_real=str(tmp_path / "backups"),
         load_json=lambda path, default=None: default,
         strip_json_comments_text=lambda text: text,
-        restart_xkeen=lambda source="routing": True,
+        restart_unified=lambda source="routing": True,
     )
 
     app = Flask("routing-request-limit-test")
@@ -165,7 +165,7 @@ def test_routing_save_rejects_oversized_body_before_preflight(tmp_path: Path, mo
 
 
 def test_local_config_import_rejects_oversized_upload_before_apply(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("XKEEN_CONFIG_EXCHANGE_MAX_BYTES", "128")
+    monkeypatch.setenv("UNIFIED_CONFIG_EXCHANGE_MAX_BYTES", "128")
     config_exchange = _reload("routes.config_exchange")
 
     apply_calls: list[dict] = []
@@ -190,8 +190,8 @@ def test_local_config_import_rejects_oversized_upload_before_apply(tmp_path: Pat
 
 
 def test_github_export_rejects_oversized_json_body_before_server_upload(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("XKEEN_CONFIG_EXCHANGE_MAX_BYTES", "96")
-    monkeypatch.setenv("XKEEN_CONFIG_SERVER_BASE", "https://configs.invalid")
+    monkeypatch.setenv("UNIFIED_CONFIG_EXCHANGE_MAX_BYTES", "96")
+    monkeypatch.setenv("UNIFIED_CONFIG_SERVER_BASE", "https://configs.invalid")
     config_exchange = _reload("routes.config_exchange")
 
     upload_calls: list[dict] = []
@@ -229,7 +229,7 @@ def test_github_export_rejects_oversized_json_body_before_server_upload(tmp_path
 
 
 def test_github_export_requires_explicit_config_server_base(monkeypatch):
-    monkeypatch.delenv("XKEEN_CONFIG_SERVER_BASE", raising=False)
+    monkeypatch.delenv("UNIFIED_CONFIG_SERVER_BASE", raising=False)
     config_exchange = _reload("routes.config_exchange")
 
     bundle_calls: list[dict] = []
@@ -262,19 +262,19 @@ def test_github_export_requires_explicit_config_server_base(monkeypatch):
 
 
 def test_config_server_base_defaults_to_empty_and_honors_explicit_env(monkeypatch):
-    monkeypatch.delenv("XKEEN_CONFIG_SERVER_BASE", raising=False)
+    monkeypatch.delenv("UNIFIED_CONFIG_SERVER_BASE", raising=False)
     gh = _reload("services.config_exchange_github")
 
     assert gh.get_config_server_base() == ""
 
-    monkeypatch.setenv("XKEEN_CONFIG_SERVER_BASE", " http://config.internal:8000 ")
+    monkeypatch.setenv("UNIFIED_CONFIG_SERVER_BASE", " http://config.internal:8000 ")
 
     assert gh.get_config_server_base() == "http://config.internal:8000"
 
 
 def test_small_json_guard_rejects_oversized_body_before_command_handler(monkeypatch):
-    monkeypatch.setenv("XKEEN_UI_MAX_CONTENT_LENGTH", str(16 * 1024))
-    monkeypatch.setenv("XKEEN_JSON_BODY_MAX_BYTES", "1024")
+    monkeypatch.setenv("UNIFIED_UI_MAX_CONTENT_LENGTH", str(16 * 1024))
+    monkeypatch.setenv("UNIFIED_JSON_BODY_MAX_BYTES", "1024")
 
     request_limits = _reload("services.request_limits")
     commands = _reload("routes.commands")
@@ -299,9 +299,9 @@ def test_small_json_guard_rejects_oversized_body_before_command_handler(monkeypa
 
 
 def test_heavy_json_guard_allows_payloads_larger_than_small_default(monkeypatch):
-    monkeypatch.setenv("XKEEN_UI_MAX_CONTENT_LENGTH", str(32 * 1024))
-    monkeypatch.setenv("XKEEN_JSON_BODY_MAX_BYTES", "1024")
-    monkeypatch.setenv("XKEEN_JSON_HEAVY_MAX_BYTES", "8192")
+    monkeypatch.setenv("UNIFIED_UI_MAX_CONTENT_LENGTH", str(32 * 1024))
+    monkeypatch.setenv("UNIFIED_JSON_BODY_MAX_BYTES", "1024")
+    monkeypatch.setenv("UNIFIED_JSON_HEAVY_MAX_BYTES", "8192")
 
     request_limits = _reload("services.request_limits")
     utils = _reload("routes.utils")
@@ -321,13 +321,13 @@ def test_heavy_json_guard_allows_payloads_larger_than_small_default(monkeypatch)
     assert response.status_code == 200
     payload = response.get_json()
     assert payload["ok"] is True
-    assert payload["engine"] in ("json", "xkeen_jsonc")
+    assert payload["engine"] in ("json", "unified_jsonc")
 
 
 def test_file_manager_upload_uses_upload_limit_instead_of_global_request_ceiling(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("XKEEN_UI_MAX_CONTENT_LENGTH", "1024")
-    monkeypatch.setenv("XKEEN_REMOTEFM_MAX_UPLOAD_MB", "1")
-    monkeypatch.setenv("XKEEN_LOCALFM_ROOTS", str(tmp_path))
+    monkeypatch.setenv("UNIFIED_UI_MAX_CONTENT_LENGTH", "1024")
+    monkeypatch.setenv("UNIFIED_REMOTEFM_MAX_UPLOAD_MB", "1")
+    monkeypatch.setenv("UNIFIED_LOCALFM_ROOTS", str(tmp_path))
 
     request_limits = _reload("services.request_limits")
     fs_blueprint = _reload("routes.fs.blueprint")
@@ -356,9 +356,9 @@ def test_file_manager_upload_uses_upload_limit_instead_of_global_request_ceiling
 
 
 def test_file_manager_upload_still_rejects_files_above_upload_limit(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("XKEEN_UI_MAX_CONTENT_LENGTH", "1024")
-    monkeypatch.setenv("XKEEN_REMOTEFM_MAX_UPLOAD_MB", "1")
-    monkeypatch.setenv("XKEEN_LOCALFM_ROOTS", str(tmp_path))
+    monkeypatch.setenv("UNIFIED_UI_MAX_CONTENT_LENGTH", "1024")
+    monkeypatch.setenv("UNIFIED_REMOTEFM_MAX_UPLOAD_MB", "1")
+    monkeypatch.setenv("UNIFIED_LOCALFM_ROOTS", str(tmp_path))
 
     request_limits = _reload("services.request_limits")
     fs_blueprint = _reload("routes.fs.blueprint")
@@ -388,7 +388,7 @@ def test_file_manager_upload_still_rejects_files_above_upload_limit(tmp_path: Pa
 
 
 def test_geodat_install_rejects_oversized_uploaded_binary_before_script(monkeypatch, tmp_path: Path):
-    monkeypatch.setenv("XKEEN_GEODAT_UPLOAD_MAX_BYTES", str(64 * 1024))
+    monkeypatch.setenv("UNIFIED_GEODAT_UPLOAD_MAX_BYTES", str(64 * 1024))
     geodat = _load_routing_module("geodat")
 
     script_path = tmp_path / "install_xk_geodat.sh"

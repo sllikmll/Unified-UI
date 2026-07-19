@@ -6,7 +6,7 @@ from types import ModuleType
 from flask import Flask
 
 from services.capabilities import detect_capabilities
-from services.xkeen_commands_catalog import get_full_shell_policy, is_full_shell_enabled
+from services.unified_commands_catalog import get_full_shell_policy, is_full_shell_enabled
 
 
 def _import_commands_module():
@@ -24,20 +24,20 @@ def _make_commands_client():
 
 
 def test_full_shell_defaults_to_disabled(monkeypatch):
-    monkeypatch.delenv("XKEEN_ALLOW_SHELL", raising=False)
+    monkeypatch.delenv("UNIFIED_ALLOW_SHELL", raising=False)
 
     assert is_full_shell_enabled() is False
 
     policy = get_full_shell_policy()
     assert policy["enabled"] is False
-    assert policy["env"] == "XKEEN_ALLOW_SHELL"
+    assert policy["env"] == "UNIFIED_ALLOW_SHELL"
     assert policy["default"] == "0"
     assert policy["requires_restart"] is False
-    assert "XKEEN_ALLOW_SHELL=1" in policy["hint"]
+    assert "UNIFIED_ALLOW_SHELL=1" in policy["hint"]
 
 
 def test_run_command_rejects_shell_and_returns_guidance(monkeypatch):
-    monkeypatch.delenv("XKEEN_ALLOW_SHELL", raising=False)
+    monkeypatch.delenv("UNIFIED_ALLOW_SHELL", raising=False)
     client, _ = _make_commands_client()
 
     res = client.post("/api/run-command", json={"cmd": "id"})
@@ -46,13 +46,13 @@ def test_run_command_rejects_shell_and_returns_guidance(monkeypatch):
     assert res.status_code == 403
     assert data["ok"] is False
     assert data["error"] == "shell_disabled"
-    assert "XKEEN_ALLOW_SHELL=1" in data["hint"]
+    assert "UNIFIED_ALLOW_SHELL=1" in data["hint"]
     assert data["shell"]["enabled"] is False
     assert data["shell"]["requires_restart"] is False
 
 
 def test_shell_opt_in_is_read_dynamically_without_reimport(monkeypatch):
-    monkeypatch.delenv("XKEEN_ALLOW_SHELL", raising=False)
+    monkeypatch.delenv("UNIFIED_ALLOW_SHELL", raising=False)
     created = []
 
     def fake_create_command_job(flag, stdin_data, cmd=None, use_pty=False):
@@ -70,7 +70,7 @@ def test_shell_opt_in_is_read_dynamically_without_reimport(monkeypatch):
     blocked = client.post("/api/run-command", json={"cmd": "echo test"})
     assert blocked.status_code == 403
 
-    monkeypatch.setenv("XKEEN_ALLOW_SHELL", "1")
+    monkeypatch.setenv("UNIFIED_ALLOW_SHELL", "1")
     allowed = client.post("/api/run-command", json={"cmd": "echo test"})
     data = allowed.get_json()
 
@@ -85,8 +85,8 @@ def test_shell_opt_in_is_read_dynamically_without_reimport(monkeypatch):
     }]
 
 
-def test_xkeen_flags_still_work_when_shell_is_disabled(monkeypatch):
-    monkeypatch.delenv("XKEEN_ALLOW_SHELL", raising=False)
+def test_unified_flags_still_work_when_shell_is_disabled(monkeypatch):
+    monkeypatch.delenv("UNIFIED_ALLOW_SHELL", raising=False)
 
     def fake_create_command_job(flag, stdin_data, cmd=None, use_pty=False):
         return SimpleNamespace(id="job-flag", flag=flag, cmd=cmd, status="running")
@@ -103,13 +103,13 @@ def test_xkeen_flags_still_work_when_shell_is_disabled(monkeypatch):
 
 
 def test_capabilities_expose_terminal_shell_policy(monkeypatch):
-    monkeypatch.delenv("XKEEN_ALLOW_SHELL", raising=False)
+    monkeypatch.delenv("UNIFIED_ALLOW_SHELL", raising=False)
 
     caps = detect_capabilities({}, which=lambda _name: None)
 
     assert caps["terminal"]["shell"]["enabled"] is False
     assert caps["terminal"]["shell"]["default"] == "0"
-    assert caps["terminal"]["shell"]["env"] == "XKEEN_ALLOW_SHELL"
+    assert caps["terminal"]["shell"]["env"] == "UNIFIED_ALLOW_SHELL"
 
 
 def test_terminal_capabilities_disable_pty_when_runtime_lacks_posix_support(monkeypatch):

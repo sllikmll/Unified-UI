@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "xkeen-ui" / "scripts" / "install_xk_geodat.sh"
+SCRIPT = ROOT / "unified-ui" / "scripts" / "install_xk_geodat.sh"
 
 
 def test_install_xk_geodat_prompt_only_accepts_explicit_yes() -> None:

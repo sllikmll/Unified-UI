@@ -1,1 +1,0 @@
-import{t as e}from"./mihomo_panel-DyQwyFUP.js";import"./mihomo_yaml_patch-C_qCAE5Y.js";window.XKeen=window.XKeen||{};var t=window.XKeen;t.features=t.features||{};var n=typeof e==`function`?e():null;if(n){let e=t.features.mihomoPanel||{};t.features.mihomoPanel=e,Object.assign(e,n)}

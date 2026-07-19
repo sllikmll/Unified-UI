@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 async function waitForMihomoGeneratorPreview(page) {
   await expect(page.locator('#profileSelect')).toBeVisible();
   await page.waitForFunction(() => {
-    const editors = Array.isArray(window.__xkeenEditors) ? window.__xkeenEditors : [];
+    const editors = Array.isArray(window.__unifiedEditors) ? window.__unifiedEditors : [];
     return editors.some((editor) => {
       try {
         return typeof editor.getValue === 'function';
@@ -16,7 +16,7 @@ async function waitForMihomoGeneratorPreview(page) {
 
 async function getMihomoGeneratorPreviewText(page) {
   return page.evaluate(() => {
-    const editors = Array.isArray(window.__xkeenEditors) ? window.__xkeenEditors : [];
+    const editors = Array.isArray(window.__unifiedEditors) ? window.__unifiedEditors : [];
     for (const editor of editors) {
       try {
         if (typeof editor.getValue !== 'function') continue;

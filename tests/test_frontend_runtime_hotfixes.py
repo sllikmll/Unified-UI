@@ -6,7 +6,7 @@ import re
 import pytest
 
 def test_terminal_debug_module_exists_and_exports_expected_helpers():
-    path = Path('xkeen-ui/static/js/features/terminal_debug.js')
+    path = Path('unified-ui/static/js/features/terminal_debug.js')
     text = path.read_text(encoding='utf-8')
 
     assert 'export function appendTerminalDebug' in text
@@ -16,7 +16,7 @@ def test_terminal_debug_module_exists_and_exports_expected_helpers():
 
 
 def test_update_notifier_postjson_sends_csrf_header():
-    path = Path('xkeen-ui/static/js/features/update_notifier.js')
+    path = Path('unified-ui/static/js/features/update_notifier.js')
     text = path.read_text(encoding='utf-8')
 
     assert "meta[name=\"csrf-token\"]" in text
@@ -24,8 +24,8 @@ def test_update_notifier_postjson_sends_csrf_header():
 
 
 def test_happ_deep_links_reach_backend_import_paths():
-    mihomo_import = Path('xkeen-ui/static/js/features/mihomo_import.js').read_text(encoding='utf-8')
-    outbounds = Path('xkeen-ui/static/js/features/outbounds.js').read_text(encoding='utf-8')
+    mihomo_import = Path('unified-ui/static/js/features/mihomo_import.js').read_text(encoding='utf-8')
+    outbounds = Path('unified-ui/static/js/features/outbounds.js').read_text(encoding='utf-8')
 
     assert 'function isBackendSubscriptionLink(value)' in mihomo_import
     assert 'function formatPreviewSourceUri(uri)' in mihomo_import
@@ -42,8 +42,8 @@ def test_happ_deep_links_reach_backend_import_paths():
 
 
 def test_hwid_modal_handoffs_unsupported_inputs_to_general_import():
-    mihomo_import = Path('xkeen-ui/static/js/features/mihomo_import.js').read_text(encoding='utf-8')
-    hwid_modal = Path('xkeen-ui/static/js/features/mihomo_hwid_sub.js').read_text(encoding='utf-8')
+    mihomo_import = Path('unified-ui/static/js/features/mihomo_import.js').read_text(encoding='utf-8')
+    hwid_modal = Path('unified-ui/static/js/features/mihomo_hwid_sub.js').read_text(encoding='utf-8')
 
     assert 'MI.open = function open(options = {}) {' in mihomo_import
     assert 'MI.openWithInput = async function openWithInput(input, options = {}) {' in mihomo_import
@@ -65,8 +65,8 @@ def test_hwid_modal_handoffs_unsupported_inputs_to_general_import():
 
 
 def test_devtools_postjson_uses_single_request_path_and_keeps_csrf_on_raw_fallback():
-    devtools_text = Path('xkeen-ui/static/js/features/devtools/shared.js').read_text(encoding='utf-8')
-    ui_text = Path('xkeen-ui/static/js/ui/shared_primitives.js').read_text(encoding='utf-8')
+    devtools_text = Path('unified-ui/static/js/features/devtools/shared.js').read_text(encoding='utf-8')
+    ui_text = Path('unified-ui/static/js/ui/shared_primitives.js').read_text(encoding='utf-8')
 
     devtools_body = devtools_text.split('async function postJSON(url, body) {', 1)[1].split('\n\n  function byId', 1)[0]
     ui_body = ui_text.split('async function postJSON(url, body, options) {', 1)[1].split('\n\n  function wireCollapsibleState', 1)[0]
@@ -78,8 +78,8 @@ def test_devtools_postjson_uses_single_request_path_and_keeps_csrf_on_raw_fallba
 
 
 def test_devtools_whitelist_tokens_keep_update_and_branding_reachable_in_restrictive_setups():
-    template = Path('xkeen-ui/templates/devtools.html').read_text(encoding='utf-8')
-    env_text = Path('xkeen-ui/static/js/features/devtools/env.js').read_text(encoding='utf-8')
+    template = Path('unified-ui/templates/devtools.html').read_text(encoding='utf-8')
+    env_text = Path('unified-ui/static/js/features/devtools/env.js').read_text(encoding='utf-8')
 
     assert 'id="dt-update-card" data-xk-section="service update dt-update-card"' in template
     assert 'id="dt-branding-card" data-xk-section="ui branding dt-branding-card"' in template
@@ -87,8 +87,8 @@ def test_devtools_whitelist_tokens_keep_update_and_branding_reachable_in_restric
 
 
 def test_devtools_env_help_button_keeps_required_modal_shell_ids():
-    template = Path('xkeen-ui/templates/devtools.html').read_text(encoding='utf-8')
-    env_text = Path('xkeen-ui/static/js/features/devtools/env.js').read_text(encoding='utf-8')
+    template = Path('unified-ui/templates/devtools.html').read_text(encoding='utf-8')
+    env_text = Path('unified-ui/static/js/features/devtools/env.js').read_text(encoding='utf-8')
 
     assert 'id="dt-env-help-btn"' in template
     assert 'id="dt-env-help-modal"' in template
@@ -100,7 +100,7 @@ def test_devtools_env_help_button_keeps_required_modal_shell_ids():
 
 
 def test_devtools_dark_theme_select_options_use_dark_palette():
-    styles = Path('xkeen-ui/static/devtools.css').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/devtools.css').read_text(encoding='utf-8')
 
     assert 'color-scheme: dark;' in styles
     assert 'body.devtools-page select.dt-pill-field option' in styles
@@ -111,7 +111,7 @@ def test_devtools_dark_theme_select_options_use_dark_palette():
 
 
 def test_settings_panel_logout_redirects_to_login_after_api_logout():
-    text = Path('xkeen-ui/static/js/ui/settings_panel.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/ui/settings_panel.js').read_text(encoding='utf-8')
 
     assert "function getLogoutRedirectHref() {" in text
     assert "return '/login';" in text
@@ -120,7 +120,7 @@ def test_settings_panel_logout_redirects_to_login_after_api_logout():
 
 
 def test_mihomo_generator_ignores_stale_profile_defaults_and_auto_preview_overwrites():
-    text = Path('xkeen-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
 
     assert 'let _previewRequestSeq = 0;' in text
     assert 'let _profileDefaultsRequestSeq = 0;' in text
@@ -136,7 +136,7 @@ def test_mihomo_generator_ignores_stale_profile_defaults_and_auto_preview_overwr
 
 
 def test_mihomo_generator_tracks_dirty_preview_state_while_manual_editing_is_enabled():
-    text = Path('xkeen-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
 
     assert 'let _previewDirtyWhileEditable = false;' in text
     assert 'function syncStateSummaryFromInputs() {' in text
@@ -150,7 +150,7 @@ def test_mihomo_generator_tracks_dirty_preview_state_while_manual_editing_is_ena
 
 
 def test_mihomo_generator_rebuilds_preview_after_exiting_manual_edit_mode_with_stale_inputs():
-    text = Path('xkeen-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
 
     assert 'const wasEditable = _isEditable;' in text
     assert "setStatus('Редактирование выключено. Пересобираю YAML из исходных данных…', 'warn');" in text
@@ -159,7 +159,7 @@ def test_mihomo_generator_rebuilds_preview_after_exiting_manual_edit_mode_with_s
 
 
 def test_mihomo_generator_preserves_explicit_empty_rule_group_selection():
-    text = Path('xkeen-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
 
     assert 'state.enabledRuleGroups = enabledRuleGroups;' in text
     assert 'if (enabledRuleGroups.length) state.enabledRuleGroups = enabledRuleGroups;' not in text
@@ -168,7 +168,7 @@ def test_mihomo_generator_preserves_explicit_empty_rule_group_selection():
 
 
 def test_mihomo_generator_initializes_preview_toolbar_without_engine_toggle():
-    text = Path('xkeen-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
 
     assert "try { enhanceEditorOptions(); } catch (e) {}" in text
     assert "try { attachPreviewToolbar(); } catch (e) {}" in text
@@ -176,9 +176,9 @@ def test_mihomo_generator_initializes_preview_toolbar_without_engine_toggle():
 
 
 def test_mihomo_generator_xray_subscription_prompt_uses_theme_confirm_modal():
-    script = Path('xkeen-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
-    bootstrap = Path('xkeen-ui/static/js/pages/mihomo_generator.screen.bootstrap.js').read_text(encoding='utf-8')
-    template = Path('xkeen-ui/templates/mihomo_generator.html').read_text(encoding='utf-8')
+    script = Path('unified-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
+    bootstrap = Path('unified-ui/static/js/pages/mihomo_generator.screen.bootstrap.js').read_text(encoding='utf-8')
+    template = Path('unified-ui/templates/mihomo_generator.html').read_text(encoding='utf-8')
 
     assert 'confirmMihomoAction,' in script
     assert 'await confirmMihomoAction({' in script
@@ -197,9 +197,9 @@ def test_mihomo_generator_xray_subscription_prompt_uses_theme_confirm_modal():
 
 
 def test_mihomo_generator_xray_subscription_prompt_is_scoped_to_generator_screen():
-    script = Path('xkeen-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
-    init = Path('xkeen-ui/static/js/pages/mihomo_generator.init.js').read_text(encoding='utf-8')
-    screen = Path('xkeen-ui/static/js/pages/top_level_mihomo_generator_screen.js').read_text(encoding='utf-8')
+    script = Path('unified-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
+    init = Path('unified-ui/static/js/pages/mihomo_generator.init.js').read_text(encoding='utf-8')
+    screen = Path('unified-ui/static/js/pages/top_level_mihomo_generator_screen.js').read_text(encoding='utf-8')
 
     assert 'getXkeenPageName,' in script
     assert 'function isMihomoGeneratorDocument() {' in script
@@ -214,15 +214,15 @@ def test_mihomo_generator_xray_subscription_prompt_is_scoped_to_generator_screen
     assert "document.getElementById('previewTextarea')" not in init
     assert "document.getElementById('mihomo-preview-engine-select')" not in init
 
-    assert "window.XKeen?.pageConfig?.page === 'mihomo_generator'" in screen
+    assert "window.UnifiedUI?.pageConfig?.page === 'mihomo_generator'" in screen
     assert "document.body?.classList.contains('mihomo-generator-page')" in screen
     assert "document.getElementById('profileSelect') ||" not in screen
     assert "document.getElementById('previewTextarea')" not in screen
 
 
 def test_mihomo_result_modal_collapses_empty_log_column_and_uses_compact_sections():
-    script = Path('xkeen-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
-    template = Path('xkeen-ui/templates/mihomo_generator.html').read_text(encoding='utf-8')
+    script = Path('unified-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
+    template = Path('unified-ui/templates/mihomo_generator.html').read_text(encoding='utf-8')
 
     assert 'ansiToXkeenHtml,' in script
     assert 'const safe = ansiToXkeenHtml(line);' in script
@@ -240,14 +240,14 @@ def test_mihomo_result_modal_collapses_empty_log_column_and_uses_compact_section
 
 
 def test_mihomo_generator_bootstrap_loads_shared_ansi_formatter():
-    bootstrap = Path('xkeen-ui/static/js/pages/mihomo_generator.screen.bootstrap.js').read_text(encoding='utf-8')
+    bootstrap = Path('unified-ui/static/js/pages/mihomo_generator.screen.bootstrap.js').read_text(encoding='utf-8')
 
     assert "import '../util/ansi.js?v=20260302a';" in bootstrap
 
 
 def test_mihomo_result_modal_supports_compact_validate_mode():
-    script = Path('xkeen-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
-    template = Path('xkeen-ui/templates/mihomo_generator.html').read_text(encoding='utf-8')
+    script = Path('unified-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
+    template = Path('unified-ui/templates/mihomo_generator.html').read_text(encoding='utf-8')
 
     assert 'function normalizeResultMode(rawMode, action) {' in script
     assert "try { mihomoResultModal.dataset.mode = normalizedMode; } catch (e) {}" in script
@@ -259,38 +259,38 @@ def test_mihomo_result_modal_supports_compact_validate_mode():
 
 
 def test_top_level_navigation_controls_use_shared_helper_contract():
-    helper = Path('xkeen-ui/static/js/pages/top_level_nav.shared.js').read_text(encoding='utf-8')
-    shell = Path('xkeen-ui/static/js/pages/top_level_shell.shared.js').read_text(encoding='utf-8')
-    router = Path('xkeen-ui/static/js/pages/top_level_router.js').read_text(encoding='utf-8')
-    registry = Path('xkeen-ui/static/js/pages/top_level_screen_registry.js').read_text(encoding='utf-8')
-    host = Path('xkeen-ui/static/js/pages/top_level_screen_host.shared.js').read_text(encoding='utf-8')
-    panel_screen = Path('xkeen-ui/static/js/pages/top_level_panel_screen.js').read_text(encoding='utf-8')
-    backups_screen = Path('xkeen-ui/static/js/pages/top_level_backups_screen.js').read_text(encoding='utf-8')
-    mihomo_screen = Path('xkeen-ui/static/js/pages/top_level_mihomo_generator_screen.js').read_text(encoding='utf-8')
-    devtools_screen = Path('xkeen-ui/static/js/pages/top_level_devtools_screen.js').read_text(encoding='utf-8')
-    xkeen_screen = Path('xkeen-ui/static/js/pages/top_level_xkeen_screen.js').read_text(encoding='utf-8')
-    panel_mihomo_shared = Path('xkeen-ui/static/js/pages/top_level_panel_mihomo.shared.js').read_text(encoding='utf-8')
-    panel_shell = Path('xkeen-ui/static/js/pages/panel_shell.shared.js').read_text(encoding='utf-8')
-    panel_entry = Path('xkeen-ui/static/js/pages/panel.entry.js').read_text(encoding='utf-8')
-    backups_entry = Path('xkeen-ui/static/js/pages/backups.entry.js').read_text(encoding='utf-8')
-    devtools_entry = Path('xkeen-ui/static/js/pages/devtools.entry.js').read_text(encoding='utf-8')
-    xkeen_entry = Path('xkeen-ui/static/js/pages/xkeen.entry.js').read_text(encoding='utf-8')
-    mihomo_entry = Path('xkeen-ui/static/js/pages/mihomo_generator.entry.js').read_text(encoding='utf-8')
-    backups_bootstrap = Path('xkeen-ui/static/js/pages/backups.screen.bootstrap.js').read_text(encoding='utf-8')
-    devtools_bootstrap = Path('xkeen-ui/static/js/pages/devtools.screen.bootstrap.js').read_text(encoding='utf-8')
-    xkeen_bootstrap = Path('xkeen-ui/static/js/pages/xkeen.screen.bootstrap.js').read_text(encoding='utf-8')
-    backups_init = Path('xkeen-ui/static/js/pages/backups.init.js').read_text(encoding='utf-8')
-    devtools_init = Path('xkeen-ui/static/js/pages/devtools.init.js').read_text(encoding='utf-8')
-    xkeen_init = Path('xkeen-ui/static/js/pages/xkeen.init.js').read_text(encoding='utf-8')
-    mihomo_init = Path('xkeen-ui/static/js/pages/mihomo_generator.init.js').read_text(encoding='utf-8')
-    panel_template = Path('xkeen-ui/templates/panel.html').read_text(encoding='utf-8')
-    backups_template = Path('xkeen-ui/templates/backups.html').read_text(encoding='utf-8')
-    devtools_template = Path('xkeen-ui/templates/devtools.html').read_text(encoding='utf-8')
-    xkeen_template = Path('xkeen-ui/templates/xkeen.html').read_text(encoding='utf-8')
-    mihomo_template = Path('xkeen-ui/templates/mihomo_generator.html').read_text(encoding='utf-8')
+    helper = Path('unified-ui/static/js/pages/top_level_nav.shared.js').read_text(encoding='utf-8')
+    shell = Path('unified-ui/static/js/pages/top_level_shell.shared.js').read_text(encoding='utf-8')
+    router = Path('unified-ui/static/js/pages/top_level_router.js').read_text(encoding='utf-8')
+    registry = Path('unified-ui/static/js/pages/top_level_screen_registry.js').read_text(encoding='utf-8')
+    host = Path('unified-ui/static/js/pages/top_level_screen_host.shared.js').read_text(encoding='utf-8')
+    panel_screen = Path('unified-ui/static/js/pages/top_level_panel_screen.js').read_text(encoding='utf-8')
+    backups_screen = Path('unified-ui/static/js/pages/top_level_backups_screen.js').read_text(encoding='utf-8')
+    mihomo_screen = Path('unified-ui/static/js/pages/top_level_mihomo_generator_screen.js').read_text(encoding='utf-8')
+    devtools_screen = Path('unified-ui/static/js/pages/top_level_devtools_screen.js').read_text(encoding='utf-8')
+    unified_screen = Path('unified-ui/static/js/pages/top_level_unified_screen.js').read_text(encoding='utf-8')
+    panel_mihomo_shared = Path('unified-ui/static/js/pages/top_level_panel_mihomo.shared.js').read_text(encoding='utf-8')
+    panel_shell = Path('unified-ui/static/js/pages/panel_shell.shared.js').read_text(encoding='utf-8')
+    panel_entry = Path('unified-ui/static/js/pages/panel.entry.js').read_text(encoding='utf-8')
+    backups_entry = Path('unified-ui/static/js/pages/backups.entry.js').read_text(encoding='utf-8')
+    devtools_entry = Path('unified-ui/static/js/pages/devtools.entry.js').read_text(encoding='utf-8')
+    unified_entry = Path('unified-ui/static/js/pages/unified.entry.js').read_text(encoding='utf-8')
+    mihomo_entry = Path('unified-ui/static/js/pages/mihomo_generator.entry.js').read_text(encoding='utf-8')
+    backups_bootstrap = Path('unified-ui/static/js/pages/backups.screen.bootstrap.js').read_text(encoding='utf-8')
+    devtools_bootstrap = Path('unified-ui/static/js/pages/devtools.screen.bootstrap.js').read_text(encoding='utf-8')
+    unified_bootstrap = Path('unified-ui/static/js/pages/unified.screen.bootstrap.js').read_text(encoding='utf-8')
+    backups_init = Path('unified-ui/static/js/pages/backups.init.js').read_text(encoding='utf-8')
+    devtools_init = Path('unified-ui/static/js/pages/devtools.init.js').read_text(encoding='utf-8')
+    unified_init = Path('unified-ui/static/js/pages/unified.init.js').read_text(encoding='utf-8')
+    mihomo_init = Path('unified-ui/static/js/pages/mihomo_generator.init.js').read_text(encoding='utf-8')
+    panel_template = Path('unified-ui/templates/panel.html').read_text(encoding='utf-8')
+    backups_template = Path('unified-ui/templates/backups.html').read_text(encoding='utf-8')
+    devtools_template = Path('unified-ui/templates/devtools.html').read_text(encoding='utf-8')
+    unified_template = Path('unified-ui/templates/unified.html').read_text(encoding='utf-8')
+    mihomo_template = Path('unified-ui/templates/mihomo_generator.html').read_text(encoding='utf-8')
 
     assert 'export function navigateTopLevelHref(rawHref, opts)' in helper
-    assert "window.dispatchEvent(new CustomEvent('xkeen:top-level-nav-intent'" in helper
+    assert "window.dispatchEvent(new CustomEvent('unified:top-level-nav-intent'" in helper
     assert "import { getTopLevelRouterApi } from './top_level_router.js';" in helper
     assert "const router = getTopLevelRouterApi();" in helper
     assert "router.navigate(resolved, opts || {})" in helper
@@ -298,13 +298,13 @@ def test_top_level_navigation_controls_use_shared_helper_contract():
     assert 'export async function bootTopLevelShell(opts)' in shell
     assert "registry.registerScreen(name, screen);" in shell
     assert 'export function getTopLevelRouterApi()' in router
-    assert 'const ROUTE_CHANGE_EVENT = \'xkeen:top-level-route-change\';' in router
+    assert 'const ROUTE_CHANGE_EVENT = \'unified:top-level-route-change\';' in router
     assert "xk.topLevel = xk.topLevel && typeof xk.topLevel === 'object' ? xk.topLevel : {};" in router
     assert 'export function getTopLevelScreenRegistryApi()' in registry
     assert "panel: '/'" in registry
     assert "backups: '/backups'" in registry
     assert "devtools: '/devtools'" in registry
-    assert "xkeen: '/xkeen'" in registry
+    assert "unified: '/unified'" in registry
     assert "mihomo_generator: '/mihomo_generator'" in registry
     assert 'export function ensureTopLevelScreenMount()' in host
     assert 'export async function fetchTopLevelScreenSnapshot(name, route)' in host
@@ -316,8 +316,8 @@ def test_top_level_navigation_controls_use_shared_helper_contract():
     assert "fetchTopLevelScreenSnapshot('mihomo_generator', '/mihomo_generator')" in mihomo_screen
     assert 'export function registerDevtoolsTopLevelScreen()' in devtools_screen
     assert "fetchTopLevelScreenSnapshot('devtools', '/devtools')" in devtools_screen
-    assert 'export function registerXkeenTopLevelScreen()' in xkeen_screen
-    assert "fetchTopLevelScreenSnapshot('xkeen', '/xkeen')" in xkeen_screen
+    assert 'export function registerXkeenTopLevelScreen()' in unified_screen
+    assert "fetchTopLevelScreenSnapshot('unified', '/unified')" in unified_screen
     assert 'export function registerPanelMihomoTopLevelScreens()' in panel_mihomo_shared
     assert 'export function registerCanonicalTopLevelScreens()' in panel_mihomo_shared
     assert "const GLOBAL_BODY_NODE_IDS = new Set(['xk-tooltip-portal']);" in host
@@ -325,9 +325,9 @@ def test_top_level_navigation_controls_use_shared_helper_contract():
     assert 'if (shouldKeepBodyNodeGlobal(node)) return false;' in host
     assert "import { registerBackupsTopLevelScreen } from './top_level_backups_screen.js';" in panel_mihomo_shared
     assert "import { registerDevtoolsTopLevelScreen } from './top_level_devtools_screen.js';" in panel_mihomo_shared
-    assert "import { registerXkeenTopLevelScreen } from './top_level_xkeen_screen.js';" in panel_mihomo_shared
+    assert "import { registerXkeenTopLevelScreen } from './top_level_unified_screen.js';" in panel_mihomo_shared
     assert "'backups'," in panel_mihomo_shared
-    assert "'xkeen'," in panel_mihomo_shared
+    assert "'unified'," in panel_mihomo_shared
     assert "import { wireTopLevelNavigation } from './top_level_nav.shared.js';" in panel_shell
     assert "import { bootTopLevelShell } from './top_level_shell.shared.js';" in panel_entry
     assert "import { bootPanelScreen } from './panel.screen.bootstrap.js';" in panel_entry
@@ -341,31 +341,31 @@ def test_top_level_navigation_controls_use_shared_helper_contract():
     assert "import { bootDevtoolsScreen } from './devtools.screen.bootstrap.js';" in devtools_entry
     assert "import { registerPanelMihomoTopLevelScreens } from './top_level_panel_mihomo.shared.js';" in devtools_entry
     assert "initialScreen: 'devtools'" in devtools_entry
-    assert "import { bootTopLevelShell } from './top_level_shell.shared.js';" in xkeen_entry
-    assert "import { bootXkeenScreen } from './xkeen.screen.bootstrap.js';" in xkeen_entry
-    assert "import { registerPanelMihomoTopLevelScreens } from './top_level_panel_mihomo.shared.js';" in xkeen_entry
-    assert "initialScreen: 'xkeen'" in xkeen_entry
+    assert "import { bootTopLevelShell } from './top_level_shell.shared.js';" in unified_entry
+    assert "import { bootXkeenScreen } from './unified.screen.bootstrap.js';" in unified_entry
+    assert "import { registerPanelMihomoTopLevelScreens } from './top_level_panel_mihomo.shared.js';" in unified_entry
+    assert "initialScreen: 'unified'" in unified_entry
     assert "import { bootTopLevelShell } from './top_level_shell.shared.js';" in mihomo_entry
     assert "import { bootMihomoGeneratorScreen } from './mihomo_generator.screen.bootstrap.js';" in mihomo_entry
     assert "import { registerPanelMihomoTopLevelScreens } from './top_level_panel_mihomo.shared.js';" in mihomo_entry
     assert "initialScreen: 'mihomo_generator'" in mihomo_entry
     assert 'export async function bootBackupsScreen()' in backups_bootstrap
     assert 'export async function bootDevtoolsScreen()' in devtools_bootstrap
-    assert 'export async function bootXkeenScreen()' in xkeen_bootstrap
+    assert 'export async function bootXkeenScreen()' in unified_bootstrap
     assert "import { wireTopLevelNavigation } from './top_level_nav.shared.js';" in backups_init
     assert "import { wireTopLevelNavigation } from './top_level_nav.shared.js';" in devtools_init
-    assert "import { wireTopLevelNavigation } from './top_level_nav.shared.js';" in xkeen_init
+    assert "import { wireTopLevelNavigation } from './top_level_nav.shared.js';" in unified_init
     assert "import { wireTopLevelNavigation } from './top_level_nav.shared.js';" in mihomo_init
     assert panel_template.count('data-xk-top-nav="1"') >= 3
     assert backups_template.count('data-xk-top-nav="1"') >= 3
     assert 'data-xk-top-nav="1"' in devtools_template
-    assert xkeen_template.count('data-xk-top-nav="1"') >= 3
+    assert unified_template.count('data-xk-top-nav="1"') >= 3
     assert mihomo_template.count('data-xk-top-nav="1"') >= 3
 
 
 def test_bfcache_lifecycle_uses_pagehide_instead_of_beforeunload_for_p0_paths():
-    routing = Path('xkeen-ui/static/js/features/routing.js').read_text(encoding='utf-8')
-    xray_logs = Path('xkeen-ui/static/js/features/xray_logs.js').read_text(encoding='utf-8')
+    routing = Path('unified-ui/static/js/features/routing.js').read_text(encoding='utf-8')
+    xray_logs = Path('unified-ui/static/js/features/xray_logs.js').read_text(encoding='utf-8')
 
     assert 'beforeunload' not in routing
     assert 'beforeunload' not in xray_logs
@@ -375,7 +375,7 @@ def test_bfcache_lifecycle_uses_pagehide_instead_of_beforeunload_for_p0_paths():
 
 
 def test_xray_live_logs_clear_uses_portal_confirm_modal():
-    xray_logs = Path('xkeen-ui/static/js/features/xray_logs.js').read_text(encoding='utf-8')
+    xray_logs = Path('unified-ui/static/js/features/xray_logs.js').read_text(encoding='utf-8')
 
     assert 'async function confirmAction(options) {' in xray_logs
     assert 'const ok = await confirmXkeenAction(opts, buildConfirmText(opts));' in xray_logs
@@ -386,10 +386,10 @@ def test_xray_live_logs_clear_uses_portal_confirm_modal():
 
 
 def test_xray_live_logs_card_uses_russian_visible_labels():
-    panel = Path('xkeen-ui/templates/panel.html').read_text(encoding='utf-8')
-    devtools = Path('xkeen-ui/templates/devtools.html').read_text(encoding='utf-8')
-    layout_prefs = Path('xkeen-ui/static/js/features/layout_prefs.js').read_text(encoding='utf-8')
-    xray_logs = Path('xkeen-ui/static/js/features/xray_logs.js').read_text(encoding='utf-8')
+    panel = Path('unified-ui/templates/panel.html').read_text(encoding='utf-8')
+    devtools = Path('unified-ui/templates/devtools.html').read_text(encoding='utf-8')
+    layout_prefs = Path('unified-ui/static/js/features/layout_prefs.js').read_text(encoding='utf-8')
+    xray_logs = Path('unified-ui/static/js/features/xray_logs.js').read_text(encoding='utf-8')
 
     logs_panel = panel.split('<div id="view-xray-logs"', 1)[1].split('<!-- Xray log: context modal -->', 1)[0]
 
@@ -412,9 +412,9 @@ def test_xray_live_logs_card_uses_russian_visible_labels():
 
 
 def test_devtools_host_defers_noncritical_init_and_mihomo_generator_persists_session_draft():
-    devtools_host = Path('xkeen-ui/static/js/features/devtools.js').read_text(encoding='utf-8')
-    devtools_logs = Path('xkeen-ui/static/js/features/devtools/logs.js').read_text(encoding='utf-8')
-    mihomo = Path('xkeen-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
+    devtools_host = Path('unified-ui/static/js/features/devtools.js').read_text(encoding='utf-8')
+    devtools_logs = Path('unified-ui/static/js/features/devtools/logs.js').read_text(encoding='utf-8')
+    mihomo = Path('unified-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
 
     assert "_initModuleOnce('logs', 'devtoolsLogs', { deferInitialFetch: true });" in devtools_host
     assert "_wireDeferredModuleInit('update', 'devtoolsUpdate', 'dt-update-card'" in devtools_host
@@ -430,11 +430,11 @@ def test_devtools_host_defers_noncritical_init_and_mihomo_generator_persists_ses
 
 
 def test_p2_panel_mihomo_screen_modules_keep_runtime_alive_between_activations():
-    mihomo = Path('xkeen-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
-    panel_bootstrap = Path('xkeen-ui/static/js/pages/panel.screen.bootstrap.js').read_text(encoding='utf-8')
-    mihomo_bootstrap = Path('xkeen-ui/static/js/pages/mihomo_generator.screen.bootstrap.js').read_text(encoding='utf-8')
-    panel_screen = Path('xkeen-ui/static/js/pages/top_level_panel_screen.js').read_text(encoding='utf-8')
-    mihomo_screen = Path('xkeen-ui/static/js/pages/top_level_mihomo_generator_screen.js').read_text(encoding='utf-8')
+    mihomo = Path('unified-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
+    panel_bootstrap = Path('unified-ui/static/js/pages/panel.screen.bootstrap.js').read_text(encoding='utf-8')
+    mihomo_bootstrap = Path('unified-ui/static/js/pages/mihomo_generator.screen.bootstrap.js').read_text(encoding='utf-8')
+    panel_screen = Path('unified-ui/static/js/pages/top_level_panel_screen.js').read_text(encoding='utf-8')
+    mihomo_screen = Path('unified-ui/static/js/pages/top_level_mihomo_generator_screen.js').read_text(encoding='utf-8')
 
     assert 'function refreshLayout() {' in mihomo
     assert 'async function activate(opts = {}) {' in mihomo
@@ -454,8 +454,8 @@ def test_p2_panel_mihomo_screen_modules_keep_runtime_alive_between_activations()
     assert 'serializedState = await runtimeApi.serializeState(context);' in mihomo_screen
     assert 'attachScreenRoot(nextSnapshot);' in panel_screen
     assert 'attachScreenRoot(nextSnapshot);' in mihomo_screen
-    assert "window.XKeen?.pageConfig?.page === 'panel'" in panel_screen
-    assert "window.XKeen?.pageConfig?.page === 'mihomo_generator'" in mihomo_screen
+    assert "window.UnifiedUI?.pageConfig?.page === 'panel'" in panel_screen
+    assert "window.UnifiedUI?.pageConfig?.page === 'mihomo_generator'" in mihomo_screen
     assert "String(window.location.pathname || '') === '/'" not in panel_screen
     assert "String(window.location.pathname || '') === '/mihomo_generator'" not in mihomo_screen
     assert 'window.addEventListener("pagehide", () => persist("pagehide"));' in mihomo
@@ -464,12 +464,12 @@ def test_p2_panel_mihomo_screen_modules_keep_runtime_alive_between_activations()
 
 
 def test_p3_devtools_screen_module_keeps_host_alive_and_stops_background_tasks_on_deactivate():
-    devtools = Path('xkeen-ui/static/js/features/devtools.js').read_text(encoding='utf-8')
-    logs = Path('xkeen-ui/static/js/features/devtools/logs.js').read_text(encoding='utf-8')
-    update = Path('xkeen-ui/static/js/features/devtools/update.js').read_text(encoding='utf-8')
-    bootstrap = Path('xkeen-ui/static/js/pages/devtools.screen.bootstrap.js').read_text(encoding='utf-8')
-    screen = Path('xkeen-ui/static/js/pages/top_level_devtools_screen.js').read_text(encoding='utf-8')
-    entry = Path('xkeen-ui/static/js/pages/devtools.entry.js').read_text(encoding='utf-8')
+    devtools = Path('unified-ui/static/js/features/devtools.js').read_text(encoding='utf-8')
+    logs = Path('unified-ui/static/js/features/devtools/logs.js').read_text(encoding='utf-8')
+    update = Path('unified-ui/static/js/features/devtools/update.js').read_text(encoding='utf-8')
+    bootstrap = Path('unified-ui/static/js/pages/devtools.screen.bootstrap.js').read_text(encoding='utf-8')
+    screen = Path('unified-ui/static/js/pages/top_level_devtools_screen.js').read_text(encoding='utf-8')
+    entry = Path('unified-ui/static/js/pages/devtools.entry.js').read_text(encoding='utf-8')
 
     assert 'function getActiveTab() {' in devtools
     assert 'function activate(state) {' in devtools
@@ -504,15 +504,15 @@ def test_p3_devtools_screen_module_keeps_host_alive_and_stops_background_tasks_o
     assert "fetchTopLevelScreenSnapshot('devtools', '/devtools')" in screen
     assert 'attachScreenRoot(nextSnapshot);' in screen
     assert 'serializedState = runtimeApi.serializeState(context);' in screen
-    assert "window.XKeen?.pageConfig?.page === 'devtools'" in screen
+    assert "window.UnifiedUI?.pageConfig?.page === 'devtools'" in screen
 
     assert "import { bootDevtoolsScreen } from './devtools.screen.bootstrap.js';" in entry
     assert "import { registerPanelMihomoTopLevelScreens } from './top_level_panel_mihomo.shared.js';" in entry
 
 
 def test_devtools_update_blocked_runs_render_inline_diagnostics_and_stop_retry_launch():
-    text = Path('xkeen-ui/static/js/features/devtools/update.js').read_text(encoding='utf-8')
-    styles = Path('xkeen-ui/static/devtools.css').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/devtools/update.js').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/devtools.css').read_text(encoding='utf-8')
 
     assert 'function _showBlockedUpdateReason(btnRun) {' in text
     assert 'function _buildClientSideCheckFailureData(error) {' in text
@@ -532,8 +532,8 @@ def test_devtools_update_blocked_runs_render_inline_diagnostics_and_stop_retry_l
 
 
 def test_file_manager_monaco_modal_tracks_modal_resize_and_fills_available_height():
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
-    editor = Path('xkeen-ui/static/js/features/file_manager/editor.js').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
+    editor = Path('unified-ui/static/js/features/file_manager/editor.js').read_text(encoding='utf-8')
 
     monaco_block = styles.split('#fm-editor-modal #fm-editor-monaco {', 1)[1].split('}', 1)[0]
 
@@ -542,7 +542,7 @@ def test_file_manager_monaco_modal_tracks_modal_resize_and_fills_available_heigh
     assert 'height: 100%;' in monaco_block
 
     assert 'function layoutMonacoSoon(ui, focus = false) {' in editor
-    assert "document.addEventListener('xkeen-modal-resize', (event) => {" in editor
+    assert "document.addEventListener('unified-modal-resize', (event) => {" in editor
     assert "modalId && modalId !== 'fm-editor-modal'" in editor
     assert "if (!STATE.ctx || STATE.activeKind !== 'monaco') return;" in editor
     assert 'layoutMonacoSoon(els());' in editor
@@ -550,11 +550,11 @@ def test_file_manager_monaco_modal_tracks_modal_resize_and_fills_available_heigh
 
 
 def test_json_editor_modal_tracks_modal_resize_and_stretches_monaco_and_cm6_hosts():
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
-    editor = Path('xkeen-ui/static/js/ui/json_editor_modal.js').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
+    editor = Path('unified-ui/static/js/ui/json_editor_modal.js').read_text(encoding='utf-8')
 
     monaco_block = styles.split('#json-editor-modal #json-editor-monaco {', 1)[1].split('}', 1)[0]
-    cm6_block = styles.split('#json-editor-modal .xkeen-cm6-host,\n#fm-editor-modal .xkeen-cm6-host {', 1)[1].split('}', 1)[0]
+    cm6_block = styles.split('#json-editor-modal .unified-cm6-host,\n#fm-editor-modal .unified-cm6-host {', 1)[1].split('}', 1)[0]
 
     assert 'flex: 1 1 auto;' in monaco_block
     assert 'min-height: 0;' in monaco_block
@@ -562,24 +562,24 @@ def test_json_editor_modal_tracks_modal_resize_and_stretches_monaco_and_cm6_host
     assert 'max-height: none;' in monaco_block
 
     assert '#json-editor-modal .modal-body > .xk-editor-toolbar,' in styles
-    assert '#json-editor-modal .xkeen-cm6-host,' in styles
-    assert '#json-editor-modal .xkeen-cm6-host .cm-scroller,' in styles
+    assert '#json-editor-modal .unified-cm6-host,' in styles
+    assert '#json-editor-modal .unified-cm6-host .cm-scroller,' in styles
     assert 'flex: 1 1 auto;' in cm6_block
     assert 'width: 100%;' in cm6_block
     assert 'max-height: none;' in cm6_block
 
     assert 'let _modalResizeWired = false;' in editor
     assert 'function layoutEditorSoon(focus = false) {' in editor
-    assert "document.addEventListener('xkeen-modal-resize', (event) => {" in editor
+    assert "document.addEventListener('unified-modal-resize', (event) => {" in editor
     assert "modalId && modalId !== 'json-editor-modal'" in editor
     assert 'layoutEditorSoon();' in editor
     assert 'layoutEditorSoon(true);' in editor
 
 
 def test_confirm_modal_stacks_above_dynamic_editor_modal_z_indexes():
-    modal = Path('xkeen-ui/static/js/ui/modal.js').read_text(encoding='utf-8')
-    confirm = Path('xkeen-ui/static/js/ui/confirm_modal.js').read_text(encoding='utf-8')
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    modal = Path('unified-ui/static/js/ui/modal.js').read_text(encoding='utf-8')
+    confirm = Path('unified-ui/static/js/ui/confirm_modal.js').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     bring_block = modal.split('function bringModalToFront(modalEl) {', 1)[1].split('\n  function onModalOpen', 1)[0]
     confirm_show_block = confirm.split('function showModal(modal) {', 1)[1].split('\n  function hideModal', 1)[0]
@@ -602,10 +602,10 @@ def test_confirm_modal_stacks_above_dynamic_editor_modal_z_indexes():
 
 
 def test_codemirror6_source_bridge_is_opt_in_and_does_not_inject_importmap_dynamically():
-    path = Path('xkeen-ui/static/js/pages/codemirror6.shared.js')
+    path = Path('unified-ui/static/js/pages/codemirror6.shared.js')
     text = path.read_text(encoding='utf-8')
 
-    assert 'data-xkeen-cm6-importmap="1"' in text
+    assert 'data-unified-cm6-importmap="1"' in text
     assert "document.createElement(\'script\')" not in text
     assert "script.type = 'importmap'" not in text
     assert "backend: 'cm6-unavailable'" in text
@@ -613,11 +613,11 @@ def test_codemirror6_source_bridge_is_opt_in_and_does_not_inject_importmap_dynam
 
 
 def test_codemirror6_importmap_template_exists_and_maps_required_packages():
-    path = Path('xkeen-ui/templates/_codemirror6_importmap.html')
+    path = Path('unified-ui/templates/_codemirror6_importmap.html')
     text = path.read_text(encoding='utf-8')
 
     assert 'type="importmap"' in text
-    assert 'data-xkeen-cm6-importmap="1"' in text
+    assert 'data-unified-cm6-importmap="1"' in text
     assert "vendor/npm/@codemirror/merge/dist/index.js" in text
     assert "vendor/npm/@codemirror/state/dist/index.js" in text
     assert "vendor/npm/@codemirror/view/dist/index.js" in text
@@ -631,25 +631,25 @@ def test_codemirror6_importmap_template_exists_and_maps_required_packages():
 
 
 def test_codemirror6_json_schema_bridge_is_tracked_and_wired_to_xray_editors():
-    importmap = Path('xkeen-ui/templates/_codemirror6_importmap.html').read_text(encoding='utf-8')
-    shim_path = Path('xkeen-ui/static/js/vendor/codemirror_json_schema.js')
-    schema_loader_path = Path('xkeen-ui/static/js/ui/editor_schema.js')
+    importmap = Path('unified-ui/templates/_codemirror6_importmap.html').read_text(encoding='utf-8')
+    shim_path = Path('unified-ui/static/js/vendor/codemirror_json_schema.js')
+    schema_loader_path = Path('unified-ui/static/js/ui/editor_schema.js')
     fragment_schema_paths = [
-        Path('xkeen-ui/static/schemas/xray-routing.schema.json'),
-        Path('xkeen-ui/static/schemas/xray-inbounds.schema.json'),
-        Path('xkeen-ui/static/schemas/xray-outbounds.schema.json'),
+        Path('unified-ui/static/schemas/xray-routing.schema.json'),
+        Path('unified-ui/static/schemas/xray-inbounds.schema.json'),
+        Path('unified-ui/static/schemas/xray-outbounds.schema.json'),
     ]
-    boot = Path('xkeen-ui/static/js/ui/codemirror6_boot.js').read_text(encoding='utf-8')
-    json_modal = Path('xkeen-ui/static/js/ui/json_editor_modal.js').read_text(encoding='utf-8')
-    routing = Path('xkeen-ui/static/js/features/routing.js').read_text(encoding='utf-8')
-    template = Path('xkeen-ui/templates/panel.html').read_text(encoding='utf-8')
+    boot = Path('unified-ui/static/js/ui/codemirror6_boot.js').read_text(encoding='utf-8')
+    json_modal = Path('unified-ui/static/js/ui/json_editor_modal.js').read_text(encoding='utf-8')
+    routing = Path('unified-ui/static/js/features/routing.js').read_text(encoding='utf-8')
+    template = Path('unified-ui/templates/panel.html').read_text(encoding='utf-8')
     vite = Path('vite.config.mjs').read_text(encoding='utf-8')
-    monaco_shared = Path('xkeen-ui/static/js/ui/monaco_shared.js').read_text(encoding='utf-8')
+    monaco_shared = Path('unified-ui/static/js/ui/monaco_shared.js').read_text(encoding='utf-8')
     schema_loader = schema_loader_path.read_text(encoding='utf-8')
     schema_shim = shim_path.read_text(encoding='utf-8')
-    settings_src = Path('xkeen-ui/static/js/ui/settings.js').read_text(encoding='utf-8')
-    settings_panel = Path('xkeen-ui/static/js/ui/settings_panel.js').read_text(encoding='utf-8')
-    editor_engine = Path('xkeen-ui/static/js/ui/editor_engine.js').read_text(encoding='utf-8')
+    settings_src = Path('unified-ui/static/js/ui/settings.js').read_text(encoding='utf-8')
+    settings_panel = Path('unified-ui/static/js/ui/settings_panel.js').read_text(encoding='utf-8')
+    editor_engine = Path('unified-ui/static/js/ui/editor_engine.js').read_text(encoding='utf-8')
 
     assert shim_path.is_file()
     assert schema_loader_path.is_file()
@@ -709,7 +709,7 @@ def test_codemirror6_json_schema_bridge_is_tracked_and_wired_to_xray_editors():
     assert "const schema = _getModelJsonSchema(model);" in monaco_shared
     assert "const result = buildJsonSchemaHoverInfo(model.getValue(), schema, model.getOffsetAt(position), {" in monaco_shared
     assert "beginnerMode: _isBeginnerModeEnabled()," in monaco_shared
-    assert "return monaco.Uri.parse(`xkeen://json/model-${nextId}.jsonc`);" in monaco_shared
+    assert "return monaco.Uri.parse(`unified://json/model-${nextId}.jsonc`);" in monaco_shared
     assert "editor.setSchema = (schema) => {" in monaco_shared
     assert "editor.getSchema = () => currentSchema || null;" in monaco_shared
     assert "if (shouldDeferSchemaHoverForSettings()) return false" in boot
@@ -721,8 +721,8 @@ def test_codemirror6_json_schema_bridge_is_tracked_and_wired_to_xray_editors():
     assert "!/[{}\\[\\]:,]/.test(ch)" in boot
     assert "hideLinkTooltip(); hideSchemaHoverTooltips();" in boot
     assert "makeJsonDiagnostics(source" in boot
-    assert "__xkeenCm6Bridge: true" in boot
-    assert "__xkeen_cm6_bridge: true" in boot
+    assert "__unifiedCm6Bridge: true" in boot
+    assert "__unified_cm6_bridge: true" in boot
     assert "schemaUpdateSchema(view, schema)" in boot
     assert "setSchema(editor, schema)" in boot
     assert "applySchemaToEditor(_cm" in json_modal
@@ -730,7 +730,7 @@ def test_codemirror6_json_schema_bridge_is_tracked_and_wired_to_xray_editors():
     assert "async function applyCurrentSchemaToMonaco(text)" in json_modal
     assert "function updateJsonEditorSchemaBadge(result)" in json_modal
     assert "json-editor-schema-status" in template
-    assert "__xkeenCm6Bridge === true" in json_modal
+    assert "__unifiedCm6Bridge === true" in json_modal
     assert "target: 'routing'" in routing
     assert "target: _routingMode === 'routing' ? 'routing' : 'xray'" in routing
     assert "async function applyRoutingSchemaToMonaco(editor, text)" in routing
@@ -739,7 +739,7 @@ def test_codemirror6_json_schema_bridge_is_tracked_and_wired_to_xray_editors():
     assert routing.index("async function applyRoutingSchemaToMonaco(editor, text)") < routing.index("})();")
     assert "function getRoutingMonacoModelUri() {" in routing
     assert "uri: getRoutingMonacoModelUri()," in routing
-    assert "return `xkeen://routing/${safeName}`;" in routing
+    assert "return `unified://routing/${safeName}`;" in routing
     assert "function updateRoutingSchemaBadge(result)" in routing
     assert "editorSchemaBadge: 'routing-editor-schema-badge'" in routing
     assert "await applyRoutingSchemaToCodeMirror(_cm, text)" in routing
@@ -750,8 +750,8 @@ def test_codemirror6_json_schema_bridge_is_tracked_and_wired_to_xray_editors():
 
 
 def test_xray_routing_schema_covers_subscription_generated_fragments():
-    routing_schema = json.loads(Path('xkeen-ui/static/schemas/xray-routing.schema.json').read_text(encoding='utf-8'))
-    full_schema = json.loads(Path('xkeen-ui/static/schemas/xray-config.schema.json').read_text(encoding='utf-8'))
+    routing_schema = json.loads(Path('unified-ui/static/schemas/xray-routing.schema.json').read_text(encoding='utf-8'))
+    full_schema = json.loads(Path('unified-ui/static/schemas/xray-config.schema.json').read_text(encoding='utf-8'))
 
     routing_rule_props = routing_schema['definitions']['routingRule']['properties']
     assert 'ruleTag' in routing_rule_props
@@ -781,8 +781,8 @@ def test_xray_routing_schema_covers_subscription_generated_fragments():
     assert 'Тип стратегии балансировщика' in full_schema['definitions']['balancer']['properties']['strategy']['properties']['type']['description']
     assert full_schema['definitions']['routingRule']['additionalProperties'] is False
     for fragment_path in [
-        Path('xkeen-ui/static/schemas/xray-inbounds.schema.json'),
-        Path('xkeen-ui/static/schemas/xray-outbounds.schema.json'),
+        Path('unified-ui/static/schemas/xray-inbounds.schema.json'),
+        Path('unified-ui/static/schemas/xray-outbounds.schema.json'),
     ]:
         fragment_schema = json.loads(fragment_path.read_text(encoding='utf-8'))
         assert 'ruleTag' in fragment_schema['definitions']['routingRule']['properties']
@@ -793,7 +793,7 @@ def test_xray_routing_schema_covers_subscription_generated_fragments():
 
 
 def test_routing_monaco_suppresses_native_json_markers_during_syntax_errors():
-    routing = Path('xkeen-ui/static/js/features/routing.js').read_text(encoding='utf-8')
+    routing = Path('unified-ui/static/js/features/routing.js').read_text(encoding='utf-8')
 
     assert "let _monacoNativeJsonMarkersSuppressed = false;" in routing
     assert "function clearMonacoNativeJsonMarkers()" in routing
@@ -814,27 +814,27 @@ def test_routing_monaco_suppresses_native_json_markers_during_syntax_errors():
 
 def test_xray_stream_network_schema_marks_grpc_as_deprecated():
     for schema_path in [
-        Path('xkeen-ui/static/schemas/xray-config.schema.json'),
-        Path('xkeen-ui/static/schemas/xray-inbounds.schema.json'),
-        Path('xkeen-ui/static/schemas/xray-outbounds.schema.json'),
-        Path('xkeen-ui/static/schemas/xray-routing.schema.json'),
+        Path('unified-ui/static/schemas/xray-config.schema.json'),
+        Path('unified-ui/static/schemas/xray-inbounds.schema.json'),
+        Path('unified-ui/static/schemas/xray-outbounds.schema.json'),
+        Path('unified-ui/static/schemas/xray-routing.schema.json'),
     ]:
         schema = json.loads(schema_path.read_text(encoding='utf-8'))
         network_schema = schema['definitions']['streamSettings']['properties']['network']
         assert network_schema['deprecatedValues'] == ['grpc']
         assert 'XHTTP' in network_schema['deprecationMessage']
 
-    panel = Path('xkeen-ui/templates/panel.html').read_text(encoding='utf-8')
+    panel = Path('unified-ui/templates/panel.html').read_text(encoding='utf-8')
     assert 'gRPC (deprecated)' in panel
 
-    outbounds_src = Path('xkeen-ui/static/js/features/outbounds.js').read_text(encoding='utf-8')
+    outbounds_src = Path('unified-ui/static/js/features/outbounds.js').read_text(encoding='utf-8')
     assert 'function subsDeprecatedTransportNote' in outbounds_src
     assert 'Array.isArray(data.warnings)' in outbounds_src
     assert 'xk-sub-node-pill-warning' in outbounds_src
 
 
 def test_monaco_schema_runtime_sanitizes_deprecated_value_metadata():
-    monaco_src = Path('xkeen-ui/static/js/ui/monaco_shared.js').read_text(encoding='utf-8')
+    monaco_src = Path('unified-ui/static/js/ui/monaco_shared.js').read_text(encoding='utf-8')
 
     assert 'function _sanitizeJsonSchemaForMonaco(value)' in monaco_src
     assert "if (key === 'deprecatedValues') return;" in monaco_src
@@ -844,13 +844,13 @@ def test_monaco_schema_runtime_sanitizes_deprecated_value_metadata():
 
 
 def test_mihomo_yaml_schema_runtime_is_wired_into_panel_editor():
-    schema_loader = Path('xkeen-ui/static/js/ui/editor_schema.js').read_text(encoding='utf-8')
-    yaml_schema_runtime = Path('xkeen-ui/static/js/ui/yaml_schema.js').read_text(encoding='utf-8')
-    codemirror_runtime = Path('xkeen-ui/static/js/ui/codemirror6_boot.js').read_text(encoding='utf-8')
-    monaco_shared = Path('xkeen-ui/static/js/ui/monaco_shared.js').read_text(encoding='utf-8')
-    mihomo_panel = Path('xkeen-ui/static/js/features/mihomo_panel.js').read_text(encoding='utf-8')
-    template = Path('xkeen-ui/templates/panel.html').read_text(encoding='utf-8')
-    schema_path = Path('xkeen-ui/static/schemas/mihomo-config.schema.json')
+    schema_loader = Path('unified-ui/static/js/ui/editor_schema.js').read_text(encoding='utf-8')
+    yaml_schema_runtime = Path('unified-ui/static/js/ui/yaml_schema.js').read_text(encoding='utf-8')
+    codemirror_runtime = Path('unified-ui/static/js/ui/codemirror6_boot.js').read_text(encoding='utf-8')
+    monaco_shared = Path('unified-ui/static/js/ui/monaco_shared.js').read_text(encoding='utf-8')
+    mihomo_panel = Path('unified-ui/static/js/features/mihomo_panel.js').read_text(encoding='utf-8')
+    template = Path('unified-ui/templates/panel.html').read_text(encoding='utf-8')
+    schema_path = Path('unified-ui/static/schemas/mihomo-config.schema.json')
 
     assert schema_path.is_file()
     assert "mihomo-config.schema.json" in schema_loader
@@ -883,8 +883,8 @@ def test_mihomo_yaml_schema_runtime_is_wired_into_panel_editor():
 
 
 def test_codemirror_mihomo_yaml_uses_rich_syntax_decorations():
-    codemirror_runtime = Path('xkeen-ui/static/js/ui/codemirror6_boot.js').read_text(encoding='utf-8')
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    codemirror_runtime = Path('unified-ui/static/js/ui/codemirror6_boot.js').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     assert "function buildYamlDecorations(view)" in codemirror_runtime
     assert "function isYamlMappingColon(text, index, end)" in codemirror_runtime
@@ -901,13 +901,13 @@ def test_codemirror_mihomo_yaml_uses_rich_syntax_decorations():
 
 
 def test_phase2_semantic_validation_runtime_is_wired_into_mihomo_and_xray_editors():
-    semantic_runtime = Path('xkeen-ui/static/js/ui/schema_semantic_validation.js').read_text(encoding='utf-8')
-    editor_schema_runtime = Path('xkeen-ui/static/js/ui/editor_schema.js').read_text(encoding='utf-8')
-    yaml_schema_runtime = Path('xkeen-ui/static/js/ui/yaml_schema.js').read_text(encoding='utf-8')
-    codemirror_runtime = Path('xkeen-ui/static/js/ui/codemirror6_boot.js').read_text(encoding='utf-8')
-    json_schema_runtime = Path('xkeen-ui/static/js/vendor/codemirror_json_schema.js').read_text(encoding='utf-8')
-    monaco_shared_runtime = Path('xkeen-ui/static/js/ui/monaco_shared.js').read_text(encoding='utf-8')
-    routing_runtime = Path('xkeen-ui/static/js/features/routing.js').read_text(encoding='utf-8')
+    semantic_runtime = Path('unified-ui/static/js/ui/schema_semantic_validation.js').read_text(encoding='utf-8')
+    editor_schema_runtime = Path('unified-ui/static/js/ui/editor_schema.js').read_text(encoding='utf-8')
+    yaml_schema_runtime = Path('unified-ui/static/js/ui/yaml_schema.js').read_text(encoding='utf-8')
+    codemirror_runtime = Path('unified-ui/static/js/ui/codemirror6_boot.js').read_text(encoding='utf-8')
+    json_schema_runtime = Path('unified-ui/static/js/vendor/codemirror_json_schema.js').read_text(encoding='utf-8')
+    monaco_shared_runtime = Path('unified-ui/static/js/ui/monaco_shared.js').read_text(encoding='utf-8')
+    routing_runtime = Path('unified-ui/static/js/features/routing.js').read_text(encoding='utf-8')
 
     assert 'export function validateMihomoConfigSemantics(data, options = {})' in semantic_runtime
     assert 'export function validateXrayConfigSemantics(data, options = {})' in semantic_runtime
@@ -929,7 +929,7 @@ def test_phase2_semantic_validation_runtime_is_wired_into_mihomo_and_xray_editor
     assert 'safeParseJson,' in json_schema_runtime
     assert "semanticValidationByModel: typeof WeakMap !== 'undefined' ? new WeakMap() : null," in monaco_shared_runtime
     assert 'function _applyModelSemanticValidation(monaco, model, provider) {' in monaco_shared_runtime
-    assert "monaco.editor.setModelMarkers(model, 'xkeen-semantic', markers);" in monaco_shared_runtime
+    assert "monaco.editor.setModelMarkers(model, 'unified-semantic', markers);" in monaco_shared_runtime
     assert 'editor.setSemanticValidation = (provider) => {' in monaco_shared_runtime
     assert 'setSemanticValidation(editor, provider) {' in monaco_shared_runtime
     assert 'const schemaLintSource = jsonSchemaLinter(options);' in codemirror_runtime
@@ -945,7 +945,7 @@ def test_phase2_semantic_validation_runtime_is_wired_into_mihomo_and_xray_editor
 
 
 def test_mihomo_schema_tracks_xhttp_transport_and_multiplexing_fields():
-    schema = json.loads(Path('xkeen-ui/static/schemas/mihomo-config.schema.json').read_text(encoding='utf-8'))
+    schema = json.loads(Path('unified-ui/static/schemas/mihomo-config.schema.json').read_text(encoding='utf-8'))
     proxy_props = schema['definitions']['proxy']['properties']
 
     assert 'xhttp' in proxy_props['network']['enum']
@@ -995,17 +995,17 @@ def test_mihomo_schema_tracks_xhttp_transport_and_multiplexing_fields():
 
 def test_runtime_vendor_assets_exist_after_frontend_build():
     required = [
-        Path('xkeen-ui/static/vendor/npm/@codemirror/merge/dist/index.js'),
-        Path('xkeen-ui/static/vendor/npm/@codemirror/state/dist/index.js'),
-        Path('xkeen-ui/static/vendor/npm/@codemirror/view/dist/index.js'),
-        Path('xkeen-ui/static/vendor/npm/codemirror/dist/index.js'),
-        Path('xkeen-ui/static/vendor/npm/jsonc-parser/lib/esm/main.js'),
-        Path('xkeen-ui/static/vendor/npm/style-mod/src/style-mod.js'),
-        Path('xkeen-ui/static/vendor/npm/w3c-keyname/index.js'),
-        Path('xkeen-ui/static/vendor/prettier/standalone.js'),
-        Path('xkeen-ui/static/vendor/prettier/plugins/babel.js'),
-        Path('xkeen-ui/static/vendor/prettier/plugins/estree.js'),
-        Path('xkeen-ui/static/vendor/prettier/plugins/yaml.js'),
+        Path('unified-ui/static/vendor/npm/@codemirror/merge/dist/index.js'),
+        Path('unified-ui/static/vendor/npm/@codemirror/state/dist/index.js'),
+        Path('unified-ui/static/vendor/npm/@codemirror/view/dist/index.js'),
+        Path('unified-ui/static/vendor/npm/codemirror/dist/index.js'),
+        Path('unified-ui/static/vendor/npm/jsonc-parser/lib/esm/main.js'),
+        Path('unified-ui/static/vendor/npm/style-mod/src/style-mod.js'),
+        Path('unified-ui/static/vendor/npm/w3c-keyname/index.js'),
+        Path('unified-ui/static/vendor/prettier/standalone.js'),
+        Path('unified-ui/static/vendor/prettier/plugins/babel.js'),
+        Path('unified-ui/static/vendor/prettier/plugins/estree.js'),
+        Path('unified-ui/static/vendor/prettier/plugins/yaml.js'),
     ]
 
     if shutil.which('npm') is None and not any(path.exists() for path in required):
@@ -1016,7 +1016,7 @@ def test_runtime_vendor_assets_exist_after_frontend_build():
 
 
 def test_runtime_vendor_esm_imports_are_browser_safe():
-    vendor_root = Path('xkeen-ui/static/vendor/npm')
+    vendor_root = Path('unified-ui/static/vendor/npm')
     pattern_specs = [
         re.compile(r"""\bfrom\s*["'](\.{1,2}/[^"'?#]+(?:[?#][^"']*)?)["']"""),
         re.compile(r"""^\s*import\s*["'](\.{1,2}/[^"'?#]+(?:[?#][^"']*)?)["']""", re.MULTILINE),
@@ -1047,11 +1047,11 @@ def test_runtime_vendor_esm_imports_are_browser_safe():
 
 def test_source_mode_templates_include_codemirror6_importmap_before_entry_module():
     templates = [
-        'xkeen-ui/templates/panel.html',
-        'xkeen-ui/templates/devtools.html',
-        'xkeen-ui/templates/xkeen.html',
-        'xkeen-ui/templates/backups.html',
-        'xkeen-ui/templates/mihomo_generator.html',
+        'unified-ui/templates/panel.html',
+        'unified-ui/templates/devtools.html',
+        'unified-ui/templates/unified.html',
+        'unified-ui/templates/backups.html',
+        'unified-ui/templates/mihomo_generator.html',
     ]
 
     for rel in templates:
@@ -1066,44 +1066,44 @@ def test_source_mode_templates_include_codemirror6_importmap_before_entry_module
 
 def test_p4_top_level_templates_share_host_partials_without_forcing_single_template_merge():
     partials = {
-        'xkeen-ui/templates/_top_level_host_head_assets.html': [
+        'unified-ui/templates/_top_level_host_head_assets.html': [
             "favicon.ico",
             "js/ui/typography.js",
             "js/ui/layout.js",
             "js/ui/xk_brand.js",
         ],
-        'xkeen-ui/templates/_top_level_host_theme_bootstrap.html': [
-            "localStorage.getItem('xkeen-theme')",
+        'unified-ui/templates/_top_level_host_theme_bootstrap.html': [
+            "localStorage.getItem('unified-theme')",
             "document.documentElement.style.colorScheme = theme;",
         ],
-        'xkeen-ui/templates/_top_level_global_spinner.html': [
-            "id=\"global-xkeen-spinner\"",
-            "id=\"global-xkeen-spinner-text\"",
+        'unified-ui/templates/_top_level_global_spinner.html': [
+            "id=\"global-unified-spinner\"",
+            "id=\"global-unified-spinner-text\"",
             "top_level_spinner_text",
         ],
     }
     template_expectations = {
-        'xkeen-ui/templates/panel.html': [
+        'unified-ui/templates/panel.html': [
             "{% include '_top_level_host_head_assets.html' %}",
             "{% include '_top_level_host_theme_bootstrap.html' %}",
             "{% include '_top_level_global_spinner.html' %}",
         ],
-        'xkeen-ui/templates/devtools.html': [
+        'unified-ui/templates/devtools.html': [
             "{% include '_top_level_host_head_assets.html' %}",
             "{% include '_top_level_host_theme_bootstrap.html' %}",
             "{% include '_top_level_global_spinner.html' %}",
         ],
-        'xkeen-ui/templates/backups.html': [
+        'unified-ui/templates/backups.html': [
             "{% include '_top_level_host_head_assets.html' %}",
             "{% include '_top_level_host_theme_bootstrap.html' %}",
             "{% include '_top_level_global_spinner.html' %}",
         ],
-        'xkeen-ui/templates/xkeen.html': [
+        'unified-ui/templates/unified.html': [
             "{% include '_top_level_host_head_assets.html' %}",
             "{% include '_top_level_host_theme_bootstrap.html' %}",
             "{% include '_top_level_global_spinner.html' %}",
         ],
-        'xkeen-ui/templates/mihomo_generator.html': [
+        'unified-ui/templates/mihomo_generator.html': [
             "{% include '_top_level_host_head_assets.html' %}",
             "{% include '_top_level_host_theme_bootstrap.html' %}",
             "{% include '_top_level_global_spinner.html' %}",
@@ -1122,16 +1122,16 @@ def test_p4_top_level_templates_share_host_partials_without_forcing_single_templ
 
 
 def test_p5_top_level_router_prefers_history_navigation_and_keeps_hard_navigation_as_fallback():
-    helper = Path('xkeen-ui/static/js/pages/top_level_nav.shared.js').read_text(encoding='utf-8')
-    router = Path('xkeen-ui/static/js/pages/top_level_router.js').read_text(encoding='utf-8')
-    registry = Path('xkeen-ui/static/js/pages/top_level_screen_registry.js').read_text(encoding='utf-8')
-    shell = Path('xkeen-ui/static/js/pages/top_level_shell.shared.js').read_text(encoding='utf-8')
+    helper = Path('unified-ui/static/js/pages/top_level_nav.shared.js').read_text(encoding='utf-8')
+    router = Path('unified-ui/static/js/pages/top_level_router.js').read_text(encoding='utf-8')
+    registry = Path('unified-ui/static/js/pages/top_level_screen_registry.js').read_text(encoding='utf-8')
+    shell = Path('unified-ui/static/js/pages/top_level_shell.shared.js').read_text(encoding='utf-8')
 
     assert 'const TOP_LEVEL_SCREEN_ROUTES = Object.freeze({' in registry
     assert "panel: '/'" in registry
     assert "backups: '/backups'" in registry
     assert "devtools: '/devtools'" in registry
-    assert "xkeen: '/xkeen'" in registry
+    assert "unified: '/unified'" in registry
     assert "mihomo_generator: '/mihomo_generator'" in registry
     assert 'export function resolveTopLevelRoute(input) {' in registry
 
@@ -1177,7 +1177,7 @@ def test_p5_top_level_router_prefers_history_navigation_and_keeps_hard_navigatio
     pushHistoryState(route, replace);
     return queueTransition(route, meta);""" in router
     assert """catch (error) {
-          try { console.error('[XKeen] top-level router transition failed', error); } catch (secondaryError) {}
+          try { console.error('[UnifiedUI] top-level router transition failed', error); } catch (secondaryError) {}
           hardNavigate(route, true);
         }""" in router
     assert """if (!registry.hasScreen(route.name)) {
@@ -1194,12 +1194,12 @@ def test_p5_top_level_router_prefers_history_navigation_and_keeps_hard_navigatio
     assert "router.bootstrapCurrentScreen({" in shell
 
 
-def test_p9_backups_and_xkeen_screen_modules_keep_runtime_reactivation_safe():
-    backups = Path('xkeen-ui/static/js/features/backups.js').read_text(encoding='utf-8')
-    service_status = Path('xkeen-ui/static/js/features/service_status.js').read_text(encoding='utf-8')
-    xkeen_texts = Path('xkeen-ui/static/js/features/xkeen_texts.js').read_text(encoding='utf-8')
-    backups_bootstrap = Path('xkeen-ui/static/js/pages/backups.screen.bootstrap.js').read_text(encoding='utf-8')
-    xkeen_bootstrap = Path('xkeen-ui/static/js/pages/xkeen.screen.bootstrap.js').read_text(encoding='utf-8')
+def test_p9_backups_and_unified_screen_modules_keep_runtime_reactivation_safe():
+    backups = Path('unified-ui/static/js/features/backups.js').read_text(encoding='utf-8')
+    service_status = Path('unified-ui/static/js/features/service_status.js').read_text(encoding='utf-8')
+    unified_texts = Path('unified-ui/static/js/features/unified_texts.js').read_text(encoding='utf-8')
+    backups_bootstrap = Path('unified-ui/static/js/pages/backups.screen.bootstrap.js').read_text(encoding='utf-8')
+    unified_bootstrap = Path('unified-ui/static/js/pages/unified.screen.bootstrap.js').read_text(encoding='utf-8')
 
     assert 'function getMode() {' in backups
     assert "const m = t && t.dataset ? String(t.dataset.mode || '').trim() : '';" in backups
@@ -1224,31 +1224,31 @@ def test_p9_backups_and_xkeen_screen_modules_keep_runtime_reactivation_safe():
     assert 'serializeState() {' in service_status
     assert 'restoreState(state) {' in service_status
 
-    assert 'const hostStates = Object.create(null);' in xkeen_texts
-    assert 'function getCurrentHostKey() {' in xkeen_texts
-    assert 'function getHostState(hostKey) {' in xkeen_texts
-    assert 'function serializeState() {' in xkeen_texts
-    assert 'function restoreState(rawState) {' in xkeen_texts
-    assert 'function activate() {' in xkeen_texts
-    assert 'function deactivate() {' in xkeen_texts
-    assert 'isInitialized() {' in xkeen_texts
+    assert 'const hostStates = Object.create(null);' in unified_texts
+    assert 'function getCurrentHostKey() {' in unified_texts
+    assert 'function getHostState(hostKey) {' in unified_texts
+    assert 'function serializeState() {' in unified_texts
+    assert 'function restoreState(rawState) {' in unified_texts
+    assert 'function activate() {' in unified_texts
+    assert 'function deactivate() {' in unified_texts
+    assert 'isInitialized() {' in unified_texts
 
     assert 'function readScrollState() {' in backups_bootstrap
     assert 'function applyScrollState(state) {' in backups_bootstrap
     assert "if (backupsApi && typeof backupsApi.isInitialized === 'function' && !backupsApi.isInitialized()) {" in backups_bootstrap
     assert 'return applyScrollState(state);' in backups_bootstrap
 
-    assert 'function readScrollState() {' in xkeen_bootstrap
-    assert 'function applyScrollState(state) {' in xkeen_bootstrap
-    assert "if (serviceStatus && typeof serviceStatus.activate === 'function') {" in xkeen_bootstrap
-    assert "if (xkeenTexts && typeof xkeenTexts.activate === 'function') {" in xkeen_bootstrap
-    assert 'xkeenTexts: xkeenTexts && typeof xkeenTexts.serializeState === \'function\'' in xkeen_bootstrap
-    assert 'serviceStatus: serviceStatus && typeof serviceStatus.serializeState === \'function\'' in xkeen_bootstrap
+    assert 'function readScrollState() {' in unified_bootstrap
+    assert 'function applyScrollState(state) {' in unified_bootstrap
+    assert "if (serviceStatus && typeof serviceStatus.activate === 'function') {" in unified_bootstrap
+    assert "if (unifiedTexts && typeof unifiedTexts.activate === 'function') {" in unified_bootstrap
+    assert 'unifiedTexts: unifiedTexts && typeof unifiedTexts.serializeState === \'function\'' in unified_bootstrap
+    assert 'serviceStatus: serviceStatus && typeof serviceStatus.serializeState === \'function\'' in unified_bootstrap
 
 
 def test_terminal_lazy_entry_uses_import_first_vendor_adapter_without_dom_script_injection():
-    entry_text = Path('xkeen-ui/static/js/pages/terminal.lazy.entry.js').read_text(encoding='utf-8')
-    adapter_text = Path('xkeen-ui/static/js/terminal/vendors/xterm_import_adapter.js').read_text(encoding='utf-8')
+    entry_text = Path('unified-ui/static/js/pages/terminal.lazy.entry.js').read_text(encoding='utf-8')
+    adapter_text = Path('unified-ui/static/js/terminal/vendors/xterm_import_adapter.js').read_text(encoding='utf-8')
 
     assert "from '../terminal/vendors/xterm_import_adapter.js';" in entry_text
     assert 'await ensureXtermVendorReady();' in entry_text
@@ -1266,9 +1266,9 @@ def test_terminal_lazy_entry_uses_import_first_vendor_adapter_without_dom_script
 
 
 def test_file_manager_terminal_waits_for_real_terminal_api_before_first_open_and_keeps_pty_hint():
-    text = Path('xkeen-ui/static/js/features/file_manager/terminal.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/file_manager/terminal.js').read_text(encoding='utf-8')
 
-    assert "import { supportsXkeenTerminalPty } from '../xkeen_runtime.js';" in text
+    assert "import { supportsXkeenTerminalPty } from '../unified_runtime.js';" in text
     assert "if (!allowLazyStub && api.__xkLazyStubInstalled) return null;" in text
     assert "const capsReady = !!(caps && typeof caps.isReady === 'function' && caps.isReady());" in text
     assert "return supportsXkeenTerminalPty() ? 'pty' : 'shell';" in text
@@ -1276,7 +1276,7 @@ def test_file_manager_terminal_waits_for_real_terminal_api_before_first_open_and
 
 
 def test_routing_fragment_refresh_uses_runtime_http_api_instead_of_undefined_core_http_global():
-    path = Path('xkeen-ui/static/js/features/routing.js')
+    path = Path('unified-ui/static/js/features/routing.js')
     text = path.read_text(encoding='utf-8')
 
     assert 'const coreHttp = getXkeenCoreHttpApi();' in text
@@ -1284,7 +1284,7 @@ def test_routing_fragment_refresh_uses_runtime_http_api_instead_of_undefined_cor
 
 
 def test_routing_fragment_switch_uses_commit_helper_and_rolls_back_after_load_failure():
-    text = Path('xkeen-ui/static/js/features/routing.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/routing.js').read_text(encoding='utf-8')
 
     assert 'async function loadCommittedFragmentSelection(next, opts)' in text
     assert 'return _activeFragment || getSelectedFragmentFromUI() || restoreRememberedFragment() || null;' in text
@@ -1296,7 +1296,7 @@ def test_routing_fragment_switch_uses_commit_helper_and_rolls_back_after_load_fa
 
 
 def test_routing_refresh_button_is_wired_in_wireui_instead_of_refresh_success_path():
-    text = Path('xkeen-ui/static/js/features/routing.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/routing.js').read_text(encoding='utf-8')
 
     assert 'const refreshBtn = $(IDS.fragmentRefresh);' in text
     assert "await refreshFragmentsList({ notify: true, prevSelection: prev, syncActive: false });" in text
@@ -1305,7 +1305,7 @@ def test_routing_refresh_button_is_wired_in_wireui_instead_of_refresh_success_pa
 
 
 def test_routing_topbar_fragment_select_keeps_intrinsic_width_after_screen_return():
-    text = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     assert '.xk-routing-fileline .xray-log-select{' in text
     assert 'width: auto;' in text
@@ -1315,7 +1315,7 @@ def test_routing_topbar_fragment_select_keeps_intrinsic_width_after_screen_retur
 
 
 def test_xray_live_logs_header_selects_keep_compact_width_after_panel_reactivation():
-    text = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     assert '.log-header-actions > .xray-log-select {' in text
     assert 'width: auto;' in text
@@ -1325,7 +1325,7 @@ def test_xray_live_logs_header_selects_keep_compact_width_after_panel_reactivati
 
 
 def test_root_layout_keeps_body_background_painted_to_full_viewport_height():
-    text = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     assert 'html {' in text
     assert 'min-height: 100%;' in text
@@ -1335,7 +1335,7 @@ def test_root_layout_keeps_body_background_painted_to_full_viewport_height():
 
 
 def test_monaco_marker_widget_uses_full_available_width_without_forcing_extra_detail_rows():
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     common_widget_block = styles.split(
         '.monaco-editor .zone-widget,\n.monaco-editor .marker-widget,\n.monaco-editor .peekview-widget {',
@@ -1395,10 +1395,10 @@ def test_monaco_marker_widget_uses_full_available_width_without_forcing_extra_de
 
 
 def test_xray_preflight_modal_exposes_explainer_block_and_problem_line_rendering():
-    modal_text = Path('xkeen-ui/static/js/ui/xray_preflight_modal.js').read_text(encoding='utf-8')
-    css_text = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
-    spinner_text = Path('xkeen-ui/static/js/ui/spinner_fetch.js').read_text(encoding='utf-8')
-    routing_text = Path('xkeen-ui/static/js/features/routing.js').read_text(encoding='utf-8')
+    modal_text = Path('unified-ui/static/js/ui/xray_preflight_modal.js').read_text(encoding='utf-8')
+    css_text = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
+    spinner_text = Path('unified-ui/static/js/ui/spinner_fetch.js').read_text(encoding='utf-8')
+    routing_text = Path('unified-ui/static/js/features/routing.js').read_text(encoding='utf-8')
 
     assert "data-xk-preflight-explainer-wrap" in modal_text
     assert "data-xk-preflight-explainer" in modal_text
@@ -1414,7 +1414,7 @@ def test_xray_preflight_modal_exposes_explainer_block_and_problem_line_rendering
     assert 'function renderExplanationItems(container, items) {' in modal_text
     assert 'function renderTerminalOutput(el, text, emptyLabel) {' in modal_text
     assert 'function getRetryWithoutPreflightAction(payload) {' in modal_text
-    assert "XKeen.routing.retrySaveWithoutPreflight" in modal_text
+    assert "UnifiedUI.routing.retrySaveWithoutPreflight" in modal_text
     assert "boolLike(payload.can_skip_preflight)" in modal_text
     assert 'function extractBalancerReference(text) {' in modal_text
     assert 'function extractOutboundReference(text) {' in modal_text
@@ -1455,7 +1455,7 @@ def test_xray_preflight_modal_exposes_explainer_block_and_problem_line_rendering
 
 
 def test_devtools_light_theme_has_readable_update_pills_and_layout_tab_list():
-    css_text = Path('xkeen-ui/static/devtools.css').read_text(encoding='utf-8')
+    css_text = Path('unified-ui/static/devtools.css').read_text(encoding='utf-8')
 
     assert 'html[data-theme="light"] body.devtools-page .dt-badge,' in css_text
     assert 'html[data-theme="light"] body.devtools-page .dt-pill {' in css_text
@@ -1467,24 +1467,24 @@ def test_devtools_light_theme_has_readable_update_pills_and_layout_tab_list():
 
 
 def test_theme_toggle_uses_delegated_binding_and_resyncs_after_top_level_route_changes():
-    text = Path('xkeen-ui/static/js/ui/theme.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/ui/theme.js').read_text(encoding='utf-8')
 
-    assert "const TOP_LEVEL_ROUTE_CHANGE_EVENT = 'xkeen:top-level-route-change';" in text
+    assert "const TOP_LEVEL_ROUTE_CHANGE_EVENT = 'unified:top-level-route-change';" in text
     assert 'function syncThemeToggleButtons(theme) {' in text
     assert "getThemeToggleButtons().forEach((btn) => {" in text
     assert "event.target.closest('#theme-toggle-btn')" in text
     assert "document.addEventListener('click', handleThemeToggleClick);" in text
     assert "window.addEventListener(TOP_LEVEL_ROUTE_CHANGE_EVENT, () => {" in text
     assert "applyTheme(_currentTheme || getInitialTheme(), { syncEditors: false, notify: false });" in text
-    assert "XKeen.ui.syncThemeToggleButtons = syncThemeToggleButtons;" in text
+    assert "UnifiedUI.ui.syncThemeToggleButtons = syncThemeToggleButtons;" in text
     assert "btn.addEventListener('click'" not in text
 
 
 def test_donate_visibility_resyncs_after_same_tab_pref_changes_and_top_level_route_swaps():
-    text = Path('xkeen-ui/static/js/features/donate.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/donate.js').read_text(encoding='utf-8')
 
-    assert "const TOP_LEVEL_ROUTE_CHANGE_EVENT = 'xkeen:top-level-route-change';" in text
-    assert "const DONATE_PREF_CHANGE_EVENT = 'xkeen:donate-pref-change';" in text
+    assert "const TOP_LEVEL_ROUTE_CHANGE_EVENT = 'unified:top-level-route-change';" in text
+    assert "const DONATE_PREF_CHANGE_EVENT = 'unified:donate-pref-change';" in text
     assert 'function syncDevtoolsToggleState() {' in text
     assert 'function syncDonateUiState() {' in text
     assert "window.dispatchEvent(new CustomEvent(DONATE_PREF_CHANGE_EVENT, {" in text
@@ -1492,23 +1492,23 @@ def test_donate_visibility_resyncs_after_same_tab_pref_changes_and_top_level_rou
     assert "window.addEventListener(DONATE_PREF_CHANGE_EVENT, () => {" in text
     assert "window.addEventListener('storage', (event) => {" in text
     assert "if (!event || event.key !== LS_KEY_HIDE) return;" in text
-    assert "document.addEventListener('xkeen-ui-prefs-applied', () => {" in text
+    assert "document.addEventListener('unified-ui-prefs-applied', () => {" in text
     assert 'Donate.syncVisibility = syncDonateUiState;' in text
 
 
 def test_routing_comments_ux_listener_is_guarded_after_init_flag():
-    text = Path('xkeen-ui/static/js/features/routing.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/routing.js').read_text(encoding='utf-8')
 
     assert 'let _commentsUxWired = false;' in text
     assert 'if (_inited) return;' in text
-    assert "document.addEventListener('xkeen:routing-comments-ux', (ev) => {" in text
+    assert "document.addEventListener('unified:routing-comments-ux', (ev) => {" in text
     assert '_commentsUxWired = true;' in text
-    assert text.index('if (_inited) return;') < text.index("document.addEventListener('xkeen:routing-comments-ux', (ev) => {")
+    assert text.index('if (_inited) return;') < text.index("document.addEventListener('unified:routing-comments-ux', (ev) => {")
 
 
 def test_routing_monaco_custom_menu_includes_symbol_occurrence_and_palette_actions():
-    routing = Path('xkeen-ui/static/js/features/routing.js').read_text(encoding='utf-8')
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    routing = Path('unified-ui/static/js/features/routing.js').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     assert 'function routingMonacoMenuItemHtml(action, label, shortcut) {' in routing
     assert "routingMonacoMenuItemHtml('goToSymbol', 'Перейти к символу...', 'Ctrl+Shift+O')" in routing
@@ -1524,12 +1524,12 @@ def test_routing_monaco_custom_menu_includes_symbol_occurrence_and_palette_actio
 
 
 def test_routing_monaco_custom_menu_includes_symbol_occurrence_and_palette_actions():
-    routing = Path('xkeen-ui/static/js/features/routing.js').read_text(encoding='utf-8')
-    monaco_shared = Path('xkeen-ui/static/js/ui/monaco_shared.js').read_text(encoding='utf-8')
-    mihomo_panel = Path('xkeen-ui/static/js/features/mihomo_panel.js').read_text(encoding='utf-8')
-    mihomo_generator = Path('xkeen-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
-    file_manager = Path('xkeen-ui/static/js/features/file_manager/editor.js').read_text(encoding='utf-8')
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    routing = Path('unified-ui/static/js/features/routing.js').read_text(encoding='utf-8')
+    monaco_shared = Path('unified-ui/static/js/ui/monaco_shared.js').read_text(encoding='utf-8')
+    mihomo_panel = Path('unified-ui/static/js/features/mihomo_panel.js').read_text(encoding='utf-8')
+    mihomo_generator = Path('unified-ui/static/js/features/mihomo_generator.js').read_text(encoding='utf-8')
+    file_manager = Path('unified-ui/static/js/features/file_manager/editor.js').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     assert 'function installCustomContextMenu(editor, host, opts) {' in monaco_shared
     assert "const customContextMenu = _normalizeCustomContextMenuOptions(o, language);" in monaco_shared
@@ -1555,7 +1555,7 @@ def test_routing_monaco_custom_menu_includes_symbol_occurrence_and_palette_actio
 
 
 def test_mihomo_template_load_button_uses_dirty_guard_while_select_path_skips_duplicate_prompt():
-    text = Path('xkeen-ui/static/js/features/mihomo_panel.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/mihomo_panel.js').read_text(encoding='utf-8')
 
     assert 'async function confirmDiscardDirtyEditorChanges(opts)' in text
     assert "MP.loadSelectedTemplateToEditor = async function loadSelectedTemplateToEditor(opts) {" in text
@@ -1565,7 +1565,7 @@ def test_mihomo_template_load_button_uses_dirty_guard_while_select_path_skips_du
 
 
 def test_xray_subscription_modal_discards_url_only_draft_on_close_without_prompt():
-    text = Path('xkeen-ui/static/js/features/outbounds.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/outbounds.js').read_text(encoding='utf-8')
 
     assert 'function subsDiscardUnprotectedDraftOnClose() {' in text
     assert 'if (!subsHasDirtyDraft(formState)) return false;' in text
@@ -1576,7 +1576,7 @@ def test_xray_subscription_modal_discards_url_only_draft_on_close_without_prompt
 
 
 def test_xray_subscription_modal_restarts_with_clean_blank_form_after_mutations():
-    text = Path('xkeen-ui/static/js/features/outbounds.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/outbounds.js').read_text(encoding='utf-8')
 
     load_block = text.split('async function subsLoad() {', 1)[1].split('function subsClearPreview', 1)[0]
     assert 'let cleanBlankDraft = false;' in load_block
@@ -1596,7 +1596,7 @@ def test_xray_subscription_modal_restarts_with_clean_blank_form_after_mutations(
 
 
 def test_mihomo_server_side_config_swaps_resync_editor_after_activate_and_restore():
-    text = Path('xkeen-ui/static/js/features/mihomo_panel.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/mihomo_panel.js').read_text(encoding='utf-8')
 
     assert "async function loadLiveConfigIntoEditor()" in text
     assert text.count("const syncResult = await loadLiveConfigIntoEditor();") >= 2
@@ -1607,9 +1607,9 @@ def test_mihomo_server_side_config_swaps_resync_editor_after_activate_and_restor
 
 
 def test_mihomo_profiles_backups_panel_uses_compact_premium_vault_layout():
-    template = Path('xkeen-ui/templates/panel.html').read_text(encoding='utf-8')
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
-    script = Path('xkeen-ui/static/js/features/mihomo_panel.js').read_text(encoding='utf-8')
+    template = Path('unified-ui/templates/panel.html').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
+    script = Path('unified-ui/static/js/features/mihomo_panel.js').read_text(encoding='utf-8')
 
     assert 'class="xk-mihomo-vault"' in template
     assert 'class="xk-mihomo-vault-grid"' in template
@@ -1639,13 +1639,13 @@ def test_mihomo_profiles_backups_panel_uses_compact_premium_vault_layout():
 
 
 def test_panel_mobile_usability_pass_uses_scrollable_tabs_and_compact_editor_toolbar_overrides():
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     assert 'Panel page: mobile usability pass' in styles
     assert '@media (max-width: 760px) {' in styles
     assert 'body.panel-page .top-tabs.header-tabs {' in styles
     assert 'scroll-snap-type: x proximity;' in styles
-    assert 'body.panel-page .xkeen-ctrl-group-main {' in styles
+    assert 'body.panel-page .unified-ctrl-group-main {' in styles
     assert 'grid-template-columns: repeat(3, minmax(0, 1fr));' in styles
     assert 'body.panel-page .xk-routing-toolbararea,' in styles
     assert 'body.panel-page .xk-mihomo-toolbararea {' in styles
@@ -1659,7 +1659,7 @@ def test_panel_mobile_usability_pass_uses_scrollable_tabs_and_compact_editor_too
 
 
 def test_panel_mobile_second_wave_compacts_file_manager_and_modal_shells():
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     assert 'Panel page: mobile second wave (file manager + modal ergonomics).' in styles
     assert 'body.panel-page .modal-content {' in styles
@@ -1679,7 +1679,7 @@ def test_panel_mobile_second_wave_compacts_file_manager_and_modal_shells():
 
 
 def test_file_manager_active_panel_highlight_stays_subtle():
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     active_block = styles.split('.fm-panel-active{', 1)[1].split('}\n\n.fm-panel-bar{', 1)[0]
     active_bar_block = styles.split('.fm-panel-active .fm-panel-bar{', 1)[1].split('}\n/*', 1)[0]
@@ -1698,7 +1698,7 @@ def test_file_manager_active_panel_highlight_stays_subtle():
 
 
 def test_panel_mobile_third_wave_switches_file_manager_to_touch_first_rows_and_stacks_editor_toolbars():
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     assert 'Panel page: mobile third wave (touch-first file manager + cleaner editor toolbars).' in styles
     assert 'body.panel-page .routing-focus-note {' in styles
@@ -1720,55 +1720,55 @@ def test_panel_mobile_third_wave_switches_file_manager_to_touch_first_rows_and_s
 
 
 def test_editor_fullscreen_toolbars_are_pinned_above_fullscreen_editors():
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
-    actions = Path('xkeen-ui/static/js/ui/editor_actions.js').read_text(encoding='utf-8')
-    routing = Path('xkeen-ui/static/js/features/routing.js').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
+    actions = Path('unified-ui/static/js/ui/editor_actions.js').read_text(encoding='utf-8')
+    routing = Path('unified-ui/static/js/features/routing.js').read_text(encoding='utf-8')
 
-    block = styles.split('.xkeen-cm-toolbar.is-fullscreen {', 1)[1].split('\n}', 1)[0]
+    block = styles.split('.unified-cm-toolbar.is-fullscreen {', 1)[1].split('\n}', 1)[0]
     assert 'position: fixed !important;' in block
     assert 'top: 10px !important;' in block
     assert 'right: 10px !important;' in block
     assert 'z-index: 2147483000 !important;' in block
     assert 'pointer-events: auto;' in block
 
-    hide_block = styles.split('.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool {', 1)[1].split('\n}', 1)[0]
+    hide_block = styles.split('.unified-cm-toolbar.is-fullscreen .unified-cm-tool {', 1)[1].split('\n}', 1)[0]
     assert 'display: none !important;' in hide_block
-    assert '.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool[data-action-id="fs"],' in styles
-    assert '.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool[data-action-id="fs_any"],' in styles
-    assert '.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool[data-action-id="fullscreen"],' in styles
-    assert '.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool[data-command="fullscreen"] {' in styles
-    show_block = styles.split('.xkeen-cm-toolbar.is-fullscreen .xkeen-cm-tool[data-command="fullscreen"] {', 1)[1].split('\n}', 1)[0]
+    assert '.unified-cm-toolbar.is-fullscreen .unified-cm-tool[data-action-id="fs"],' in styles
+    assert '.unified-cm-toolbar.is-fullscreen .unified-cm-tool[data-action-id="fs_any"],' in styles
+    assert '.unified-cm-toolbar.is-fullscreen .unified-cm-tool[data-action-id="fullscreen"],' in styles
+    assert '.unified-cm-toolbar.is-fullscreen .unified-cm-tool[data-command="fullscreen"] {' in styles
+    show_block = styles.split('.unified-cm-toolbar.is-fullscreen .unified-cm-tool[data-command="fullscreen"] {', 1)[1].split('\n}', 1)[0]
     assert 'display: inline-flex !important;' in show_block
 
     assert 'function portalToolbarForFullscreen(toolbar, active, fallbackParent)' in actions
     assert 'document.body.appendChild(toolbar);' in actions
-    assert 'window.xkeenPortalEditorToolbarForFullscreen = portalToolbarForFullscreen;' in actions
+    assert 'window.unifiedPortalEditorToolbarForFullscreen = portalToolbarForFullscreen;' in actions
     assert 'portalToolbarForFullscreen(bar, active);' in actions
 
-    assert "&& !(bar.__xkeenFullscreenPortal && bar.__xkeenFullscreenPortal.active)" in routing
+    assert "&& !(bar.__unifiedFullscreenPortal && bar.__unifiedFullscreenPortal.active)" in routing
     sync_body = routing.split('function _syncToolbarFsClass(isFs) {', 1)[1].split('\n  function isMonacoFullscreen', 1)[0]
     assert "const cmToolbarFullscreen = !!isFs && _engine !== 'monaco';" in sync_body
-    assert "_cm._xkeenToolbarEl.classList.toggle('is-fullscreen', cmToolbarFullscreen);" in sync_body
+    assert "_cm._unifiedToolbarEl.classList.toggle('is-fullscreen', cmToolbarFullscreen);" in sync_body
     assert "if (!_routingMonacoToolbarEl && _engine === 'monaco') ensureRoutingMonacoToolbar();" in sync_body
     assert "const monacoToolbarFullscreen = !!isFs && _engine === 'monaco';" in sync_body
-    assert 'window.xkeenPortalEditorToolbarForFullscreen(' in sync_body
+    assert 'window.unifiedPortalEditorToolbarForFullscreen(' in sync_body
     assert "document.getElementById('routing-toolbar-host')" in sync_body
     assert "_routingMonacoToolbarEl.classList.toggle('is-fullscreen', monacoToolbarFullscreen);" in sync_body
     assert "if (monacoToolbarFullscreen) _routingMonacoToolbarEl.style.display = '';" in sync_body
 
     for path in (
-        'xkeen-ui/static/js/ui/codemirror6_boot.js',
-        'xkeen-ui/static/js/features/mihomo_panel.js',
-        'xkeen-ui/static/js/features/mihomo_generator.js',
-        'xkeen-ui/static/js/features/file_manager/editor.js',
+        'unified-ui/static/js/ui/codemirror6_boot.js',
+        'unified-ui/static/js/features/mihomo_panel.js',
+        'unified-ui/static/js/features/mihomo_generator.js',
+        'unified-ui/static/js/features/file_manager/editor.js',
     ):
-        assert 'xkeenPortalEditorToolbarForFullscreen' in Path(path).read_text(encoding='utf-8')
+        assert 'unifiedPortalEditorToolbarForFullscreen' in Path(path).read_text(encoding='utf-8')
 
 
 def test_mihomo_fullscreen_toolbar_dedupes_fallback_button():
     for path in (
-        'xkeen-ui/static/js/features/mihomo_panel.js',
-        'xkeen-ui/static/js/features/mihomo_generator.js',
+        'unified-ui/static/js/features/mihomo_panel.js',
+        'unified-ui/static/js/features/mihomo_generator.js',
     ):
         src = Path(path).read_text(encoding='utf-8')
         assert "if (hasFs) {" in src
@@ -1777,8 +1777,8 @@ def test_mihomo_fullscreen_toolbar_dedupes_fallback_button():
 
 
 def test_routing_template_modals_stretch_preview_and_edit_editors_with_modal_resize():
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
-    script = Path('xkeen-ui/static/js/features/routing_templates.js').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
+    script = Path('unified-ui/static/js/features/routing_templates.js').read_text(encoding='utf-8')
 
     assert '#routing-template-modal .modal-content,' in styles
     assert '#routing-template-edit-modal .modal-content {' in styles
@@ -1787,7 +1787,7 @@ def test_routing_template_modals_stretch_preview_and_edit_editors_with_modal_res
     assert 'overflow: hidden;' in styles
     assert '#routing-template-modal .routing-template-grid {' in styles
     assert '#routing-template-modal .routing-template-preview-monaco,' in styles
-    assert '#routing-template-modal .xkeen-cm6-host.routing-template-preview-cm {' in styles
+    assert '#routing-template-modal .unified-cm6-host.routing-template-preview-cm {' in styles
     assert '#routing-template-edit-modal .routing-template-edit-form > label:last-of-type > .routing-template-edit-monaco,' in styles
     assert '#routing-template-edit-modal .routing-template-edit-cm .CodeMirror-scroll {' in styles
     assert 'height: 100%;' in styles
@@ -1798,7 +1798,7 @@ def test_routing_template_modals_stretch_preview_and_edit_editors_with_modal_res
     assert 'function layoutPreviewEditorsSoon() {' in script
     assert 'function layoutEditEditorsSoon() {' in script
     assert 'function wireTemplateModalResizeOnce() {' in script
-    assert "document.addEventListener('xkeen-modal-resize', (event) => {" in script
+    assert "document.addEventListener('unified-modal-resize', (event) => {" in script
     assert 'if (modalId === IDS.modal) {' in script
     assert 'if (modalId === IDS.editModal) {' in script
     assert 'wireTemplateModalResizeOnce();' in script
@@ -1807,9 +1807,9 @@ def test_routing_template_modals_stretch_preview_and_edit_editors_with_modal_res
 
 
 def test_routing_dat_card_keeps_visible_current_file_labels_in_sync_with_selected_names():
-    ids_text = Path('xkeen-ui/static/js/features/routing_cards/ids.js').read_text(encoding='utf-8')
-    panel_text = Path('xkeen-ui/templates/panel.html').read_text(encoding='utf-8')
-    card_text = Path('xkeen-ui/static/js/features/routing_cards/dat/card.js').read_text(encoding='utf-8')
+    ids_text = Path('unified-ui/static/js/features/routing_cards/ids.js').read_text(encoding='utf-8')
+    panel_text = Path('unified-ui/templates/panel.html').read_text(encoding='utf-8')
+    card_text = Path('unified-ui/static/js/features/routing_cards/dat/card.js').read_text(encoding='utf-8')
 
     assert "datGeositeCurrentFile: 'routing-dat-geosite-current-file'" in ids_text
     assert "datGeoipCurrentFile: 'routing-dat-geoip-current-file'" in ids_text
@@ -1821,7 +1821,7 @@ def test_routing_dat_card_keeps_visible_current_file_labels_in_sync_with_selecte
 
 
 def test_routing_dat_actions_read_current_dom_selection_before_falling_back_to_saved_prefs():
-    text = Path('xkeen-ui/static/js/features/routing_cards/dat/api.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/routing_cards/dat/api.js').read_text(encoding='utf-8')
 
     assert 'function readKindPrefs(kind)' in text
     assert "const dirId = (k === 'geosite') ? IDS.datGeositeDir : IDS.datGeoipDir;" in text
@@ -1831,7 +1831,7 @@ def test_routing_dat_actions_read_current_dom_selection_before_falling_back_to_s
 
 
 def test_routing_dat_prefs_backfill_blank_values_with_defaults():
-    text = Path('xkeen-ui/static/js/features/routing_cards/dat/prefs.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/routing_cards/dat/prefs.js').read_text(encoding='utf-8')
 
     assert 'function mergeKindDefaults(kind, value)' in text
     assert "if (!String(merged.url || '').trim()) merged.url = DEFAULTS[k].url;" in text
@@ -1840,8 +1840,8 @@ def test_routing_dat_prefs_backfill_blank_values_with_defaults():
 
 
 def test_panel_shell_dat_fallback_rehydrates_current_card_before_deferring_and_dispatches_input_change():
-    text = Path('xkeen-ui/static/js/pages/panel_shell.shared.js').read_text(encoding='utf-8')
-    card_text = Path('xkeen-ui/static/js/features/routing_cards/dat/card.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/pages/panel_shell.shared.js').read_text(encoding='utf-8')
+    card_text = Path('unified-ui/static/js/features/routing_cards/dat/card.js').read_text(encoding='utf-8')
 
     assert 'function hasModernRoutingDatFeature()' in text
     assert 'function isCurrentRoutingDatCardWired()' in text
@@ -1854,7 +1854,7 @@ def test_panel_shell_dat_fallback_rehydrates_current_card_before_deferring_and_d
 
 
 def test_xray_logs_height_prefs_keep_local_draft_and_survive_hidden_view_saves():
-    text = Path('xkeen-ui/static/js/features/xray_logs.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/xray_logs.js').read_text(encoding='utf-8')
 
     assert 'const LOG_WINDOW_MIN_HEIGHT = 420;' in text
     assert 'function _resolveLogWindowHeight(refs, runtimeState)' in text
@@ -1870,7 +1870,7 @@ def test_xray_logs_height_prefs_keep_local_draft_and_survive_hidden_view_saves()
 
 
 def test_xray_logs_css_keeps_live_window_resizable_past_restart_log_cap():
-    css = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    css = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     generic_cap = 'body.panel-page .log-card .log-block {\n    min-height: 140px;\n    max-height: 220px;'
     fullscreen_selector = '.log-card.is-fullscreen .xray-log-block'
@@ -1893,9 +1893,9 @@ def test_xray_logs_css_keeps_live_window_resizable_past_restart_log_cap():
 
 
 def test_xray_logs_device_names_ui_contract():
-    script = Path('xkeen-ui/static/js/features/xray_logs.js').read_text(encoding='utf-8')
-    template = Path('xkeen-ui/templates/panel.html').read_text(encoding='utf-8')
-    css = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    script = Path('unified-ui/static/js/features/xray_logs.js').read_text(encoding='utf-8')
+    template = Path('unified-ui/templates/panel.html').read_text(encoding='utf-8')
+    css = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     assert 'id="xray-log-devices-btn"' in template
     assert 'id="xray-devices-modal"' in template
@@ -1934,9 +1934,9 @@ def test_xray_logs_device_names_ui_contract():
 
 
 def test_xray_logs_destination_domain_hints_ui_contract():
-    script = Path('xkeen-ui/static/js/features/xray_logs.js').read_text(encoding='utf-8')
-    parser = Path('xkeen-ui/static/js/features/xray_log_domain_hints.js').read_text(encoding='utf-8')
-    css = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    script = Path('unified-ui/static/js/features/xray_logs.js').read_text(encoding='utf-8')
+    parser = Path('unified-ui/static/js/features/xray_log_domain_hints.js').read_text(encoding='utf-8')
+    css = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     assert "from './xray_log_domain_hints.js';" in script
     assert 'function ingestXrayLogDestinationDomains' in script
@@ -1949,15 +1949,15 @@ def test_xray_logs_destination_domain_hints_ui_contract():
 
 
 def test_file_manager_non_navigation_refreshes_do_not_consume_path_input_drafts():
-    editor_text = Path('xkeen-ui/static/js/features/file_manager/editor.js').read_text(encoding='utf-8')
-    listing_text = Path('xkeen-ui/static/js/features/file_manager/listing.js').read_text(encoding='utf-8')
+    editor_text = Path('unified-ui/static/js/features/file_manager/editor.js').read_text(encoding='utf-8')
+    listing_text = Path('unified-ui/static/js/features/file_manager/listing.js').read_text(encoding='utf-8')
 
     assert "if (ctx.side && typeof lp === 'function') await lp(ctx.side, { fromInput: false });" in editor_text
     assert "await Promise.all([listPanel('left', { fromInput: false }), listPanel('right', { fromInput: false })]);" in listing_text
 
 
 def test_routing_editor_uses_all_fragments_for_semantic_context_and_separates_jsonc_from_semantic_errors():
-    routing = Path('xkeen-ui/static/js/features/routing.js').read_text(encoding='utf-8')
+    routing = Path('unified-ui/static/js/features/routing.js').read_text(encoding='utf-8')
 
     assert "return 'all-fragments';" in routing
     assert "fetchTags('/api/xray/outbound-tags?all=1')" in routing
@@ -1971,7 +1971,7 @@ def test_routing_editor_uses_all_fragments_for_semantic_context_and_separates_js
 
 
 def test_forced_rules_wizard_uses_real_outbounds_and_separates_domain_ip_rules():
-    text = Path('xkeen-ui/static/js/features/routing_cards/rules/forced_rules_wizard.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/routing_cards/rules/forced_rules_wizard.js').read_text(encoding='utf-8')
     remove_body = text.split('function removeExistingWizardForcedRules(rules, importLegacy)', 1)[1].split('\n  function findBalancerRuleIndex', 1)[0]
 
     assert "if (!filtered.includes('proxy'))" not in text
@@ -1992,7 +1992,7 @@ def test_forced_rules_wizard_uses_real_outbounds_and_separates_domain_ip_rules()
 
 
 def test_quick_balancer_wizard_normalizes_default_rule_and_reports_observatory_noop():
-    text = Path('xkeen-ui/static/js/features/routing_cards/rules/quick_balancer.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/features/routing_cards/rules/quick_balancer.js').read_text(encoding='utf-8')
     choose_body = text.split('function chooseInsertIndex(rules)', 1)[1].split('\n  function normalizeDefaultBalancerRule', 1)[0]
     ensure_body = text.split('function ensureDefaultBalancerRule(model, balancerTag)', 1)[1].split('\n  function removeAutoDefaultBalancerRule', 1)[0]
 
@@ -2018,12 +2018,12 @@ def test_quick_balancer_wizard_normalizes_default_rule_and_reports_observatory_n
 
 
 def test_routing_field_help_clicks_do_not_leak_to_adjacent_remove_buttons():
-    modal = Path('xkeen-ui/static/js/features/routing_cards/help_modal.js').read_text(encoding='utf-8')
-    fields = Path('xkeen-ui/static/js/features/routing_cards/rules/fields.js').read_text(encoding='utf-8')
-    render = Path('xkeen-ui/static/js/features/routing_cards/rules/render.js').read_text(encoding='utf-8')
-    shell = Path('xkeen-ui/static/js/features/routing_cards.js').read_text(encoding='utf-8')
-    bundle = Path('xkeen-ui/static/js/pages/panel.routing.bundle.js').read_text(encoding='utf-8')
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    modal = Path('unified-ui/static/js/features/routing_cards/help_modal.js').read_text(encoding='utf-8')
+    fields = Path('unified-ui/static/js/features/routing_cards/rules/fields.js').read_text(encoding='utf-8')
+    render = Path('unified-ui/static/js/features/routing_cards/rules/render.js').read_text(encoding='utf-8')
+    shell = Path('unified-ui/static/js/features/routing_cards.js').read_text(encoding='utf-8')
+    bundle = Path('unified-ui/static/js/pages/panel.routing.bundle.js').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     assert "raw.closest('.routing-help-btn')" in modal
     assert "btn.matches('[data-tooltip-only=\"1\"], .routing-help-tip')" in modal
@@ -2058,8 +2058,8 @@ def test_routing_field_help_clicks_do_not_leak_to_adjacent_remove_buttons():
 
 
 def test_routing_rule_cards_do_not_render_duplicate_json_preview_under_extra_field():
-    render = Path('xkeen-ui/static/js/features/routing_cards/rules/render.js').read_text(encoding='utf-8')
-    docs = Path('xkeen-ui/static/js/features/routing_cards/help_docs.js').read_text(encoding='utf-8')
+    render = Path('unified-ui/static/js/features/routing_cards/rules/render.js').read_text(encoding='utf-8')
+    docs = Path('unified-ui/static/js/features/routing_cards/help_docs.js').read_text(encoding='utf-8')
 
     rule_form = render.split('function buildRuleForm', 1)[1].split('// -------- Balancer selector UI', 1)[0]
     balancer_form = render.split('function buildBalancerForm', 1)[1].split('function renderBalancers', 1)[0]
@@ -2081,24 +2081,24 @@ def test_routing_rule_cards_do_not_render_duplicate_json_preview_under_extra_fie
 
 
 def test_codemirror_lint_tooltips_are_scrollable_and_width_limited_inside_editor():
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
-    boot = Path('xkeen-ui/static/js/ui/codemirror6_boot.js').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
+    boot = Path('unified-ui/static/js/ui/codemirror6_boot.js').read_text(encoding='utf-8')
     hover_block = styles.split('.cm-tooltip.cm-tooltip-hover {', 1)[1].split('}', 1)[0]
     schema_hover_block = styles.split('.cm-tooltip .cm6-json-schema-hover {', 1)[1].split('}', 1)[0]
 
-    assert '.xkeen-cm6-host .cm-tooltip-lint {' in styles
+    assert '.unified-cm6-host .cm-tooltip-lint {' in styles
     assert 'max-width: min(560px, calc(100% - 16px), calc(100vw - 32px));' in styles
     assert '.cm-tooltip.cm-tooltip-lint {' in styles
     assert 'max-width: min(560px, calc(100vw - 32px)) !important;' in styles
     assert '.cm-tooltip.cm-tooltip-hover {' in styles
     assert 'pointer-events: auto;' in hover_block
-    assert '.xkeen-cm6-host .cm-tooltip-lint > ul {' in styles
+    assert '.unified-cm6-host .cm-tooltip-lint > ul {' in styles
     assert '.cm-tooltip.cm-tooltip-lint > ul {' in styles
     assert '.cm-tooltip.cm-tooltip-hover > * {' in styles
     assert 'max-height: min(220px, 38vh);' in styles
     assert 'overflow-y: auto;' in styles
     assert 'overflow-x: hidden;' in styles
-    assert '.xkeen-cm6-host .cm-tooltip-lint .cm-diagnosticText,' in styles
+    assert '.unified-cm6-host .cm-tooltip-lint .cm-diagnosticText,' in styles
     assert '.cm-tooltip.cm-tooltip-lint .cm-diagnosticText,' in styles
     assert '.cm-tooltip.cm-tooltip-hover .cm-diagnosticText,' in styles
     assert '.cm-tooltip .cm6-json-schema-hover {' in styles
@@ -2119,7 +2119,7 @@ def test_codemirror_lint_tooltips_are_scrollable_and_width_limited_inside_editor
 
 
 def test_monaco_schema_hovers_keep_single_scroll_layer():
-    styles = Path('xkeen-ui/static/styles.css').read_text(encoding='utf-8')
+    styles = Path('unified-ui/static/styles.css').read_text(encoding='utf-8')
 
     hover_block = styles.split(
         '.monaco-hover .monaco-scrollable-element,\n.monaco-editor-hover .monaco-scrollable-element {',
@@ -2149,7 +2149,7 @@ def test_monaco_schema_hovers_keep_single_scroll_layer():
 
 
 def test_terminal_xray_tail_reclaims_pty_after_stop_or_disable():
-    text = Path('xkeen-ui/static/js/terminal/xray_tail.js').read_text(encoding='utf-8')
+    text = Path('unified-ui/static/js/terminal/xray_tail.js').read_text(encoding='utf-8')
     start_body = text.split('async function start()', 1)[1].split('\n  function stopViewer', 1)[0]
     stop_body = text.split('function stopViewer(opts)', 1)[1].split('\n  async function stopViewerAndSettle', 1)[0]
     disable_body = text.split('async function disableLogs()', 1)[1].split('\n  function clearRestartTimer', 1)[0]

@@ -25,12 +25,12 @@ async function waitForRoutingEditor(page) {
   await expect(page.locator('#view-routing')).toBeVisible();
   await page.waitForFunction(() => {
     return !!(
-      window.XKeen &&
-      window.XKeen.features &&
-      window.XKeen.features.routing &&
-      window.XKeen.features.routingShell &&
-      typeof window.XKeen.features.routing.replaceEditorText === 'function' &&
-      typeof window.XKeen.features.routingShell.getEditorInstance === 'function'
+      window.UnifiedUI &&
+      window.UnifiedUI.features &&
+      window.UnifiedUI.features.routing &&
+      window.UnifiedUI.features.routingShell &&
+      typeof window.UnifiedUI.features.routing.replaceEditorText === 'function' &&
+      typeof window.UnifiedUI.features.routingShell.getEditorInstance === 'function'
     );
   });
 }
@@ -40,7 +40,7 @@ async function ensureCodeMirrorRouting(page) {
   await expect(select).toBeVisible();
   await select.selectOption('codemirror');
   await page.waitForFunction(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     return !!(editor && typeof editor.setCursor === 'function' && typeof editor.getQuickFixes === 'function');
   });
@@ -51,7 +51,7 @@ async function ensureMonacoRouting(page) {
   await expect(select).toBeVisible();
   await select.selectOption('monaco');
   await page.waitForFunction(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     return !!(
       editor &&
@@ -64,7 +64,7 @@ async function ensureMonacoRouting(page) {
 
 async function replaceRoutingText(page, text) {
   await page.evaluate((nextText) => {
-    window.XKeen.features.routing.replaceEditorText(nextText, {
+    window.UnifiedUI.features.routing.replaceEditorText(nextText, {
       markDirty: false,
       reason: 'e2e-quick-fix',
       scrollTop: true,
@@ -75,7 +75,7 @@ async function replaceRoutingText(page, text) {
 
 async function getRoutingText(page) {
   return page.evaluate(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     return editor && typeof editor.getValue === 'function' ? editor.getValue() : '';
   });
@@ -83,7 +83,7 @@ async function getRoutingText(page) {
 
 async function getRoutingQuickFixTitles(page) {
   return page.evaluate(() => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     const fixes = editor && typeof editor.getQuickFixes === 'function'
       ? editor.getQuickFixes({ limit: 5 })
@@ -94,7 +94,7 @@ async function getRoutingQuickFixTitles(page) {
 
 async function moveRoutingCursorAfterText(page, needle) {
   await page.evaluate((target) => {
-    const maybeEditor = window.XKeen?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
+    const maybeEditor = window.UnifiedUI?.features?.routingShell?.getEditorInstance?.({ preferRaw: true });
     const editor = maybeEditor && maybeEditor.raw ? maybeEditor.raw : maybeEditor;
     if (!editor) throw new Error('Routing editor is not ready');
     if (typeof editor.getModel === 'function') {
@@ -124,11 +124,11 @@ async function openMihomo(page) {
   await expect(page.locator('#view-mihomo')).toBeVisible();
   await page.waitForFunction(() => {
     return !!(
-      window.XKeen &&
-      window.XKeen.features &&
-      window.XKeen.features.mihomoPanel &&
-      typeof window.XKeen.features.mihomoPanel.setEditorText === 'function' &&
-      typeof window.XKeen.features.mihomoPanel.getEditorText === 'function'
+      window.UnifiedUI &&
+      window.UnifiedUI.features &&
+      window.UnifiedUI.features.mihomoPanel &&
+      typeof window.UnifiedUI.features.mihomoPanel.setEditorText === 'function' &&
+      typeof window.UnifiedUI.features.mihomoPanel.getEditorText === 'function'
     );
   });
 }
@@ -145,19 +145,19 @@ async function ensureCodeMirrorMihomo(page) {
 
 async function replaceMihomoText(page, text) {
   await page.evaluate((nextText) => {
-    window.XKeen.features.mihomoPanel.setEditorText(nextText);
+    window.UnifiedUI.features.mihomoPanel.setEditorText(nextText);
   }, text);
 }
 
 async function getMihomoText(page) {
   return page.evaluate(() => {
-    return window.XKeen?.features?.mihomoPanel?.getEditorText?.() || '';
+    return window.UnifiedUI?.features?.mihomoPanel?.getEditorText?.() || '';
   });
 }
 
 async function moveMihomoCursorAfterText(page, needle) {
   await page.evaluate((target) => {
-    const editor = window.XKeen?.state?.mihomoEditor || null;
+    const editor = window.UnifiedUI?.state?.mihomoEditor || null;
     if (!editor || typeof editor.getValue !== 'function' || typeof editor.setCursor !== 'function') {
       throw new Error('Shared Mihomo CodeMirror editor is not ready');
     }
@@ -172,7 +172,7 @@ async function moveMihomoCursorAfterText(page, needle) {
 
 async function getMihomoQuickFixTitles(page) {
   return page.evaluate(() => {
-    const editor = window.XKeen?.state?.mihomoEditor || null;
+    const editor = window.UnifiedUI?.state?.mihomoEditor || null;
     const fixes = editor && typeof editor.getQuickFixes === 'function'
       ? editor.getQuickFixes({ limit: 5 })
       : [];

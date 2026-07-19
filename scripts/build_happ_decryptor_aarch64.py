@@ -14,7 +14,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_UPSTREAM_REPO = "https://github.com/LeeeeT/happ-decryptor.git"
 DEFAULT_SOURCE_DIR = REPO_ROOT / ".tmp" / "leeeet-happ-decryptor"
-DEFAULT_OUTPUT = REPO_ROOT / "xkeen-ui" / "bin" / "happ-decrypt-universal"
+DEFAULT_OUTPUT = REPO_ROOT / "unified-ui" / "bin" / "happ-decrypt-universal"
 CRYPT5_KEYS_REL = Path("public/data/expanded_rsa_keys.json")
 DECRYPT_JS_REL = Path("src/decrypt.js")
 
@@ -347,7 +347,7 @@ def generate_go_source(build_dir: Path, legacy_keys: list[str], crypt5_keys: dic
     main_go = main_go.replace("__CRYPT5_KEYS_JSON__", json.dumps(json.dumps(crypt5_keys, sort_keys=True)))
     (build_dir / "main.go").write_text(main_go.strip() + "\n", encoding="utf-8")
     (build_dir / "go.mod").write_text(
-        "module xkeen-local-happ-decryptor\n\n"
+        "module unified-local-happ-decryptor\n\n"
         "go 1.23\n\n"
         "require golang.org/x/crypto v0.45.0\n",
         encoding="utf-8",
@@ -396,7 +396,7 @@ def main() -> int:
             build_go_binary(build_dir, output, goos=str(args.goos), goarch=str(args.goarch))
 
     print(f"[*] output: {output}", flush=True)
-    print("[*] command: XKEEN_HAPP_DECRYPTOR_CMD='{} %LINK%'".format(output.as_posix()), flush=True)
+    print("[*] command: UNIFIED_HAPP_DECRYPTOR_CMD='{} %LINK%'".format(output.as_posix()), flush=True)
     return 0
 
 

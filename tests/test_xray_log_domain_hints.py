@@ -27,7 +27,7 @@ def test_xray_log_domain_hints_extract_destinations_and_domains():
           collectXrayLogDomainCandidates,
           extractXrayLogConnectionId,
           normalizeXrayLogDomain,
-        } from './xkeen-ui/static/js/features/xray_log_domain_hints.js';
+        } from './unified-ui/static/js/features/xray_log_domain_hints.js';
 
         const access = '2026/06/08 15:07:50 from 192.168.1.83:51158 accepted tcp:8.6.112.0:443 [redirect -> direct]';
         const sniffed = '2026/06/08 15:08:01 [INFO] [3868264735] app/dispatcher: sniffed domain: ab.chatgpt.com';

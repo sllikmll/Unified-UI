@@ -8,10 +8,10 @@ Frontend migration закрыта: **stages 0-9 fully closed**.
 
 Актуальное состояние сверяется с:
 
-- source entrypoints в `xkeen-ui/static/js/pages/*.entry.js`;
-- runtime adapters в `xkeen-ui/static/js/features/xkeen_runtime.js`, `xkeen-ui/static/js/runtime/lazy_runtime.js` и terminal/runtime слоях;
-- Flask templates и helper-слоем `xkeen-ui/routes/ui_assets.py`;
-- manifest bridge в `xkeen-ui/static/frontend-build/.vite/manifest.json`;
+- source entrypoints в `unified-ui/static/js/pages/*.entry.js`;
+- runtime adapters в `unified-ui/static/js/features/unified_runtime.js`, `unified-ui/static/js/runtime/lazy_runtime.js` и terminal/runtime слоях;
+- Flask templates и helper-слоем `unified-ui/routes/ui_assets.py`;
+- manifest bridge в `unified-ui/static/frontend-build/.vite/manifest.json`;
 - guardrail-тестами в `tests/`.
 
 ## Актуальные документы
@@ -29,7 +29,7 @@ Frontend migration закрыта: **stages 0-9 fully closed**.
 
 - **Stage 0. Архитектурный контракт** — canonical source of truth живёт в `docs/frontend-target-architecture.md`, `docs/frontend-feature-api.md` и `docs/adr/0001-frontend-esm-bootstrap.md`.
 - **Stage 1. Page inventory** — canonical page map строится по source entrypoints, а `docs/frontend-page-inventory.json` обязан оставаться синхронным с `scripts/generate_frontend_inventory.py`.
-- **Stage 2. Secondary-page bootstrap** — `backups`, `devtools`, `xkeen` и `mihomo_generator` не имеют права возвращаться к `legacy_script_loader.js` или `bootLegacyEntry(...)`.
+- **Stage 2. Secondary-page bootstrap** — `backups`, `devtools`, `unified` и `mihomo_generator` не имеют права возвращаться к `legacy_script_loader.js` или `bootLegacyEntry(...)`.
 - **Stage 3. Panel bootstrap и manifest bridge** — `static/frontend-build/.vite/manifest.json` может указывать только на thin wrapper assets, а wrapper-файлы не должны содержать runtime-логики кроме import canonical source entrypoint.
 
 Любые дальнейшие изменения по frontend должны идти только вперёд и не ломать этот frozen baseline.
@@ -38,24 +38,24 @@ Frontend migration закрыта: **stages 0-9 fully closed**.
 
 Этапы 4-6 уже закрыты и подтверждены кодом, guardrails и статусной документацией.
 
-- `panel`/`devtools` публикуют только canonical `window.XKeen.pageConfig`;
-- `window.XKeen.features.*` не является canonical read-path для нового кода;
+- `panel`/`devtools` публикуют только canonical `window.UnifiedUI.pageConfig`;
+- `window.UnifiedUI.features.*` не является canonical read-path для нового кода;
 - canonical runtime readers опираются на `pageConfig` и модульные helpers, а не на server-injected raw globals;
 - `terminal.lazy.entry.js` и vendor adapter больше не делают DOM script injection.
 
 Stages 7-9 тоже закрыты и теперь считаются частью обычного repository contract.
 
 - reproducible build toolchain зафиксирован в `package.json`, `package-lock.json`, `vite.config.mjs` и связанных scripts;
-- normal production path требует build-managed entry, а source fallback допустим только для dev/test/debug через `XKEEN_UI_FRONTEND_SOURCE_FALLBACK=1` или debug/testing context;
+- normal production path требует build-managed entry, а source fallback допустим только для dev/test/debug через `UNIFIED_UI_FRONTEND_SOURCE_FALLBACK=1` или debug/testing context;
 - `legacy_script_loader.js` удалён из репозитория и не участвует в runtime path;
 - `lazy_runtime.js` остаётся только узким runtime adapter-слоем для generic deferred bundles и shell-bound feature API;
 - dead compat aliases и transitional comments не должны возвращаться как новый product contract.
 
 ## Текущее состояние репозитория
 
-- Есть 5 canonical page entrypoints: `panel`, `backups`, `devtools`, `xkeen`, `mihomo_generator`.
+- Есть 5 canonical page entrypoints: `panel`, `backups`, `devtools`, `unified`, `mihomo_generator`.
 - Manifest bridge синхронизируется `scripts/sync_frontend_build_manifest.py` и указывает на thin wrappers, которые импортируют canonical source entries.
-- Raw build manifest пишется в `xkeen-ui/static/frontend-build/.vite/manifest.build.json`.
+- Raw build manifest пишется в `unified-ui/static/frontend-build/.vite/manifest.build.json`.
 - Локальный основной workflow остаётся таким: `npm ci`, `npm run frontend:build`, `npm run frontend:verify:static`; полная локальная проверка по-прежнему доступна через `npm run frontend:verify`.
 - `.github/workflows/ci.yml` выполняет `npm ci`, `npm run frontend:build`, `python -m pytest -q` и `node scripts/verify_frontend_build.mjs`.
 - `.github/workflows/build-user-archive.yml` выполняет `npm ci`, `npm run frontend:build` и `node scripts/verify_frontend_build.mjs`.
@@ -65,7 +65,7 @@ Stages 7-9 тоже закрыты и теперь считаются часть
 - возврат page entrypoints к `legacy_script_loader.js` или `bootLegacyEntry(...)`;
 - превращение build wrappers в место для runtime-логики;
 - возврат `lazy_runtime.js` или terminal lazy path к DOM script injection;
-- использование `window.XKeen.features.*`, `window.XKeen.env.*` или `window.XKEEN_*` как canonical source of truth;
+- использование `window.UnifiedUI.features.*`, `window.UnifiedUI.env.*` или `window.UNIFIED_*` как canonical source of truth;
 - возврат normal production flow к silent source fallback;
 - расхождение checked-in docs с фактическим CI/build/runtime contract.
 

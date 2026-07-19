@@ -11,7 +11,7 @@ from flask import Blueprint, Flask
 
 
 ROOT = Path(__file__).resolve().parents[1]
-APP_DIR = ROOT / "xkeen-ui"
+APP_DIR = ROOT / "unified-ui"
 ROUTES_DIR = APP_DIR / "routes"
 ROUTING_DIR = ROUTES_DIR / "routing"
 
@@ -102,9 +102,9 @@ def _make_dat_client():
 
 
 def test_geodat_install_blocks_custom_url_by_default_before_running_script(monkeypatch, tmp_path: Path):
-    monkeypatch.delenv("XKEEN_GEODAT_ALLOW_CUSTOM_URLS", raising=False)
-    monkeypatch.delenv("XKEEN_GEODAT_ALLOW_PRIVATE_HOSTS", raising=False)
-    monkeypatch.delenv("XKEEN_GEODAT_ALLOW_HTTP", raising=False)
+    monkeypatch.delenv("UNIFIED_GEODAT_ALLOW_CUSTOM_URLS", raising=False)
+    monkeypatch.delenv("UNIFIED_GEODAT_ALLOW_PRIVATE_HOSTS", raising=False)
+    monkeypatch.delenv("UNIFIED_GEODAT_ALLOW_HTTP", raising=False)
     client, geodat = _make_geodat_client(monkeypatch, tmp_path)
 
     calls = []
@@ -122,13 +122,13 @@ def test_geodat_install_blocks_custom_url_by_default_before_running_script(monke
     assert payload["ok"] is False
     assert payload["error"] == "url_blocked"
     assert payload["reason"] == "host_not_allowed:mirror.example"
-    assert "XKEEN_GEODAT_ALLOW_CUSTOM_URLS=1" in payload["hint"]
+    assert "UNIFIED_GEODAT_ALLOW_CUSTOM_URLS=1" in payload["hint"]
     assert calls == []
 
 
 def test_geodat_install_opt_in_downloads_to_local_file_before_script(monkeypatch, tmp_path: Path):
-    monkeypatch.setenv("XKEEN_GEODAT_ALLOW_CUSTOM_URLS", "1")
-    monkeypatch.delenv("XKEEN_GEODAT_ALLOW_PRIVATE_HOSTS", raising=False)
+    monkeypatch.setenv("UNIFIED_GEODAT_ALLOW_CUSTOM_URLS", "1")
+    monkeypatch.delenv("UNIFIED_GEODAT_ALLOW_PRIVATE_HOSTS", raising=False)
     client, geodat = _make_geodat_client(monkeypatch, tmp_path)
 
     download_calls = []
@@ -159,15 +159,15 @@ def test_geodat_install_opt_in_downloads_to_local_file_before_script(monkeypatch
     assert payload["ok"] is True
     assert download_calls and download_calls[0]["url"] == "https://mirror.example/xk-geodat"
     assert download_calls[0]["allow_custom_urls"] is True
-    assert "XKEEN_GEODAT_LOCAL" in seen_env
-    assert "XKEEN_GEODAT_URL" not in seen_env
-    assert not Path(seen_env["XKEEN_GEODAT_LOCAL"]).exists()
+    assert "UNIFIED_GEODAT_LOCAL" in seen_env
+    assert "UNIFIED_GEODAT_URL" not in seen_env
+    assert not Path(seen_env["UNIFIED_GEODAT_LOCAL"]).exists()
 
 
 def test_dat_update_blocks_custom_url_by_default_before_download(monkeypatch, tmp_path: Path):
-    monkeypatch.delenv("XKEEN_DAT_ALLOW_CUSTOM_URLS", raising=False)
-    monkeypatch.delenv("XKEEN_DAT_ALLOW_PRIVATE_HOSTS", raising=False)
-    monkeypatch.delenv("XKEEN_DAT_ALLOW_HTTP", raising=False)
+    monkeypatch.delenv("UNIFIED_DAT_ALLOW_CUSTOM_URLS", raising=False)
+    monkeypatch.delenv("UNIFIED_DAT_ALLOW_PRIVATE_HOSTS", raising=False)
+    monkeypatch.delenv("UNIFIED_DAT_ALLOW_HTTP", raising=False)
     client, dat = _make_dat_client()
     target = tmp_path / "geosite_v2fly.dat"
 
@@ -192,13 +192,13 @@ def test_dat_update_blocks_custom_url_by_default_before_download(monkeypatch, tm
     assert payload["ok"] is False
     assert payload["error"] == "url_blocked"
     assert payload["reason"] == "host_not_allowed:mirror.example"
-    assert "XKEEN_DAT_ALLOW_CUSTOM_URLS=1" in payload["hint"]
+    assert "UNIFIED_DAT_ALLOW_CUSTOM_URLS=1" in payload["hint"]
     assert calls == []
 
 
 def test_dat_update_rejects_private_hosts_even_with_custom_urls(monkeypatch, tmp_path: Path):
-    monkeypatch.setenv("XKEEN_DAT_ALLOW_CUSTOM_URLS", "1")
-    monkeypatch.delenv("XKEEN_DAT_ALLOW_PRIVATE_HOSTS", raising=False)
+    monkeypatch.setenv("UNIFIED_DAT_ALLOW_CUSTOM_URLS", "1")
+    monkeypatch.delenv("UNIFIED_DAT_ALLOW_PRIVATE_HOSTS", raising=False)
     client, dat = _make_dat_client()
     target = tmp_path / "geoip_v2fly.dat"
 
@@ -215,12 +215,12 @@ def test_dat_update_rejects_private_hosts_even_with_custom_urls(monkeypatch, tmp
     assert payload["ok"] is False
     assert payload["error"] == "url_blocked"
     assert payload["reason"] == "private_host_not_allowed:127.0.0.1"
-    assert "XKEEN_DAT_ALLOW_PRIVATE_HOSTS=1" in payload["hint"]
+    assert "UNIFIED_DAT_ALLOW_PRIVATE_HOSTS=1" in payload["hint"]
 
 
 def test_dat_update_opt_in_allows_custom_public_url(monkeypatch, tmp_path: Path):
-    monkeypatch.setenv("XKEEN_DAT_ALLOW_CUSTOM_URLS", "1")
-    monkeypatch.delenv("XKEEN_DAT_ALLOW_PRIVATE_HOSTS", raising=False)
+    monkeypatch.setenv("UNIFIED_DAT_ALLOW_CUSTOM_URLS", "1")
+    monkeypatch.delenv("UNIFIED_DAT_ALLOW_PRIVATE_HOSTS", raising=False)
     client, dat = _make_dat_client()
     target = tmp_path / "geosite_v2fly.dat"
 

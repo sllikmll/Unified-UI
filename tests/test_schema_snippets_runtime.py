@@ -33,7 +33,7 @@ def _run_node_json(script: str) -> object:
 def test_editor_schema_resolves_snippet_providers_for_supported_targets():
     payload = _run_node_json(
         """
-import { resolveEditorSnippetProvider } from './xkeen-ui/static/js/ui/editor_schema.js';
+import { resolveEditorSnippetProvider } from './unified-ui/static/js/ui/editor_schema.js';
 
 const routingProvider = resolveEditorSnippetProvider({
   target: 'routing',
@@ -72,7 +72,7 @@ console.log(JSON.stringify({
 def test_routing_snippet_provider_surfaces_rule_block_templates_on_rules_array():
     labels = _run_node_json(
         """
-import { resolveEditorSnippetProvider } from './xkeen-ui/static/js/ui/editor_schema.js';
+import { resolveEditorSnippetProvider } from './unified-ui/static/js/ui/editor_schema.js';
 
 const provider = resolveEditorSnippetProvider({
   target: 'routing',
@@ -97,7 +97,7 @@ def test_editor_schema_disables_snippet_providers_in_expert_mode():
     payload = _run_node_json(
         """
 global.window = {
-  XKeen: {
+  UnifiedUI: {
     ui: {
       settings: {
         get() {
@@ -108,7 +108,7 @@ global.window = {
   },
 };
 
-const { resolveEditorSnippetProvider } = await import('./xkeen-ui/static/js/ui/editor_schema.js');
+const { resolveEditorSnippetProvider } = await import('./unified-ui/static/js/ui/editor_schema.js');
 
 const routingProvider = resolveEditorSnippetProvider({
   target: 'routing',
@@ -134,7 +134,7 @@ console.log(JSON.stringify({
 def test_xray_quic_block_snippet_matches_common_udp_443_rule():
     payload = _run_node_json(
         """
-import { getXraySnippets } from './xkeen-ui/static/js/ui/schema_snippets.js';
+import { getXraySnippets } from './unified-ui/static/js/ui/schema_snippets.js';
 
 const quicSnippet = getXraySnippets({
   schemaKind: 'xray-routing',
@@ -159,7 +159,7 @@ console.log(JSON.stringify({
 def test_xray_rule_block_snippets_are_not_offered_inside_existing_rule_object():
     payload = _run_node_json(
         """
-import { getXraySnippets } from './xkeen-ui/static/js/ui/schema_snippets.js';
+import { getXraySnippets } from './unified-ui/static/js/ui/schema_snippets.js';
 
 const arrayLevel = getXraySnippets({
   schemaKind: 'xray-routing',
@@ -186,10 +186,10 @@ import fs from 'node:fs';
 import { EditorState } from '@codemirror/state';
 import { CompletionContext } from '@codemirror/autocomplete';
 import { json } from '@codemirror/lang-json';
-import { stateExtensions, jsonCompletion } from './xkeen-ui/static/js/vendor/codemirror_json_schema.js';
-import { resolveEditorSnippetProvider } from './xkeen-ui/static/js/ui/editor_schema.js';
+import { stateExtensions, jsonCompletion } from './unified-ui/static/js/vendor/codemirror_json_schema.js';
+import { resolveEditorSnippetProvider } from './unified-ui/static/js/ui/editor_schema.js';
 
-const schema = JSON.parse(fs.readFileSync('./xkeen-ui/static/schemas/xray-routing.schema.json', 'utf8'));
+const schema = JSON.parse(fs.readFileSync('./unified-ui/static/schemas/xray-routing.schema.json', 'utf8'));
 const marker = '__CURSOR__';
 const docWithMarker = [
   '{',
@@ -230,7 +230,7 @@ console.log(JSON.stringify(result ? result.options.map((option) => option.label)
 def test_xray_dns_snippet_points_to_keenetic_dns_over_vless_flow():
     payload = _run_node_json(
         """
-import { getXraySnippets } from './xkeen-ui/static/js/ui/schema_snippets.js';
+import { getXraySnippets } from './unified-ui/static/js/ui/schema_snippets.js';
 
 const dnsSnippet = getXraySnippets({
   schemaKind: 'xray-config',
@@ -255,7 +255,7 @@ console.log(JSON.stringify({
 def test_xray_vless_snippets_prefer_compact_settings_format():
     payload = _run_node_json(
         """
-import { getXraySnippets } from './xkeen-ui/static/js/ui/schema_snippets.js';
+import { getXraySnippets } from './unified-ui/static/js/ui/schema_snippets.js';
 
 const snippets = getXraySnippets({
   schemaKind: 'xray-outbounds',
@@ -283,7 +283,7 @@ console.log(JSON.stringify({
 def test_mihomo_sniffer_snippet_stays_minimal_for_common_router_setup():
     payload = _run_node_json(
         """
-import { getMihomoSnippets } from './xkeen-ui/static/js/ui/schema_snippets.js';
+import { getMihomoSnippets } from './unified-ui/static/js/ui/schema_snippets.js';
 
 const snifferSnippet = getMihomoSnippets({
   path: [],
@@ -307,7 +307,7 @@ console.log(JSON.stringify({
 def test_mihomo_snippet_matching_supports_numeric_array_indexes_and_filters_nested_provider_context():
     payload = _run_node_json(
         """
-import { getMihomoSnippets } from './xkeen-ui/static/js/ui/schema_snippets.js';
+import { getMihomoSnippets } from './unified-ui/static/js/ui/schema_snippets.js';
 
 console.log(JSON.stringify({
   proxiesArray: getMihomoSnippets({
@@ -341,7 +341,7 @@ console.log(JSON.stringify({
 def test_phase3_high_value_composite_snippets_are_available_at_root_and_rules_array():
     payload = _run_node_json(
         """
-import { getXraySnippets, getMihomoSnippets } from './xkeen-ui/static/js/ui/schema_snippets.js';
+import { getXraySnippets, getMihomoSnippets } from './unified-ui/static/js/ui/schema_snippets.js';
 
 const xrayComposite = getXraySnippets({
   schemaKind: 'xray-config',
@@ -390,10 +390,10 @@ console.log(JSON.stringify({
 
 
 def test_feature_editors_wire_schema_snippet_providers():
-    routing_src = (ROOT / "xkeen-ui" / "static" / "js" / "features" / "routing.js").read_text(encoding="utf-8")
-    mihomo_src = (ROOT / "xkeen-ui" / "static" / "js" / "features" / "mihomo_panel.js").read_text(encoding="utf-8")
-    modal_src = (ROOT / "xkeen-ui" / "static" / "js" / "ui" / "json_editor_modal.js").read_text(encoding="utf-8")
-    schema_src = (ROOT / "xkeen-ui" / "static" / "js" / "ui" / "editor_schema.js").read_text(encoding="utf-8")
+    routing_src = (ROOT / "unified-ui" / "static" / "js" / "features" / "routing.js").read_text(encoding="utf-8")
+    mihomo_src = (ROOT / "unified-ui" / "static" / "js" / "features" / "mihomo_panel.js").read_text(encoding="utf-8")
+    modal_src = (ROOT / "unified-ui" / "static" / "js" / "ui" / "json_editor_modal.js").read_text(encoding="utf-8")
+    schema_src = (ROOT / "unified-ui" / "static" / "js" / "ui" / "editor_schema.js").read_text(encoding="utf-8")
 
     assert "snippetProvider: getRoutingSnippetProvider()," in routing_src
     assert "snippetProvider: getMihomoSnippetProvider()," in mihomo_src

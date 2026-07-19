@@ -1,0 +1,1120 @@
+(() => {
+  'use strict';
+
+  window.UnifiedUI = window.UnifiedUI || {};
+  const UnifiedUI = window.UnifiedUI;
+  UnifiedUI.ui = UnifiedUI.ui || {};
+  UnifiedUI.ui.modal = UnifiedUI.ui.modal || {};
+
+  const Modal = UnifiedUI.ui.modal;
+  const _modalBindings = new Map();
+
+  function noop() {}
+
+  function getUiModalApi() {
+    try {
+      if (UnifiedUI.core && UnifiedUI.core.uiModal) return UnifiedUI.core.uiModal;
+    } catch (e) {}
+    try {
+      if (UnifiedUI.uiModal) return UnifiedUI.uiModal;
+    } catch (e2) {}
+    return null;
+  }
+
+  function resolveModal(modalElOrId) {
+    if (!modalElOrId) return null;
+    if (typeof modalElOrId === 'string') {
+      try { return document.getElementById(String(modalElOrId)); } catch (e) {}
+      return null;
+    }
+    return modalElOrId;
+  }
+
+  function resolveModalId(modalElOrId) {
+    const modalEl = resolveModal(modalElOrId);
+    try {
+      if (modalEl && modalEl.id) return String(modalEl.id);
+    } catch (e) {}
+    if (typeof modalElOrId === 'string') return String(modalElOrId);
+    return '';
+  }
+
+  function focusModal(modalEl) {
+    if (!modalEl) return;
+
+    const run = () => {
+      try {
+        let focusEl = null;
+        const selector = modalEl.dataset && modalEl.dataset.modalFocus
+          ? String(modalEl.dataset.modalFocus || '').trim()
+          : '';
+
+        if (selector) {
+          try { focusEl = modalEl.querySelector(selector); } catch (e0) {}
+        }
+
+        if (!focusEl) {
+          focusEl = modalEl.querySelector(
+            '[autofocus], input:not([type="hidden"]):not([disabled]), ' +
+            'button:not([disabled]), [href], select:not([disabled]), ' +
+            'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          );
+        }
+
+        if (focusEl && typeof focusEl.focus === 'function') {
+          try { focusEl.focus({ preventScroll: true }); } catch (e1) { focusEl.focus(); }
+        }
+      } catch (e2) {}
+    };
+
+    try { requestAnimationFrame(run); } catch (e3) { run(); }
+  }
+
+  function applyModalOpenState(modalEl, isOpen, options) {
+    if (!modalEl) return false;
+    const nextOpen = !!isOpen;
+    const prevOpen = isVisibleModal(modalEl);
+
+    try {
+      modalEl.classList.toggle('hidden', !nextOpen);
+    } catch (e) {
+      return false;
+    }
+
+    if (nextOpen && (!options || options.focus !== false)) {
+      focusModal(modalEl);
+    }
+
+    try { Modal.syncBodyScrollLock(); } catch (e2) {}
+    return prevOpen !== nextOpen;
+  }
+
+  function syncStoreModalState(modalElOrId, isOpen, meta) {
+    const api = getUiModalApi();
+    const modalId = resolveModalId(modalElOrId);
+    if (!api || !modalId || typeof api.setOpen !== 'function') return false;
+    try {
+      api.setOpen(modalId, !!isOpen, meta);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function ensureStoreBinding(modalElOrId) {
+    const modalEl = resolveModal(modalElOrId);
+    const modalId = resolveModalId(modalEl);
+    if (!modalEl || !modalId) return noop;
+
+    const existing = _modalBindings.get(modalId);
+    if (typeof existing === 'function') return existing;
+
+    syncStoreModalState(modalEl, isVisibleModal(modalEl), { source: 'modal_dom_init' });
+
+    const api = getUiModalApi();
+    if (!api || typeof api.subscribeModal !== 'function') {
+      _modalBindings.set(modalId, noop);
+      return noop;
+    }
+
+    const unsubscribe = api.subscribeModal(modalId, (isOpen) => {
+      applyModalOpenState(modalEl, isOpen, { source: 'modal_store' });
+    }, { immediate: true });
+
+    _modalBindings.set(modalId, unsubscribe);
+    return unsubscribe;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Body scroll lock (shared)
+  // ---------------------------------------------------------------------------
+  // Prevent background page scrolling when any modal/overlay is open.
+  // Uses the existing CSS rule: body.modal-open { overflow: hidden; }
+  Modal.syncBodyScrollLock = function syncBodyScrollLock() {
+    try {
+      const anyModal = !!document.querySelector('.modal:not(.hidden)');
+      const fmFsOpen = (() => {
+        try {
+          const card = document.querySelector('.fm-card.is-fullscreen');
+          if (!card || !card.isConnected) return false;
+          const cs = window.getComputedStyle(card);
+          if (!cs) return false;
+          if (cs.display === 'none') return false;
+          if (cs.visibility === 'hidden') return false;
+          return true;
+        } catch (e) {
+          return false;
+        }
+      })();
+
+      const xrayFsOpen = (() => {
+        try {
+          const card = document.querySelector('.log-card.is-fullscreen');
+          if (!card || !card.isConnected) return false;
+          const cs = window.getComputedStyle(card);
+          if (!cs) return false;
+          if (cs.display === 'none') return false;
+          if (cs.visibility === 'hidden') return false;
+          return true;
+        } catch (e) {
+          return false;
+        }
+      })();
+
+      // NOTE: Terminal overlay (#terminal-overlay) is *not* treated as a modal for scroll-lock.
+      // We intentionally keep the page scrollable while the terminal window is open.
+      if (anyModal || fmFsOpen || xrayFsOpen) {
+        document.body.classList.add('modal-open');
+      } else {
+        document.body.classList.remove('modal-open');
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Modal positioning + drag
+  // ---------------------------------------------------------------------------
+  const PAD = 8;
+  // Put dragged/opened modals above toasts (#toast-container is z-index:80),
+  // and keep nested confirmations above the currently visible modal stack.
+  const Z_BASE = 90; // keep above .modal (60)
+  const Z_CONFIRM_FLOOR = 130; // CSS fallback for #confirm-modal
+  const Z_TOP_LIMIT = 2147483000; // leave room for tooltip/context-menu portals
+  let _z = Z_BASE;
+  
+  // Persisted geometry (position + size)
+  const STORAGE_PREFIX = 'xk.modal.state.v1.';
+  const MIN_W = 260;
+  const MIN_H = 160;
+
+  function modalKey(modalEl) {
+    if (!modalEl) return '';
+    try {
+      if (modalEl.dataset && modalEl.dataset.modalKey) return STORAGE_PREFIX + String(modalEl.dataset.modalKey);
+    } catch (e) {}
+    try {
+      if (modalEl.id) return STORAGE_PREFIX + String(modalEl.id);
+    } catch (e2) {}
+    return '';
+  }
+
+  function canRemember(modalEl) {
+    if (!modalEl) return false;
+    try {
+      if (modalEl.id === 'confirm-modal') return false;
+      if (modalEl.classList && modalEl.classList.contains('modal-drawer')) return false;
+      if (modalEl.dataset && modalEl.dataset.modalNopos === '1') return false;
+      if (modalEl.dataset && modalEl.dataset.modalRemember === '0') return false;
+    } catch (e) {}
+    return !!modalKey(modalEl);
+  }
+
+  function canResize(modalEl) {
+    if (!modalEl) return false;
+    try {
+      if (modalEl.id === 'confirm-modal') return false;
+      if (modalEl.classList && modalEl.classList.contains('modal-drawer')) return false;
+      if (modalEl.dataset && modalEl.dataset.modalNoresize === '1') return false;
+    } catch (e) {}
+    return true;
+  }
+
+  function loadState(modalEl) {
+    if (!canRemember(modalEl)) return null;
+    const key = modalKey(modalEl);
+    if (!key) return null;
+
+    let raw = null;
+    try { raw = localStorage.getItem(key); } catch (e) {}
+    if (!raw) return null;
+    try {
+      const obj = JSON.parse(raw);
+      if (!obj || obj.v !== 1) return null;
+      const x = Number(obj.x), y = Number(obj.y), w = Number(obj.w), h = Number(obj.h);
+      if (![x, y, w, h].every((n) => Number.isFinite(n))) return null;
+      return { v: 1, x, y, w, h };
+    } catch (e2) {
+      return null;
+    }
+  }
+
+  function saveState(modalEl, contentEl) {
+    if (!canRemember(modalEl) || !contentEl) return;
+    let r = null;
+    try { r = contentEl.getBoundingClientRect(); } catch (e) { r = null; }
+    if (!r) return;
+
+    const w = Math.max(MIN_W, r.width || MIN_W);
+    const h = Math.max(MIN_H, r.height || MIN_H);
+    const p = clampPos(r.left, r.top, w, h, PAD);
+
+    const key = modalKey(modalEl);
+    if (!key) return;
+    const payload = { v: 1, x: Math.round(p.x), y: Math.round(p.y), w: Math.round(w), h: Math.round(h) };
+    try { localStorage.setItem(key, JSON.stringify(payload)); } catch (e2) {}
+  }
+
+  function applyState(modalEl, contentEl, state) {
+    if (!modalEl || !contentEl || !state) return false;
+    if (!canRemember(modalEl)) return false;
+
+    const viewMaxW = Math.max(200, window.innerWidth - PAD * 2);
+    const viewMaxH = Math.max(150, window.innerHeight - PAD * 2);
+
+    const w = Math.min(viewMaxW, Math.max(MIN_W, Number(state.w) || MIN_W));
+    const h = Math.min(viewMaxH, Math.max(MIN_H, Number(state.h) || MIN_H));
+    const p = clampPos(Number(state.x) || PAD, Number(state.y) || PAD, w, h, PAD);
+
+    try {
+      contentEl.style.position = 'fixed';
+      contentEl.style.left = Math.round(p.x) + 'px';
+      contentEl.style.top = Math.round(p.y) + 'px';
+      contentEl.style.width = Math.round(w) + 'px';
+      contentEl.style.height = Math.round(h) + 'px';
+      contentEl.style.maxWidth = 'none';
+      contentEl.style.maxHeight = 'none';
+      contentEl.style.transform = 'none';
+      contentEl.dataset.xkDragged = '1';
+    } catch (e) {
+      return false;
+    }
+    return true;
+  }
+
+  function refreshEmbeds(contentEl) {
+    if (!contentEl) return;
+
+    // CodeMirror refresh for editors in modals.
+    try {
+      contentEl.querySelectorAll('.CodeMirror').forEach((cmEl) => {
+        try {
+          const inst = cmEl && cmEl.CodeMirror;
+          if (inst && typeof inst.refresh === 'function') inst.refresh();
+        } catch (e2) {}
+      });
+    } catch (e) {}
+
+    // Notify others.
+    try {
+      document.dispatchEvent(new CustomEvent('unified-modal-resize', { detail: { modal: modalElId(contentEl) } }));
+    } catch (e3) {}
+  }
+
+  function modalElId(contentEl) {
+    try {
+      const m = contentEl.closest('.modal');
+      if (m && m.id) return String(m.id);
+    } catch (e) {}
+    return '';
+  }
+
+  function ensureResizer(modalEl) {
+    if (!modalEl) return;
+    if (!canResize(modalEl)) return;
+    const content = getContent(modalEl);
+    if (!content) return;
+
+    // Existing handle? Normalize it (helps when CSS is cached or partially overridden).
+    try {
+      const existing = content.querySelector('.modal-resizer');
+      if (existing) {
+        try { normalizeResizer(modalEl, existing); } catch (e0) {}
+        return;
+      }
+    } catch (e) {}
+
+    try {
+      const h = document.createElement('div');
+      h.className = 'modal-resizer';
+      h.setAttribute('role', 'button');
+      h.tabIndex = 0;
+      content.appendChild(h);
+      try { normalizeResizer(modalEl, h); } catch (e1) {}
+    } catch (e2) {}
+  }
+
+  // Ensure the resize handle is always bottom-right and doesn't show an extra tooltip.
+  function normalizeResizer(modalEl, handleEl) {
+    if (!handleEl) return;
+
+    // Always force a correct bottom-right geometry via inline styles
+    // (protects against cached/old CSS that can leave the handle in normal flow).
+    try {
+      handleEl.style.position = 'absolute';
+      handleEl.style.right = (modalEl && modalEl.id === 'unified-routing-help-modal') ? '10px' : '6px';
+      handleEl.style.bottom = (modalEl && modalEl.id === 'unified-routing-help-modal') ? '10px' : '6px';
+      handleEl.style.left = 'auto';
+      handleEl.style.top = 'auto';
+      handleEl.style.zIndex = '50';
+      handleEl.style.touchAction = 'none';
+      handleEl.style.userSelect = 'none';
+    } catch (e) {}
+
+    // Remove tooltip specifically in the routing help modal.
+    // The panel's tooltip system can auto-generate hints from aria-label/title.
+    if (modalEl && modalEl.id === 'unified-routing-help-modal') {
+      try { handleEl.removeAttribute('title'); } catch (e2) {}
+      // Keep it focusable for keyboard, but remove label to avoid any tooltip.
+      try { handleEl.removeAttribute('aria-label'); } catch (e3) {}
+      try { handleEl.removeAttribute('role'); } catch (e3a) {}
+      try { handleEl.setAttribute('aria-hidden', 'true'); } catch (e4) {}
+      try { handleEl.dataset.xkNoTooltip = '1'; } catch (e5) {}
+    } else {
+      // For other modals keep a minimal label for accessibility (no visible tooltip).
+      try {
+        if (!handleEl.getAttribute('aria-label')) handleEl.setAttribute('aria-label', 'Resize');
+      } catch (e6) {}
+    }
+  }
+
+  function isVisibleModal(modalEl) {
+    if (!modalEl) return false;
+    try {
+      if (!modalEl.isConnected) return false;
+      if (modalEl.classList && modalEl.classList.contains('hidden')) return false;
+      const cs = window.getComputedStyle ? window.getComputedStyle(modalEl) : null;
+      if (cs && (cs.display === 'none' || cs.visibility === 'hidden')) return false;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function getContent(modalEl) {
+    try { return modalEl ? modalEl.querySelector('.modal-content') : null; } catch (e) {}
+    return null;
+  }
+
+  function clampPos(x, y, w, h, pad = PAD) {
+    const maxX = Math.max(pad, window.innerWidth - w - pad);
+    const maxY = Math.max(pad, window.innerHeight - h - pad);
+    return {
+      x: Math.min(Math.max(pad, x), maxX),
+      y: Math.min(Math.max(pad, y), maxY),
+    };
+  }
+
+  function resetContentPosition(contentEl) {
+    if (!contentEl) return;
+    // Only reset properties that we set for draggable/fixed positioning.
+    try {
+      contentEl.style.position = '';
+      contentEl.style.left = '';
+      contentEl.style.top = '';
+      contentEl.style.width = '';
+      contentEl.style.height = '';
+      contentEl.style.transform = '';
+      contentEl.style.maxWidth = '';
+      contentEl.style.maxHeight = '';
+    } catch (e) {}
+    try { delete contentEl.dataset.xkDragged; } catch (e2) {}
+  }
+
+  function ensureContentInViewport(modalEl) {
+    if (!isVisibleModal(modalEl)) return;
+    if (modalEl.classList && modalEl.classList.contains('modal-drawer')) return;
+    if (modalEl.dataset && modalEl.dataset.modalNopos === '1') return;
+
+    const content = getContent(modalEl);
+    if (!content) return;
+
+    let r;
+    try { r = content.getBoundingClientRect(); } catch (e) { r = null; }
+    if (!r) return;
+
+    // If it's already within bounds, do nothing.
+    const outTop = r.top < PAD;
+    const outLeft = r.left < PAD;
+    const outRight = r.right > (window.innerWidth - PAD);
+    const outBottom = r.bottom > (window.innerHeight - PAD);
+    if (!(outTop || outLeft || outRight || outBottom)) return;
+
+    // Freeze current geometry to fixed positioning, then clamp.
+    const viewMaxW = Math.max(200, window.innerWidth - PAD * 2);
+    const viewMaxH = Math.max(150, window.innerHeight - PAD * 2);
+    const w = Math.min(viewMaxW, Math.max(200, r.width || 520));
+    const h = Math.min(viewMaxH, Math.max(150, r.height || 320));
+    const p = clampPos(r.left, r.top, w, h, PAD);
+
+    try {
+      content.style.position = 'fixed';
+      content.style.left = Math.round(p.x) + 'px';
+      content.style.top = Math.round(p.y) + 'px';
+      content.style.width = Math.round(w) + 'px';
+      content.style.height = Math.round(h) + 'px';
+      content.style.maxWidth = 'none';
+      content.style.maxHeight = 'none';
+      content.style.transform = 'none';
+      content.dataset.xkDragged = '1';
+    } catch (e2) {}
+  }
+
+  function bringModalToFront(modalEl) {
+    if (!modalEl) return;
+    const isConfirm = (modalEl.id === 'confirm-modal');
+    try {
+      const floor = isConfirm
+        ? Math.max(Z_BASE + 40, Z_CONFIRM_FLOOR, visibleModalZCeiling(modalEl, { includeConfirm: true }) + 1)
+        : Math.max(Z_BASE, visibleModalZCeiling(modalEl, { includeConfirm: false }) + 1);
+      _z = clampModalZ(Math.max(_z + 1, floor));
+      modalEl.style.zIndex = String(_z);
+    } catch (e) {}
+  }
+
+  function onModalOpen(modalEl) {
+    const content = getContent(modalEl);
+    if (!content) return;
+
+    // Restore user geometry if saved.
+    let applied = false;
+    try {
+      const st = loadState(modalEl);
+      if (st) applied = applyState(modalEl, content, st);
+    } catch (e0) {}
+
+    // If nothing saved, reset any previous dragged/resized position so default flex centering works.
+    // (Also fixes cases where a modal got stuck off-screen.)
+    if (!applied) {
+      if (!(modalEl.classList && modalEl.classList.contains('modal-drawer'))) {
+        resetContentPosition(content);
+      }
+    }
+
+    // Add resize handle (if enabled for this modal).
+    try { ensureResizer(modalEl); } catch (e1) {}
+
+    bringModalToFront(modalEl);
+
+    // After layout, ensure it's on-screen (best effort).
+    try {
+      requestAnimationFrame(() => {
+        ensureContentInViewport(modalEl);
+        if (applied) refreshEmbeds(content);
+      });
+    } catch (e) {
+      try { ensureContentInViewport(modalEl); } catch (e2) {}
+      if (applied) { try { refreshEmbeds(content); } catch (e3) {} }
+    }
+
+    // Keep body scroll lock correct.
+    try { Modal.syncBodyScrollLock(); } catch (e3) {}
+  }
+
+  function onModalClose() {
+    try { Modal.syncBodyScrollLock(); } catch (e) {}
+  }
+
+  function readModalBool(modalEl, keys, fallback) {
+    if (!modalEl || !modalEl.dataset || !Array.isArray(keys)) return fallback;
+    for (let i = 0; i < keys.length; i += 1) {
+      const key = keys[i];
+      const raw = String(modalEl.dataset[key] || '').trim().toLowerCase();
+      if (!raw) continue;
+      if (raw === '0' || raw === 'false' || raw === 'no' || raw === 'off') return false;
+      if (raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on') return true;
+    }
+    return fallback;
+  }
+
+  function canCloseOnBackdrop(modalEl) {
+    return readModalBool(modalEl, ['modalBackdropClose', 'modalCloseBackdrop'], true);
+  }
+
+  function canCloseOnEscape(modalEl) {
+    return readModalBool(modalEl, ['modalEscClose', 'modalCloseEsc'], true);
+  }
+
+  function findCloseControl(modalEl) {
+    if (!modalEl || !modalEl.querySelector) return null;
+    try {
+      return modalEl.querySelector(
+        '.modal-header .modal-close:not([disabled]), ' +
+        '.modal-close:not([disabled]), ' +
+        '[data-modal-close]:not([disabled]), ' +
+        'button[id$="-close-btn"]:not([disabled])'
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function modalZIndex(modalEl) {
+    if (!modalEl) return 0;
+    let inlineZ = null;
+    let computedZ = null;
+    try {
+      const inline = Number.parseInt(String(modalEl.style && modalEl.style.zIndex ? modalEl.style.zIndex : ''), 10);
+      if (Number.isFinite(inline)) inlineZ = inline;
+    } catch (e) {}
+    try {
+      const cs = window.getComputedStyle ? window.getComputedStyle(modalEl) : null;
+      const value = Number.parseInt(String(cs && cs.zIndex ? cs.zIndex : ''), 10);
+      if (Number.isFinite(value)) computedZ = value;
+    } catch (e2) {}
+    if (inlineZ != null && computedZ != null) return Math.max(inlineZ, computedZ);
+    if (inlineZ != null) return inlineZ;
+    if (computedZ != null) return computedZ;
+    return 0;
+  }
+
+  function clampModalZ(value) {
+    const z = Number(value);
+    if (!Number.isFinite(z)) return Z_BASE;
+    return Math.min(Z_TOP_LIMIT, Math.max(Z_BASE, Math.floor(z)));
+  }
+
+  function visibleModalZCeiling(exceptModalEl, options) {
+    const includeConfirm = !!(options && options.includeConfirm);
+    let ceiling = Z_BASE;
+    try {
+      const modals = document.querySelectorAll('.modal');
+      modals.forEach((modalEl) => {
+        if (!modalEl || modalEl === exceptModalEl) return;
+        if (!includeConfirm && modalEl.id === 'confirm-modal') return;
+        if (!isVisibleModal(modalEl)) return;
+        ceiling = Math.max(ceiling, clampModalZ(modalZIndex(modalEl)));
+      });
+    } catch (e) {}
+    return ceiling;
+  }
+
+  function getTopmostVisibleModal() {
+    let best = null;
+    let bestZ = -Infinity;
+    let bestIdx = -1;
+    try {
+      const modals = document.querySelectorAll('.modal');
+      modals.forEach((modalEl, idx) => {
+        if (!isVisibleModal(modalEl)) return;
+        const z = modalZIndex(modalEl);
+        if (!best || z > bestZ || (z === bestZ && idx > bestIdx)) {
+          best = modalEl;
+          bestZ = z;
+          bestIdx = idx;
+        }
+      });
+    } catch (e) {}
+    return best;
+  }
+
+  function requestModalClose(modalElOrId, meta) {
+    const modalEl = resolveModal(modalElOrId);
+    if (!modalEl || !isVisibleModal(modalEl)) return false;
+
+    const detail = {
+      modal: modalEl,
+      modalId: resolveModalId(modalEl),
+      meta: meta && typeof meta === 'object' ? Object.assign({}, meta) : {},
+    };
+
+    try {
+      const ev = new CustomEvent('unified:modal-request-close', {
+        bubbles: true,
+        cancelable: true,
+        detail,
+      });
+      if (!modalEl.dispatchEvent(ev)) return false;
+    } catch (e) {}
+
+    const closeControl = findCloseControl(modalEl);
+    if (closeControl && closeControl !== (detail.meta && detail.meta.triggerEl)) {
+      try { closeControl.click(); } catch (e2) {}
+      if (!isVisibleModal(modalEl)) return true;
+      if (getTopmostVisibleModal() !== modalEl) return false;
+    }
+
+    return Modal.close(modalEl, Object.assign({ source: 'modal_request_close' }, detail.meta || {}));
+  }
+
+  function queueModalCloseRequest(modalElOrId, meta, shouldClose) {
+    const modalEl = resolveModal(modalElOrId);
+    if (!modalEl) return;
+    try {
+      setTimeout(() => {
+        try {
+          if (typeof shouldClose === 'function' && !shouldClose()) return;
+          requestModalClose(modalEl, meta);
+        } catch (e) {}
+      }, 0);
+    } catch (e2) {
+      try {
+        if (typeof shouldClose === 'function' && !shouldClose()) return;
+        requestModalClose(modalEl, meta);
+      } catch (e3) {}
+    }
+  }
+
+  // ---------------- Drag handling (delegated) ----------------
+  let drag = null;
+  let resize = null;
+
+  function isInteractiveTarget(t) {
+    if (!t || !t.closest) return false;
+    // Don't start dragging when interacting with controls.
+    return !!t.closest('button, a, input, textarea, select, label, .cm-toolbar, .CodeMirror');
+  }
+
+  function startDrag(e, modalEl, contentEl, handleEl) {
+    if (!contentEl) return;
+    let r;
+    try { r = contentEl.getBoundingClientRect(); } catch (err) { r = null; }
+    if (!r) return;
+
+    const w = Math.max(200, r.width || 520);
+    const h = Math.max(150, r.height || 320);
+
+    // Freeze current position into fixed coordinates.
+    try {
+      contentEl.style.position = 'fixed';
+      contentEl.style.left = Math.round(r.left) + 'px';
+      contentEl.style.top = Math.round(r.top) + 'px';
+      contentEl.style.width = Math.round(w) + 'px';
+      contentEl.style.height = Math.round(h) + 'px';
+      contentEl.style.maxWidth = 'none';
+      contentEl.style.maxHeight = 'none';
+      contentEl.style.transform = 'none';
+      contentEl.dataset.xkDragged = '1';
+    } catch (err2) {}
+
+    bringModalToFront(modalEl);
+
+    const clientX = (e && typeof e.clientX === 'number') ? e.clientX : 0;
+    const clientY = (e && typeof e.clientY === 'number') ? e.clientY : 0;
+
+    drag = {
+      modal: modalEl,
+      content: contentEl,
+      handle: handleEl || null,
+      pointerId: (e && typeof e.pointerId === 'number') ? e.pointerId : null,
+      offX: clientX - r.left,
+      offY: clientY - r.top,
+      w,
+      h,
+    };
+
+    try {
+      document.documentElement.style.userSelect = 'none';
+      document.documentElement.style.cursor = 'move';
+    } catch (err3) {}
+
+    // Capture pointer on the actual handle element to keep drag smooth even over iframes.
+    try {
+      const cap = drag.handle || contentEl;
+      if (cap && cap.setPointerCapture && drag.pointerId != null) {
+        cap.setPointerCapture(drag.pointerId);
+      }
+    } catch (err4) {}
+
+    try { e.preventDefault(); } catch (err5) {}
+  }
+
+  function moveDrag(e) {
+    if (!drag || !drag.content) return;
+    const clientX = (e && typeof e.clientX === 'number') ? e.clientX : 0;
+    const clientY = (e && typeof e.clientY === 'number') ? e.clientY : 0;
+    let x = clientX - drag.offX;
+    let y = clientY - drag.offY;
+    const p = clampPos(x, y, drag.w, drag.h, PAD);
+    try {
+      drag.content.style.left = Math.round(p.x) + 'px';
+      drag.content.style.top = Math.round(p.y) + 'px';
+    } catch (err) {}
+  }
+
+  function endDrag() {
+    if (!drag) return;
+
+    try { saveState(drag.modal, drag.content); } catch (e0) {}
+    try { refreshEmbeds(drag.content); } catch (e1) {}
+
+    try {
+      document.documentElement.style.userSelect = '';
+      document.documentElement.style.cursor = '';
+    } catch (e) {}
+    // Release pointer capture from the same element we captured on.
+    try {
+      const cap = drag.handle || drag.content;
+      if (cap && cap.releasePointerCapture && drag.pointerId != null) {
+        cap.releasePointerCapture(drag.pointerId);
+      }
+    } catch (e2) {}
+    drag = null;
+  }
+
+
+
+  // ---------------- Resize handling (bottom-right handle) ----------------
+  let _resizeRaf = 0;
+
+  function scheduleRefresh(contentEl) {
+    if (!contentEl) return;
+    try {
+      if (_resizeRaf) return;
+      _resizeRaf = requestAnimationFrame(() => {
+        _resizeRaf = 0;
+        refreshEmbeds(contentEl);
+      });
+    } catch (e) {
+      try { refreshEmbeds(contentEl); } catch (e2) {}
+    }
+  }
+
+  function startResize(e, modalEl, contentEl, handleEl) {
+    if (!contentEl) return;
+    let r;
+    try { r = contentEl.getBoundingClientRect(); } catch (err) { r = null; }
+    if (!r) return;
+
+    const w = Math.max(MIN_W, r.width || MIN_W);
+    const h = Math.max(MIN_H, r.height || MIN_H);
+
+    try {
+      contentEl.style.position = 'fixed';
+      contentEl.style.left = Math.round(r.left) + 'px';
+      contentEl.style.top = Math.round(r.top) + 'px';
+      contentEl.style.width = Math.round(w) + 'px';
+      contentEl.style.height = Math.round(h) + 'px';
+      contentEl.style.maxWidth = 'none';
+      contentEl.style.maxHeight = 'none';
+      contentEl.style.transform = 'none';
+      contentEl.dataset.xkDragged = '1';
+    } catch (err2) {}
+
+    bringModalToFront(modalEl);
+
+    const clientX = (e && typeof e.clientX === 'number') ? e.clientX : 0;
+    const clientY = (e && typeof e.clientY === 'number') ? e.clientY : 0;
+
+    resize = {
+      modal: modalEl,
+      content: contentEl,
+      handle: handleEl || null,
+      pointerId: (e && typeof e.pointerId === 'number') ? e.pointerId : null,
+      startX: clientX,
+      startY: clientY,
+      left: r.left,
+      top: r.top,
+      startW: w,
+      startH: h,
+    };
+
+    try {
+      document.documentElement.style.userSelect = 'none';
+      document.documentElement.style.cursor = 'se-resize';
+    } catch (err3) {}
+
+    // Capture pointer on the actual handle element to keep resize smooth even over iframes.
+    try {
+      const cap = resize.handle || contentEl;
+      if (cap && cap.setPointerCapture && resize.pointerId != null) {
+        cap.setPointerCapture(resize.pointerId);
+      }
+    } catch (err4) {}
+
+    try { e.preventDefault(); } catch (err5) {}
+  }
+
+  function moveResize(e) {
+    if (!resize || !resize.content) return;
+
+    const clientX = (e && typeof e.clientX === 'number') ? e.clientX : 0;
+    const clientY = (e && typeof e.clientY === 'number') ? e.clientY : 0;
+
+    const dx = clientX - resize.startX;
+    const dy = clientY - resize.startY;
+
+    const left = Number.parseFloat(resize.content.style.left) || resize.left || PAD;
+    const top = Number.parseFloat(resize.content.style.top) || resize.top || PAD;
+
+    const maxW = Math.max(MIN_W, window.innerWidth - left - PAD);
+    const maxH = Math.max(MIN_H, window.innerHeight - top - PAD);
+
+    const w = Math.max(MIN_W, Math.min(maxW, resize.startW + dx));
+    const h = Math.max(MIN_H, Math.min(maxH, resize.startH + dy));
+
+    try {
+      resize.content.style.width = Math.round(w) + 'px';
+      resize.content.style.height = Math.round(h) + 'px';
+    } catch (err) {}
+
+    scheduleRefresh(resize.content);
+  }
+
+  function endResize() {
+    if (!resize) return;
+
+    try { saveState(resize.modal, resize.content); } catch (e0) {}
+    try { refreshEmbeds(resize.content); } catch (e1) {}
+
+    try {
+      document.documentElement.style.userSelect = '';
+      document.documentElement.style.cursor = '';
+    } catch (e) {}
+
+    // Release pointer capture from the same element we captured on.
+    try {
+      const cap = resize.handle || resize.content;
+      if (cap && cap.releasePointerCapture && resize.pointerId != null) {
+        cap.releasePointerCapture(resize.pointerId);
+      }
+    } catch (e2) {}
+
+    resize = null;
+  }
+  function bindDelegatedDrag() {
+    // Use Pointer Events when available (works for mouse + touch).
+    const downEv = (window.PointerEvent ? 'pointerdown' : 'mousedown');
+    const moveEv = (window.PointerEvent ? 'pointermove' : 'mousemove');
+    const upEv = (window.PointerEvent ? 'pointerup' : 'mouseup');
+    const cancelEv = (window.PointerEvent ? 'pointercancel' : 'mouseleave');
+
+    document.addEventListener(downEv, (e) => {
+      // Left mouse button only (touch has button==0 too in pointer events).
+      if (e && typeof e.button === 'number' && e.button !== 0) return;
+
+      // Resize handle (bottom-right corner)
+      const rz = e.target && e.target.closest ? e.target.closest('.modal-resizer') : null;
+      if (rz) {
+        const modalEl = rz.closest('.modal');
+        if (!isVisibleModal(modalEl)) return;
+        if (modalEl.classList && modalEl.classList.contains('modal-drawer')) return;
+        if (modalEl.dataset && modalEl.dataset.modalNoresize === '1') return;
+
+        const contentEl = getContent(modalEl);
+        if (!contentEl) return;
+
+        // Cancel any active drag.
+        if (drag) endDrag();
+
+        startResize(e, modalEl, contentEl, rz);
+        return;
+      }
+
+      const header = e.target && e.target.closest ? e.target.closest('.modal-header') : null;
+      if (!header) return;
+      if (isInteractiveTarget(e.target)) return;
+
+      const modalEl = header.closest('.modal');
+      if (!isVisibleModal(modalEl)) return;
+      if (modalEl.classList && modalEl.classList.contains('modal-drawer')) return;
+      if (modalEl.dataset && modalEl.dataset.modalNodrag === '1') return;
+
+      const contentEl = getContent(modalEl);
+      if (!contentEl) return;
+
+      // Cancel any active resize.
+      if (resize) endResize();
+
+      startDrag(e, modalEl, contentEl, header);
+    }, { passive: false, capture: true });
+
+    document.addEventListener(moveEv, (e) => {
+      if (resize) {
+        moveResize(e);
+        return;
+      }
+      if (drag) moveDrag(e);
+    }, { passive: true });
+
+    document.addEventListener(upEv, () => {
+      if (resize) endResize();
+      if (drag) endDrag();
+    }, { passive: true });
+
+    document.addEventListener(cancelEv, () => {
+      if (resize) endResize();
+      if (drag) endDrag();
+    }, { passive: true });
+
+    // Keep open modals inside viewport when window resizes.
+    window.addEventListener('resize', () => {
+      try {
+        const open = document.querySelectorAll('.modal:not(.hidden)');
+        open.forEach((m) => ensureContentInViewport(m));
+      } catch (e) {}
+    }, { passive: true });
+  }
+
+  function bindDelegatedDismiss() {
+    document.addEventListener('click', (e) => {
+      const target = e && e.target;
+      if (!target) return;
+
+      try {
+        const closeBtn = target.closest ? target.closest('.modal-close, [data-modal-close]') : null;
+        if (closeBtn) {
+          const modalEl = closeBtn.closest ? closeBtn.closest('.modal') : null;
+          if (!isVisibleModal(modalEl)) return;
+          queueModalCloseRequest(modalEl, {
+            source: 'modal_close_button_fallback',
+            triggerEl: closeBtn,
+          }, () => isVisibleModal(modalEl) && getTopmostVisibleModal() === modalEl);
+          return;
+        }
+      } catch (e2) {}
+
+      const modalEl = (target.classList && target.classList.contains('modal')) ? target : null;
+      if (!modalEl || !isVisibleModal(modalEl)) return;
+      if (!canCloseOnBackdrop(modalEl)) return;
+
+      queueModalCloseRequest(modalEl, {
+        source: 'modal_backdrop',
+        triggerEl: target,
+      }, () => isVisibleModal(modalEl) && getTopmostVisibleModal() === modalEl);
+    }, false);
+
+    document.addEventListener('keydown', (e) => {
+      if (!e || (e.key !== 'Escape' && e.key !== 'Esc')) return;
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.isComposing) return;
+
+      const modalEl = getTopmostVisibleModal();
+      if (!modalEl || !canCloseOnEscape(modalEl)) return;
+
+      queueModalCloseRequest(modalEl, {
+        source: 'modal_escape',
+        triggerEl: e.target || null,
+      }, () => {
+        if (e.defaultPrevented) return false;
+        return isVisibleModal(modalEl) && getTopmostVisibleModal() === modalEl;
+      });
+    }, false);
+  }
+
+  // ---------------- Open/close observer ----------------
+  const _openState = new WeakMap();
+
+  function checkModalState(modalEl) {
+    if (!modalEl || !(modalEl.classList && modalEl.classList.contains('modal'))) return;
+    const cur = isVisibleModal(modalEl);
+    const prev = _openState.get(modalEl);
+    if (prev === cur) return;
+    _openState.set(modalEl, cur);
+    try { syncStoreModalState(modalEl, cur, { source: 'modal_dom' }); } catch (e0) {}
+    if (cur) onModalOpen(modalEl);
+    else onModalClose(modalEl);
+  }
+
+  function observeModals() {
+    // Prime existing modals.
+    try {
+      document.querySelectorAll('.modal').forEach((m) => {
+        _openState.set(m, isVisibleModal(m));
+        try { syncStoreModalState(m, isVisibleModal(m), { source: 'modal_dom_init' }); } catch (e0) {}
+        if (isVisibleModal(m)) onModalOpen(m);
+      });
+    } catch (e) {}
+
+    if (typeof MutationObserver === 'undefined') return;
+    try {
+      const mo = new MutationObserver((mutations) => {
+        for (const mu of mutations) {
+          if (!mu) continue;
+          if (mu.type === 'attributes' && mu.target) {
+            if (mu.target.classList && mu.target.classList.contains('modal')) {
+              checkModalState(mu.target);
+            }
+          }
+          if (mu.type === 'childList') {
+            try {
+              (mu.addedNodes || []).forEach((n) => {
+                if (!n || !n.querySelectorAll) return;
+                if (n.classList && n.classList.contains('modal')) checkModalState(n);
+                n.querySelectorAll('.modal').forEach((m) => checkModalState(m));
+              });
+            } catch (e2) {}
+          }
+        }
+      });
+      mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style'] });
+    } catch (e3) {}
+  }
+
+  // Public helpers (optional)
+  Modal.ensureInViewport = function (modalEl) { try { ensureContentInViewport(modalEl); } catch (e) {} };
+  Modal.resetPosition = function (modalEl) { try { resetContentPosition(getContent(modalEl)); } catch (e) {} };
+  Modal.bindState = function (modalElOrId) {
+    try { return ensureStoreBinding(modalElOrId); } catch (e) {}
+    return noop;
+  };
+  Modal.isOpen = function (modalElOrId) {
+    const modalEl = resolveModal(modalElOrId);
+    if (modalEl) return isVisibleModal(modalEl);
+    try {
+      const api = getUiModalApi();
+      const modalId = resolveModalId(modalElOrId);
+      if (api && modalId && typeof api.isOpen === 'function') return !!api.isOpen(modalId);
+    } catch (e) {}
+    return false;
+  };
+  Modal.focus = function (modalElOrId) {
+    try { focusModal(resolveModal(modalElOrId)); } catch (e) {}
+  };
+  Modal.bringToFront = function (modalElOrId) {
+    try { bringModalToFront(resolveModal(modalElOrId)); } catch (e) {}
+  };
+  Modal.open = function (modalElOrId, meta) {
+    const modalEl = resolveModal(modalElOrId);
+    const modalId = resolveModalId(modalEl);
+    if (!modalEl || !modalId) return false;
+
+    ensureStoreBinding(modalEl);
+
+    const api = getUiModalApi();
+    if (api && typeof api.open === 'function') {
+      try {
+        api.open(modalId, Object.assign({ source: 'modal_api' }, meta || {}));
+        return true;
+      } catch (e) {}
+    }
+
+    applyModalOpenState(modalEl, true, meta);
+    try { syncStoreModalState(modalEl, true, { source: 'modal_api_fallback' }); } catch (e2) {}
+    return true;
+  };
+  Modal.close = function (modalElOrId, meta) {
+    const modalEl = resolveModal(modalElOrId);
+    const modalId = resolveModalId(modalEl);
+    if (!modalEl || !modalId) return false;
+
+    ensureStoreBinding(modalEl);
+
+    const api = getUiModalApi();
+    if (api && typeof api.close === 'function') {
+      try {
+        api.close(modalId, Object.assign({ source: 'modal_api' }, meta || {}));
+        return true;
+      } catch (e) {}
+    }
+
+    applyModalOpenState(modalEl, false, meta);
+    try { syncStoreModalState(modalEl, false, { source: 'modal_api_fallback' }); } catch (e2) {}
+    return true;
+  };
+  Modal.toggle = function (modalElOrId, forceOpen, meta) {
+    const nextOpen = (typeof forceOpen === 'boolean') ? forceOpen : !Modal.isOpen(modalElOrId);
+    return nextOpen ? Modal.open(modalElOrId, meta) : Modal.close(modalElOrId, meta);
+  };
+  Modal.requestClose = function (modalElOrId, meta) {
+    try { return requestModalClose(modalElOrId, meta); } catch (e) {}
+    return false;
+  };
+
+  Modal.saveState = function (modalEl) { try { saveState(modalEl, getContent(modalEl)); } catch (e) {} };
+  Modal.forgetState = function (modalElOrId) {
+    try {
+      const id = (typeof modalElOrId === 'string') ? modalElOrId : (modalElOrId && modalElOrId.id ? modalElOrId.id : '');
+      if (!id) return;
+      localStorage.removeItem(STORAGE_PREFIX + id);
+    } catch (e) {}
+  };
+
+  // Init
+  try {
+    bindDelegatedDrag();
+    bindDelegatedDismiss();
+    observeModals();
+  } catch (e) {}
+})();

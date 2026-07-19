@@ -11,10 +11,10 @@ def _read(rel_path: str) -> str:
 
 
 def test_mihomo_async_restart_flow_persists_full_restart_log():
-    panel_src = _read("xkeen-ui/static/js/features/mihomo_panel.js")
-    route_src = _read("xkeen-ui/routes/mihomo.py")
-    jobs_src = _read("xkeen-ui/services/command_jobs.py")
-    restart_log_src = _read("xkeen-ui/services/restart_log.py")
+    panel_src = _read("unified-ui/static/js/features/mihomo_panel.js")
+    route_src = _read("unified-ui/routes/mihomo.py")
+    jobs_src = _read("unified-ui/services/command_jobs.py")
+    restart_log_src = _read("unified-ui/services/restart_log.py")
 
     assert "const url = restart ? '/api/mihomo-config?async=1' : '/api/mihomo-config';" in panel_src
     assert "const jobId = data.restart_job_id || data.job_id || data.restartJobId || null;" in panel_src

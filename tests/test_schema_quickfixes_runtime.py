@@ -33,7 +33,7 @@ def _run_node_json(script: str) -> object:
 def test_editor_schema_resolves_quickfix_providers_for_supported_targets():
     payload = _run_node_json(
         """
-import { resolveEditorQuickFixProvider } from './xkeen-ui/static/js/ui/editor_schema.js';
+import { resolveEditorQuickFixProvider } from './unified-ui/static/js/ui/editor_schema.js';
 
 const routingProvider = resolveEditorQuickFixProvider({
   target: 'routing',
@@ -60,7 +60,7 @@ def test_editor_schema_disables_quickfix_providers_in_expert_mode():
     payload = _run_node_json(
         """
 global.window = {
-  XKeen: {
+  UnifiedUI: {
     ui: {
       settings: {
         get() {
@@ -71,7 +71,7 @@ global.window = {
   },
 };
 
-const { resolveEditorQuickFixProvider } = await import('./xkeen-ui/static/js/ui/editor_schema.js');
+const { resolveEditorQuickFixProvider } = await import('./unified-ui/static/js/ui/editor_schema.js');
 
 const routingProvider = resolveEditorQuickFixProvider({
   target: 'routing',
@@ -98,9 +98,9 @@ def test_xray_quickfix_adds_missing_outbound_tag_for_rule_without_target():
     payload = _run_node_json(
         """
 import fs from 'node:fs';
-import { applyQuickFixText, createXrayQuickFixProvider } from './xkeen-ui/static/js/ui/schema_quickfixes.js';
+import { applyQuickFixText, createXrayQuickFixProvider } from './unified-ui/static/js/ui/schema_quickfixes.js';
 
-const schema = JSON.parse(fs.readFileSync('./xkeen-ui/static/schemas/xray-routing.schema.json', 'utf8'));
+const schema = JSON.parse(fs.readFileSync('./unified-ui/static/schemas/xray-routing.schema.json', 'utf8'));
 const provider = createXrayQuickFixProvider({
   semanticOptions: { knownOutboundTags: ['direct', 'proxy'] },
 });
@@ -133,9 +133,9 @@ def test_xray_quickfix_wraps_scalar_when_schema_expects_array():
     payload = _run_node_json(
         """
 import fs from 'node:fs';
-import { applyQuickFixText, createXrayQuickFixProvider } from './xkeen-ui/static/js/ui/schema_quickfixes.js';
+import { applyQuickFixText, createXrayQuickFixProvider } from './unified-ui/static/js/ui/schema_quickfixes.js';
 
-const schema = JSON.parse(fs.readFileSync('./xkeen-ui/static/schemas/xray-routing.schema.json', 'utf8'));
+const schema = JSON.parse(fs.readFileSync('./unified-ui/static/schemas/xray-routing.schema.json', 'utf8'));
 const provider = createXrayQuickFixProvider();
 const text = [
   '{',
@@ -166,9 +166,9 @@ def test_xray_quickfix_offers_transport_settings_block_for_ws_network():
     titles = _run_node_json(
         """
 import fs from 'node:fs';
-import { createXrayQuickFixProvider } from './xkeen-ui/static/js/ui/schema_quickfixes.js';
+import { createXrayQuickFixProvider } from './unified-ui/static/js/ui/schema_quickfixes.js';
 
-const schema = JSON.parse(fs.readFileSync('./xkeen-ui/static/schemas/xray-routing.schema.json', 'utf8'));
+const schema = JSON.parse(fs.readFileSync('./unified-ui/static/schemas/xray-routing.schema.json', 'utf8'));
 const provider = createXrayQuickFixProvider();
 const text = [
   '{',
@@ -193,7 +193,7 @@ console.log(JSON.stringify(fixes.map((item) => item.title)));
 def test_xray_quickfix_adds_observatory_for_leastping_balancer():
     payload = _run_node_json(
         """
-import { applyQuickFixText, createXrayQuickFixProvider } from './xkeen-ui/static/js/ui/schema_quickfixes.js';
+import { applyQuickFixText, createXrayQuickFixProvider } from './unified-ui/static/js/ui/schema_quickfixes.js';
 
 const provider = createXrayQuickFixProvider();
 const text = [
@@ -233,7 +233,7 @@ console.log(JSON.stringify({
 def test_xray_quickfix_does_not_add_observatory_when_external_fragment_already_exists():
     payload = _run_node_json(
         """
-import { createXrayQuickFixProvider } from './xkeen-ui/static/js/ui/schema_quickfixes.js';
+import { createXrayQuickFixProvider } from './unified-ui/static/js/ui/schema_quickfixes.js';
 
 const provider = createXrayQuickFixProvider({
   semanticOptions: {
@@ -272,7 +272,7 @@ console.log(JSON.stringify(fixes.map((item) => ({ title: item.title, code: item.
 def test_xray_quickfix_removes_local_observatory_when_external_fragment_already_exists():
     payload = _run_node_json(
         """
-import { applyQuickFixText, createXrayQuickFixProvider } from './xkeen-ui/static/js/ui/schema_quickfixes.js';
+import { applyQuickFixText, createXrayQuickFixProvider } from './unified-ui/static/js/ui/schema_quickfixes.js';
 
 const provider = createXrayQuickFixProvider({
   semanticOptions: {
@@ -323,7 +323,7 @@ console.log(JSON.stringify({
 def test_xray_quickfix_adds_server_name_from_endpoint_host():
     payload = _run_node_json(
         """
-import { applyQuickFixText, createXrayQuickFixProvider } from './xkeen-ui/static/js/ui/schema_quickfixes.js';
+import { applyQuickFixText, createXrayQuickFixProvider } from './unified-ui/static/js/ui/schema_quickfixes.js';
 
 const provider = createXrayQuickFixProvider();
 const text = [
@@ -368,7 +368,7 @@ console.log(JSON.stringify({
 def test_xray_quickfix_adds_reality_shortids_placeholder():
     payload = _run_node_json(
         """
-import { applyQuickFixText, createXrayQuickFixProvider } from './xkeen-ui/static/js/ui/schema_quickfixes.js';
+import { applyQuickFixText, createXrayQuickFixProvider } from './unified-ui/static/js/ui/schema_quickfixes.js';
 
 const provider = createXrayQuickFixProvider();
 const text = [
@@ -407,9 +407,9 @@ def test_mihomo_quickfix_adds_default_proxies_list_for_empty_group():
     payload = _run_node_json(
         """
 import fs from 'node:fs';
-import { applyQuickFixText, createMihomoQuickFixProvider } from './xkeen-ui/static/js/ui/schema_quickfixes.js';
+import { applyQuickFixText, createMihomoQuickFixProvider } from './unified-ui/static/js/ui/schema_quickfixes.js';
 
-const schema = JSON.parse(fs.readFileSync('./xkeen-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
+const schema = JSON.parse(fs.readFileSync('./unified-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
 const provider = createMihomoQuickFixProvider();
 const text = [
   'proxy-groups:',
@@ -431,7 +431,7 @@ console.log(JSON.stringify({ titles: fixes.map((item) => item.title), next }));
 def test_mihomo_quickfix_enables_tls_for_tls_only_fields():
     payload = _run_node_json(
         """
-import { applyQuickFixText, createMihomoQuickFixProvider } from './xkeen-ui/static/js/ui/schema_quickfixes.js';
+import { applyQuickFixText, createMihomoQuickFixProvider } from './unified-ui/static/js/ui/schema_quickfixes.js';
 
 const provider = createMihomoQuickFixProvider();
 const text = [
@@ -464,7 +464,7 @@ console.log(JSON.stringify({
 def test_mihomo_quickfix_adds_servername_from_transport_host():
     payload = _run_node_json(
         """
-import { applyQuickFixText, createMihomoQuickFixProvider } from './xkeen-ui/static/js/ui/schema_quickfixes.js';
+import { applyQuickFixText, createMihomoQuickFixProvider } from './unified-ui/static/js/ui/schema_quickfixes.js';
 
 const provider = createMihomoQuickFixProvider();
 const text = [
@@ -500,7 +500,7 @@ console.log(JSON.stringify({
 def test_mihomo_quickfix_creates_missing_rule_provider_block():
     payload = _run_node_json(
         """
-import { applyQuickFixText, createMihomoQuickFixProvider } from './xkeen-ui/static/js/ui/schema_quickfixes.js';
+import { applyQuickFixText, createMihomoQuickFixProvider } from './unified-ui/static/js/ui/schema_quickfixes.js';
 
 const provider = createMihomoQuickFixProvider();
 const text = [
@@ -525,9 +525,9 @@ def test_mihomo_quickfix_offers_xhttp_opts_block_for_xhttp_proxy():
     titles = _run_node_json(
         """
 import fs from 'node:fs';
-import { createMihomoQuickFixProvider } from './xkeen-ui/static/js/ui/schema_quickfixes.js';
+import { createMihomoQuickFixProvider } from './unified-ui/static/js/ui/schema_quickfixes.js';
 
-const schema = JSON.parse(fs.readFileSync('./xkeen-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
+const schema = JSON.parse(fs.readFileSync('./unified-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
 const provider = createMihomoQuickFixProvider();
 const text = [
   'proxies:',
@@ -549,13 +549,13 @@ console.log(JSON.stringify(fixes.map((item) => item.title)));
 
 
 def test_phase4_quickfix_runtime_is_wired_into_editors():
-    schema_src = (ROOT / "xkeen-ui" / "static" / "js" / "ui" / "editor_schema.js").read_text(encoding="utf-8")
-    quickfix_src = (ROOT / "xkeen-ui" / "static" / "js" / "ui" / "schema_quickfixes.js").read_text(encoding="utf-8")
-    monaco_src = (ROOT / "xkeen-ui" / "static" / "js" / "ui" / "monaco_shared.js").read_text(encoding="utf-8")
-    cm_src = (ROOT / "xkeen-ui" / "static" / "js" / "ui" / "codemirror6_boot.js").read_text(encoding="utf-8")
-    toolbar_src = (ROOT / "xkeen-ui" / "static" / "js" / "ui" / "editor_toolbar.js").read_text(encoding="utf-8")
-    routing_src = (ROOT / "xkeen-ui" / "static" / "js" / "features" / "routing.js").read_text(encoding="utf-8")
-    mihomo_src = (ROOT / "xkeen-ui" / "static" / "js" / "features" / "mihomo_panel.js").read_text(encoding="utf-8")
+    schema_src = (ROOT / "unified-ui" / "static" / "js" / "ui" / "editor_schema.js").read_text(encoding="utf-8")
+    quickfix_src = (ROOT / "unified-ui" / "static" / "js" / "ui" / "schema_quickfixes.js").read_text(encoding="utf-8")
+    monaco_src = (ROOT / "unified-ui" / "static" / "js" / "ui" / "monaco_shared.js").read_text(encoding="utf-8")
+    cm_src = (ROOT / "unified-ui" / "static" / "js" / "ui" / "codemirror6_boot.js").read_text(encoding="utf-8")
+    toolbar_src = (ROOT / "unified-ui" / "static" / "js" / "ui" / "editor_toolbar.js").read_text(encoding="utf-8")
+    routing_src = (ROOT / "unified-ui" / "static" / "js" / "features" / "routing.js").read_text(encoding="utf-8")
+    mihomo_src = (ROOT / "unified-ui" / "static" / "js" / "features" / "mihomo_panel.js").read_text(encoding="utf-8")
 
     assert "export function resolveEditorQuickFixProvider(ctx)" in schema_src
     assert "setEditorQuickFixProvider(target, quickFixProvider, o);" in schema_src
@@ -576,7 +576,7 @@ def test_phase4_quickfix_runtime_is_wired_into_editors():
 def test_xray_semantic_flags_private_ip_rule_after_negated_geoip():
     payload = _run_node_json(
         """
-import { validateXrayRoutingSemantics } from './xkeen-ui/static/js/ui/schema_semantic_validation.js';
+import { validateXrayRoutingSemantics } from './unified-ui/static/js/ui/schema_semantic_validation.js';
 
 const data = {
   routing: {
@@ -607,7 +607,7 @@ console.log(JSON.stringify({
 def test_xray_semantic_quiet_when_private_ip_rule_is_first():
     payload = _run_node_json(
         """
-import { validateXrayRoutingSemantics } from './xkeen-ui/static/js/ui/schema_semantic_validation.js';
+import { validateXrayRoutingSemantics } from './unified-ui/static/js/ui/schema_semantic_validation.js';
 
 const data = {
   routing: {
@@ -631,7 +631,7 @@ console.log(JSON.stringify({
 def test_xray_semantic_quiet_when_no_negated_geoip_earlier():
     payload = _run_node_json(
         """
-import { validateXrayRoutingSemantics } from './xkeen-ui/static/js/ui/schema_semantic_validation.js';
+import { validateXrayRoutingSemantics } from './unified-ui/static/js/ui/schema_semantic_validation.js';
 
 const data = {
   routing: {
@@ -655,7 +655,7 @@ console.log(JSON.stringify({
 def test_xray_quickfix_moves_private_ip_rule_to_first_position():
     payload = _run_node_json(
         """
-import { applyQuickFixText, createXrayQuickFixProvider } from './xkeen-ui/static/js/ui/schema_quickfixes.js';
+import { applyQuickFixText, createXrayQuickFixProvider } from './unified-ui/static/js/ui/schema_quickfixes.js';
 
 const provider = createXrayQuickFixProvider();
 const text = [

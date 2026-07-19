@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PROJECT_ROOT = ROOT / "xkeen-ui"
+PROJECT_ROOT = ROOT / "unified-ui"
 GENERATOR = ROOT / "scripts" / "generate_frontend_inventory.py"
 SNAPSHOT = ROOT / "docs" / "frontend-page-inventory.json"
 
@@ -15,7 +15,7 @@ EXPECTED_PAGES = {
     "panel": "static/js/pages/panel.entry.js",
     "backups": "static/js/pages/backups.entry.js",
     "devtools": "static/js/pages/devtools.entry.js",
-    "xkeen": "static/js/pages/xkeen.entry.js",
+    "unified": "static/js/pages/unified.entry.js",
     "mihomo_generator": "static/js/pages/mihomo_generator.entry.js",
 }
 
@@ -97,7 +97,7 @@ def test_panel_inventory_captures_current_p2_screen_split_and_lazy_runtime(tmp_p
         "static/js/pages/top_level_backups_screen.js",
         "static/js/pages/top_level_mihomo_generator_screen.js",
         "static/js/pages/top_level_screen_host.shared.js",
-        "static/js/pages/top_level_xkeen_screen.js",
+        "static/js/pages/top_level_unified_screen.js",
         "static/js/pages/panel.screen.bootstrap.js",
         "static/js/pages/panel.bootstrap_tail.bundle.js",
         "static/js/pages/panel.shared_compat.bundle.js",
@@ -118,7 +118,7 @@ def test_panel_inventory_captures_current_p2_screen_split_and_lazy_runtime(tmp_p
         "mihomoImport",
         "mihomoProxyTools",
         "mihomoHwidSub",
-        "xkeenTexts",
+        "unifiedTexts",
         "commandsList",
         "coresStatus",
     ):
@@ -157,7 +157,7 @@ def test_devtools_inventory_captures_current_p3_screen_split_and_deferred_sectio
         "static/js/pages/devtools.screen.bootstrap.js",
         "static/js/pages/top_level_devtools_screen.js",
         "static/js/pages/top_level_panel_mihomo.shared.js",
-        "static/js/pages/top_level_xkeen_screen.js",
+        "static/js/pages/top_level_unified_screen.js",
         "static/js/features/devtools.js",
         "static/js/features/devtools/logs.js",
         "static/js/features/devtools/update.js",
@@ -165,7 +165,7 @@ def test_devtools_inventory_captures_current_p3_screen_split_and_deferred_sectio
         assert rel in esm_files, f"devtools P3 inventory should capture screen/bootstrap module: {rel}"
 
 
-def test_backups_and_xkeen_inventory_capture_current_p8_p10_top_level_shell_contract(tmp_path):
+def test_backups_and_unified_inventory_capture_current_p8_p10_top_level_shell_contract(tmp_path):
     output_path = tmp_path / "frontend-page-inventory.generated.json"
     result = subprocess.run(
         [sys.executable, str(GENERATOR), "--root", str(ROOT), "--json-out", str(output_path)],
@@ -178,7 +178,7 @@ def test_backups_and_xkeen_inventory_capture_current_p8_p10_top_level_shell_cont
 
     payload = json.loads(output_path.read_text(encoding="utf-8"))
     backups = payload["pages"]["backups"]
-    xkeen = payload["pages"]["xkeen"]
+    unified = payload["pages"]["unified"]
 
     backups_shared_imports = set(backups.get("shared_imports") or [])
     backups_dynamic_imports = set(backups.get("dynamic_imports") or [])
@@ -199,29 +199,29 @@ def test_backups_and_xkeen_inventory_capture_current_p8_p10_top_level_shell_cont
         "static/js/features/backups.js",
     ):
         assert rel in backups_esm_files, f"backups inventory should capture screen/bootstrap module: {rel}"
-    assert "XKeen.pageConfig" in set(backups.get("all_bootstrap_globals") or [])
+    assert "UnifiedUI.pageConfig" in set(backups.get("all_bootstrap_globals") or [])
 
-    xkeen_shared_imports = set(xkeen.get("shared_imports") or [])
-    xkeen_dynamic_imports = set(xkeen.get("dynamic_imports") or [])
-    xkeen_esm_files = {item["path"] for item in xkeen.get("esm_bootstrap_files", [])}
+    unified_shared_imports = set(unified.get("shared_imports") or [])
+    unified_dynamic_imports = set(unified.get("dynamic_imports") or [])
+    unified_esm_files = {item["path"] for item in unified.get("esm_bootstrap_files", [])}
 
     assert {
         "./top_level_shell.shared.js",
         "./top_level_panel_mihomo.shared.js",
-        "./xkeen.screen.bootstrap.js",
-    }.issubset(xkeen_shared_imports)
-    assert xkeen_dynamic_imports == set()
+        "./unified.screen.bootstrap.js",
+    }.issubset(unified_shared_imports)
+    assert unified_dynamic_imports == set()
     for rel in (
-        "static/js/pages/xkeen.screen.bootstrap.js",
-        "static/js/pages/top_level_xkeen_screen.js",
+        "static/js/pages/unified.screen.bootstrap.js",
+        "static/js/pages/top_level_unified_screen.js",
         "static/js/pages/top_level_panel_mihomo.shared.js",
         "static/js/pages/top_level_nav.shared.js",
-        "static/js/pages/xkeen.init.js",
+        "static/js/pages/unified.init.js",
         "static/js/features/service_status.js",
-        "static/js/features/xkeen_texts.js",
+        "static/js/features/unified_texts.js",
     ):
-        assert rel in xkeen_esm_files, f"xkeen inventory should capture screen/bootstrap module: {rel}"
-    assert "XKeen.pageConfig" in set(xkeen.get("all_bootstrap_globals") or [])
+        assert rel in unified_esm_files, f"unified inventory should capture screen/bootstrap module: {rel}"
+    assert "UnifiedUI.pageConfig" in set(unified.get("all_bootstrap_globals") or [])
 
 
 def test_frontend_inventory_docs_freeze_source_graph_as_canonical_stage1_contract():
@@ -246,9 +246,9 @@ def test_top_level_navigation_docs_are_synchronized_for_all_five_canonical_route
     plan_doc = (ROOT / "docs" / "top-level-navigation-plan.md").read_text(encoding="utf-8")
 
     architecture_fragments = [
-        "top-level entrypoints для `/`, `/backups`, `/devtools`, `/xkeen` и `/mihomo_generator` остаются thin wrappers над `bootTopLevelShell(...)`",
+        "top-level entrypoints для `/`, `/backups`, `/devtools`, `/unified` и `/mihomo_generator` остаются thin wrappers над `bootTopLevelShell(...)`",
         "все пять canonical page entrypoints используют общий `top_level_shell.shared.js`",
-        "top-level router для `/`, `/backups`, `/devtools`, `/xkeen` и `/mihomo_generator` использует фиксированный route registry",
+        "top-level router для `/`, `/backups`, `/devtools`, `/unified` и `/mihomo_generator` использует фиксированный route registry",
     ]
     for fragment in architecture_fragments:
         assert fragment in architecture_doc, f"missing five-route top-level contract fragment in frontend-target-architecture.md: {fragment}"
@@ -256,7 +256,7 @@ def test_top_level_navigation_docs_are_synchronized_for_all_five_canonical_route
     assert "итог по уже закрытому переводу всех five canonical entrypoints" in readme_doc
 
     plan_fragments = [
-        "# Итог: top-level navigation между `/`, `/backups`, `/devtools`, `/xkeen` и `/mihomo_generator`",
+        "# Итог: top-level navigation между `/`, `/backups`, `/devtools`, `/unified` и `/mihomo_generator`",
         "- `P10` — guardrails, verification, docs/inventory sync и финальная фиксация five-route runtime contract.",
         "- hard navigation остаётся только fallback-only path для direct URL entry, missing screen и transition failure.",
         "Документ нужно читать только как закрывающую заметку по полностью завершённому five-route rollout.",

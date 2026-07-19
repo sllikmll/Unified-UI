@@ -7,17 +7,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_routes_use_stable_error_codes_instead_of_raw_exception_text():
-    config_exchange = (ROOT / "xkeen-ui" / "routes" / "config_exchange.py").read_text(encoding="utf-8")
-    devtools = (ROOT / "xkeen-ui" / "routes" / "devtools.py").read_text(encoding="utf-8")
-    geodat = (ROOT / "xkeen-ui" / "routes" / "routing" / "geodat.py").read_text(encoding="utf-8")
-    service = (ROOT / "xkeen-ui" / "routes" / "service.py").read_text(encoding="utf-8")
-    xray_configs = (ROOT / "xkeen-ui" / "routes" / "xray_configs.py").read_text(encoding="utf-8")
-    mihomo = (ROOT / "xkeen-ui" / "routes" / "mihomo.py").read_text(encoding="utf-8")
-    ui_settings = (ROOT / "xkeen-ui" / "routes" / "ui_settings.py").read_text(encoding="utf-8")
-    storage_usb = (ROOT / "xkeen-ui" / "routes" / "storage_usb.py").read_text(encoding="utf-8")
-    routing_templates = (ROOT / "xkeen-ui" / "routes" / "routing" / "templates.py").read_text(encoding="utf-8")
-    routing_config = (ROOT / "xkeen-ui" / "routes" / "routing" / "config.py").read_text(encoding="utf-8")
-    routing_errors = (ROOT / "xkeen-ui" / "routes" / "routing" / "errors.py").read_text(encoding="utf-8")
+    config_exchange = (ROOT / "unified-ui" / "routes" / "config_exchange.py").read_text(encoding="utf-8")
+    devtools = (ROOT / "unified-ui" / "routes" / "devtools.py").read_text(encoding="utf-8")
+    geodat = (ROOT / "unified-ui" / "routes" / "routing" / "geodat.py").read_text(encoding="utf-8")
+    service = (ROOT / "unified-ui" / "routes" / "service.py").read_text(encoding="utf-8")
+    xray_configs = (ROOT / "unified-ui" / "routes" / "xray_configs.py").read_text(encoding="utf-8")
+    mihomo = (ROOT / "unified-ui" / "routes" / "mihomo.py").read_text(encoding="utf-8")
+    ui_settings = (ROOT / "unified-ui" / "routes" / "ui_settings.py").read_text(encoding="utf-8")
+    storage_usb = (ROOT / "unified-ui" / "routes" / "storage_usb.py").read_text(encoding="utf-8")
+    routing_templates = (ROOT / "unified-ui" / "routes" / "routing" / "templates.py").read_text(encoding="utf-8")
+    routing_config = (ROOT / "unified-ui" / "routes" / "routing" / "config.py").read_text(encoding="utf-8")
+    routing_errors = (ROOT / "unified-ui" / "routes" / "routing" / "errors.py").read_text(encoding="utf-8")
 
     assert 'f"read failed: {e}"' not in config_exchange
     assert 'f"invalid json: {e}"' not in config_exchange
@@ -47,17 +47,17 @@ def test_routes_use_stable_error_codes_instead_of_raw_exception_text():
     assert '" Причина: "' not in routing_errors
 
     # --- PR-15 wave 2: archive, xray_configs, perms, cores_status, mihomo generate ---
-    archive = (ROOT / "xkeen-ui" / "routes" / "fs" / "endpoints_archive.py").read_text(encoding="utf-8")
-    transfer = (ROOT / "xkeen-ui" / "routes" / "fs" / "endpoints_transfer.py").read_text(encoding="utf-8")
-    list_routes = (ROOT / "xkeen-ui" / "routes" / "fs" / "endpoints_list.py").read_text(encoding="utf-8")
-    manage = (ROOT / "xkeen-ui" / "routes" / "fs" / "endpoints_manage.py").read_text(encoding="utf-8")
-    perms = (ROOT / "xkeen-ui" / "routes" / "fs" / "endpoints_perms.py").read_text(encoding="utf-8")
-    readwrite = (ROOT / "xkeen-ui" / "routes" / "fs" / "endpoints_readwrite.py").read_text(encoding="utf-8")
-    trash = (ROOT / "xkeen-ui" / "routes" / "fs" / "endpoints_trash.py").read_text(encoding="utf-8")
-    cores_status = (ROOT / "xkeen-ui" / "routes" / "cores_status.py").read_text(encoding="utf-8")
-    remotefs_ops = (ROOT / "xkeen-ui" / "routes" / "remotefs" / "ops.py").read_text(encoding="utf-8")
-    remotefs_sessions = (ROOT / "xkeen-ui" / "routes" / "remotefs" / "sessions.py").read_text(encoding="utf-8")
-    remotefs_transfer = (ROOT / "xkeen-ui" / "routes" / "remotefs" / "transfer.py").read_text(encoding="utf-8")
+    archive = (ROOT / "unified-ui" / "routes" / "fs" / "endpoints_archive.py").read_text(encoding="utf-8")
+    transfer = (ROOT / "unified-ui" / "routes" / "fs" / "endpoints_transfer.py").read_text(encoding="utf-8")
+    list_routes = (ROOT / "unified-ui" / "routes" / "fs" / "endpoints_list.py").read_text(encoding="utf-8")
+    manage = (ROOT / "unified-ui" / "routes" / "fs" / "endpoints_manage.py").read_text(encoding="utf-8")
+    perms = (ROOT / "unified-ui" / "routes" / "fs" / "endpoints_perms.py").read_text(encoding="utf-8")
+    readwrite = (ROOT / "unified-ui" / "routes" / "fs" / "endpoints_readwrite.py").read_text(encoding="utf-8")
+    trash = (ROOT / "unified-ui" / "routes" / "fs" / "endpoints_trash.py").read_text(encoding="utf-8")
+    cores_status = (ROOT / "unified-ui" / "routes" / "cores_status.py").read_text(encoding="utf-8")
+    remotefs_ops = (ROOT / "unified-ui" / "routes" / "remotefs" / "ops.py").read_text(encoding="utf-8")
+    remotefs_sessions = (ROOT / "unified-ui" / "routes" / "remotefs" / "sessions.py").read_text(encoding="utf-8")
+    remotefs_transfer = (ROOT / "unified-ui" / "routes" / "remotefs" / "transfer.py").read_text(encoding="utf-8")
 
     assert "details=msg" not in archive
     assert "details=det" not in archive
@@ -93,8 +93,8 @@ def test_routes_use_stable_error_codes_instead_of_raw_exception_text():
 
 
 def test_frontend_prefers_server_hint_over_raw_error_code_for_sanitized_responses():
-    github_js = (ROOT / "xkeen-ui" / "static" / "js" / "features" / "github.js").read_text(encoding="utf-8")
-    update_js = (ROOT / "xkeen-ui" / "static" / "js" / "features" / "devtools" / "update.js").read_text(encoding="utf-8")
+    github_js = (ROOT / "unified-ui" / "static" / "js" / "features" / "github.js").read_text(encoding="utf-8")
+    update_js = (ROOT / "unified-ui" / "static" / "js" / "features" / "devtools" / "update.js").read_text(encoding="utf-8")
 
     assert "(data && (data.hint || data.error))" in github_js
     assert "const hint = data && data.hint ? String(data.hint) : '';" in update_js

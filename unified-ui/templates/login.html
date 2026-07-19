@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Unified UI — Вход</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+
+  <!-- Apply typography prefs ASAP (stored in localStorage) -->
+  <script src="{{ url_for('static', filename='js/ui/typography.js', v='20251230c') }}"></script>
+  <!-- Apply layout prefs ASAP (stored in localStorage) -->
+  <script src="{{ url_for('static', filename='js/ui/layout.js', v='20260101c') }}"></script>
+  <script src="{{ url_for('static', filename='js/ui/xk_brand.js', v='20260104a') }}"></script>
+
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+  <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+  <meta name="theme-color" content="#0f172a">
+  <script>
+    (function () {
+      var theme = 'light';
+      try {
+        var attr = document.documentElement.getAttribute('data-theme');
+        var stored = localStorage.getItem('unified-theme');
+        if (attr === 'light' || attr === 'dark') {
+          theme = attr;
+        } else if (stored === 'light' || stored === 'dark') {
+          theme = stored;
+        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          theme = 'dark';
+        }
+      } catch (e) {
+        try {
+          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            theme = 'dark';
+          }
+        } catch (e2) {}
+      }
+      document.documentElement.setAttribute('data-theme', theme);
+      document.documentElement.style.colorScheme = theme;
+    })();
+  </script>
+<link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260609b') }}">
+  <link rel="stylesheet" id="xk-terminal-theme-link" href="{{ url_for('terminal_theme_css', v=terminal_theme_v) }}">
+<style>
+    .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .auth-card { width: 100%; max-width: 420px; }
+    .auth-title { margin: 0 0 6px; font-size: calc(22px * var(--xk-font-scale)); }
+    .auth-sub { margin: 0 0 16px; color: #9ca3af; font-size: calc(13px * var(--xk-font-scale)); }
+    .auth-row { display: grid; gap: 8px; margin: 12px 0; }
+    .auth-row label { font-size: calc(12px * var(--xk-font-scale)); color: #9ca3af; }
+    .auth-row input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid #1f2937; background: #0b1220; color: #e5e7eb; }
+    .auth-actions { display: flex; gap: 10px; align-items: center; justify-content: space-between; margin-top: 14px; }
+    .auth-btn { border: 1px solid #1f2937; background: linear-gradient(135deg, #1d4ed8, #2563eb); color: white; padding: 10px 14px; border-radius: 10px; cursor: pointer; }
+    .auth-btn:hover { filter: brightness(1.05); }
+    .auth-error { margin-top: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid #ef444466; background: rgba(239, 68, 68, 0.12); color: #fecaca; font-size: calc(13px * var(--xk-font-scale)); }
+  </style>
+</head>
+<body>
+  <div class="auth-wrap">
+    <div class="card auth-card">
+      <h1 class="auth-title">Вход в Unified UI</h1>
+      <p class="auth-sub xk-card-desc">Введите логин и пароль администратора.</p>
+
+      <form method="post" action="{{ url_for('login', next=request.args.get('next')) }}" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="auth-row">
+          <label for="username">Логин</label>
+          <input id="username" name="username" type="text" value="{{ username or '' }}" autofocus required>
+        </div>
+
+        <div class="auth-row">
+          <label for="password">Пароль</label>
+          <input id="password" name="password" type="password" required>
+        </div>
+
+        <div class="auth-actions">
+          <button class="auth-btn" type="submit">Войти</button>
+          {% if not auth_configured %}
+            <a href="{{ url_for('setup') }}">Первичная настройка</a>
+          {% endif %}
+        </div>
+      </form>
+
+      {% if error %}
+        <div class="auth-error">{{ error }}</div>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>

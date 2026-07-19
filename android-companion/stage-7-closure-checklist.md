@@ -19,7 +19,7 @@ Rollout mismatch устранён на уровне поставки и диаг
 
 ## Граница этапа
 
-Этап добавляет только read-only проверку draft. Он работает во temporary confdir, не сохраняет routing-файл, не создаёт published revision, не синхронизирует DAT symlink assets и не перезапускает `xkeen`; эти persistent actions, revision/conflict handling и серверный preview остаются этапом 8.
+Этап добавляет только read-only проверку draft. Он работает во temporary confdir, не сохраняет routing-файл, не создаёт published revision, не синхронизирует DAT symlink assets и не перезапускает `unified`; эти persistent actions, revision/conflict handling и серверный preview остаются этапом 8.
 
 | Направление | Контракт |
 | --- | --- |
@@ -99,7 +99,7 @@ Rollout mismatch устранён на уровне поставки и диаг
 
 ```powershell
 python -m pytest -q tests/test_request_size_limit_contracts.py tests/test_xray_preflight_timeout_payload.py tests/test_mobile_session_contract.py tests/test_mobile_routing_validate_contract.py
-python -m ruff check xkeen-ui/routes/mobile.py xkeen-ui/routes/routing/config.py xkeen-ui/services/request_limits.py tests/test_mobile_routing_validate_contract.py tests/test_xray_preflight_timeout_payload.py
+python -m ruff check unified-ui/routes/mobile.py unified-ui/routes/routing/config.py unified-ui/services/request_limits.py tests/test_mobile_routing_validate_contract.py tests/test_xray_preflight_timeout_payload.py
 cd android-companion
 .\gradlew.bat testDebugUnitTest assembleDebug
 ```

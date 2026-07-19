@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_devtools_env_renders_error_rows_without_raw_html_injection():
-    text = (ROOT / "xkeen-ui" / "static" / "js" / "features" / "devtools" / "env.js").read_text(encoding="utf-8")
+    text = (ROOT / "unified-ui" / "static" / "js" / "features" / "devtools" / "env.js").read_text(encoding="utf-8")
 
     assert "function renderEnvTableMessage(message) {" in text
     assert "td.textContent = String(message || '');" in text
@@ -17,7 +17,7 @@ def test_devtools_env_renders_error_rows_without_raw_html_injection():
 
 
 def test_terminal_ui_adapter_defaults_html_setter_to_text_content():
-    text = (ROOT / "xkeen-ui" / "static" / "js" / "terminal" / "core" / "ui.js").read_text(encoding="utf-8")
+    text = (ROOT / "unified-ui" / "static" / "js" / "terminal" / "core" / "ui.js").read_text(encoding="utf-8")
 
     assert "html: (el, v) => {" in text
     assert "try { el.textContent = String(v == null ? '' : v); } catch (e) {}" in text
@@ -26,7 +26,7 @@ def test_terminal_ui_adapter_defaults_html_setter_to_text_content():
 
 
 def test_frontend_js_has_no_direct_innerhtml_exception_message_sinks():
-    js_root = ROOT / "xkeen-ui" / "static" / "js"
+    js_root = ROOT / "unified-ui" / "static" / "js"
     offenders: list[str] = []
 
     for path in js_root.rglob("*.js"):

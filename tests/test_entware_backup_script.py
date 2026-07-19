@@ -11,7 +11,7 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SCRIPT_SRC = REPO_ROOT / "xkeen-ui" / "tools" / "entware_backup.sh"
+SCRIPT_SRC = REPO_ROOT / "unified-ui" / "tools" / "entware_backup.sh"
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
@@ -67,8 +67,8 @@ def test_entware_backup_uses_local_backup_dir_when_rci_is_unavailable(tmp_path: 
     script_text = script_text.replace('TMP_DIR="/tmp"', f'TMP_DIR="{_to_sh_path(tmp_dir)}"')
     script_text = script_text.replace('OPT_DIR="/opt"', f'OPT_DIR="{_to_sh_path(opt_dir)}"')
     script_text = script_text.replace(
-        'LOCAL_BACKUP_DIR="${XKEEN_LOCAL_BACKUP_DIR:-/opt/backups}"',
-        f'LOCAL_BACKUP_DIR="${{XKEEN_LOCAL_BACKUP_DIR:-{_to_sh_path(local_backup_dir)}}}"',
+        'LOCAL_BACKUP_DIR="${UNIFIED_LOCAL_BACKUP_DIR:-/opt/backups}"',
+        f'LOCAL_BACKUP_DIR="${{UNIFIED_LOCAL_BACKUP_DIR:-{_to_sh_path(local_backup_dir)}}}"',
     )
     script_text = script_text.replace('STORAGE_DIR="/storage"', 'STORAGE_DIR="/definitely-missing-storage"')
 
@@ -98,7 +98,7 @@ def test_entware_backup_uses_local_backup_dir_when_rci_is_unavailable(tmp_path: 
 
     env = os.environ.copy()
     env["PATH"] = str(bin_dir) + os.pathsep + env.get("PATH", "")
-    env["XKEEN_UI_STATE_DIR"] = _to_sh_path(tmp_path / "state")
+    env["UNIFIED_UI_STATE_DIR"] = _to_sh_path(tmp_path / "state")
 
     result = subprocess.run(
         [SH_PATH, str(script_dst)],
@@ -137,8 +137,8 @@ def test_entware_backup_deduplicates_same_device_mounted_via_opt(tmp_path: Path)
     script_text = script_text.replace('TMP_DIR="/tmp"', f'TMP_DIR="{_to_sh_path(tmp_dir)}"')
     script_text = script_text.replace('OPT_DIR="/opt"', f'OPT_DIR="{_to_sh_path(opt_dir)}"')
     script_text = script_text.replace(
-        'LOCAL_BACKUP_DIR="${XKEEN_LOCAL_BACKUP_DIR:-/opt/backups}"',
-        f'LOCAL_BACKUP_DIR="${{XKEEN_LOCAL_BACKUP_DIR:-{_to_sh_path(local_backup_dir)}}}"',
+        'LOCAL_BACKUP_DIR="${UNIFIED_LOCAL_BACKUP_DIR:-/opt/backups}"',
+        f'LOCAL_BACKUP_DIR="${{UNIFIED_LOCAL_BACKUP_DIR:-{_to_sh_path(local_backup_dir)}}}"',
     )
     script_text = script_text.replace('STORAGE_DIR="/storage"', 'STORAGE_DIR="/definitely-missing-storage"')
 
@@ -190,8 +190,8 @@ def test_entware_backup_deduplicates_same_device_mounted_via_opt(tmp_path: Path)
 
     env = os.environ.copy()
     env["PATH"] = str(bin_dir) + os.pathsep + env.get("PATH", "")
-    env["XKEEN_UI_STATE_DIR"] = _to_sh_path(tmp_path / "state")
-    env["XKEEN_PROC_MOUNTS_FILE"] = _to_sh_path(mounts_file)
+    env["UNIFIED_UI_STATE_DIR"] = _to_sh_path(tmp_path / "state")
+    env["UNIFIED_PROC_MOUNTS_FILE"] = _to_sh_path(mounts_file)
 
     result = subprocess.run(
         [SH_PATH, str(script_dst)],
@@ -231,8 +231,8 @@ def test_entware_backup_stages_archive_when_destination_is_entware_root(tmp_path
     script_text = script_text.replace('TMP_DIR="/tmp"', f'TMP_DIR="{_to_sh_path(tmp_dir)}"')
     script_text = script_text.replace('OPT_DIR="/opt"', f'OPT_DIR="{_to_sh_path(opt_dir)}"')
     script_text = script_text.replace(
-        'LOCAL_BACKUP_DIR="${XKEEN_LOCAL_BACKUP_DIR:-/opt/backups}"',
-        f'LOCAL_BACKUP_DIR="${{XKEEN_LOCAL_BACKUP_DIR:-{_to_sh_path(opt_dir)}}}"',
+        'LOCAL_BACKUP_DIR="${UNIFIED_LOCAL_BACKUP_DIR:-/opt/backups}"',
+        f'LOCAL_BACKUP_DIR="${{UNIFIED_LOCAL_BACKUP_DIR:-{_to_sh_path(opt_dir)}}}"',
     )
     script_text = script_text.replace('STORAGE_DIR="/storage"', 'STORAGE_DIR="/definitely-missing-storage"')
 
@@ -257,8 +257,8 @@ def test_entware_backup_stages_archive_when_destination_is_entware_root(tmp_path
 
     env = os.environ.copy()
     env["PATH"] = str(bin_dir) + os.pathsep + env.get("PATH", "")
-    env["XKEEN_UI_STATE_DIR"] = _to_sh_path(tmp_path / "state")
-    env["XKEEN_PROC_MOUNTS_FILE"] = _to_sh_path(mounts_file)
+    env["UNIFIED_UI_STATE_DIR"] = _to_sh_path(tmp_path / "state")
+    env["UNIFIED_PROC_MOUNTS_FILE"] = _to_sh_path(mounts_file)
 
     result = subprocess.run(
         [SH_PATH, str(script_dst)],
@@ -277,7 +277,7 @@ def test_entware_backup_stages_archive_when_destination_is_entware_root(tmp_path
     assert result.returncode == 0, output
     assert "file changed as we read it" not in output
     assert "Бэкап успешно сохранён" in output
-    assert not list(opt_dir.glob(".xkeen-entware-backup.*"))
+    assert not list(opt_dir.glob(".unified-entware-backup.*"))
 
     archives = list(opt_dir.glob("*_entware_backup_*.tar.gz"))
     assert len(archives) == 1
@@ -294,4 +294,4 @@ def test_entware_backup_stages_archive_when_destination_is_entware_root(tmp_path
     )
     assert listing.returncode == 0, listing.stderr
     assert "aarch64_entware_backup_" not in listing.stdout
-    assert ".xkeen-entware-backup" not in listing.stdout
+    assert ".unified-entware-backup" not in listing.stdout

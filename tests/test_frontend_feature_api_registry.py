@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-FEATURES_DIR = ROOT / "xkeen-ui" / "static" / "js" / "features"
+FEATURES_DIR = ROOT / "unified-ui" / "static" / "js" / "features"
 INDEX = FEATURES_DIR / "index.js"
 
 
@@ -128,102 +128,102 @@ def test_selected_feature_modules_export_named_api_wrappers():
             assert fragment in text, f"missing explicit API fragment in {filename}: {fragment}"
 
 
-def test_selected_small_feature_modules_no_longer_use_window_xkeen_features_as_canonical_api():
+def test_selected_small_feature_modules_no_longer_use_window_unified_features_as_canonical_api():
     expectations = {
         "donate.js": [
-            "window.XKeen.features ? (window.XKeen.features.donate || null) : null",
+            "window.UnifiedUI.features ? (window.UnifiedUI.features.donate || null) : null",
             "XK.features.donate = Donate;",
         ],
         "branding_prefs.js": [
-            "window.XKeen.features ? (window.XKeen.features.brandingPrefs || null) : null",
+            "window.UnifiedUI.features ? (window.UnifiedUI.features.brandingPrefs || null) : null",
             "XK.features.brandingPrefs = Feature;",
         ],
         "devtools.js": [
             "XK.features = XK.features || {};",
             "XK.features.devtools",
-            "window.XKeen.features ? (window.XKeen.features.devtools || null) : null",
+            "window.UnifiedUI.features ? (window.UnifiedUI.features.devtools || null) : null",
         ],
         "layout_prefs.js": [
-            "window.XKeen.features ? (window.XKeen.features.layoutPrefs || null) : null",
+            "window.UnifiedUI.features ? (window.UnifiedUI.features.layoutPrefs || null) : null",
             "XK.features.layoutPrefs = XK.features.layoutPrefs || {};",
         ],
         "typography.js": [
-            "window.XKeen.features ? (window.XKeen.features.typography || null) : null",
+            "window.UnifiedUI.features ? (window.UnifiedUI.features.typography || null) : null",
             "XK.features.typography = XK.features.typography || {};",
         ],
         "update_notifier.js": [
-            "window.XKeen.features ? (window.XKeen.features.updateNotifier || null) : null",
+            "window.UnifiedUI.features ? (window.UnifiedUI.features.updateNotifier || null) : null",
             "XK.features.updateNotifier = XK.features.updateNotifier || {}",
         ],
         "routing_templates.js": [
-            "window.XKeen.features ? (window.XKeen.features.routingTemplates || null) : null",
+            "window.UnifiedUI.features ? (window.UnifiedUI.features.routingTemplates || null) : null",
             "XK.features.routingTemplates = {",
         ],
         "restart_log.js": [
-            "window.XKeen.features ? (window.XKeen.features.restartLog || null) : null",
-            "XKeen.features = XKeen.features || {};",
+            "window.UnifiedUI.features ? (window.UnifiedUI.features.restartLog || null) : null",
+            "UnifiedUI.features = UnifiedUI.features || {};",
         ],
         "commands_list.js": [
-            "window.XKeen.features ? (window.XKeen.features.commandsList || null) : null",
-            "XKeen.features = XKeen.features || {};",
+            "window.UnifiedUI.features ? (window.UnifiedUI.features.commandsList || null) : null",
+            "UnifiedUI.features = UnifiedUI.features || {};",
         ],
         "cores_status.js": [
-            "window.XKeen.features ? (window.XKeen.features.coresStatus || null) : null",
-            "XKeen.features = XKeen.features || {};",
+            "window.UnifiedUI.features ? (window.UnifiedUI.features.coresStatus || null) : null",
+            "UnifiedUI.features = UnifiedUI.features || {};",
         ],
         "service_status.js": [
-            "window.XKeen.features ? (window.XKeen.features.serviceStatus || null) : null",
-            "XKeen.features = XKeen.features || {};",
+            "window.UnifiedUI.features ? (window.UnifiedUI.features.serviceStatus || null) : null",
+            "UnifiedUI.features = UnifiedUI.features || {};",
         ],
         "mihomo_yaml_patch.js": [
-            "GLOBAL_XKEEN.features.mihomoYamlPatch",
-            "const api = GLOBAL_XKEEN && GLOBAL_XKEEN.features ? GLOBAL_XKEEN.features.mihomoYamlPatch : null;",
+            "GLOBAL_UNIFIED.features.mihomoYamlPatch",
+            "const api = GLOBAL_UNIFIED && GLOBAL_UNIFIED.features ? GLOBAL_UNIFIED.features.mihomoYamlPatch : null;",
         ],
         "xray_logs.js": [
-            "window.XKeen.features ? (window.XKeen.features.xrayLogs || null) : null",
-            "XKeen.features = XKeen.features || {};",
+            "window.UnifiedUI.features ? (window.UnifiedUI.features.xrayLogs || null) : null",
+            "UnifiedUI.features = UnifiedUI.features || {};",
         ],
         "routing_jsonc_preserve.js": [
-            "window.XKeen.features ? (window.XKeen.features.routingJsoncPreserve || null) : null",
+            "window.UnifiedUI.features ? (window.UnifiedUI.features.routingJsoncPreserve || null) : null",
         ],
         "mihomo_panel.js": [
-            "XKeen.features = XKeen.features || {};",
-            "XKeen.features.mihomoPanel = MP;",
-            "window.XKeen.features.mihomoPanel",
+            "UnifiedUI.features = UnifiedUI.features || {};",
+            "UnifiedUI.features.mihomoPanel = MP;",
+            "window.UnifiedUI.features.mihomoPanel",
         ],
         "mihomo_import.js": [
-            "XKeen.features = XKeen.features || {};",
-            "XKeen.features.mihomoImport = MI;",
-            "window.XKeen.features.mihomoImport",
+            "UnifiedUI.features = UnifiedUI.features || {};",
+            "UnifiedUI.features.mihomoImport = MI;",
+            "window.UnifiedUI.features.mihomoImport",
         ],
         "mihomo_proxy_tools.js": [
-            "XKeen.features = XKeen.features || {};",
-            "XKeen.features.mihomoProxyTools = PT;",
-            "window.XKeen.features.mihomoProxyTools",
+            "UnifiedUI.features = UnifiedUI.features || {};",
+            "UnifiedUI.features.mihomoProxyTools = PT;",
+            "window.UnifiedUI.features.mihomoProxyTools",
         ],
         "mihomo_hwid_sub.js": [
-            "XKeen.features = XKeen.features || {};",
-            "XKeen.features.mihomoHwidSub = HW;",
-            "window.XKeen.features.mihomoHwidSub",
+            "UnifiedUI.features = UnifiedUI.features || {};",
+            "UnifiedUI.features.mihomoHwidSub = HW;",
+            "window.UnifiedUI.features.mihomoHwidSub",
         ],
         "inbounds.js": [
-            "XKeen.features = XKeen.features || {};",
-            "window.XKeen.features) ? window.XKeen.features.inbounds : null",
+            "UnifiedUI.features = UnifiedUI.features || {};",
+            "window.UnifiedUI.features) ? window.UnifiedUI.features.inbounds : null",
         ],
         "outbounds.js": [
-            "XKeen.features = XKeen.features || {};",
-            "window.XKeen.features) ? window.XKeen.features.outbounds : null",
+            "UnifiedUI.features = UnifiedUI.features || {};",
+            "window.UnifiedUI.features) ? window.UnifiedUI.features.outbounds : null",
         ],
         "routing.js": [
-            "XKeen.features = XKeen.features || {};",
-            "window.XKeen.features ? window.XKeen.features.routing : null",
+            "UnifiedUI.features = UnifiedUI.features || {};",
+            "window.UnifiedUI.features ? window.UnifiedUI.features.routing : null",
         ],
         "routing_cards.js": [
-            "window.XKeen.features ? window.XKeen.features.routingCards : null",
+            "window.UnifiedUI.features ? window.UnifiedUI.features.routingCards : null",
         ],
         "routing_shell.js": [
             "const shell = XK.features.routingShell = XK.features.routingShell || {};",
-            "window.XKeen && window.XKeen.features ? window.XKeen.features.routingShell : null",
+            "window.UnifiedUI && window.UnifiedUI.features ? window.UnifiedUI.features.routingShell : null",
         ],
         "routing_cards_namespace.js": [
             "XK.features && XK.features.routingCards",
@@ -231,16 +231,16 @@ def test_selected_small_feature_modules_no_longer_use_window_xkeen_features_as_c
         "ui_prefs_io.js": [
             "XK.features = XK.features || {};",
             "XK.features.uiPrefsIO = Feature;",
-            "window.XKeen.features ? (window.XKeen.features.uiPrefsIO || null) : null",
+            "window.UnifiedUI.features ? (window.UnifiedUI.features.uiPrefsIO || null) : null",
             "XK.features.donate",
         ],
-        "xkeen_texts.js": [
-            "XKeen.features = XKeen.features || {};",
-            "window.XKeen.features ? (window.XKeen.features.xkeenTexts || null) : null",
+        "unified_texts.js": [
+            "UnifiedUI.features = UnifiedUI.features || {};",
+            "window.UnifiedUI.features ? (window.UnifiedUI.features.unifiedTexts || null) : null",
         ],
         "mihomo_generator.js": [
-            "XKeen.features = XKeen.features || {};",
-            "window.XKeen.features ? (window.XKeen.features.mihomoGenerator || null) : null",
+            "UnifiedUI.features = UnifiedUI.features || {};",
+            "window.UnifiedUI.features ? (window.UnifiedUI.features.mihomoGenerator || null) : null",
         ],
     }
 
@@ -278,57 +278,57 @@ def test_file_manager_common_module_exposes_runtime_adapter_helpers():
         assert fragment in common_src, f"missing file_manager common runtime helper: {fragment}"
 
 
-def test_selected_file_manager_modules_use_common_runtime_helpers_instead_of_raw_window_xkeen_globals():
+def test_selected_file_manager_modules_use_common_runtime_helpers_instead_of_raw_window_unified_globals():
     expectations = {
         "file_manager/api.js": [
-            "window.XKeen.core.http",
+            "window.UnifiedUI.core.http",
         ],
         "file_manager/actions.js": [
-            "XKeen.ui.confirm",
+            "UnifiedUI.ui.confirm",
         ],
         "file_manager.js": [
-            "XKeen.ui.layout",
-            "window.XKeen && XKeen.ui && XKeen.ui.layout",
+            "UnifiedUI.ui.layout",
+            "window.UnifiedUI && UnifiedUI.ui && UnifiedUI.ui.layout",
         ],
         "file_manager/actions_modals.js": [
-            "XKeen.ui.confirm",
+            "UnifiedUI.ui.confirm",
         ],
         "file_manager/bookmarks.js": [
             "window.toast",
-            "XKeen.ui.toast",
+            "UnifiedUI.ui.toast",
         ],
         "file_manager/chrome.js": [
-            "XKeen.ui.modal.syncBodyScrollLock",
+            "UnifiedUI.ui.modal.syncBodyScrollLock",
         ],
         "file_manager/dragdrop.js": [
-            "XKeen.ui.modal.syncBodyScrollLock",
+            "UnifiedUI.ui.modal.syncBodyScrollLock",
         ],
         "file_manager/editor.js": [
-            "XKeen.ui.modal.syncBodyScrollLock",
-            "XKeen.ui.editorEngine",
+            "UnifiedUI.ui.modal.syncBodyScrollLock",
+            "UnifiedUI.ui.editorEngine",
             "window.toast",
-            "XKeen.ui.confirm",
+            "UnifiedUI.ui.confirm",
         ],
         "file_manager/errors.js": [
             "window.toast",
         ],
         "file_manager/ops.js": [
-            "XKeen.ui.confirm",
+            "UnifiedUI.ui.confirm",
         ],
         "file_manager/remote.js": [
-            "XKeen.ui.confirm",
+            "UnifiedUI.ui.confirm",
         ],
         "file_manager/storage.js": [
-            "XKeen.ui.confirm",
-            "XKeen.ui.toast",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.toast",
         ],
         "file_manager/terminal.js": [
-            "XKeen.runtime.lazy",
-            "window.XKeen.terminal",
-            "XKeen.ui.toast",
+            "UnifiedUI.runtime.lazy",
+            "window.UnifiedUI.terminal",
+            "UnifiedUI.ui.toast",
         ],
         "file_manager/transfers.js": [
-            "XKeen.ui.confirm",
+            "UnifiedUI.ui.confirm",
         ],
     }
 
@@ -353,7 +353,7 @@ def test_routing_cards_subtree_uses_canonical_namespace_root():
     for path in sorted((FEATURES_DIR / "routing_cards").rglob("*.js")):
         text = path.read_text(encoding="utf-8")
         assert "XK.features.routingCards = XK.features.routingCards || {}" not in text, (
-            f"routing_cards subtree should not use window.XKeen.features.routingCards as canonical root: {path.name}"
+            f"routing_cards subtree should not use window.UnifiedUI.features.routingCards as canonical root: {path.name}"
         )
         assert "XK.features = XK.features || {};" not in text, (
             f"routing_cards subtree should not create a canonical features root: {path.name}"
@@ -377,23 +377,23 @@ def test_devtools_subtree_uses_canonical_namespace_root():
     assert "import { getDevtoolsNamespace, getDevtoolsSharedApi, setDevtoolsNamespaceApi } from './devtools_namespace.js';" in main_src
     assert "setDevtoolsNamespaceApi('devtools', devtoolsModuleApi);" in main_src
     assert "import { getDevtoolsApi } from '../devtools.js" in compat_src
-    assert "XKeen.features[key] = legacyApi;" in compat_src
+    assert "UnifiedUI.features[key] = legacyApi;" in compat_src
 
     for path in sorted((FEATURES_DIR / "devtools").rglob("*.js")):
         text = path.read_text(encoding="utf-8")
         assert "XK.features = XK.features || {};" not in text, (
-            f"devtools subtree should not recreate window.XKeen.features in {path.name}"
+            f"devtools subtree should not recreate window.UnifiedUI.features in {path.name}"
         )
         assert "XK.features.devtools" not in text, (
-            f"devtools subtree should not use window.XKeen.features.* as canonical API in {path.name}"
+            f"devtools subtree should not use window.UnifiedUI.features.* as canonical API in {path.name}"
         )
-        assert "window.XKeen.features" not in text, (
-            f"devtools subtree should not read canonical API from window.XKeen.features in {path.name}"
+        assert "window.UnifiedUI.features" not in text, (
+            f"devtools subtree should not read canonical API from window.UnifiedUI.features in {path.name}"
         )
 
 
-def test_xkeen_runtime_module_exposes_shared_runtime_adapter_helpers():
-    runtime_src = (FEATURES_DIR / "xkeen_runtime.js").read_text(encoding="utf-8")
+def test_unified_runtime_module_exposes_shared_runtime_adapter_helpers():
+    runtime_src = (FEATURES_DIR / "unified_runtime.js").read_text(encoding="utf-8")
 
     required_fragments = [
         "export function getXkeenPageConfig()",
@@ -424,7 +424,7 @@ def test_xkeen_runtime_module_exposes_shared_runtime_adapter_helpers():
         "export function getXkeenShowXrayPreflightErrorApi()",
         "export function openXkeenJsonEditor(target, options)",
         "export function ansiToXkeenHtml(text)",
-        "export const xkeenRuntimeApi = Object.freeze({",
+        "export const unifiedRuntimeApi = Object.freeze({",
         "getPageConfig: getXkeenPageConfig,",
         "getPageConfigValue: getXkeenPageConfigValue,",
         "getPageName: getXkeenPageName,",
@@ -461,67 +461,67 @@ def test_xkeen_runtime_module_exposes_shared_runtime_adapter_helpers():
     ]
 
     for fragment in required_fragments:
-        assert fragment in runtime_src, f"missing shared runtime adapter fragment in xkeen_runtime.js: {fragment}"
+        assert fragment in runtime_src, f"missing shared runtime adapter fragment in unified_runtime.js: {fragment}"
 
 
-def test_selected_runtime_adapter_feature_modules_no_longer_read_raw_window_xkeen_or_window_toast_globals():
+def test_selected_runtime_adapter_feature_modules_no_longer_read_raw_window_unified_or_window_toast_globals():
     expectations = {
         "commands_list.js": [
-            "from './xkeen_runtime.js';",
+            "from './unified_runtime.js';",
         ],
         "cores_status.js": [
-            "from './xkeen_runtime.js';",
+            "from './unified_runtime.js';",
         ],
         "service_status.js": [
-            "from './xkeen_runtime.js';",
+            "from './unified_runtime.js';",
         ],
         "update_notifier.js": [
-            "from './xkeen_runtime.js';",
+            "from './unified_runtime.js';",
         ],
         "xray_logs.js": [
-            "from './xkeen_runtime.js';",
+            "from './unified_runtime.js';",
         ],
         "backups.js": [
-            "from './xkeen_runtime.js';",
+            "from './unified_runtime.js';",
         ],
         "github.js": [
-            "from './xkeen_runtime.js';",
+            "from './unified_runtime.js';",
         ],
         "local_io.js": [
-            "from './xkeen_runtime.js';",
+            "from './unified_runtime.js';",
         ],
         "inbounds.js": [
-            "from './xkeen_runtime.js';",
+            "from './unified_runtime.js';",
         ],
         "outbounds.js": [
-            "from './xkeen_runtime.js';",
+            "from './unified_runtime.js';",
         ],
         "restart_log.js": [
-            "from './xkeen_runtime.js';",
+            "from './unified_runtime.js';",
         ],
         "routing.js": [
-            "from './xkeen_runtime.js';",
+            "from './unified_runtime.js';",
         ],
         "routing_cards.js": [
-            "from './xkeen_runtime.js';",
+            "from './unified_runtime.js';",
         ],
         "routing_templates.js": [
-            "from './xkeen_runtime.js';",
+            "from './unified_runtime.js';",
         ],
-        "xkeen_texts.js": [
-            "from './xkeen_runtime.js';",
+        "unified_texts.js": [
+            "from './unified_runtime.js';",
         ],
     }
     forbidden_fragments = [
-        "window.XKeen.",
-        "XKeen.ui.",
-        "XKeen.core.",
-        "XKeen.pages.",
-        "XKeen.util.",
-        "XKeen.runtime.",
-        "XKeen.terminal.",
-        "XKeen.jsonEditor",
-        "XKeen.state.",
+        "window.UnifiedUI.",
+        "UnifiedUI.ui.",
+        "UnifiedUI.core.",
+        "UnifiedUI.pages.",
+        "UnifiedUI.util.",
+        "UnifiedUI.runtime.",
+        "UnifiedUI.terminal.",
+        "UnifiedUI.jsonEditor",
+        "UnifiedUI.state.",
         "window.toast(",
         "window.showToast(",
         "window.openTerminal(",
@@ -533,26 +533,26 @@ def test_selected_runtime_adapter_feature_modules_no_longer_read_raw_window_xkee
             assert fragment in text, f"missing shared runtime adapter import in {filename}: {fragment}"
         for fragment in forbidden_fragments:
             assert fragment not in text, (
-                f"feature module should use xkeen_runtime/shared adapter helpers instead of raw globals in {filename}: {fragment}"
+                f"feature module should use unified_runtime/shared adapter helpers instead of raw globals in {filename}: {fragment}"
             )
 
 
-def test_routing_shell_keeps_editor_state_module_local_instead_of_window_xkeen_state():
+def test_routing_shell_keeps_editor_state_module_local_instead_of_window_unified_state():
     shell_src = (FEATURES_DIR / "routing_shell.js").read_text(encoding="utf-8")
 
     assert "const state = shell.state = shell.state || {};" in shell_src
     assert "XK.state.routingEditor" not in shell_src
     assert "XK.state.routingEditorFacade" not in shell_src
-    assert "window.XKeen" not in shell_src
+    assert "window.UnifiedUI" not in shell_src
 
 
-def test_xkeen_runtime_exposes_page_config_mutator_and_window_runtime_bridge():
-    text = (FEATURES_DIR / "xkeen_runtime.js").read_text(encoding="utf-8")
+def test_unified_runtime_exposes_page_config_mutator_and_window_runtime_bridge():
+    text = (FEATURES_DIR / "unified_runtime.js").read_text(encoding="utf-8")
 
     required_fragments = [
         "export function setXkeenPageConfigValue(path, value) {",
         "setPageConfigValue: setXkeenPageConfigValue,",
-        "Object.assign(xk.runtime, xkeenRuntimeApi);",
+        "Object.assign(xk.runtime, unifiedRuntimeApi);",
     ]
 
     for fragment in required_fragments:
@@ -561,7 +561,7 @@ def test_xkeen_runtime_exposes_page_config_mutator_and_window_runtime_bridge():
 
 def test_feature_access_module_publishes_runtime_accessor_for_migrated_feature_consumers():
     access_src = (FEATURES_DIR / 'feature_access.js').read_text(encoding='utf-8')
-    shell_src = (ROOT / 'xkeen-ui' / 'static' / 'js' / 'pages' / 'shell.shared.js').read_text(encoding='utf-8')
+    shell_src = (ROOT / 'unified-ui' / 'static' / 'js' / 'pages' / 'shell.shared.js').read_text(encoding='utf-8')
 
     required_fragments = [
         "const featureAccessorRegistry = Object.freeze({",
@@ -579,17 +579,17 @@ def test_feature_access_module_publishes_runtime_accessor_for_migrated_feature_c
     assert "import '../features/feature_access.js';" in shell_src
 
 
-def test_selected_canonical_consumers_use_feature_accessors_instead_of_window_xkeen_features():
+def test_selected_canonical_consumers_use_feature_accessors_instead_of_window_unified_features():
     expectations = {
-        ROOT / 'xkeen-ui' / 'static' / 'js' / 'ui' / 'settings_panel.js': [
+        ROOT / 'unified-ui' / 'static' / 'js' / 'ui' / 'settings_panel.js': [
             "import { getFeatureApi } from '../features/feature_access.js';",
             "const api = getFeatureApi('updateNotifier');",
         ],
-        ROOT / 'xkeen-ui' / 'static' / 'js' / 'ui' / 'sections.js': [
+        ROOT / 'unified-ui' / 'static' / 'js' / 'ui' / 'sections.js': [
             "typeof XK.runtime.getFeatureApi === 'function'",
             "const devtoolsApi = getFeatureApi('devtools');",
         ],
-        ROOT / 'xkeen-ui' / 'static' / 'js' / 'pages' / 'panel_shell.shared.js': [
+        ROOT / 'unified-ui' / 'static' / 'js' / 'pages' / 'panel_shell.shared.js': [
             "import { getRoutingCardsNamespace } from '../features/routing_cards_namespace.js';",
             "const backups = getPanelLazyFeatureApi('backups');",
             "ensurePanelLazyFeature('backups').then((ready) => {",
@@ -597,18 +597,18 @@ def test_selected_canonical_consumers_use_feature_accessors_instead_of_window_xk
         ],
     }
     forbidden = {
-        ROOT / 'xkeen-ui' / 'static' / 'js' / 'ui' / 'settings_panel.js': [
+        ROOT / 'unified-ui' / 'static' / 'js' / 'ui' / 'settings_panel.js': [
             'XK.features && XK.features.updateNotifier',
-            'window.XKeen.features',
+            'window.UnifiedUI.features',
         ],
-        ROOT / 'xkeen-ui' / 'static' / 'js' / 'ui' / 'sections.js': [
+        ROOT / 'unified-ui' / 'static' / 'js' / 'ui' / 'sections.js': [
             'XK.features && XK.features.devtools',
-            'window.XKeen.features',
+            'window.UnifiedUI.features',
         ],
-        ROOT / 'xkeen-ui' / 'static' / 'js' / 'pages' / 'panel_shell.shared.js': [
-            'window.XKeen && window.XKeen.features ? window.XKeen.features : null',
-            'window.XKeen && window.XKeen.features ? window.XKeen.features.routingCards : null',
-            'window.XKeen && window.XKeen.backups ? window.XKeen.backups : null',
+        ROOT / 'unified-ui' / 'static' / 'js' / 'pages' / 'panel_shell.shared.js': [
+            'window.UnifiedUI && window.UnifiedUI.features ? window.UnifiedUI.features : null',
+            'window.UnifiedUI && window.UnifiedUI.features ? window.UnifiedUI.features.routingCards : null',
+            'window.UnifiedUI && window.UnifiedUI.backups ? window.UnifiedUI.backups : null',
         ],
     }
 

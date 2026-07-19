@@ -17,10 +17,10 @@ def _run_completion(doc_with_marker: str) -> dict[str, object] | None:
 
     script = f"""
 import fs from 'node:fs';
-import {{ completeYamlTextFromSchema }} from './xkeen-ui/static/js/ui/yaml_schema.js';
-import {{ createMihomoSnippetProvider }} from './xkeen-ui/static/js/ui/schema_snippets.js';
+import {{ completeYamlTextFromSchema }} from './unified-ui/static/js/ui/yaml_schema.js';
+import {{ createMihomoSnippetProvider }} from './unified-ui/static/js/ui/schema_snippets.js';
 
-const schema = JSON.parse(fs.readFileSync('./xkeen-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
+const schema = JSON.parse(fs.readFileSync('./unified-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
 const marker = '__CURSOR__';
 const docWithMarker = {json.dumps(doc_with_marker)};
 const offset = docWithMarker.indexOf(marker);
@@ -54,10 +54,10 @@ def _apply_completion(doc_with_marker: str, label: str) -> dict[str, object] | N
 
     script = f"""
 import fs from 'node:fs';
-import {{ completeYamlTextFromSchema }} from './xkeen-ui/static/js/ui/yaml_schema.js';
-import {{ createMihomoSnippetProvider }} from './xkeen-ui/static/js/ui/schema_snippets.js';
+import {{ completeYamlTextFromSchema }} from './unified-ui/static/js/ui/yaml_schema.js';
+import {{ createMihomoSnippetProvider }} from './unified-ui/static/js/ui/schema_snippets.js';
 
-const schema = JSON.parse(fs.readFileSync('./xkeen-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
+const schema = JSON.parse(fs.readFileSync('./unified-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
 const marker = '__CURSOR__';
 const targetLabel = {json.dumps(label)};
 const docWithMarker = {json.dumps(doc_with_marker)};
@@ -108,9 +108,9 @@ def _run_hover(doc_with_marker: str, *, beginner_mode: bool = False) -> dict[str
 
     script = f"""
 import fs from 'node:fs';
-import {{ hoverYamlTextFromSchema }} from './xkeen-ui/static/js/ui/yaml_schema.js';
+import {{ hoverYamlTextFromSchema }} from './unified-ui/static/js/ui/yaml_schema.js';
 
-const schema = JSON.parse(fs.readFileSync('./xkeen-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
+const schema = JSON.parse(fs.readFileSync('./unified-ui/static/schemas/mihomo-config.schema.json', 'utf8'));
 const marker = '__CURSOR__';
 const docWithMarker = {json.dumps(doc_with_marker)};
 const offset = docWithMarker.indexOf(marker);
@@ -134,7 +134,7 @@ console.log(JSON.stringify(result));
 
 
 def test_custom_template_proxy_group_key_completion_suggests_include_all_variants():
-    template = (ROOT / "xkeen-ui" / "opt" / "etc" / "mihomo" / "templates" / "custom.yaml").read_text(encoding="utf-8")
+    template = (ROOT / "unified-ui" / "opt" / "etc" / "mihomo" / "templates" / "custom.yaml").read_text(encoding="utf-8")
     doc = template.replace("    include-all: true", "    incl__CURSOR__", 1)
 
     result = _run_completion(doc)
@@ -146,7 +146,7 @@ def test_custom_template_proxy_group_key_completion_suggests_include_all_variant
 
 
 def test_hwid_subscription_template_completion_suggests_rule_provider_format_enum():
-    template = (ROOT / "xkeen-ui" / "opt" / "etc" / "mihomo" / "templates" / "template.yaml").read_text(encoding="utf-8")
+    template = (ROOT / "unified-ui" / "opt" / "etc" / "mihomo" / "templates" / "template.yaml").read_text(encoding="utf-8")
     doc = template.replace("    format: mrs", "    format: m__CURSOR__", 1)
 
     result = _run_completion(doc)
@@ -345,7 +345,7 @@ def test_key_completion_reuses_existing_yaml_mapping_delimiter_without_duplicati
 
 
 def test_zkeen_template_hover_exposes_description_for_routing_mark():
-    template = (ROOT / "xkeen-ui" / "opt" / "etc" / "mihomo" / "templates" / "zkeen.yaml").read_text(encoding="utf-8")
+    template = (ROOT / "unified-ui" / "opt" / "etc" / "mihomo" / "templates" / "zkeen.yaml").read_text(encoding="utf-8")
     doc = template.replace("routing-mark", "routing-__CURSOR__mark", 1)
 
     result = _run_hover(doc)

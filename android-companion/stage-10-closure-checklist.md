@@ -5,7 +5,7 @@ Status: repository implementation and automated acceptance completed 2026-07-16.
 ## Final product boundary
 
 - [x] `Launching -> Connections -> Pair/Login -> Ready` uses persisted connections, encrypted trusted session material and server validation.
-- [x] Fresh `Ready` starts with neutral `Unknown` runtime state. It obtains service/core state from `GET /api/xkeen/status` and `GET /api/xkeen/core` through the service port before presenting it as confirmed.
+- [x] Fresh `Ready` starts with neutral `Unknown` runtime state. It obtains service/core state from `GET /api/unified/status` and `GET /api/unified/core` through the service port before presenting it as confirmed.
 - [x] Reopening or switching a connection clears previous routing metadata. Xray documents load only after the new node confirms Xray availability.
 - [x] Missing or failed routing directory reads have a visible loading/retry surface; stale or sample documents are not shown as the new node's configuration.
 - [x] Service actions, routing validation/save/apply/conflict and Xray logs/reconnect remain server-backed as specified in stages 5–9.

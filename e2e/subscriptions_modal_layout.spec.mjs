@@ -102,7 +102,7 @@ test('main outbounds card keeps proxy nodes inside scrollable panel', async ({ p
   const nodeLatency = buildNodeLatency(nodes);
 
   await page.addInitScript(() => {
-    localStorage.setItem('xkeen.outbounds.fragment', '04_outbounds.json');
+    localStorage.setItem('unified.outbounds.fragment', '04_outbounds.json');
   });
 
   await page.route('**/api/ui-settings', async (route) => {

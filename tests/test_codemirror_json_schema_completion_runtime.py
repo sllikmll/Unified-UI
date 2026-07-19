@@ -11,7 +11,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _run_completion_labels(doc_with_marker: str, schema_path: str = "./xkeen-ui/static/schemas/xray-routing.schema.json") -> list[str] | None:
+def _run_completion_labels(doc_with_marker: str, schema_path: str = "./unified-ui/static/schemas/xray-routing.schema.json") -> list[str] | None:
     if shutil.which("node") is None:
         pytest.skip("node is not available in this environment")
 
@@ -20,7 +20,7 @@ import fs from 'node:fs';
 import {{ EditorState }} from '@codemirror/state';
 import {{ CompletionContext }} from '@codemirror/autocomplete';
 import {{ json }} from '@codemirror/lang-json';
-import {{ stateExtensions, jsonCompletion }} from './xkeen-ui/static/js/vendor/codemirror_json_schema.js';
+import {{ stateExtensions, jsonCompletion }} from './unified-ui/static/js/vendor/codemirror_json_schema.js';
 
 const schema = JSON.parse(fs.readFileSync({json.dumps(schema_path)}, 'utf8'));
 const marker = '__CURSOR__';
@@ -50,7 +50,7 @@ console.log(JSON.stringify(result ? result.options.map((option) => option.label)
     return json.loads(result.stdout.strip())
 
 
-def _run_linter_diagnostics(doc: str, schema_path: str = "./xkeen-ui/static/schemas/xray-routing.schema.json") -> list[dict[str, object]]:
+def _run_linter_diagnostics(doc: str, schema_path: str = "./unified-ui/static/schemas/xray-routing.schema.json") -> list[dict[str, object]]:
     if shutil.which("node") is None:
         pytest.skip("node is not available in this environment")
 
@@ -58,7 +58,7 @@ def _run_linter_diagnostics(doc: str, schema_path: str = "./xkeen-ui/static/sche
 import fs from 'node:fs';
 import {{ EditorState }} from '@codemirror/state';
 import {{ json }} from '@codemirror/lang-json';
-import {{ jsonSchemaLinter, stateExtensions }} from './xkeen-ui/static/js/vendor/codemirror_json_schema.js';
+import {{ jsonSchemaLinter, stateExtensions }} from './unified-ui/static/js/vendor/codemirror_json_schema.js';
 
 const schema = JSON.parse(fs.readFileSync({json.dumps(schema_path)}, 'utf8'));
 const doc = {json.dumps(doc)};
@@ -93,17 +93,17 @@ console.log(JSON.stringify(diagnostics.map((item) => {{
     return json.loads(result.stdout.strip())
 
 
-def _run_linter_messages(doc: str, schema_path: str = "./xkeen-ui/static/schemas/xray-routing.schema.json") -> list[str]:
+def _run_linter_messages(doc: str, schema_path: str = "./unified-ui/static/schemas/xray-routing.schema.json") -> list[str]:
     return [str(item["message"]) for item in _run_linter_diagnostics(doc, schema_path)]
 
 
-def _run_hover_info(doc_with_marker: str, schema_path: str = "./xkeen-ui/static/schemas/xray-routing.schema.json") -> dict[str, object] | None:
+def _run_hover_info(doc_with_marker: str, schema_path: str = "./unified-ui/static/schemas/xray-routing.schema.json") -> dict[str, object] | None:
     if shutil.which("node") is None:
         pytest.skip("node is not available in this environment")
 
     script = f"""
 import fs from 'node:fs';
-import {{ buildJsonSchemaHoverInfo }} from './xkeen-ui/static/js/vendor/codemirror_json_schema.js';
+import {{ buildJsonSchemaHoverInfo }} from './unified-ui/static/js/vendor/codemirror_json_schema.js';
 
 const schema = JSON.parse(fs.readFileSync({json.dumps(schema_path)}, 'utf8'));
 const marker = '__CURSOR__';
@@ -222,7 +222,7 @@ def test_inbounds_schema_completion_supports_inbound_object_keys():
             "}",
             "",
         ]),
-        schema_path="./xkeen-ui/static/schemas/xray-inbounds.schema.json",
+        schema_path="./unified-ui/static/schemas/xray-inbounds.schema.json",
     )
 
     assert labels is not None
@@ -246,7 +246,7 @@ def test_inbounds_schema_completion_supports_dokodemo_settings_keys():
             "}",
             "",
         ]),
-        schema_path="./xkeen-ui/static/schemas/xray-inbounds.schema.json",
+        schema_path="./unified-ui/static/schemas/xray-inbounds.schema.json",
     )
 
     assert labels is not None
@@ -271,7 +271,7 @@ def test_inbounds_schema_hover_supports_dokodemo_follow_redirect():
             "}",
             "",
         ]),
-        schema_path="./xkeen-ui/static/schemas/xray-inbounds.schema.json",
+        schema_path="./unified-ui/static/schemas/xray-inbounds.schema.json",
     )
 
     config_labels = _run_completion_labels(
@@ -288,7 +288,7 @@ def test_inbounds_schema_hover_supports_dokodemo_follow_redirect():
             "}",
             "",
         ]),
-        schema_path="./xkeen-ui/static/schemas/xray-config.schema.json",
+        schema_path="./unified-ui/static/schemas/xray-config.schema.json",
     )
 
     assert hover is not None
@@ -312,7 +312,7 @@ def test_outbounds_schema_completion_supports_outbound_object_keys():
             "}",
             "",
         ]),
-        schema_path="./xkeen-ui/static/schemas/xray-outbounds.schema.json",
+        schema_path="./unified-ui/static/schemas/xray-outbounds.schema.json",
     )
 
     assert labels is not None
@@ -340,7 +340,7 @@ def test_outbounds_schema_completion_supports_protocol_specific_nested_keys():
             "}",
             "",
         ]),
-        schema_path="./xkeen-ui/static/schemas/xray-outbounds.schema.json",
+        schema_path="./unified-ui/static/schemas/xray-outbounds.schema.json",
     )
 
     assert labels is not None
@@ -372,7 +372,7 @@ def test_outbounds_schema_completion_supports_vnext_user_identity_fields():
             "}",
             "",
         ]),
-        schema_path="./xkeen-ui/static/schemas/xray-outbounds.schema.json",
+        schema_path="./unified-ui/static/schemas/xray-outbounds.schema.json",
     )
 
     assert labels is not None
@@ -400,7 +400,7 @@ def test_outbounds_schema_completion_supports_reality_shortid_and_blackhole_resp
             "}",
             "",
         ]),
-        schema_path="./xkeen-ui/static/schemas/xray-outbounds.schema.json",
+        schema_path="./unified-ui/static/schemas/xray-outbounds.schema.json",
     )
 
     response_labels = _run_completion_labels(
@@ -417,7 +417,7 @@ def test_outbounds_schema_completion_supports_reality_shortid_and_blackhole_resp
             "}",
             "",
         ]),
-        schema_path="./xkeen-ui/static/schemas/xray-outbounds.schema.json",
+        schema_path="./unified-ui/static/schemas/xray-outbounds.schema.json",
     )
 
     assert reality_labels is not None
@@ -449,7 +449,7 @@ def test_outbounds_schema_hover_supports_nested_protocol_specific_fields():
             "}",
             "",
         ]),
-        schema_path="./xkeen-ui/static/schemas/xray-outbounds.schema.json",
+        schema_path="./unified-ui/static/schemas/xray-outbounds.schema.json",
     )
 
     shortid_hover = _run_hover_info(
@@ -469,7 +469,7 @@ def test_outbounds_schema_hover_supports_nested_protocol_specific_fields():
             "}",
             "",
         ]),
-        schema_path="./xkeen-ui/static/schemas/xray-outbounds.schema.json",
+        schema_path="./unified-ui/static/schemas/xray-outbounds.schema.json",
     )
 
     response_type_hover = _run_hover_info(
@@ -488,7 +488,7 @@ def test_outbounds_schema_hover_supports_nested_protocol_specific_fields():
             "}",
             "",
         ]),
-        schema_path="./xkeen-ui/static/schemas/xray-outbounds.schema.json",
+        schema_path="./unified-ui/static/schemas/xray-outbounds.schema.json",
     )
 
     assert vnext_hover is not None
@@ -616,7 +616,7 @@ def test_outbounds_schema_linter_warns_when_grpc_transport_is_used():
             "}",
             "",
         ]),
-        schema_path="./xkeen-ui/static/schemas/xray-outbounds.schema.json",
+        schema_path="./unified-ui/static/schemas/xray-outbounds.schema.json",
     )
 
     assert any("gRPC" in message or "XHTTP" in message for message in messages)
@@ -678,7 +678,7 @@ def test_outbounds_schema_linter_requires_matching_network_for_xhttp_settings():
             "}",
             "",
         ]),
-        schema_path="./xkeen-ui/static/schemas/xray-outbounds.schema.json",
+        schema_path="./unified-ui/static/schemas/xray-outbounds.schema.json",
     )
 
     assert any('"xhttp"' in message for message in messages)
@@ -712,7 +712,7 @@ def test_outbounds_schema_linter_requires_tls_security_for_tls_settings():
             "}",
             "",
         ]),
-        schema_path="./xkeen-ui/static/schemas/xray-outbounds.schema.json",
+        schema_path="./unified-ui/static/schemas/xray-outbounds.schema.json",
     )
 
     assert any('"tls"' in message for message in messages)

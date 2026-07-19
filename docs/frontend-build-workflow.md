@@ -17,7 +17,7 @@
 
 Репозиторий осознанно держит два связанных manifest-слоя:
 
-1. `xkeen-ui/static/frontend-build/.vite/manifest.build.json`
+1. `unified-ui/static/frontend-build/.vite/manifest.build.json`
 
    Это raw Vite manifest. Он описывает реальный build output:
 
@@ -25,7 +25,7 @@
    - hashed entry chunks;
    - shared/lazy chunks.
 
-2. `xkeen-ui/static/frontend-build/.vite/manifest.json`
+2. `unified-ui/static/frontend-build/.vite/manifest.json`
 
    Это runtime bridge manifest:
 
@@ -80,10 +80,10 @@ npm run frontend:build
 
 Результат записывается в:
 
-- `xkeen-ui/static/vendor/`
-- `xkeen-ui/static/frontend-build/assets/`
-- `xkeen-ui/static/frontend-build/.vite/manifest.build.json`
-- `xkeen-ui/static/frontend-build/.vite/manifest.json`
+- `unified-ui/static/vendor/`
+- `unified-ui/static/frontend-build/assets/`
+- `unified-ui/static/frontend-build/.vite/manifest.build.json`
+- `unified-ui/static/frontend-build/.vite/manifest.json`
 
 ### 3. Статическая проверка результата
 

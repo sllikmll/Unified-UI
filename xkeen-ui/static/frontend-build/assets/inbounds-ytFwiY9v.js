@@ -1,1 +1,0 @@
-import{n as e}from"./inbounds-lGRiRg9u.js";window.XKeen=window.XKeen||{};var t=window.XKeen;t.features=t.features||{};var n=typeof e==`function`?e():null;if(n){let e=t.features.inbounds||{};t.features.inbounds=e,Object.assign(e,n)}

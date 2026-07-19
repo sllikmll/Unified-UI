@@ -12,7 +12,7 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SCRIPT_SRC = REPO_ROOT / "xkeen-ui" / "tools" / "backup_monitor.sh"
+SCRIPT_SRC = REPO_ROOT / "unified-ui" / "tools" / "backup_monitor.sh"
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
@@ -66,9 +66,9 @@ def _run_backup_monitor(
     script_dst.chmod(script_dst.stat().st_mode | stat.S_IEXEC)
 
     env = os.environ.copy()
-    env["XKEEN_UI_STATE_DIR"] = _to_sh_path(state_dir)
+    env["UNIFIED_UI_STATE_DIR"] = _to_sh_path(state_dir)
     if scan_roots:
-        env["XKEEN_BACKUP_MONITOR_PATHS"] = ";".join(_to_sh_path(path) for path in scan_roots)
+        env["UNIFIED_BACKUP_MONITOR_PATHS"] = ";".join(_to_sh_path(path) for path in scan_roots)
 
     result = subprocess.run(
         [SH_PATH, str(script_dst), *args],

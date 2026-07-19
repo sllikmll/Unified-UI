@@ -29,7 +29,7 @@
           "lazy_features": []
         },
         {
-          "path": "static/js/features/xkeen_runtime.js",
+          "path": "static/js/features/unified_runtime.js",
           "globals": [],
           "lazy_features": []
         },
@@ -51,7 +51,7 @@
         {
           "path": "static/js/pages/top_level_screen_host.shared.js",
           "globals": [
-            "XKeen.pageConfig"
+            "UnifiedUI.pageConfig"
           ],
           "lazy_features": []
         },
@@ -71,7 +71,7 @@
           "lazy_features": []
         },
         {
-          "path": "static/js/pages/top_level_xkeen_screen.js",
+          "path": "static/js/pages/top_level_unified_screen.js",
           "globals": [],
           "lazy_features": []
         },
@@ -88,76 +88,76 @@
         {
           "path": "static/js/00_state.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.state",
-            "XKeen.util",
-            "XKeen.ui",
-            "XKeen.runtime",
-            "XKeen.env",
-            "XKeen.features"
+            "UnifiedUI.core",
+            "UnifiedUI.state",
+            "UnifiedUI.util",
+            "UnifiedUI.ui",
+            "UnifiedUI.runtime",
+            "UnifiedUI.env",
+            "UnifiedUI.features"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/01_bootstrap.js",
           "globals": [
-            "XKeen.util"
+            "UnifiedUI.util"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_store.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.store",
-            "XKeen.store",
-            "XKeen.core.uiShell",
-            "XKeen.uiShell",
-            "XKeen.core.uiModal",
-            "XKeen.uiModal",
-            "XKeen.core.uiSettings",
-            "XKeen.uiSettings",
-            "XKeen.core.uiToast",
-            "XKeen.uiToast"
+            "UnifiedUI.core",
+            "UnifiedUI.core.store",
+            "UnifiedUI.store",
+            "UnifiedUI.core.uiShell",
+            "UnifiedUI.uiShell",
+            "UnifiedUI.core.uiModal",
+            "UnifiedUI.uiModal",
+            "UnifiedUI.core.uiSettings",
+            "UnifiedUI.uiSettings",
+            "UnifiedUI.core.uiToast",
+            "UnifiedUI.uiToast"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/toast.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.core",
-            "XKeen.core.uiToast",
-            "XKeen.uiToast",
-            "XKeen.ui.showToast",
-            "XKeen.ui.toast",
-            "XKeen.ui.notify",
-            "XKeen.ui.dismissToast",
-            "XKeen.ui.clearToasts",
-            "XKeen.ui.isToastActive"
+            "UnifiedUI.ui",
+            "UnifiedUI.core",
+            "UnifiedUI.core.uiToast",
+            "UnifiedUI.uiToast",
+            "UnifiedUI.ui.showToast",
+            "UnifiedUI.ui.toast",
+            "UnifiedUI.ui.notify",
+            "UnifiedUI.ui.dismissToast",
+            "UnifiedUI.ui.clearToasts",
+            "UnifiedUI.ui.isToastActive"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/settings.js",
           "globals": [
-            "XKeen.ui.settings.get",
-            "XKeen.ui.settings.fetch",
-            "XKeen.ui.settings.patch",
-            "XKeen.ui",
-            "XKeen.core",
-            "XKeen.core.http",
-            "XKeen.core.uiSettings",
-            "XKeen.ui.settings",
-            "XKeen.ui.settings.DEFAULTS",
-            "XKeen.ui.settings.isLoadedFromServer",
-            "XKeen.ui.settings.setLocal",
-            "XKeen.ui.settings.patchLocal",
-            "XKeen.ui.settings.fetchOnce",
-            "XKeen.ui.settings.subscribe",
-            "XKeen.ui.settings.clampEditorFontScale",
-            "XKeen.ui.settings.getEditorFontScale",
-            "XKeen.ui.settings.isEditorExpertModeEnabled"
+            "UnifiedUI.ui.settings.get",
+            "UnifiedUI.ui.settings.fetch",
+            "UnifiedUI.ui.settings.patch",
+            "UnifiedUI.ui",
+            "UnifiedUI.core",
+            "UnifiedUI.core.http",
+            "UnifiedUI.core.uiSettings",
+            "UnifiedUI.ui.settings",
+            "UnifiedUI.ui.settings.DEFAULTS",
+            "UnifiedUI.ui.settings.isLoadedFromServer",
+            "UnifiedUI.ui.settings.setLocal",
+            "UnifiedUI.ui.settings.patchLocal",
+            "UnifiedUI.ui.settings.fetchOnce",
+            "UnifiedUI.ui.settings.subscribe",
+            "UnifiedUI.ui.settings.clampEditorFontScale",
+            "UnifiedUI.ui.settings.getEditorFontScale",
+            "UnifiedUI.ui.settings.isEditorExpertModeEnabled"
           ],
           "lazy_features": []
         },
@@ -199,11 +199,11 @@
         {
           "path": "static/js/pages/panel_shell.shared.js",
           "globals": [
-            "XKeen.runtime",
-            "XKeen.runtime.lazy",
-            "XKeen.ui",
-            "XKeen.ui.datContents",
-            "XKeen.ui.datContents.open"
+            "UnifiedUI.runtime",
+            "UnifiedUI.runtime.lazy",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.datContents",
+            "UnifiedUI.ui.datContents.open"
           ],
           "lazy_features": [
             "backups",
@@ -213,15 +213,15 @@
         {
           "path": "static/js/ui/sections.js",
           "globals": [
-            "XKeen.pageConfig.sections",
-            "XKeen.ui",
-            "XKeen.runtime",
-            "XKeen.runtime.getFeatureApi",
-            "XKeen.ui.tabs",
-            "XKeen.ui.tabs.show",
-            "XKeen.runtime.getPageSectionsConfig",
-            "XKeen.pageConfig",
-            "XKeen.ui.sections"
+            "UnifiedUI.pageConfig.sections",
+            "UnifiedUI.ui",
+            "UnifiedUI.runtime",
+            "UnifiedUI.runtime.getFeatureApi",
+            "UnifiedUI.ui.tabs",
+            "UnifiedUI.ui.tabs.show",
+            "UnifiedUI.runtime.getPageSectionsConfig",
+            "UnifiedUI.pageConfig",
+            "UnifiedUI.ui.sections"
           ],
           "lazy_features": []
         },
@@ -233,17 +233,17 @@
         {
           "path": "static/js/ui/xk_brand.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.layout",
-            "XKeen.ui.layout.tabKey",
-            "XKeen.ui.branding"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.layout",
+            "UnifiedUI.ui.layout.tabKey",
+            "UnifiedUI.ui.branding"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/pages/panel.lazy_bindings.runtime.js",
           "globals": [
-            "XKeen.terminal"
+            "UnifiedUI.terminal"
           ],
           "lazy_features": [
             "serviceStatus",
@@ -255,7 +255,7 @@
             "mihomoImport",
             "mihomoProxyTools",
             "mihomoHwidSub",
-            "xkeenTexts",
+            "unifiedTexts",
             "commandsList",
             "coresStatus",
             "backups"
@@ -269,25 +269,25 @@
         {
           "path": "static/js/ui/config_dirty_state.js",
           "globals": [
-            "XKeen.state",
-            "XKeen.ui",
-            "XKeen.state.configDirtyScopes",
-            "XKeen.ui.confirm",
-            "XKeen.ui.configDirty"
+            "UnifiedUI.state",
+            "UnifiedUI.ui",
+            "UnifiedUI.state.configDirtyScopes",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.configDirty"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/config_shell.js",
           "globals": [
-            "XKeen.state",
-            "XKeen.ui",
-            "XKeen.state.configShellTabs",
-            "XKeen.state.configFeatureLifecycles",
-            "XKeen.ui.confirm",
-            "XKeen.ui.configDirty",
-            "XKeen.state.fragments",
-            "XKeen.ui.configShell"
+            "UnifiedUI.state",
+            "UnifiedUI.ui",
+            "UnifiedUI.state.configShellTabs",
+            "UnifiedUI.state.configFeatureLifecycles",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.configDirty",
+            "UnifiedUI.state.fragments",
+            "UnifiedUI.ui.configShell"
           ],
           "lazy_features": []
         },
@@ -299,8 +299,8 @@
         {
           "path": "static/js/features/terminal_debug.js",
           "globals": [
-            "XKeen.debug",
-            "XKeen.debug.terminal"
+            "UnifiedUI.debug",
+            "UnifiedUI.debug.terminal"
           ],
           "lazy_features": []
         },
@@ -332,9 +332,9 @@
         {
           "path": "static/js/ui/editor_schema.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.settings",
-            "XKeen.ui.cm6Runtime"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.settings",
+            "UnifiedUI.ui.cm6Runtime"
           ],
           "lazy_features": []
         },
@@ -381,117 +381,117 @@
         {
           "path": "static/js/ui/editor_engine.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.settings",
-            "XKeen.runtime",
-            "XKeen.runtime.lazy",
-            "XKeen.ui.cm6Runtime",
-            "XKeen.monacoLoader",
-            "XKeen.ui.monacoShared",
-            "XKeen.ui.settings.get",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.editorEngine.EVENT",
-            "XKeen.ui.editorEngine.VALID",
-            "XKeen.ui.editorEngine.DEFAULT",
-            "XKeen.ui.editorEngine.get",
-            "XKeen.ui.editorEngine.ensureLoaded",
-            "XKeen.ui.editorEngine.set",
-            "XKeen.ui.editorEngine.createFacade",
-            "XKeen.ui.editorEngine.fromCodeMirror",
-            "XKeen.ui.editorEngine.fromMonaco",
-            "XKeen.ui.editorEngine.fromTextarea",
-            "XKeen.ui.editorEngine.isFacade",
-            "XKeen.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
-            "XKeen.ui.editorEngine.ensureSupport",
-            "XKeen.ui.editorEngine.getRuntime",
-            "XKeen.ui.editorEngine.ensureRuntime",
-            "XKeen.ui.editorEngine.isExperimentalCodeMirror6Enabled",
-            "XKeen.ui.editorEngine.getCodeMirrorBackend",
-            "XKeen.ui.editorEngine.onChange",
-            "XKeen.ui.editorEngine.resetFallback",
-            "XKeen.ui.editorEngine.cloneViewState",
-            "XKeen.ui.editorEngine.createViewStateStore"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.settings",
+            "UnifiedUI.runtime",
+            "UnifiedUI.runtime.lazy",
+            "UnifiedUI.ui.cm6Runtime",
+            "UnifiedUI.monacoLoader",
+            "UnifiedUI.ui.monacoShared",
+            "UnifiedUI.ui.settings.get",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.editorEngine.EVENT",
+            "UnifiedUI.ui.editorEngine.VALID",
+            "UnifiedUI.ui.editorEngine.DEFAULT",
+            "UnifiedUI.ui.editorEngine.get",
+            "UnifiedUI.ui.editorEngine.ensureLoaded",
+            "UnifiedUI.ui.editorEngine.set",
+            "UnifiedUI.ui.editorEngine.createFacade",
+            "UnifiedUI.ui.editorEngine.fromCodeMirror",
+            "UnifiedUI.ui.editorEngine.fromMonaco",
+            "UnifiedUI.ui.editorEngine.fromTextarea",
+            "UnifiedUI.ui.editorEngine.isFacade",
+            "UnifiedUI.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
+            "UnifiedUI.ui.editorEngine.ensureSupport",
+            "UnifiedUI.ui.editorEngine.getRuntime",
+            "UnifiedUI.ui.editorEngine.ensureRuntime",
+            "UnifiedUI.ui.editorEngine.isExperimentalCodeMirror6Enabled",
+            "UnifiedUI.ui.editorEngine.getCodeMirrorBackend",
+            "UnifiedUI.ui.editorEngine.onChange",
+            "UnifiedUI.ui.editorEngine.resetFallback",
+            "UnifiedUI.ui.editorEngine.cloneViewState",
+            "UnifiedUI.ui.editorEngine.createViewStateStore"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/editor_actions.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.diff",
-            "XKeen.ui.editorActions"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.ui.editorActions"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/editor_toolbar.js",
           "globals": [
-            "XKeen.ui.editorToolbar",
-            "XKeen.ui.editorActions",
-            "XKeen.ui",
-            "XKeen.ui.diff",
-            "XKeen.ui.diff.openForScope"
+            "UnifiedUI.ui.editorToolbar",
+            "UnifiedUI.ui.editorActions",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.ui.diff.openForScope"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/editor_links.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.editorActions",
-            "XKeen.ui.editorLinks"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.editorActions",
+            "UnifiedUI.ui.editorLinks"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/diff_engine.js",
           "globals": [
-            "XKeen.ui.diff.registerScope",
-            "XKeen.ui.diff.unregisterScope",
-            "XKeen.ui.diff.getScope",
-            "XKeen.ui.diff.openForScope",
-            "XKeen.ui.diff.open",
-            "XKeen.ui",
-            "XKeen.ui.diffModal",
-            "XKeen.ui.diffModal.open",
-            "XKeen.core",
-            "XKeen.core.http",
-            "XKeen.ui.diff",
-            "XKeen.ui.diff.listScopes",
-            "XKeen.ui.diff.resolveSourceText",
-            "XKeen.ui.diff.applyTextToScope",
-            "XKeen.ui.diff.describeSource",
-            "XKeen.ui.diff.logDiff"
+            "UnifiedUI.ui.diff.registerScope",
+            "UnifiedUI.ui.diff.unregisterScope",
+            "UnifiedUI.ui.diff.getScope",
+            "UnifiedUI.ui.diff.openForScope",
+            "UnifiedUI.ui.diff.open",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.diffModal",
+            "UnifiedUI.ui.diffModal.open",
+            "UnifiedUI.core",
+            "UnifiedUI.core.http",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.ui.diff.listScopes",
+            "UnifiedUI.ui.diff.resolveSourceText",
+            "UnifiedUI.ui.diff.applyTextToScope",
+            "UnifiedUI.ui.diff.describeSource",
+            "UnifiedUI.ui.diff.logDiff"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/diff_modal.js",
           "globals": [
-            "XKeen.ui.diffModal.open",
-            "XKeen.ui.diffModal.close",
-            "XKeen.ui.diffModal.isOpen",
-            "XKeen.ui",
-            "XKeen.ui.modal",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.toast",
-            "XKeen.ui.diff",
-            "XKeen.runtime",
-            "XKeen.runtime.lazy",
-            "XKeen.ui.cm6Runtime",
-            "XKeen.ui.confirm",
-            "XKeen.ui.diffModal",
-            "XKeen.ui.diffModal.setMode"
+            "UnifiedUI.ui.diffModal.open",
+            "UnifiedUI.ui.diffModal.close",
+            "UnifiedUI.ui.diffModal.isOpen",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.toast",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.runtime",
+            "UnifiedUI.runtime.lazy",
+            "UnifiedUI.ui.cm6Runtime",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.diffModal",
+            "UnifiedUI.ui.diffModal.setMode"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/pages/codemirror6.shared.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.cm6Runtime"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.cm6Runtime"
           ],
           "lazy_features": []
         },
@@ -503,71 +503,71 @@
         {
           "path": "static/js/core/xk_dom.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.dom"
+            "UnifiedUI.core",
+            "UnifiedUI.core.dom"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_http.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.http"
+            "UnifiedUI.core",
+            "UnifiedUI.core.http"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_storage.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.storage"
+            "UnifiedUI.core",
+            "UnifiedUI.core.storage"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/shared_primitives.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.core",
-            "XKeen.core.dom",
-            "XKeen.core.http",
-            "XKeen.core.storage",
-            "XKeen.ui.toast",
-            "XKeen.ui.confirm",
-            "XKeen.ui.modal",
-            "XKeen.ui.sharedPrimitives"
+            "UnifiedUI.ui",
+            "UnifiedUI.core",
+            "UnifiedUI.core.dom",
+            "UnifiedUI.core.http",
+            "UnifiedUI.core.storage",
+            "UnifiedUI.ui.toast",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.ui.sharedPrimitives"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/modal.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.modal",
-            "XKeen.core",
-            "XKeen.core.uiModal",
-            "XKeen.uiModal"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.core",
+            "UnifiedUI.core.uiModal",
+            "UnifiedUI.uiModal"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/confirm_modal.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.confirm",
-            "XKeen.ui.modal",
-            "XKeen.ui.toast"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.ui.toast"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/theme.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.state",
-            "XKeen.ui.applyTheme",
-            "XKeen.ui.initThemeToggle",
-            "XKeen.ui.syncThemeToggleButtons"
+            "UnifiedUI.ui",
+            "UnifiedUI.state",
+            "UnifiedUI.ui.applyTheme",
+            "UnifiedUI.ui.initThemeToggle",
+            "UnifiedUI.ui.syncThemeToggleButtons"
           ],
           "lazy_features": []
         },
@@ -579,33 +579,33 @@
         {
           "path": "static/js/util/helpers.js",
           "globals": [
-            "XKeen.util",
-            "XKeen.util.escapeHtml"
+            "UnifiedUI.util",
+            "UnifiedUI.util.escapeHtml"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/runtime/lazy_runtime.js",
           "globals": [
-            "XKeen.runtime",
-            "XKeen.backups",
-            "XKeen.terminal",
-            "XKeen.terminal.api",
-            "XKeen.backups.load",
-            "XKeen.backups.init",
-            "XKeen.backups.refresh",
-            "XKeen.backups.restoreAuto",
-            "XKeen.backups.viewSnapshot",
-            "XKeen.backups.restoreSnapshot",
-            "XKeen.jsonEditor",
-            "XKeen.jsonEditor.open",
-            "XKeen.jsonEditor.close",
-            "XKeen.jsonEditor.save",
-            "XKeen.ui",
-            "XKeen.ui.datContents",
-            "XKeen.ui.datContents.open",
-            "XKeen.ui.datContents.close",
-            "XKeen.runtime.lazy"
+            "UnifiedUI.runtime",
+            "UnifiedUI.backups",
+            "UnifiedUI.terminal",
+            "UnifiedUI.terminal.api",
+            "UnifiedUI.backups.load",
+            "UnifiedUI.backups.init",
+            "UnifiedUI.backups.refresh",
+            "UnifiedUI.backups.restoreAuto",
+            "UnifiedUI.backups.viewSnapshot",
+            "UnifiedUI.backups.restoreSnapshot",
+            "UnifiedUI.jsonEditor",
+            "UnifiedUI.jsonEditor.open",
+            "UnifiedUI.jsonEditor.close",
+            "UnifiedUI.jsonEditor.save",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.datContents",
+            "UnifiedUI.ui.datContents.open",
+            "UnifiedUI.ui.datContents.close",
+            "UnifiedUI.runtime.lazy"
           ],
           "lazy_features": [
             "backups",
@@ -616,37 +616,37 @@
         {
           "path": "static/js/util/tab_id.js",
           "globals": [
-            "XKeen.util",
-            "XKeen.util.getTabId"
+            "UnifiedUI.util",
+            "UnifiedUI.util.getTabId"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/util/ansi.js",
           "globals": [
-            "XKeen.util",
-            "XKeen.util.ansiToHtml",
-            "XKeen.util.escapeHtml"
+            "UnifiedUI.util",
+            "UnifiedUI.util.ansiToHtml",
+            "UnifiedUI.util.escapeHtml"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/util/command_job.js",
           "globals": [
-            "XKeen.util",
-            "XKeen.util.commandJob"
+            "UnifiedUI.util",
+            "UnifiedUI.util.commandJob"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/spinner_fetch.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.state",
-            "XKeen.ui.showGlobalXkeenSpinner",
-            "XKeen.ui.hideGlobalXkeenSpinner",
-            "XKeen.ui.showToast",
-            "XKeen.ui.showXrayPreflightError"
+            "UnifiedUI.ui",
+            "UnifiedUI.state",
+            "UnifiedUI.ui.showGlobalXkeenSpinner",
+            "UnifiedUI.ui.hideGlobalXkeenSpinner",
+            "UnifiedUI.ui.showToast",
+            "UnifiedUI.ui.showXrayPreflightError"
           ],
           "lazy_features": []
         },
@@ -654,7 +654,7 @@
           "path": "static/js/pages/panel.view_runtime.js",
           "globals": [],
           "lazy_features": [
-            "xkeenTexts",
+            "unifiedTexts",
             "commandsList",
             "coresStatus"
           ]
@@ -674,7 +674,7 @@
         {
           "path": "static/js/features/local_io.js",
           "globals": [
-            "XKeen.localIO.init"
+            "UnifiedUI.localIO.init"
           ],
           "lazy_features": []
         },
@@ -714,138 +714,138 @@
         "restartLog"
       ],
       "all_bootstrap_globals": [
-        "XKeen.pageConfig",
-        "XKeen.core",
-        "XKeen.state",
-        "XKeen.util",
-        "XKeen.ui",
-        "XKeen.runtime",
-        "XKeen.env",
-        "XKeen.features",
-        "XKeen.core.store",
-        "XKeen.store",
-        "XKeen.core.uiShell",
-        "XKeen.uiShell",
-        "XKeen.core.uiModal",
-        "XKeen.uiModal",
-        "XKeen.core.uiSettings",
-        "XKeen.uiSettings",
-        "XKeen.core.uiToast",
-        "XKeen.uiToast",
-        "XKeen.ui.showToast",
-        "XKeen.ui.toast",
-        "XKeen.ui.notify",
-        "XKeen.ui.dismissToast",
-        "XKeen.ui.clearToasts",
-        "XKeen.ui.isToastActive",
-        "XKeen.ui.settings.get",
-        "XKeen.ui.settings.fetch",
-        "XKeen.ui.settings.patch",
-        "XKeen.core.http",
-        "XKeen.ui.settings",
-        "XKeen.ui.settings.DEFAULTS",
-        "XKeen.ui.settings.isLoadedFromServer",
-        "XKeen.ui.settings.setLocal",
-        "XKeen.ui.settings.patchLocal",
-        "XKeen.ui.settings.fetchOnce",
-        "XKeen.ui.settings.subscribe",
-        "XKeen.ui.settings.clampEditorFontScale",
-        "XKeen.ui.settings.getEditorFontScale",
-        "XKeen.ui.settings.isEditorExpertModeEnabled",
-        "XKeen.runtime.lazy",
-        "XKeen.ui.datContents",
-        "XKeen.ui.datContents.open",
-        "XKeen.pageConfig.sections",
-        "XKeen.runtime.getFeatureApi",
-        "XKeen.ui.tabs",
-        "XKeen.ui.tabs.show",
-        "XKeen.runtime.getPageSectionsConfig",
-        "XKeen.ui.sections",
-        "XKeen.ui.layout",
-        "XKeen.ui.layout.tabKey",
-        "XKeen.ui.branding",
-        "XKeen.terminal",
-        "XKeen.state.configDirtyScopes",
-        "XKeen.ui.confirm",
-        "XKeen.ui.configDirty",
-        "XKeen.state.configShellTabs",
-        "XKeen.state.configFeatureLifecycles",
-        "XKeen.state.fragments",
-        "XKeen.ui.configShell",
-        "XKeen.debug",
-        "XKeen.debug.terminal",
-        "XKeen.ui.cm6Runtime",
-        "XKeen.monacoLoader",
-        "XKeen.ui.monacoShared",
-        "XKeen.ui.editorEngine",
-        "XKeen.ui.editorEngine.EVENT",
-        "XKeen.ui.editorEngine.VALID",
-        "XKeen.ui.editorEngine.DEFAULT",
-        "XKeen.ui.editorEngine.get",
-        "XKeen.ui.editorEngine.ensureLoaded",
-        "XKeen.ui.editorEngine.set",
-        "XKeen.ui.editorEngine.createFacade",
-        "XKeen.ui.editorEngine.fromCodeMirror",
-        "XKeen.ui.editorEngine.fromMonaco",
-        "XKeen.ui.editorEngine.fromTextarea",
-        "XKeen.ui.editorEngine.isFacade",
-        "XKeen.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
-        "XKeen.ui.editorEngine.ensureSupport",
-        "XKeen.ui.editorEngine.getRuntime",
-        "XKeen.ui.editorEngine.ensureRuntime",
-        "XKeen.ui.editorEngine.isExperimentalCodeMirror6Enabled",
-        "XKeen.ui.editorEngine.getCodeMirrorBackend",
-        "XKeen.ui.editorEngine.onChange",
-        "XKeen.ui.editorEngine.resetFallback",
-        "XKeen.ui.editorEngine.cloneViewState",
-        "XKeen.ui.editorEngine.createViewStateStore",
-        "XKeen.ui.diff",
-        "XKeen.ui.editorActions",
-        "XKeen.ui.editorToolbar",
-        "XKeen.ui.diff.openForScope",
-        "XKeen.ui.editorLinks",
-        "XKeen.ui.diff.registerScope",
-        "XKeen.ui.diff.unregisterScope",
-        "XKeen.ui.diff.getScope",
-        "XKeen.ui.diff.open",
-        "XKeen.ui.diffModal",
-        "XKeen.ui.diffModal.open",
-        "XKeen.ui.diff.listScopes",
-        "XKeen.ui.diff.resolveSourceText",
-        "XKeen.ui.diff.applyTextToScope",
-        "XKeen.ui.diff.describeSource",
-        "XKeen.ui.diff.logDiff",
-        "XKeen.ui.diffModal.close",
-        "XKeen.ui.diffModal.isOpen",
-        "XKeen.ui.modal",
-        "XKeen.ui.diffModal.setMode",
-        "XKeen.core.dom",
-        "XKeen.core.storage",
-        "XKeen.ui.sharedPrimitives",
-        "XKeen.ui.applyTheme",
-        "XKeen.ui.initThemeToggle",
-        "XKeen.ui.syncThemeToggleButtons",
-        "XKeen.util.escapeHtml",
-        "XKeen.backups",
-        "XKeen.terminal.api",
-        "XKeen.backups.load",
-        "XKeen.backups.init",
-        "XKeen.backups.refresh",
-        "XKeen.backups.restoreAuto",
-        "XKeen.backups.viewSnapshot",
-        "XKeen.backups.restoreSnapshot",
-        "XKeen.jsonEditor",
-        "XKeen.jsonEditor.open",
-        "XKeen.jsonEditor.close",
-        "XKeen.jsonEditor.save",
-        "XKeen.ui.datContents.close",
-        "XKeen.util.getTabId",
-        "XKeen.util.ansiToHtml",
-        "XKeen.util.commandJob",
-        "XKeen.ui.showGlobalXkeenSpinner",
-        "XKeen.ui.hideGlobalXkeenSpinner",
-        "XKeen.ui.showXrayPreflightError",
-        "XKeen.localIO.init"
+        "UnifiedUI.pageConfig",
+        "UnifiedUI.core",
+        "UnifiedUI.state",
+        "UnifiedUI.util",
+        "UnifiedUI.ui",
+        "UnifiedUI.runtime",
+        "UnifiedUI.env",
+        "UnifiedUI.features",
+        "UnifiedUI.core.store",
+        "UnifiedUI.store",
+        "UnifiedUI.core.uiShell",
+        "UnifiedUI.uiShell",
+        "UnifiedUI.core.uiModal",
+        "UnifiedUI.uiModal",
+        "UnifiedUI.core.uiSettings",
+        "UnifiedUI.uiSettings",
+        "UnifiedUI.core.uiToast",
+        "UnifiedUI.uiToast",
+        "UnifiedUI.ui.showToast",
+        "UnifiedUI.ui.toast",
+        "UnifiedUI.ui.notify",
+        "UnifiedUI.ui.dismissToast",
+        "UnifiedUI.ui.clearToasts",
+        "UnifiedUI.ui.isToastActive",
+        "UnifiedUI.ui.settings.get",
+        "UnifiedUI.ui.settings.fetch",
+        "UnifiedUI.ui.settings.patch",
+        "UnifiedUI.core.http",
+        "UnifiedUI.ui.settings",
+        "UnifiedUI.ui.settings.DEFAULTS",
+        "UnifiedUI.ui.settings.isLoadedFromServer",
+        "UnifiedUI.ui.settings.setLocal",
+        "UnifiedUI.ui.settings.patchLocal",
+        "UnifiedUI.ui.settings.fetchOnce",
+        "UnifiedUI.ui.settings.subscribe",
+        "UnifiedUI.ui.settings.clampEditorFontScale",
+        "UnifiedUI.ui.settings.getEditorFontScale",
+        "UnifiedUI.ui.settings.isEditorExpertModeEnabled",
+        "UnifiedUI.runtime.lazy",
+        "UnifiedUI.ui.datContents",
+        "UnifiedUI.ui.datContents.open",
+        "UnifiedUI.pageConfig.sections",
+        "UnifiedUI.runtime.getFeatureApi",
+        "UnifiedUI.ui.tabs",
+        "UnifiedUI.ui.tabs.show",
+        "UnifiedUI.runtime.getPageSectionsConfig",
+        "UnifiedUI.ui.sections",
+        "UnifiedUI.ui.layout",
+        "UnifiedUI.ui.layout.tabKey",
+        "UnifiedUI.ui.branding",
+        "UnifiedUI.terminal",
+        "UnifiedUI.state.configDirtyScopes",
+        "UnifiedUI.ui.confirm",
+        "UnifiedUI.ui.configDirty",
+        "UnifiedUI.state.configShellTabs",
+        "UnifiedUI.state.configFeatureLifecycles",
+        "UnifiedUI.state.fragments",
+        "UnifiedUI.ui.configShell",
+        "UnifiedUI.debug",
+        "UnifiedUI.debug.terminal",
+        "UnifiedUI.ui.cm6Runtime",
+        "UnifiedUI.monacoLoader",
+        "UnifiedUI.ui.monacoShared",
+        "UnifiedUI.ui.editorEngine",
+        "UnifiedUI.ui.editorEngine.EVENT",
+        "UnifiedUI.ui.editorEngine.VALID",
+        "UnifiedUI.ui.editorEngine.DEFAULT",
+        "UnifiedUI.ui.editorEngine.get",
+        "UnifiedUI.ui.editorEngine.ensureLoaded",
+        "UnifiedUI.ui.editorEngine.set",
+        "UnifiedUI.ui.editorEngine.createFacade",
+        "UnifiedUI.ui.editorEngine.fromCodeMirror",
+        "UnifiedUI.ui.editorEngine.fromMonaco",
+        "UnifiedUI.ui.editorEngine.fromTextarea",
+        "UnifiedUI.ui.editorEngine.isFacade",
+        "UnifiedUI.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
+        "UnifiedUI.ui.editorEngine.ensureSupport",
+        "UnifiedUI.ui.editorEngine.getRuntime",
+        "UnifiedUI.ui.editorEngine.ensureRuntime",
+        "UnifiedUI.ui.editorEngine.isExperimentalCodeMirror6Enabled",
+        "UnifiedUI.ui.editorEngine.getCodeMirrorBackend",
+        "UnifiedUI.ui.editorEngine.onChange",
+        "UnifiedUI.ui.editorEngine.resetFallback",
+        "UnifiedUI.ui.editorEngine.cloneViewState",
+        "UnifiedUI.ui.editorEngine.createViewStateStore",
+        "UnifiedUI.ui.diff",
+        "UnifiedUI.ui.editorActions",
+        "UnifiedUI.ui.editorToolbar",
+        "UnifiedUI.ui.diff.openForScope",
+        "UnifiedUI.ui.editorLinks",
+        "UnifiedUI.ui.diff.registerScope",
+        "UnifiedUI.ui.diff.unregisterScope",
+        "UnifiedUI.ui.diff.getScope",
+        "UnifiedUI.ui.diff.open",
+        "UnifiedUI.ui.diffModal",
+        "UnifiedUI.ui.diffModal.open",
+        "UnifiedUI.ui.diff.listScopes",
+        "UnifiedUI.ui.diff.resolveSourceText",
+        "UnifiedUI.ui.diff.applyTextToScope",
+        "UnifiedUI.ui.diff.describeSource",
+        "UnifiedUI.ui.diff.logDiff",
+        "UnifiedUI.ui.diffModal.close",
+        "UnifiedUI.ui.diffModal.isOpen",
+        "UnifiedUI.ui.modal",
+        "UnifiedUI.ui.diffModal.setMode",
+        "UnifiedUI.core.dom",
+        "UnifiedUI.core.storage",
+        "UnifiedUI.ui.sharedPrimitives",
+        "UnifiedUI.ui.applyTheme",
+        "UnifiedUI.ui.initThemeToggle",
+        "UnifiedUI.ui.syncThemeToggleButtons",
+        "UnifiedUI.util.escapeHtml",
+        "UnifiedUI.backups",
+        "UnifiedUI.terminal.api",
+        "UnifiedUI.backups.load",
+        "UnifiedUI.backups.init",
+        "UnifiedUI.backups.refresh",
+        "UnifiedUI.backups.restoreAuto",
+        "UnifiedUI.backups.viewSnapshot",
+        "UnifiedUI.backups.restoreSnapshot",
+        "UnifiedUI.jsonEditor",
+        "UnifiedUI.jsonEditor.open",
+        "UnifiedUI.jsonEditor.close",
+        "UnifiedUI.jsonEditor.save",
+        "UnifiedUI.ui.datContents.close",
+        "UnifiedUI.util.getTabId",
+        "UnifiedUI.util.ansiToHtml",
+        "UnifiedUI.util.commandJob",
+        "UnifiedUI.ui.showGlobalXkeenSpinner",
+        "UnifiedUI.ui.hideGlobalXkeenSpinner",
+        "UnifiedUI.ui.showXrayPreflightError",
+        "UnifiedUI.localIO.init"
       ],
       "all_bootstrap_lazy_features": [
         "backups",
@@ -859,7 +859,7 @@
         "mihomoImport",
         "mihomoProxyTools",
         "mihomoHwidSub",
-        "xkeenTexts",
+        "unifiedTexts",
         "commandsList",
         "coresStatus",
         "jsonEditor",
@@ -910,7 +910,7 @@
           "lazy_features": []
         },
         {
-          "path": "static/js/features/xkeen_runtime.js",
+          "path": "static/js/features/unified_runtime.js",
           "globals": [],
           "lazy_features": []
         },
@@ -932,7 +932,7 @@
         {
           "path": "static/js/pages/top_level_screen_host.shared.js",
           "globals": [
-            "XKeen.pageConfig"
+            "UnifiedUI.pageConfig"
           ],
           "lazy_features": []
         },
@@ -952,7 +952,7 @@
           "lazy_features": []
         },
         {
-          "path": "static/js/pages/top_level_xkeen_screen.js",
+          "path": "static/js/pages/top_level_unified_screen.js",
           "globals": [],
           "lazy_features": []
         },
@@ -969,76 +969,76 @@
         {
           "path": "static/js/00_state.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.state",
-            "XKeen.util",
-            "XKeen.ui",
-            "XKeen.runtime",
-            "XKeen.env",
-            "XKeen.features"
+            "UnifiedUI.core",
+            "UnifiedUI.state",
+            "UnifiedUI.util",
+            "UnifiedUI.ui",
+            "UnifiedUI.runtime",
+            "UnifiedUI.env",
+            "UnifiedUI.features"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/01_bootstrap.js",
           "globals": [
-            "XKeen.util"
+            "UnifiedUI.util"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_store.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.store",
-            "XKeen.store",
-            "XKeen.core.uiShell",
-            "XKeen.uiShell",
-            "XKeen.core.uiModal",
-            "XKeen.uiModal",
-            "XKeen.core.uiSettings",
-            "XKeen.uiSettings",
-            "XKeen.core.uiToast",
-            "XKeen.uiToast"
+            "UnifiedUI.core",
+            "UnifiedUI.core.store",
+            "UnifiedUI.store",
+            "UnifiedUI.core.uiShell",
+            "UnifiedUI.uiShell",
+            "UnifiedUI.core.uiModal",
+            "UnifiedUI.uiModal",
+            "UnifiedUI.core.uiSettings",
+            "UnifiedUI.uiSettings",
+            "UnifiedUI.core.uiToast",
+            "UnifiedUI.uiToast"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/toast.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.core",
-            "XKeen.core.uiToast",
-            "XKeen.uiToast",
-            "XKeen.ui.showToast",
-            "XKeen.ui.toast",
-            "XKeen.ui.notify",
-            "XKeen.ui.dismissToast",
-            "XKeen.ui.clearToasts",
-            "XKeen.ui.isToastActive"
+            "UnifiedUI.ui",
+            "UnifiedUI.core",
+            "UnifiedUI.core.uiToast",
+            "UnifiedUI.uiToast",
+            "UnifiedUI.ui.showToast",
+            "UnifiedUI.ui.toast",
+            "UnifiedUI.ui.notify",
+            "UnifiedUI.ui.dismissToast",
+            "UnifiedUI.ui.clearToasts",
+            "UnifiedUI.ui.isToastActive"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/settings.js",
           "globals": [
-            "XKeen.ui.settings.get",
-            "XKeen.ui.settings.fetch",
-            "XKeen.ui.settings.patch",
-            "XKeen.ui",
-            "XKeen.core",
-            "XKeen.core.http",
-            "XKeen.core.uiSettings",
-            "XKeen.ui.settings",
-            "XKeen.ui.settings.DEFAULTS",
-            "XKeen.ui.settings.isLoadedFromServer",
-            "XKeen.ui.settings.setLocal",
-            "XKeen.ui.settings.patchLocal",
-            "XKeen.ui.settings.fetchOnce",
-            "XKeen.ui.settings.subscribe",
-            "XKeen.ui.settings.clampEditorFontScale",
-            "XKeen.ui.settings.getEditorFontScale",
-            "XKeen.ui.settings.isEditorExpertModeEnabled"
+            "UnifiedUI.ui.settings.get",
+            "UnifiedUI.ui.settings.fetch",
+            "UnifiedUI.ui.settings.patch",
+            "UnifiedUI.ui",
+            "UnifiedUI.core",
+            "UnifiedUI.core.http",
+            "UnifiedUI.core.uiSettings",
+            "UnifiedUI.ui.settings",
+            "UnifiedUI.ui.settings.DEFAULTS",
+            "UnifiedUI.ui.settings.isLoadedFromServer",
+            "UnifiedUI.ui.settings.setLocal",
+            "UnifiedUI.ui.settings.patchLocal",
+            "UnifiedUI.ui.settings.fetchOnce",
+            "UnifiedUI.ui.settings.subscribe",
+            "UnifiedUI.ui.settings.clampEditorFontScale",
+            "UnifiedUI.ui.settings.getEditorFontScale",
+            "UnifiedUI.ui.settings.isEditorExpertModeEnabled"
           ],
           "lazy_features": []
         },
@@ -1080,188 +1080,188 @@
         {
           "path": "static/js/ui/editor_engine.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.settings",
-            "XKeen.runtime",
-            "XKeen.runtime.lazy",
-            "XKeen.ui.cm6Runtime",
-            "XKeen.monacoLoader",
-            "XKeen.ui.monacoShared",
-            "XKeen.ui.settings.get",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.editorEngine.EVENT",
-            "XKeen.ui.editorEngine.VALID",
-            "XKeen.ui.editorEngine.DEFAULT",
-            "XKeen.ui.editorEngine.get",
-            "XKeen.ui.editorEngine.ensureLoaded",
-            "XKeen.ui.editorEngine.set",
-            "XKeen.ui.editorEngine.createFacade",
-            "XKeen.ui.editorEngine.fromCodeMirror",
-            "XKeen.ui.editorEngine.fromMonaco",
-            "XKeen.ui.editorEngine.fromTextarea",
-            "XKeen.ui.editorEngine.isFacade",
-            "XKeen.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
-            "XKeen.ui.editorEngine.ensureSupport",
-            "XKeen.ui.editorEngine.getRuntime",
-            "XKeen.ui.editorEngine.ensureRuntime",
-            "XKeen.ui.editorEngine.isExperimentalCodeMirror6Enabled",
-            "XKeen.ui.editorEngine.getCodeMirrorBackend",
-            "XKeen.ui.editorEngine.onChange",
-            "XKeen.ui.editorEngine.resetFallback",
-            "XKeen.ui.editorEngine.cloneViewState",
-            "XKeen.ui.editorEngine.createViewStateStore"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.settings",
+            "UnifiedUI.runtime",
+            "UnifiedUI.runtime.lazy",
+            "UnifiedUI.ui.cm6Runtime",
+            "UnifiedUI.monacoLoader",
+            "UnifiedUI.ui.monacoShared",
+            "UnifiedUI.ui.settings.get",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.editorEngine.EVENT",
+            "UnifiedUI.ui.editorEngine.VALID",
+            "UnifiedUI.ui.editorEngine.DEFAULT",
+            "UnifiedUI.ui.editorEngine.get",
+            "UnifiedUI.ui.editorEngine.ensureLoaded",
+            "UnifiedUI.ui.editorEngine.set",
+            "UnifiedUI.ui.editorEngine.createFacade",
+            "UnifiedUI.ui.editorEngine.fromCodeMirror",
+            "UnifiedUI.ui.editorEngine.fromMonaco",
+            "UnifiedUI.ui.editorEngine.fromTextarea",
+            "UnifiedUI.ui.editorEngine.isFacade",
+            "UnifiedUI.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
+            "UnifiedUI.ui.editorEngine.ensureSupport",
+            "UnifiedUI.ui.editorEngine.getRuntime",
+            "UnifiedUI.ui.editorEngine.ensureRuntime",
+            "UnifiedUI.ui.editorEngine.isExperimentalCodeMirror6Enabled",
+            "UnifiedUI.ui.editorEngine.getCodeMirrorBackend",
+            "UnifiedUI.ui.editorEngine.onChange",
+            "UnifiedUI.ui.editorEngine.resetFallback",
+            "UnifiedUI.ui.editorEngine.cloneViewState",
+            "UnifiedUI.ui.editorEngine.createViewStateStore"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/editor_actions.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.diff",
-            "XKeen.ui.editorActions"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.ui.editorActions"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/editor_toolbar.js",
           "globals": [
-            "XKeen.ui.editorToolbar",
-            "XKeen.ui.editorActions",
-            "XKeen.ui",
-            "XKeen.ui.diff",
-            "XKeen.ui.diff.openForScope"
+            "UnifiedUI.ui.editorToolbar",
+            "UnifiedUI.ui.editorActions",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.ui.diff.openForScope"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/editor_links.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.editorActions",
-            "XKeen.ui.editorLinks"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.editorActions",
+            "UnifiedUI.ui.editorLinks"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/diff_engine.js",
           "globals": [
-            "XKeen.ui.diff.registerScope",
-            "XKeen.ui.diff.unregisterScope",
-            "XKeen.ui.diff.getScope",
-            "XKeen.ui.diff.openForScope",
-            "XKeen.ui.diff.open",
-            "XKeen.ui",
-            "XKeen.ui.diffModal",
-            "XKeen.ui.diffModal.open",
-            "XKeen.core",
-            "XKeen.core.http",
-            "XKeen.ui.diff",
-            "XKeen.ui.diff.listScopes",
-            "XKeen.ui.diff.resolveSourceText",
-            "XKeen.ui.diff.applyTextToScope",
-            "XKeen.ui.diff.describeSource",
-            "XKeen.ui.diff.logDiff"
+            "UnifiedUI.ui.diff.registerScope",
+            "UnifiedUI.ui.diff.unregisterScope",
+            "UnifiedUI.ui.diff.getScope",
+            "UnifiedUI.ui.diff.openForScope",
+            "UnifiedUI.ui.diff.open",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.diffModal",
+            "UnifiedUI.ui.diffModal.open",
+            "UnifiedUI.core",
+            "UnifiedUI.core.http",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.ui.diff.listScopes",
+            "UnifiedUI.ui.diff.resolveSourceText",
+            "UnifiedUI.ui.diff.applyTextToScope",
+            "UnifiedUI.ui.diff.describeSource",
+            "UnifiedUI.ui.diff.logDiff"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/diff_modal.js",
           "globals": [
-            "XKeen.ui.diffModal.open",
-            "XKeen.ui.diffModal.close",
-            "XKeen.ui.diffModal.isOpen",
-            "XKeen.ui",
-            "XKeen.ui.modal",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.toast",
-            "XKeen.ui.diff",
-            "XKeen.runtime",
-            "XKeen.runtime.lazy",
-            "XKeen.ui.cm6Runtime",
-            "XKeen.ui.confirm",
-            "XKeen.ui.diffModal",
-            "XKeen.ui.diffModal.setMode"
+            "UnifiedUI.ui.diffModal.open",
+            "UnifiedUI.ui.diffModal.close",
+            "UnifiedUI.ui.diffModal.isOpen",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.toast",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.runtime",
+            "UnifiedUI.runtime.lazy",
+            "UnifiedUI.ui.cm6Runtime",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.diffModal",
+            "UnifiedUI.ui.diffModal.setMode"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/pages/codemirror6.shared.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.cm6Runtime"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.cm6Runtime"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_dom.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.dom"
+            "UnifiedUI.core",
+            "UnifiedUI.core.dom"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_http.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.http"
+            "UnifiedUI.core",
+            "UnifiedUI.core.http"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_storage.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.storage"
+            "UnifiedUI.core",
+            "UnifiedUI.core.storage"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/shared_primitives.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.core",
-            "XKeen.core.dom",
-            "XKeen.core.http",
-            "XKeen.core.storage",
-            "XKeen.ui.toast",
-            "XKeen.ui.confirm",
-            "XKeen.ui.modal",
-            "XKeen.ui.sharedPrimitives"
+            "UnifiedUI.ui",
+            "UnifiedUI.core",
+            "UnifiedUI.core.dom",
+            "UnifiedUI.core.http",
+            "UnifiedUI.core.storage",
+            "UnifiedUI.ui.toast",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.ui.sharedPrimitives"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/modal.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.modal",
-            "XKeen.core",
-            "XKeen.core.uiModal",
-            "XKeen.uiModal"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.core",
+            "UnifiedUI.core.uiModal",
+            "UnifiedUI.uiModal"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/confirm_modal.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.confirm",
-            "XKeen.ui.modal",
-            "XKeen.ui.toast"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.ui.toast"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/theme.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.state",
-            "XKeen.ui.applyTheme",
-            "XKeen.ui.initThemeToggle",
-            "XKeen.ui.syncThemeToggleButtons"
+            "UnifiedUI.ui",
+            "UnifiedUI.state",
+            "UnifiedUI.ui.applyTheme",
+            "UnifiedUI.ui.initThemeToggle",
+            "UnifiedUI.ui.syncThemeToggleButtons"
           ],
           "lazy_features": []
         },
@@ -1273,19 +1273,19 @@
         {
           "path": "static/js/ui/monaco_loader.js",
           "globals": [
-            "XKeen.monacoLoader"
+            "UnifiedUI.monacoLoader"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/spinner_fetch.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.state",
-            "XKeen.ui.showGlobalXkeenSpinner",
-            "XKeen.ui.hideGlobalXkeenSpinner",
-            "XKeen.ui.showToast",
-            "XKeen.ui.showXrayPreflightError"
+            "UnifiedUI.ui",
+            "UnifiedUI.state",
+            "UnifiedUI.ui.showGlobalXkeenSpinner",
+            "UnifiedUI.ui.hideGlobalXkeenSpinner",
+            "UnifiedUI.ui.showToast",
+            "UnifiedUI.ui.showXrayPreflightError"
           ],
           "lazy_features": []
         },
@@ -1297,7 +1297,7 @@
         {
           "path": "static/js/features/compat/backups.js",
           "globals": [
-            "XKeen.backups"
+            "UnifiedUI.backups"
           ],
           "lazy_features": []
         },
@@ -1315,101 +1315,101 @@
       "direct_init_globals": [],
       "direct_init_lazy_features": [],
       "all_bootstrap_globals": [
-        "XKeen.pageConfig",
-        "XKeen.core",
-        "XKeen.state",
-        "XKeen.util",
-        "XKeen.ui",
-        "XKeen.runtime",
-        "XKeen.env",
-        "XKeen.features",
-        "XKeen.core.store",
-        "XKeen.store",
-        "XKeen.core.uiShell",
-        "XKeen.uiShell",
-        "XKeen.core.uiModal",
-        "XKeen.uiModal",
-        "XKeen.core.uiSettings",
-        "XKeen.uiSettings",
-        "XKeen.core.uiToast",
-        "XKeen.uiToast",
-        "XKeen.ui.showToast",
-        "XKeen.ui.toast",
-        "XKeen.ui.notify",
-        "XKeen.ui.dismissToast",
-        "XKeen.ui.clearToasts",
-        "XKeen.ui.isToastActive",
-        "XKeen.ui.settings.get",
-        "XKeen.ui.settings.fetch",
-        "XKeen.ui.settings.patch",
-        "XKeen.core.http",
-        "XKeen.ui.settings",
-        "XKeen.ui.settings.DEFAULTS",
-        "XKeen.ui.settings.isLoadedFromServer",
-        "XKeen.ui.settings.setLocal",
-        "XKeen.ui.settings.patchLocal",
-        "XKeen.ui.settings.fetchOnce",
-        "XKeen.ui.settings.subscribe",
-        "XKeen.ui.settings.clampEditorFontScale",
-        "XKeen.ui.settings.getEditorFontScale",
-        "XKeen.ui.settings.isEditorExpertModeEnabled",
-        "XKeen.runtime.lazy",
-        "XKeen.ui.cm6Runtime",
-        "XKeen.monacoLoader",
-        "XKeen.ui.monacoShared",
-        "XKeen.ui.editorEngine",
-        "XKeen.ui.editorEngine.EVENT",
-        "XKeen.ui.editorEngine.VALID",
-        "XKeen.ui.editorEngine.DEFAULT",
-        "XKeen.ui.editorEngine.get",
-        "XKeen.ui.editorEngine.ensureLoaded",
-        "XKeen.ui.editorEngine.set",
-        "XKeen.ui.editorEngine.createFacade",
-        "XKeen.ui.editorEngine.fromCodeMirror",
-        "XKeen.ui.editorEngine.fromMonaco",
-        "XKeen.ui.editorEngine.fromTextarea",
-        "XKeen.ui.editorEngine.isFacade",
-        "XKeen.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
-        "XKeen.ui.editorEngine.ensureSupport",
-        "XKeen.ui.editorEngine.getRuntime",
-        "XKeen.ui.editorEngine.ensureRuntime",
-        "XKeen.ui.editorEngine.isExperimentalCodeMirror6Enabled",
-        "XKeen.ui.editorEngine.getCodeMirrorBackend",
-        "XKeen.ui.editorEngine.onChange",
-        "XKeen.ui.editorEngine.resetFallback",
-        "XKeen.ui.editorEngine.cloneViewState",
-        "XKeen.ui.editorEngine.createViewStateStore",
-        "XKeen.ui.diff",
-        "XKeen.ui.editorActions",
-        "XKeen.ui.editorToolbar",
-        "XKeen.ui.diff.openForScope",
-        "XKeen.ui.editorLinks",
-        "XKeen.ui.diff.registerScope",
-        "XKeen.ui.diff.unregisterScope",
-        "XKeen.ui.diff.getScope",
-        "XKeen.ui.diff.open",
-        "XKeen.ui.diffModal",
-        "XKeen.ui.diffModal.open",
-        "XKeen.ui.diff.listScopes",
-        "XKeen.ui.diff.resolveSourceText",
-        "XKeen.ui.diff.applyTextToScope",
-        "XKeen.ui.diff.describeSource",
-        "XKeen.ui.diff.logDiff",
-        "XKeen.ui.diffModal.close",
-        "XKeen.ui.diffModal.isOpen",
-        "XKeen.ui.modal",
-        "XKeen.ui.confirm",
-        "XKeen.ui.diffModal.setMode",
-        "XKeen.core.dom",
-        "XKeen.core.storage",
-        "XKeen.ui.sharedPrimitives",
-        "XKeen.ui.applyTheme",
-        "XKeen.ui.initThemeToggle",
-        "XKeen.ui.syncThemeToggleButtons",
-        "XKeen.ui.showGlobalXkeenSpinner",
-        "XKeen.ui.hideGlobalXkeenSpinner",
-        "XKeen.ui.showXrayPreflightError",
-        "XKeen.backups"
+        "UnifiedUI.pageConfig",
+        "UnifiedUI.core",
+        "UnifiedUI.state",
+        "UnifiedUI.util",
+        "UnifiedUI.ui",
+        "UnifiedUI.runtime",
+        "UnifiedUI.env",
+        "UnifiedUI.features",
+        "UnifiedUI.core.store",
+        "UnifiedUI.store",
+        "UnifiedUI.core.uiShell",
+        "UnifiedUI.uiShell",
+        "UnifiedUI.core.uiModal",
+        "UnifiedUI.uiModal",
+        "UnifiedUI.core.uiSettings",
+        "UnifiedUI.uiSettings",
+        "UnifiedUI.core.uiToast",
+        "UnifiedUI.uiToast",
+        "UnifiedUI.ui.showToast",
+        "UnifiedUI.ui.toast",
+        "UnifiedUI.ui.notify",
+        "UnifiedUI.ui.dismissToast",
+        "UnifiedUI.ui.clearToasts",
+        "UnifiedUI.ui.isToastActive",
+        "UnifiedUI.ui.settings.get",
+        "UnifiedUI.ui.settings.fetch",
+        "UnifiedUI.ui.settings.patch",
+        "UnifiedUI.core.http",
+        "UnifiedUI.ui.settings",
+        "UnifiedUI.ui.settings.DEFAULTS",
+        "UnifiedUI.ui.settings.isLoadedFromServer",
+        "UnifiedUI.ui.settings.setLocal",
+        "UnifiedUI.ui.settings.patchLocal",
+        "UnifiedUI.ui.settings.fetchOnce",
+        "UnifiedUI.ui.settings.subscribe",
+        "UnifiedUI.ui.settings.clampEditorFontScale",
+        "UnifiedUI.ui.settings.getEditorFontScale",
+        "UnifiedUI.ui.settings.isEditorExpertModeEnabled",
+        "UnifiedUI.runtime.lazy",
+        "UnifiedUI.ui.cm6Runtime",
+        "UnifiedUI.monacoLoader",
+        "UnifiedUI.ui.monacoShared",
+        "UnifiedUI.ui.editorEngine",
+        "UnifiedUI.ui.editorEngine.EVENT",
+        "UnifiedUI.ui.editorEngine.VALID",
+        "UnifiedUI.ui.editorEngine.DEFAULT",
+        "UnifiedUI.ui.editorEngine.get",
+        "UnifiedUI.ui.editorEngine.ensureLoaded",
+        "UnifiedUI.ui.editorEngine.set",
+        "UnifiedUI.ui.editorEngine.createFacade",
+        "UnifiedUI.ui.editorEngine.fromCodeMirror",
+        "UnifiedUI.ui.editorEngine.fromMonaco",
+        "UnifiedUI.ui.editorEngine.fromTextarea",
+        "UnifiedUI.ui.editorEngine.isFacade",
+        "UnifiedUI.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
+        "UnifiedUI.ui.editorEngine.ensureSupport",
+        "UnifiedUI.ui.editorEngine.getRuntime",
+        "UnifiedUI.ui.editorEngine.ensureRuntime",
+        "UnifiedUI.ui.editorEngine.isExperimentalCodeMirror6Enabled",
+        "UnifiedUI.ui.editorEngine.getCodeMirrorBackend",
+        "UnifiedUI.ui.editorEngine.onChange",
+        "UnifiedUI.ui.editorEngine.resetFallback",
+        "UnifiedUI.ui.editorEngine.cloneViewState",
+        "UnifiedUI.ui.editorEngine.createViewStateStore",
+        "UnifiedUI.ui.diff",
+        "UnifiedUI.ui.editorActions",
+        "UnifiedUI.ui.editorToolbar",
+        "UnifiedUI.ui.diff.openForScope",
+        "UnifiedUI.ui.editorLinks",
+        "UnifiedUI.ui.diff.registerScope",
+        "UnifiedUI.ui.diff.unregisterScope",
+        "UnifiedUI.ui.diff.getScope",
+        "UnifiedUI.ui.diff.open",
+        "UnifiedUI.ui.diffModal",
+        "UnifiedUI.ui.diffModal.open",
+        "UnifiedUI.ui.diff.listScopes",
+        "UnifiedUI.ui.diff.resolveSourceText",
+        "UnifiedUI.ui.diff.applyTextToScope",
+        "UnifiedUI.ui.diff.describeSource",
+        "UnifiedUI.ui.diff.logDiff",
+        "UnifiedUI.ui.diffModal.close",
+        "UnifiedUI.ui.diffModal.isOpen",
+        "UnifiedUI.ui.modal",
+        "UnifiedUI.ui.confirm",
+        "UnifiedUI.ui.diffModal.setMode",
+        "UnifiedUI.core.dom",
+        "UnifiedUI.core.storage",
+        "UnifiedUI.ui.sharedPrimitives",
+        "UnifiedUI.ui.applyTheme",
+        "UnifiedUI.ui.initThemeToggle",
+        "UnifiedUI.ui.syncThemeToggleButtons",
+        "UnifiedUI.ui.showGlobalXkeenSpinner",
+        "UnifiedUI.ui.hideGlobalXkeenSpinner",
+        "UnifiedUI.ui.showXrayPreflightError",
+        "UnifiedUI.backups"
       ],
       "all_bootstrap_lazy_features": [],
       "lazy_runtime_inventory": null
@@ -1441,7 +1441,7 @@
           "lazy_features": []
         },
         {
-          "path": "static/js/features/xkeen_runtime.js",
+          "path": "static/js/features/unified_runtime.js",
           "globals": [],
           "lazy_features": []
         },
@@ -1463,7 +1463,7 @@
         {
           "path": "static/js/pages/top_level_screen_host.shared.js",
           "globals": [
-            "XKeen.pageConfig"
+            "UnifiedUI.pageConfig"
           ],
           "lazy_features": []
         },
@@ -1483,7 +1483,7 @@
           "lazy_features": []
         },
         {
-          "path": "static/js/pages/top_level_xkeen_screen.js",
+          "path": "static/js/pages/top_level_unified_screen.js",
           "globals": [],
           "lazy_features": []
         },
@@ -1500,76 +1500,76 @@
         {
           "path": "static/js/00_state.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.state",
-            "XKeen.util",
-            "XKeen.ui",
-            "XKeen.runtime",
-            "XKeen.env",
-            "XKeen.features"
+            "UnifiedUI.core",
+            "UnifiedUI.state",
+            "UnifiedUI.util",
+            "UnifiedUI.ui",
+            "UnifiedUI.runtime",
+            "UnifiedUI.env",
+            "UnifiedUI.features"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/01_bootstrap.js",
           "globals": [
-            "XKeen.util"
+            "UnifiedUI.util"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_store.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.store",
-            "XKeen.store",
-            "XKeen.core.uiShell",
-            "XKeen.uiShell",
-            "XKeen.core.uiModal",
-            "XKeen.uiModal",
-            "XKeen.core.uiSettings",
-            "XKeen.uiSettings",
-            "XKeen.core.uiToast",
-            "XKeen.uiToast"
+            "UnifiedUI.core",
+            "UnifiedUI.core.store",
+            "UnifiedUI.store",
+            "UnifiedUI.core.uiShell",
+            "UnifiedUI.uiShell",
+            "UnifiedUI.core.uiModal",
+            "UnifiedUI.uiModal",
+            "UnifiedUI.core.uiSettings",
+            "UnifiedUI.uiSettings",
+            "UnifiedUI.core.uiToast",
+            "UnifiedUI.uiToast"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/toast.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.core",
-            "XKeen.core.uiToast",
-            "XKeen.uiToast",
-            "XKeen.ui.showToast",
-            "XKeen.ui.toast",
-            "XKeen.ui.notify",
-            "XKeen.ui.dismissToast",
-            "XKeen.ui.clearToasts",
-            "XKeen.ui.isToastActive"
+            "UnifiedUI.ui",
+            "UnifiedUI.core",
+            "UnifiedUI.core.uiToast",
+            "UnifiedUI.uiToast",
+            "UnifiedUI.ui.showToast",
+            "UnifiedUI.ui.toast",
+            "UnifiedUI.ui.notify",
+            "UnifiedUI.ui.dismissToast",
+            "UnifiedUI.ui.clearToasts",
+            "UnifiedUI.ui.isToastActive"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/settings.js",
           "globals": [
-            "XKeen.ui.settings.get",
-            "XKeen.ui.settings.fetch",
-            "XKeen.ui.settings.patch",
-            "XKeen.ui",
-            "XKeen.core",
-            "XKeen.core.http",
-            "XKeen.core.uiSettings",
-            "XKeen.ui.settings",
-            "XKeen.ui.settings.DEFAULTS",
-            "XKeen.ui.settings.isLoadedFromServer",
-            "XKeen.ui.settings.setLocal",
-            "XKeen.ui.settings.patchLocal",
-            "XKeen.ui.settings.fetchOnce",
-            "XKeen.ui.settings.subscribe",
-            "XKeen.ui.settings.clampEditorFontScale",
-            "XKeen.ui.settings.getEditorFontScale",
-            "XKeen.ui.settings.isEditorExpertModeEnabled"
+            "UnifiedUI.ui.settings.get",
+            "UnifiedUI.ui.settings.fetch",
+            "UnifiedUI.ui.settings.patch",
+            "UnifiedUI.ui",
+            "UnifiedUI.core",
+            "UnifiedUI.core.http",
+            "UnifiedUI.core.uiSettings",
+            "UnifiedUI.ui.settings",
+            "UnifiedUI.ui.settings.DEFAULTS",
+            "UnifiedUI.ui.settings.isLoadedFromServer",
+            "UnifiedUI.ui.settings.setLocal",
+            "UnifiedUI.ui.settings.patchLocal",
+            "UnifiedUI.ui.settings.fetchOnce",
+            "UnifiedUI.ui.settings.subscribe",
+            "UnifiedUI.ui.settings.clampEditorFontScale",
+            "UnifiedUI.ui.settings.getEditorFontScale",
+            "UnifiedUI.ui.settings.isEditorExpertModeEnabled"
           ],
           "lazy_features": []
         },
@@ -1611,167 +1611,167 @@
         {
           "path": "static/js/ui/editor_engine.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.settings",
-            "XKeen.runtime",
-            "XKeen.runtime.lazy",
-            "XKeen.ui.cm6Runtime",
-            "XKeen.monacoLoader",
-            "XKeen.ui.monacoShared",
-            "XKeen.ui.settings.get",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.editorEngine.EVENT",
-            "XKeen.ui.editorEngine.VALID",
-            "XKeen.ui.editorEngine.DEFAULT",
-            "XKeen.ui.editorEngine.get",
-            "XKeen.ui.editorEngine.ensureLoaded",
-            "XKeen.ui.editorEngine.set",
-            "XKeen.ui.editorEngine.createFacade",
-            "XKeen.ui.editorEngine.fromCodeMirror",
-            "XKeen.ui.editorEngine.fromMonaco",
-            "XKeen.ui.editorEngine.fromTextarea",
-            "XKeen.ui.editorEngine.isFacade",
-            "XKeen.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
-            "XKeen.ui.editorEngine.ensureSupport",
-            "XKeen.ui.editorEngine.getRuntime",
-            "XKeen.ui.editorEngine.ensureRuntime",
-            "XKeen.ui.editorEngine.isExperimentalCodeMirror6Enabled",
-            "XKeen.ui.editorEngine.getCodeMirrorBackend",
-            "XKeen.ui.editorEngine.onChange",
-            "XKeen.ui.editorEngine.resetFallback",
-            "XKeen.ui.editorEngine.cloneViewState",
-            "XKeen.ui.editorEngine.createViewStateStore"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.settings",
+            "UnifiedUI.runtime",
+            "UnifiedUI.runtime.lazy",
+            "UnifiedUI.ui.cm6Runtime",
+            "UnifiedUI.monacoLoader",
+            "UnifiedUI.ui.monacoShared",
+            "UnifiedUI.ui.settings.get",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.editorEngine.EVENT",
+            "UnifiedUI.ui.editorEngine.VALID",
+            "UnifiedUI.ui.editorEngine.DEFAULT",
+            "UnifiedUI.ui.editorEngine.get",
+            "UnifiedUI.ui.editorEngine.ensureLoaded",
+            "UnifiedUI.ui.editorEngine.set",
+            "UnifiedUI.ui.editorEngine.createFacade",
+            "UnifiedUI.ui.editorEngine.fromCodeMirror",
+            "UnifiedUI.ui.editorEngine.fromMonaco",
+            "UnifiedUI.ui.editorEngine.fromTextarea",
+            "UnifiedUI.ui.editorEngine.isFacade",
+            "UnifiedUI.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
+            "UnifiedUI.ui.editorEngine.ensureSupport",
+            "UnifiedUI.ui.editorEngine.getRuntime",
+            "UnifiedUI.ui.editorEngine.ensureRuntime",
+            "UnifiedUI.ui.editorEngine.isExperimentalCodeMirror6Enabled",
+            "UnifiedUI.ui.editorEngine.getCodeMirrorBackend",
+            "UnifiedUI.ui.editorEngine.onChange",
+            "UnifiedUI.ui.editorEngine.resetFallback",
+            "UnifiedUI.ui.editorEngine.cloneViewState",
+            "UnifiedUI.ui.editorEngine.createViewStateStore"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/editor_actions.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.diff",
-            "XKeen.ui.editorActions"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.ui.editorActions"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/editor_toolbar.js",
           "globals": [
-            "XKeen.ui.editorToolbar",
-            "XKeen.ui.editorActions",
-            "XKeen.ui",
-            "XKeen.ui.diff",
-            "XKeen.ui.diff.openForScope"
+            "UnifiedUI.ui.editorToolbar",
+            "UnifiedUI.ui.editorActions",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.ui.diff.openForScope"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/editor_links.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.editorActions",
-            "XKeen.ui.editorLinks"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.editorActions",
+            "UnifiedUI.ui.editorLinks"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/diff_engine.js",
           "globals": [
-            "XKeen.ui.diff.registerScope",
-            "XKeen.ui.diff.unregisterScope",
-            "XKeen.ui.diff.getScope",
-            "XKeen.ui.diff.openForScope",
-            "XKeen.ui.diff.open",
-            "XKeen.ui",
-            "XKeen.ui.diffModal",
-            "XKeen.ui.diffModal.open",
-            "XKeen.core",
-            "XKeen.core.http",
-            "XKeen.ui.diff",
-            "XKeen.ui.diff.listScopes",
-            "XKeen.ui.diff.resolveSourceText",
-            "XKeen.ui.diff.applyTextToScope",
-            "XKeen.ui.diff.describeSource",
-            "XKeen.ui.diff.logDiff"
+            "UnifiedUI.ui.diff.registerScope",
+            "UnifiedUI.ui.diff.unregisterScope",
+            "UnifiedUI.ui.diff.getScope",
+            "UnifiedUI.ui.diff.openForScope",
+            "UnifiedUI.ui.diff.open",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.diffModal",
+            "UnifiedUI.ui.diffModal.open",
+            "UnifiedUI.core",
+            "UnifiedUI.core.http",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.ui.diff.listScopes",
+            "UnifiedUI.ui.diff.resolveSourceText",
+            "UnifiedUI.ui.diff.applyTextToScope",
+            "UnifiedUI.ui.diff.describeSource",
+            "UnifiedUI.ui.diff.logDiff"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/diff_modal.js",
           "globals": [
-            "XKeen.ui.diffModal.open",
-            "XKeen.ui.diffModal.close",
-            "XKeen.ui.diffModal.isOpen",
-            "XKeen.ui",
-            "XKeen.ui.modal",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.toast",
-            "XKeen.ui.diff",
-            "XKeen.runtime",
-            "XKeen.runtime.lazy",
-            "XKeen.ui.cm6Runtime",
-            "XKeen.ui.confirm",
-            "XKeen.ui.diffModal",
-            "XKeen.ui.diffModal.setMode"
+            "UnifiedUI.ui.diffModal.open",
+            "UnifiedUI.ui.diffModal.close",
+            "UnifiedUI.ui.diffModal.isOpen",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.toast",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.runtime",
+            "UnifiedUI.runtime.lazy",
+            "UnifiedUI.ui.cm6Runtime",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.diffModal",
+            "UnifiedUI.ui.diffModal.setMode"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/pages/codemirror6.shared.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.cm6Runtime"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.cm6Runtime"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_dom.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.dom"
+            "UnifiedUI.core",
+            "UnifiedUI.core.dom"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_http.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.http"
+            "UnifiedUI.core",
+            "UnifiedUI.core.http"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_storage.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.storage"
+            "UnifiedUI.core",
+            "UnifiedUI.core.storage"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/shared_primitives.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.core",
-            "XKeen.core.dom",
-            "XKeen.core.http",
-            "XKeen.core.storage",
-            "XKeen.ui.toast",
-            "XKeen.ui.confirm",
-            "XKeen.ui.modal",
-            "XKeen.ui.sharedPrimitives"
+            "UnifiedUI.ui",
+            "UnifiedUI.core",
+            "UnifiedUI.core.dom",
+            "UnifiedUI.core.http",
+            "UnifiedUI.core.storage",
+            "UnifiedUI.ui.toast",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.ui.sharedPrimitives"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/theme.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.state",
-            "XKeen.ui.applyTheme",
-            "XKeen.ui.initThemeToggle",
-            "XKeen.ui.syncThemeToggleButtons"
+            "UnifiedUI.ui",
+            "UnifiedUI.state",
+            "UnifiedUI.ui.applyTheme",
+            "UnifiedUI.ui.initThemeToggle",
+            "UnifiedUI.ui.syncThemeToggleButtons"
           ],
           "lazy_features": []
         },
@@ -1783,115 +1783,115 @@
         {
           "path": "static/js/ui/spinner_fetch.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.state",
-            "XKeen.ui.showGlobalXkeenSpinner",
-            "XKeen.ui.hideGlobalXkeenSpinner",
-            "XKeen.ui.showToast",
-            "XKeen.ui.showXrayPreflightError"
+            "UnifiedUI.ui",
+            "UnifiedUI.state",
+            "UnifiedUI.ui.showGlobalXkeenSpinner",
+            "UnifiedUI.ui.hideGlobalXkeenSpinner",
+            "UnifiedUI.ui.showToast",
+            "UnifiedUI.ui.showXrayPreflightError"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/modal.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.modal",
-            "XKeen.core",
-            "XKeen.core.uiModal",
-            "XKeen.uiModal"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.core",
+            "UnifiedUI.core.uiModal",
+            "UnifiedUI.uiModal"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/confirm_modal.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.confirm",
-            "XKeen.ui.modal",
-            "XKeen.ui.toast"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.ui.toast"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/features/donate.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.modal"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.modal"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/features/typography.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.showToast",
-            "XKeen.ui.typography"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.showToast",
+            "UnifiedUI.ui.typography"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/features/layout_prefs.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.layout",
-            "XKeen.ui.branding",
-            "XKeen.ui.branding.labelForTabKey"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.layout",
+            "UnifiedUI.ui.branding",
+            "UnifiedUI.ui.branding.labelForTabKey"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/features/branding_prefs.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.toast",
-            "XKeen.ui.showToast",
-            "XKeen.ui.confirm",
-            "XKeen.ui.branding"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.toast",
+            "UnifiedUI.ui.showToast",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.branding"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/features/ui_prefs_io.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.confirm",
-            "XKeen.ui.applyTheme",
-            "XKeen.ui.typography",
-            "XKeen.ui.typography.apply",
-            "XKeen.ui.typography.load",
-            "XKeen.ui.layout",
-            "XKeen.ui.layout.apply",
-            "XKeen.ui.layout.load",
-            "XKeen.ui.branding",
-            "XKeen.ui.branding.apply",
-            "XKeen.ui.branding.load",
-            "XKeen.ui.branding.refreshFromRouter"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.applyTheme",
+            "UnifiedUI.ui.typography",
+            "UnifiedUI.ui.typography.apply",
+            "UnifiedUI.ui.typography.load",
+            "UnifiedUI.ui.layout",
+            "UnifiedUI.ui.layout.apply",
+            "UnifiedUI.ui.layout.load",
+            "UnifiedUI.ui.branding",
+            "UnifiedUI.ui.branding.apply",
+            "UnifiedUI.ui.branding.load",
+            "UnifiedUI.ui.branding.refreshFromRouter"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/util/ansi.js",
           "globals": [
-            "XKeen.util",
-            "XKeen.util.ansiToHtml",
-            "XKeen.util.escapeHtml"
+            "UnifiedUI.util",
+            "UnifiedUI.util.ansiToHtml",
+            "UnifiedUI.util.escapeHtml"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/features/devtools/shared.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.dom",
-            "XKeen.core.http",
-            "XKeen.ui",
-            "XKeen.ui.sharedPrimitives",
-            "XKeen.ui.showToast",
-            "XKeen.ui.confirm",
-            "XKeen.util",
-            "XKeen.util.escapeHtml",
-            "XKeen.util.ansiToHtml"
+            "UnifiedUI.core",
+            "UnifiedUI.core.dom",
+            "UnifiedUI.core.http",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.sharedPrimitives",
+            "UnifiedUI.ui.showToast",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.util",
+            "UnifiedUI.util.escapeHtml",
+            "UnifiedUI.util.ansiToHtml"
           ],
           "lazy_features": []
         },
@@ -1903,30 +1903,30 @@
         {
           "path": "static/js/features/devtools/logs.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.confirm",
-            "XKeen.ui.modal",
-            "XKeen.ui.modal.syncBodyScrollLock",
-            "XKeen.state.devtoolsLogs",
-            "XKeen.state.devtoolsLogsUi"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.ui.modal.syncBodyScrollLock",
+            "UnifiedUI.state.devtoolsLogs",
+            "UnifiedUI.state.devtoolsLogsUi"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/features/devtools/env.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.modal",
-            "XKeen.ui.modal.syncBodyScrollLock"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.ui.modal.syncBodyScrollLock"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/features/devtools/update.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.showToast",
-            "XKeen.ui.confirm"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.showToast",
+            "UnifiedUI.ui.confirm"
           ],
           "lazy_features": []
         },
@@ -1953,7 +1953,7 @@
         {
           "path": "static/js/features/compat/devtools.js",
           "globals": [
-            "XKeen.features"
+            "UnifiedUI.features"
           ],
           "lazy_features": []
         }
@@ -1961,133 +1961,133 @@
       "direct_init_globals": [],
       "direct_init_lazy_features": [],
       "all_bootstrap_globals": [
-        "XKeen.pageConfig",
-        "XKeen.core",
-        "XKeen.state",
-        "XKeen.util",
-        "XKeen.ui",
-        "XKeen.runtime",
-        "XKeen.env",
-        "XKeen.features",
-        "XKeen.core.store",
-        "XKeen.store",
-        "XKeen.core.uiShell",
-        "XKeen.uiShell",
-        "XKeen.core.uiModal",
-        "XKeen.uiModal",
-        "XKeen.core.uiSettings",
-        "XKeen.uiSettings",
-        "XKeen.core.uiToast",
-        "XKeen.uiToast",
-        "XKeen.ui.showToast",
-        "XKeen.ui.toast",
-        "XKeen.ui.notify",
-        "XKeen.ui.dismissToast",
-        "XKeen.ui.clearToasts",
-        "XKeen.ui.isToastActive",
-        "XKeen.ui.settings.get",
-        "XKeen.ui.settings.fetch",
-        "XKeen.ui.settings.patch",
-        "XKeen.core.http",
-        "XKeen.ui.settings",
-        "XKeen.ui.settings.DEFAULTS",
-        "XKeen.ui.settings.isLoadedFromServer",
-        "XKeen.ui.settings.setLocal",
-        "XKeen.ui.settings.patchLocal",
-        "XKeen.ui.settings.fetchOnce",
-        "XKeen.ui.settings.subscribe",
-        "XKeen.ui.settings.clampEditorFontScale",
-        "XKeen.ui.settings.getEditorFontScale",
-        "XKeen.ui.settings.isEditorExpertModeEnabled",
-        "XKeen.runtime.lazy",
-        "XKeen.ui.cm6Runtime",
-        "XKeen.monacoLoader",
-        "XKeen.ui.monacoShared",
-        "XKeen.ui.editorEngine",
-        "XKeen.ui.editorEngine.EVENT",
-        "XKeen.ui.editorEngine.VALID",
-        "XKeen.ui.editorEngine.DEFAULT",
-        "XKeen.ui.editorEngine.get",
-        "XKeen.ui.editorEngine.ensureLoaded",
-        "XKeen.ui.editorEngine.set",
-        "XKeen.ui.editorEngine.createFacade",
-        "XKeen.ui.editorEngine.fromCodeMirror",
-        "XKeen.ui.editorEngine.fromMonaco",
-        "XKeen.ui.editorEngine.fromTextarea",
-        "XKeen.ui.editorEngine.isFacade",
-        "XKeen.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
-        "XKeen.ui.editorEngine.ensureSupport",
-        "XKeen.ui.editorEngine.getRuntime",
-        "XKeen.ui.editorEngine.ensureRuntime",
-        "XKeen.ui.editorEngine.isExperimentalCodeMirror6Enabled",
-        "XKeen.ui.editorEngine.getCodeMirrorBackend",
-        "XKeen.ui.editorEngine.onChange",
-        "XKeen.ui.editorEngine.resetFallback",
-        "XKeen.ui.editorEngine.cloneViewState",
-        "XKeen.ui.editorEngine.createViewStateStore",
-        "XKeen.ui.diff",
-        "XKeen.ui.editorActions",
-        "XKeen.ui.editorToolbar",
-        "XKeen.ui.diff.openForScope",
-        "XKeen.ui.editorLinks",
-        "XKeen.ui.diff.registerScope",
-        "XKeen.ui.diff.unregisterScope",
-        "XKeen.ui.diff.getScope",
-        "XKeen.ui.diff.open",
-        "XKeen.ui.diffModal",
-        "XKeen.ui.diffModal.open",
-        "XKeen.ui.diff.listScopes",
-        "XKeen.ui.diff.resolveSourceText",
-        "XKeen.ui.diff.applyTextToScope",
-        "XKeen.ui.diff.describeSource",
-        "XKeen.ui.diff.logDiff",
-        "XKeen.ui.diffModal.close",
-        "XKeen.ui.diffModal.isOpen",
-        "XKeen.ui.modal",
-        "XKeen.ui.confirm",
-        "XKeen.ui.diffModal.setMode",
-        "XKeen.core.dom",
-        "XKeen.core.storage",
-        "XKeen.ui.sharedPrimitives",
-        "XKeen.ui.applyTheme",
-        "XKeen.ui.initThemeToggle",
-        "XKeen.ui.syncThemeToggleButtons",
-        "XKeen.ui.showGlobalXkeenSpinner",
-        "XKeen.ui.hideGlobalXkeenSpinner",
-        "XKeen.ui.showXrayPreflightError",
-        "XKeen.ui.typography",
-        "XKeen.ui.layout",
-        "XKeen.ui.branding",
-        "XKeen.ui.branding.labelForTabKey",
-        "XKeen.ui.typography.apply",
-        "XKeen.ui.typography.load",
-        "XKeen.ui.layout.apply",
-        "XKeen.ui.layout.load",
-        "XKeen.ui.branding.apply",
-        "XKeen.ui.branding.load",
-        "XKeen.ui.branding.refreshFromRouter",
-        "XKeen.util.ansiToHtml",
-        "XKeen.util.escapeHtml",
-        "XKeen.ui.modal.syncBodyScrollLock",
-        "XKeen.state.devtoolsLogs",
-        "XKeen.state.devtoolsLogsUi"
+        "UnifiedUI.pageConfig",
+        "UnifiedUI.core",
+        "UnifiedUI.state",
+        "UnifiedUI.util",
+        "UnifiedUI.ui",
+        "UnifiedUI.runtime",
+        "UnifiedUI.env",
+        "UnifiedUI.features",
+        "UnifiedUI.core.store",
+        "UnifiedUI.store",
+        "UnifiedUI.core.uiShell",
+        "UnifiedUI.uiShell",
+        "UnifiedUI.core.uiModal",
+        "UnifiedUI.uiModal",
+        "UnifiedUI.core.uiSettings",
+        "UnifiedUI.uiSettings",
+        "UnifiedUI.core.uiToast",
+        "UnifiedUI.uiToast",
+        "UnifiedUI.ui.showToast",
+        "UnifiedUI.ui.toast",
+        "UnifiedUI.ui.notify",
+        "UnifiedUI.ui.dismissToast",
+        "UnifiedUI.ui.clearToasts",
+        "UnifiedUI.ui.isToastActive",
+        "UnifiedUI.ui.settings.get",
+        "UnifiedUI.ui.settings.fetch",
+        "UnifiedUI.ui.settings.patch",
+        "UnifiedUI.core.http",
+        "UnifiedUI.ui.settings",
+        "UnifiedUI.ui.settings.DEFAULTS",
+        "UnifiedUI.ui.settings.isLoadedFromServer",
+        "UnifiedUI.ui.settings.setLocal",
+        "UnifiedUI.ui.settings.patchLocal",
+        "UnifiedUI.ui.settings.fetchOnce",
+        "UnifiedUI.ui.settings.subscribe",
+        "UnifiedUI.ui.settings.clampEditorFontScale",
+        "UnifiedUI.ui.settings.getEditorFontScale",
+        "UnifiedUI.ui.settings.isEditorExpertModeEnabled",
+        "UnifiedUI.runtime.lazy",
+        "UnifiedUI.ui.cm6Runtime",
+        "UnifiedUI.monacoLoader",
+        "UnifiedUI.ui.monacoShared",
+        "UnifiedUI.ui.editorEngine",
+        "UnifiedUI.ui.editorEngine.EVENT",
+        "UnifiedUI.ui.editorEngine.VALID",
+        "UnifiedUI.ui.editorEngine.DEFAULT",
+        "UnifiedUI.ui.editorEngine.get",
+        "UnifiedUI.ui.editorEngine.ensureLoaded",
+        "UnifiedUI.ui.editorEngine.set",
+        "UnifiedUI.ui.editorEngine.createFacade",
+        "UnifiedUI.ui.editorEngine.fromCodeMirror",
+        "UnifiedUI.ui.editorEngine.fromMonaco",
+        "UnifiedUI.ui.editorEngine.fromTextarea",
+        "UnifiedUI.ui.editorEngine.isFacade",
+        "UnifiedUI.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
+        "UnifiedUI.ui.editorEngine.ensureSupport",
+        "UnifiedUI.ui.editorEngine.getRuntime",
+        "UnifiedUI.ui.editorEngine.ensureRuntime",
+        "UnifiedUI.ui.editorEngine.isExperimentalCodeMirror6Enabled",
+        "UnifiedUI.ui.editorEngine.getCodeMirrorBackend",
+        "UnifiedUI.ui.editorEngine.onChange",
+        "UnifiedUI.ui.editorEngine.resetFallback",
+        "UnifiedUI.ui.editorEngine.cloneViewState",
+        "UnifiedUI.ui.editorEngine.createViewStateStore",
+        "UnifiedUI.ui.diff",
+        "UnifiedUI.ui.editorActions",
+        "UnifiedUI.ui.editorToolbar",
+        "UnifiedUI.ui.diff.openForScope",
+        "UnifiedUI.ui.editorLinks",
+        "UnifiedUI.ui.diff.registerScope",
+        "UnifiedUI.ui.diff.unregisterScope",
+        "UnifiedUI.ui.diff.getScope",
+        "UnifiedUI.ui.diff.open",
+        "UnifiedUI.ui.diffModal",
+        "UnifiedUI.ui.diffModal.open",
+        "UnifiedUI.ui.diff.listScopes",
+        "UnifiedUI.ui.diff.resolveSourceText",
+        "UnifiedUI.ui.diff.applyTextToScope",
+        "UnifiedUI.ui.diff.describeSource",
+        "UnifiedUI.ui.diff.logDiff",
+        "UnifiedUI.ui.diffModal.close",
+        "UnifiedUI.ui.diffModal.isOpen",
+        "UnifiedUI.ui.modal",
+        "UnifiedUI.ui.confirm",
+        "UnifiedUI.ui.diffModal.setMode",
+        "UnifiedUI.core.dom",
+        "UnifiedUI.core.storage",
+        "UnifiedUI.ui.sharedPrimitives",
+        "UnifiedUI.ui.applyTheme",
+        "UnifiedUI.ui.initThemeToggle",
+        "UnifiedUI.ui.syncThemeToggleButtons",
+        "UnifiedUI.ui.showGlobalXkeenSpinner",
+        "UnifiedUI.ui.hideGlobalXkeenSpinner",
+        "UnifiedUI.ui.showXrayPreflightError",
+        "UnifiedUI.ui.typography",
+        "UnifiedUI.ui.layout",
+        "UnifiedUI.ui.branding",
+        "UnifiedUI.ui.branding.labelForTabKey",
+        "UnifiedUI.ui.typography.apply",
+        "UnifiedUI.ui.typography.load",
+        "UnifiedUI.ui.layout.apply",
+        "UnifiedUI.ui.layout.load",
+        "UnifiedUI.ui.branding.apply",
+        "UnifiedUI.ui.branding.load",
+        "UnifiedUI.ui.branding.refreshFromRouter",
+        "UnifiedUI.util.ansiToHtml",
+        "UnifiedUI.util.escapeHtml",
+        "UnifiedUI.ui.modal.syncBodyScrollLock",
+        "UnifiedUI.state.devtoolsLogs",
+        "UnifiedUI.state.devtoolsLogsUi"
       ],
       "all_bootstrap_lazy_features": [],
       "lazy_runtime_inventory": null
     },
-    "xkeen": {
-      "route": "/xkeen",
-      "template": "templates/xkeen.html",
-      "entry": "static/js/pages/xkeen.entry.js",
-      "init": "static/js/pages/xkeen.init.js",
+    "unified": {
+      "route": "/unified",
+      "template": "templates/unified.html",
+      "entry": "static/js/pages/unified.entry.js",
+      "init": "static/js/pages/unified.init.js",
       "shared_imports": [
         "./top_level_shell.shared.js",
         "./top_level_panel_mihomo.shared.js",
-        "./xkeen.screen.bootstrap.js"
+        "./unified.screen.bootstrap.js"
       ],
       "dynamic_imports": [],
       "template_script_tags": [
-        "{{ frontend_page_entry_url('xkeen') }}"
+        "{{ frontend_page_entry_url('unified') }}"
       ],
       "esm_bootstrap_files": [
         {
@@ -2101,7 +2101,7 @@
           "lazy_features": []
         },
         {
-          "path": "static/js/features/xkeen_runtime.js",
+          "path": "static/js/features/unified_runtime.js",
           "globals": [],
           "lazy_features": []
         },
@@ -2123,7 +2123,7 @@
         {
           "path": "static/js/pages/top_level_screen_host.shared.js",
           "globals": [
-            "XKeen.pageConfig"
+            "UnifiedUI.pageConfig"
           ],
           "lazy_features": []
         },
@@ -2143,12 +2143,12 @@
           "lazy_features": []
         },
         {
-          "path": "static/js/pages/top_level_xkeen_screen.js",
+          "path": "static/js/pages/top_level_unified_screen.js",
           "globals": [],
           "lazy_features": []
         },
         {
-          "path": "static/js/pages/xkeen.screen.bootstrap.js",
+          "path": "static/js/pages/unified.screen.bootstrap.js",
           "globals": [],
           "lazy_features": []
         },
@@ -2160,76 +2160,76 @@
         {
           "path": "static/js/00_state.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.state",
-            "XKeen.util",
-            "XKeen.ui",
-            "XKeen.runtime",
-            "XKeen.env",
-            "XKeen.features"
+            "UnifiedUI.core",
+            "UnifiedUI.state",
+            "UnifiedUI.util",
+            "UnifiedUI.ui",
+            "UnifiedUI.runtime",
+            "UnifiedUI.env",
+            "UnifiedUI.features"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/01_bootstrap.js",
           "globals": [
-            "XKeen.util"
+            "UnifiedUI.util"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_store.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.store",
-            "XKeen.store",
-            "XKeen.core.uiShell",
-            "XKeen.uiShell",
-            "XKeen.core.uiModal",
-            "XKeen.uiModal",
-            "XKeen.core.uiSettings",
-            "XKeen.uiSettings",
-            "XKeen.core.uiToast",
-            "XKeen.uiToast"
+            "UnifiedUI.core",
+            "UnifiedUI.core.store",
+            "UnifiedUI.store",
+            "UnifiedUI.core.uiShell",
+            "UnifiedUI.uiShell",
+            "UnifiedUI.core.uiModal",
+            "UnifiedUI.uiModal",
+            "UnifiedUI.core.uiSettings",
+            "UnifiedUI.uiSettings",
+            "UnifiedUI.core.uiToast",
+            "UnifiedUI.uiToast"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/toast.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.core",
-            "XKeen.core.uiToast",
-            "XKeen.uiToast",
-            "XKeen.ui.showToast",
-            "XKeen.ui.toast",
-            "XKeen.ui.notify",
-            "XKeen.ui.dismissToast",
-            "XKeen.ui.clearToasts",
-            "XKeen.ui.isToastActive"
+            "UnifiedUI.ui",
+            "UnifiedUI.core",
+            "UnifiedUI.core.uiToast",
+            "UnifiedUI.uiToast",
+            "UnifiedUI.ui.showToast",
+            "UnifiedUI.ui.toast",
+            "UnifiedUI.ui.notify",
+            "UnifiedUI.ui.dismissToast",
+            "UnifiedUI.ui.clearToasts",
+            "UnifiedUI.ui.isToastActive"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/settings.js",
           "globals": [
-            "XKeen.ui.settings.get",
-            "XKeen.ui.settings.fetch",
-            "XKeen.ui.settings.patch",
-            "XKeen.ui",
-            "XKeen.core",
-            "XKeen.core.http",
-            "XKeen.core.uiSettings",
-            "XKeen.ui.settings",
-            "XKeen.ui.settings.DEFAULTS",
-            "XKeen.ui.settings.isLoadedFromServer",
-            "XKeen.ui.settings.setLocal",
-            "XKeen.ui.settings.patchLocal",
-            "XKeen.ui.settings.fetchOnce",
-            "XKeen.ui.settings.subscribe",
-            "XKeen.ui.settings.clampEditorFontScale",
-            "XKeen.ui.settings.getEditorFontScale",
-            "XKeen.ui.settings.isEditorExpertModeEnabled"
+            "UnifiedUI.ui.settings.get",
+            "UnifiedUI.ui.settings.fetch",
+            "UnifiedUI.ui.settings.patch",
+            "UnifiedUI.ui",
+            "UnifiedUI.core",
+            "UnifiedUI.core.http",
+            "UnifiedUI.core.uiSettings",
+            "UnifiedUI.ui.settings",
+            "UnifiedUI.ui.settings.DEFAULTS",
+            "UnifiedUI.ui.settings.isLoadedFromServer",
+            "UnifiedUI.ui.settings.setLocal",
+            "UnifiedUI.ui.settings.patchLocal",
+            "UnifiedUI.ui.settings.fetchOnce",
+            "UnifiedUI.ui.settings.subscribe",
+            "UnifiedUI.ui.settings.clampEditorFontScale",
+            "UnifiedUI.ui.settings.getEditorFontScale",
+            "UnifiedUI.ui.settings.isEditorExpertModeEnabled"
           ],
           "lazy_features": []
         },
@@ -2271,152 +2271,152 @@
         {
           "path": "static/js/ui/editor_engine.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.settings",
-            "XKeen.runtime",
-            "XKeen.runtime.lazy",
-            "XKeen.ui.cm6Runtime",
-            "XKeen.monacoLoader",
-            "XKeen.ui.monacoShared",
-            "XKeen.ui.settings.get",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.editorEngine.EVENT",
-            "XKeen.ui.editorEngine.VALID",
-            "XKeen.ui.editorEngine.DEFAULT",
-            "XKeen.ui.editorEngine.get",
-            "XKeen.ui.editorEngine.ensureLoaded",
-            "XKeen.ui.editorEngine.set",
-            "XKeen.ui.editorEngine.createFacade",
-            "XKeen.ui.editorEngine.fromCodeMirror",
-            "XKeen.ui.editorEngine.fromMonaco",
-            "XKeen.ui.editorEngine.fromTextarea",
-            "XKeen.ui.editorEngine.isFacade",
-            "XKeen.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
-            "XKeen.ui.editorEngine.ensureSupport",
-            "XKeen.ui.editorEngine.getRuntime",
-            "XKeen.ui.editorEngine.ensureRuntime",
-            "XKeen.ui.editorEngine.isExperimentalCodeMirror6Enabled",
-            "XKeen.ui.editorEngine.getCodeMirrorBackend",
-            "XKeen.ui.editorEngine.onChange",
-            "XKeen.ui.editorEngine.resetFallback",
-            "XKeen.ui.editorEngine.cloneViewState",
-            "XKeen.ui.editorEngine.createViewStateStore"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.settings",
+            "UnifiedUI.runtime",
+            "UnifiedUI.runtime.lazy",
+            "UnifiedUI.ui.cm6Runtime",
+            "UnifiedUI.monacoLoader",
+            "UnifiedUI.ui.monacoShared",
+            "UnifiedUI.ui.settings.get",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.editorEngine.EVENT",
+            "UnifiedUI.ui.editorEngine.VALID",
+            "UnifiedUI.ui.editorEngine.DEFAULT",
+            "UnifiedUI.ui.editorEngine.get",
+            "UnifiedUI.ui.editorEngine.ensureLoaded",
+            "UnifiedUI.ui.editorEngine.set",
+            "UnifiedUI.ui.editorEngine.createFacade",
+            "UnifiedUI.ui.editorEngine.fromCodeMirror",
+            "UnifiedUI.ui.editorEngine.fromMonaco",
+            "UnifiedUI.ui.editorEngine.fromTextarea",
+            "UnifiedUI.ui.editorEngine.isFacade",
+            "UnifiedUI.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
+            "UnifiedUI.ui.editorEngine.ensureSupport",
+            "UnifiedUI.ui.editorEngine.getRuntime",
+            "UnifiedUI.ui.editorEngine.ensureRuntime",
+            "UnifiedUI.ui.editorEngine.isExperimentalCodeMirror6Enabled",
+            "UnifiedUI.ui.editorEngine.getCodeMirrorBackend",
+            "UnifiedUI.ui.editorEngine.onChange",
+            "UnifiedUI.ui.editorEngine.resetFallback",
+            "UnifiedUI.ui.editorEngine.cloneViewState",
+            "UnifiedUI.ui.editorEngine.createViewStateStore"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/editor_actions.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.diff",
-            "XKeen.ui.editorActions"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.ui.editorActions"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/editor_toolbar.js",
           "globals": [
-            "XKeen.ui.editorToolbar",
-            "XKeen.ui.editorActions",
-            "XKeen.ui",
-            "XKeen.ui.diff",
-            "XKeen.ui.diff.openForScope"
+            "UnifiedUI.ui.editorToolbar",
+            "UnifiedUI.ui.editorActions",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.ui.diff.openForScope"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/editor_links.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.editorActions",
-            "XKeen.ui.editorLinks"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.editorActions",
+            "UnifiedUI.ui.editorLinks"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/diff_engine.js",
           "globals": [
-            "XKeen.ui.diff.registerScope",
-            "XKeen.ui.diff.unregisterScope",
-            "XKeen.ui.diff.getScope",
-            "XKeen.ui.diff.openForScope",
-            "XKeen.ui.diff.open",
-            "XKeen.ui",
-            "XKeen.ui.diffModal",
-            "XKeen.ui.diffModal.open",
-            "XKeen.core",
-            "XKeen.core.http",
-            "XKeen.ui.diff",
-            "XKeen.ui.diff.listScopes",
-            "XKeen.ui.diff.resolveSourceText",
-            "XKeen.ui.diff.applyTextToScope",
-            "XKeen.ui.diff.describeSource",
-            "XKeen.ui.diff.logDiff"
+            "UnifiedUI.ui.diff.registerScope",
+            "UnifiedUI.ui.diff.unregisterScope",
+            "UnifiedUI.ui.diff.getScope",
+            "UnifiedUI.ui.diff.openForScope",
+            "UnifiedUI.ui.diff.open",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.diffModal",
+            "UnifiedUI.ui.diffModal.open",
+            "UnifiedUI.core",
+            "UnifiedUI.core.http",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.ui.diff.listScopes",
+            "UnifiedUI.ui.diff.resolveSourceText",
+            "UnifiedUI.ui.diff.applyTextToScope",
+            "UnifiedUI.ui.diff.describeSource",
+            "UnifiedUI.ui.diff.logDiff"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/diff_modal.js",
           "globals": [
-            "XKeen.ui.diffModal.open",
-            "XKeen.ui.diffModal.close",
-            "XKeen.ui.diffModal.isOpen",
-            "XKeen.ui",
-            "XKeen.ui.modal",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.toast",
-            "XKeen.ui.diff",
-            "XKeen.runtime",
-            "XKeen.runtime.lazy",
-            "XKeen.ui.cm6Runtime",
-            "XKeen.ui.confirm",
-            "XKeen.ui.diffModal",
-            "XKeen.ui.diffModal.setMode"
+            "UnifiedUI.ui.diffModal.open",
+            "UnifiedUI.ui.diffModal.close",
+            "UnifiedUI.ui.diffModal.isOpen",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.toast",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.runtime",
+            "UnifiedUI.runtime.lazy",
+            "UnifiedUI.ui.cm6Runtime",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.diffModal",
+            "UnifiedUI.ui.diffModal.setMode"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/pages/codemirror6.shared.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.cm6Runtime"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.cm6Runtime"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_dom.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.dom"
+            "UnifiedUI.core",
+            "UnifiedUI.core.dom"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_http.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.http"
+            "UnifiedUI.core",
+            "UnifiedUI.core.http"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_storage.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.storage"
+            "UnifiedUI.core",
+            "UnifiedUI.core.storage"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/theme.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.state",
-            "XKeen.ui.applyTheme",
-            "XKeen.ui.initThemeToggle",
-            "XKeen.ui.syncThemeToggleButtons"
+            "UnifiedUI.ui",
+            "UnifiedUI.state",
+            "UnifiedUI.ui.applyTheme",
+            "UnifiedUI.ui.initThemeToggle",
+            "UnifiedUI.ui.syncThemeToggleButtons"
           ],
           "lazy_features": []
         },
@@ -2428,30 +2428,30 @@
         {
           "path": "static/js/util/helpers.js",
           "globals": [
-            "XKeen.util",
-            "XKeen.util.escapeHtml"
+            "UnifiedUI.util",
+            "UnifiedUI.util.escapeHtml"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/spinner_fetch.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.state",
-            "XKeen.ui.showGlobalXkeenSpinner",
-            "XKeen.ui.hideGlobalXkeenSpinner",
-            "XKeen.ui.showToast",
-            "XKeen.ui.showXrayPreflightError"
+            "UnifiedUI.ui",
+            "UnifiedUI.state",
+            "UnifiedUI.ui.showGlobalXkeenSpinner",
+            "UnifiedUI.ui.hideGlobalXkeenSpinner",
+            "UnifiedUI.ui.showToast",
+            "UnifiedUI.ui.showXrayPreflightError"
           ],
           "lazy_features": []
         },
         {
-          "path": "static/js/pages/xkeen.init.js",
+          "path": "static/js/pages/unified.init.js",
           "globals": [],
           "lazy_features": []
         },
         {
-          "path": "static/js/features/xkeen_texts.js",
+          "path": "static/js/features/unified_texts.js",
           "globals": [],
           "lazy_features": []
         },
@@ -2464,100 +2464,100 @@
       "direct_init_globals": [],
       "direct_init_lazy_features": [],
       "all_bootstrap_globals": [
-        "XKeen.pageConfig",
-        "XKeen.core",
-        "XKeen.state",
-        "XKeen.util",
-        "XKeen.ui",
-        "XKeen.runtime",
-        "XKeen.env",
-        "XKeen.features",
-        "XKeen.core.store",
-        "XKeen.store",
-        "XKeen.core.uiShell",
-        "XKeen.uiShell",
-        "XKeen.core.uiModal",
-        "XKeen.uiModal",
-        "XKeen.core.uiSettings",
-        "XKeen.uiSettings",
-        "XKeen.core.uiToast",
-        "XKeen.uiToast",
-        "XKeen.ui.showToast",
-        "XKeen.ui.toast",
-        "XKeen.ui.notify",
-        "XKeen.ui.dismissToast",
-        "XKeen.ui.clearToasts",
-        "XKeen.ui.isToastActive",
-        "XKeen.ui.settings.get",
-        "XKeen.ui.settings.fetch",
-        "XKeen.ui.settings.patch",
-        "XKeen.core.http",
-        "XKeen.ui.settings",
-        "XKeen.ui.settings.DEFAULTS",
-        "XKeen.ui.settings.isLoadedFromServer",
-        "XKeen.ui.settings.setLocal",
-        "XKeen.ui.settings.patchLocal",
-        "XKeen.ui.settings.fetchOnce",
-        "XKeen.ui.settings.subscribe",
-        "XKeen.ui.settings.clampEditorFontScale",
-        "XKeen.ui.settings.getEditorFontScale",
-        "XKeen.ui.settings.isEditorExpertModeEnabled",
-        "XKeen.runtime.lazy",
-        "XKeen.ui.cm6Runtime",
-        "XKeen.monacoLoader",
-        "XKeen.ui.monacoShared",
-        "XKeen.ui.editorEngine",
-        "XKeen.ui.editorEngine.EVENT",
-        "XKeen.ui.editorEngine.VALID",
-        "XKeen.ui.editorEngine.DEFAULT",
-        "XKeen.ui.editorEngine.get",
-        "XKeen.ui.editorEngine.ensureLoaded",
-        "XKeen.ui.editorEngine.set",
-        "XKeen.ui.editorEngine.createFacade",
-        "XKeen.ui.editorEngine.fromCodeMirror",
-        "XKeen.ui.editorEngine.fromMonaco",
-        "XKeen.ui.editorEngine.fromTextarea",
-        "XKeen.ui.editorEngine.isFacade",
-        "XKeen.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
-        "XKeen.ui.editorEngine.ensureSupport",
-        "XKeen.ui.editorEngine.getRuntime",
-        "XKeen.ui.editorEngine.ensureRuntime",
-        "XKeen.ui.editorEngine.isExperimentalCodeMirror6Enabled",
-        "XKeen.ui.editorEngine.getCodeMirrorBackend",
-        "XKeen.ui.editorEngine.onChange",
-        "XKeen.ui.editorEngine.resetFallback",
-        "XKeen.ui.editorEngine.cloneViewState",
-        "XKeen.ui.editorEngine.createViewStateStore",
-        "XKeen.ui.diff",
-        "XKeen.ui.editorActions",
-        "XKeen.ui.editorToolbar",
-        "XKeen.ui.diff.openForScope",
-        "XKeen.ui.editorLinks",
-        "XKeen.ui.diff.registerScope",
-        "XKeen.ui.diff.unregisterScope",
-        "XKeen.ui.diff.getScope",
-        "XKeen.ui.diff.open",
-        "XKeen.ui.diffModal",
-        "XKeen.ui.diffModal.open",
-        "XKeen.ui.diff.listScopes",
-        "XKeen.ui.diff.resolveSourceText",
-        "XKeen.ui.diff.applyTextToScope",
-        "XKeen.ui.diff.describeSource",
-        "XKeen.ui.diff.logDiff",
-        "XKeen.ui.diffModal.close",
-        "XKeen.ui.diffModal.isOpen",
-        "XKeen.ui.modal",
-        "XKeen.ui.confirm",
-        "XKeen.ui.diffModal.setMode",
-        "XKeen.core.dom",
-        "XKeen.core.storage",
-        "XKeen.ui.applyTheme",
-        "XKeen.ui.initThemeToggle",
-        "XKeen.ui.syncThemeToggleButtons",
-        "XKeen.util.escapeHtml",
-        "XKeen.ui.showGlobalXkeenSpinner",
-        "XKeen.ui.hideGlobalXkeenSpinner",
-        "XKeen.ui.showXrayPreflightError"
+        "UnifiedUI.pageConfig",
+        "UnifiedUI.core",
+        "UnifiedUI.state",
+        "UnifiedUI.util",
+        "UnifiedUI.ui",
+        "UnifiedUI.runtime",
+        "UnifiedUI.env",
+        "UnifiedUI.features",
+        "UnifiedUI.core.store",
+        "UnifiedUI.store",
+        "UnifiedUI.core.uiShell",
+        "UnifiedUI.uiShell",
+        "UnifiedUI.core.uiModal",
+        "UnifiedUI.uiModal",
+        "UnifiedUI.core.uiSettings",
+        "UnifiedUI.uiSettings",
+        "UnifiedUI.core.uiToast",
+        "UnifiedUI.uiToast",
+        "UnifiedUI.ui.showToast",
+        "UnifiedUI.ui.toast",
+        "UnifiedUI.ui.notify",
+        "UnifiedUI.ui.dismissToast",
+        "UnifiedUI.ui.clearToasts",
+        "UnifiedUI.ui.isToastActive",
+        "UnifiedUI.ui.settings.get",
+        "UnifiedUI.ui.settings.fetch",
+        "UnifiedUI.ui.settings.patch",
+        "UnifiedUI.core.http",
+        "UnifiedUI.ui.settings",
+        "UnifiedUI.ui.settings.DEFAULTS",
+        "UnifiedUI.ui.settings.isLoadedFromServer",
+        "UnifiedUI.ui.settings.setLocal",
+        "UnifiedUI.ui.settings.patchLocal",
+        "UnifiedUI.ui.settings.fetchOnce",
+        "UnifiedUI.ui.settings.subscribe",
+        "UnifiedUI.ui.settings.clampEditorFontScale",
+        "UnifiedUI.ui.settings.getEditorFontScale",
+        "UnifiedUI.ui.settings.isEditorExpertModeEnabled",
+        "UnifiedUI.runtime.lazy",
+        "UnifiedUI.ui.cm6Runtime",
+        "UnifiedUI.monacoLoader",
+        "UnifiedUI.ui.monacoShared",
+        "UnifiedUI.ui.editorEngine",
+        "UnifiedUI.ui.editorEngine.EVENT",
+        "UnifiedUI.ui.editorEngine.VALID",
+        "UnifiedUI.ui.editorEngine.DEFAULT",
+        "UnifiedUI.ui.editorEngine.get",
+        "UnifiedUI.ui.editorEngine.ensureLoaded",
+        "UnifiedUI.ui.editorEngine.set",
+        "UnifiedUI.ui.editorEngine.createFacade",
+        "UnifiedUI.ui.editorEngine.fromCodeMirror",
+        "UnifiedUI.ui.editorEngine.fromMonaco",
+        "UnifiedUI.ui.editorEngine.fromTextarea",
+        "UnifiedUI.ui.editorEngine.isFacade",
+        "UnifiedUI.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
+        "UnifiedUI.ui.editorEngine.ensureSupport",
+        "UnifiedUI.ui.editorEngine.getRuntime",
+        "UnifiedUI.ui.editorEngine.ensureRuntime",
+        "UnifiedUI.ui.editorEngine.isExperimentalCodeMirror6Enabled",
+        "UnifiedUI.ui.editorEngine.getCodeMirrorBackend",
+        "UnifiedUI.ui.editorEngine.onChange",
+        "UnifiedUI.ui.editorEngine.resetFallback",
+        "UnifiedUI.ui.editorEngine.cloneViewState",
+        "UnifiedUI.ui.editorEngine.createViewStateStore",
+        "UnifiedUI.ui.diff",
+        "UnifiedUI.ui.editorActions",
+        "UnifiedUI.ui.editorToolbar",
+        "UnifiedUI.ui.diff.openForScope",
+        "UnifiedUI.ui.editorLinks",
+        "UnifiedUI.ui.diff.registerScope",
+        "UnifiedUI.ui.diff.unregisterScope",
+        "UnifiedUI.ui.diff.getScope",
+        "UnifiedUI.ui.diff.open",
+        "UnifiedUI.ui.diffModal",
+        "UnifiedUI.ui.diffModal.open",
+        "UnifiedUI.ui.diff.listScopes",
+        "UnifiedUI.ui.diff.resolveSourceText",
+        "UnifiedUI.ui.diff.applyTextToScope",
+        "UnifiedUI.ui.diff.describeSource",
+        "UnifiedUI.ui.diff.logDiff",
+        "UnifiedUI.ui.diffModal.close",
+        "UnifiedUI.ui.diffModal.isOpen",
+        "UnifiedUI.ui.modal",
+        "UnifiedUI.ui.confirm",
+        "UnifiedUI.ui.diffModal.setMode",
+        "UnifiedUI.core.dom",
+        "UnifiedUI.core.storage",
+        "UnifiedUI.ui.applyTheme",
+        "UnifiedUI.ui.initThemeToggle",
+        "UnifiedUI.ui.syncThemeToggleButtons",
+        "UnifiedUI.util.escapeHtml",
+        "UnifiedUI.ui.showGlobalXkeenSpinner",
+        "UnifiedUI.ui.hideGlobalXkeenSpinner",
+        "UnifiedUI.ui.showXrayPreflightError"
       ],
       "all_bootstrap_lazy_features": [],
       "lazy_runtime_inventory": null
@@ -2590,7 +2590,7 @@
           "lazy_features": []
         },
         {
-          "path": "static/js/features/xkeen_runtime.js",
+          "path": "static/js/features/unified_runtime.js",
           "globals": [],
           "lazy_features": []
         },
@@ -2612,76 +2612,76 @@
         {
           "path": "static/js/00_state.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.state",
-            "XKeen.util",
-            "XKeen.ui",
-            "XKeen.runtime",
-            "XKeen.env",
-            "XKeen.features"
+            "UnifiedUI.core",
+            "UnifiedUI.state",
+            "UnifiedUI.util",
+            "UnifiedUI.ui",
+            "UnifiedUI.runtime",
+            "UnifiedUI.env",
+            "UnifiedUI.features"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/01_bootstrap.js",
           "globals": [
-            "XKeen.util"
+            "UnifiedUI.util"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_store.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.store",
-            "XKeen.store",
-            "XKeen.core.uiShell",
-            "XKeen.uiShell",
-            "XKeen.core.uiModal",
-            "XKeen.uiModal",
-            "XKeen.core.uiSettings",
-            "XKeen.uiSettings",
-            "XKeen.core.uiToast",
-            "XKeen.uiToast"
+            "UnifiedUI.core",
+            "UnifiedUI.core.store",
+            "UnifiedUI.store",
+            "UnifiedUI.core.uiShell",
+            "UnifiedUI.uiShell",
+            "UnifiedUI.core.uiModal",
+            "UnifiedUI.uiModal",
+            "UnifiedUI.core.uiSettings",
+            "UnifiedUI.uiSettings",
+            "UnifiedUI.core.uiToast",
+            "UnifiedUI.uiToast"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/toast.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.core",
-            "XKeen.core.uiToast",
-            "XKeen.uiToast",
-            "XKeen.ui.showToast",
-            "XKeen.ui.toast",
-            "XKeen.ui.notify",
-            "XKeen.ui.dismissToast",
-            "XKeen.ui.clearToasts",
-            "XKeen.ui.isToastActive"
+            "UnifiedUI.ui",
+            "UnifiedUI.core",
+            "UnifiedUI.core.uiToast",
+            "UnifiedUI.uiToast",
+            "UnifiedUI.ui.showToast",
+            "UnifiedUI.ui.toast",
+            "UnifiedUI.ui.notify",
+            "UnifiedUI.ui.dismissToast",
+            "UnifiedUI.ui.clearToasts",
+            "UnifiedUI.ui.isToastActive"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/settings.js",
           "globals": [
-            "XKeen.ui.settings.get",
-            "XKeen.ui.settings.fetch",
-            "XKeen.ui.settings.patch",
-            "XKeen.ui",
-            "XKeen.core",
-            "XKeen.core.http",
-            "XKeen.core.uiSettings",
-            "XKeen.ui.settings",
-            "XKeen.ui.settings.DEFAULTS",
-            "XKeen.ui.settings.isLoadedFromServer",
-            "XKeen.ui.settings.setLocal",
-            "XKeen.ui.settings.patchLocal",
-            "XKeen.ui.settings.fetchOnce",
-            "XKeen.ui.settings.subscribe",
-            "XKeen.ui.settings.clampEditorFontScale",
-            "XKeen.ui.settings.getEditorFontScale",
-            "XKeen.ui.settings.isEditorExpertModeEnabled"
+            "UnifiedUI.ui.settings.get",
+            "UnifiedUI.ui.settings.fetch",
+            "UnifiedUI.ui.settings.patch",
+            "UnifiedUI.ui",
+            "UnifiedUI.core",
+            "UnifiedUI.core.http",
+            "UnifiedUI.core.uiSettings",
+            "UnifiedUI.ui.settings",
+            "UnifiedUI.ui.settings.DEFAULTS",
+            "UnifiedUI.ui.settings.isLoadedFromServer",
+            "UnifiedUI.ui.settings.setLocal",
+            "UnifiedUI.ui.settings.patchLocal",
+            "UnifiedUI.ui.settings.fetchOnce",
+            "UnifiedUI.ui.settings.subscribe",
+            "UnifiedUI.ui.settings.clampEditorFontScale",
+            "UnifiedUI.ui.settings.getEditorFontScale",
+            "UnifiedUI.ui.settings.isEditorExpertModeEnabled"
           ],
           "lazy_features": []
         },
@@ -2723,109 +2723,109 @@
         {
           "path": "static/js/ui/editor_engine.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.settings",
-            "XKeen.runtime",
-            "XKeen.runtime.lazy",
-            "XKeen.ui.cm6Runtime",
-            "XKeen.monacoLoader",
-            "XKeen.ui.monacoShared",
-            "XKeen.ui.settings.get",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.editorEngine.EVENT",
-            "XKeen.ui.editorEngine.VALID",
-            "XKeen.ui.editorEngine.DEFAULT",
-            "XKeen.ui.editorEngine.get",
-            "XKeen.ui.editorEngine.ensureLoaded",
-            "XKeen.ui.editorEngine.set",
-            "XKeen.ui.editorEngine.createFacade",
-            "XKeen.ui.editorEngine.fromCodeMirror",
-            "XKeen.ui.editorEngine.fromMonaco",
-            "XKeen.ui.editorEngine.fromTextarea",
-            "XKeen.ui.editorEngine.isFacade",
-            "XKeen.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
-            "XKeen.ui.editorEngine.ensureSupport",
-            "XKeen.ui.editorEngine.getRuntime",
-            "XKeen.ui.editorEngine.ensureRuntime",
-            "XKeen.ui.editorEngine.isExperimentalCodeMirror6Enabled",
-            "XKeen.ui.editorEngine.getCodeMirrorBackend",
-            "XKeen.ui.editorEngine.onChange",
-            "XKeen.ui.editorEngine.resetFallback",
-            "XKeen.ui.editorEngine.cloneViewState",
-            "XKeen.ui.editorEngine.createViewStateStore"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.settings",
+            "UnifiedUI.runtime",
+            "UnifiedUI.runtime.lazy",
+            "UnifiedUI.ui.cm6Runtime",
+            "UnifiedUI.monacoLoader",
+            "UnifiedUI.ui.monacoShared",
+            "UnifiedUI.ui.settings.get",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.editorEngine.EVENT",
+            "UnifiedUI.ui.editorEngine.VALID",
+            "UnifiedUI.ui.editorEngine.DEFAULT",
+            "UnifiedUI.ui.editorEngine.get",
+            "UnifiedUI.ui.editorEngine.ensureLoaded",
+            "UnifiedUI.ui.editorEngine.set",
+            "UnifiedUI.ui.editorEngine.createFacade",
+            "UnifiedUI.ui.editorEngine.fromCodeMirror",
+            "UnifiedUI.ui.editorEngine.fromMonaco",
+            "UnifiedUI.ui.editorEngine.fromTextarea",
+            "UnifiedUI.ui.editorEngine.isFacade",
+            "UnifiedUI.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
+            "UnifiedUI.ui.editorEngine.ensureSupport",
+            "UnifiedUI.ui.editorEngine.getRuntime",
+            "UnifiedUI.ui.editorEngine.ensureRuntime",
+            "UnifiedUI.ui.editorEngine.isExperimentalCodeMirror6Enabled",
+            "UnifiedUI.ui.editorEngine.getCodeMirrorBackend",
+            "UnifiedUI.ui.editorEngine.onChange",
+            "UnifiedUI.ui.editorEngine.resetFallback",
+            "UnifiedUI.ui.editorEngine.cloneViewState",
+            "UnifiedUI.ui.editorEngine.createViewStateStore"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/editor_actions.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.diff",
-            "XKeen.ui.editorActions"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.ui.editorActions"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/editor_toolbar.js",
           "globals": [
-            "XKeen.ui.editorToolbar",
-            "XKeen.ui.editorActions",
-            "XKeen.ui",
-            "XKeen.ui.diff",
-            "XKeen.ui.diff.openForScope"
+            "UnifiedUI.ui.editorToolbar",
+            "UnifiedUI.ui.editorActions",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.ui.diff.openForScope"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/editor_links.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.editorActions",
-            "XKeen.ui.editorLinks"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.editorActions",
+            "UnifiedUI.ui.editorLinks"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/diff_engine.js",
           "globals": [
-            "XKeen.ui.diff.registerScope",
-            "XKeen.ui.diff.unregisterScope",
-            "XKeen.ui.diff.getScope",
-            "XKeen.ui.diff.openForScope",
-            "XKeen.ui.diff.open",
-            "XKeen.ui",
-            "XKeen.ui.diffModal",
-            "XKeen.ui.diffModal.open",
-            "XKeen.core",
-            "XKeen.core.http",
-            "XKeen.ui.diff",
-            "XKeen.ui.diff.listScopes",
-            "XKeen.ui.diff.resolveSourceText",
-            "XKeen.ui.diff.applyTextToScope",
-            "XKeen.ui.diff.describeSource",
-            "XKeen.ui.diff.logDiff"
+            "UnifiedUI.ui.diff.registerScope",
+            "UnifiedUI.ui.diff.unregisterScope",
+            "UnifiedUI.ui.diff.getScope",
+            "UnifiedUI.ui.diff.openForScope",
+            "UnifiedUI.ui.diff.open",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.diffModal",
+            "UnifiedUI.ui.diffModal.open",
+            "UnifiedUI.core",
+            "UnifiedUI.core.http",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.ui.diff.listScopes",
+            "UnifiedUI.ui.diff.resolveSourceText",
+            "UnifiedUI.ui.diff.applyTextToScope",
+            "UnifiedUI.ui.diff.describeSource",
+            "UnifiedUI.ui.diff.logDiff"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/diff_modal.js",
           "globals": [
-            "XKeen.ui.diffModal.open",
-            "XKeen.ui.diffModal.close",
-            "XKeen.ui.diffModal.isOpen",
-            "XKeen.ui",
-            "XKeen.ui.modal",
-            "XKeen.ui.editorEngine",
-            "XKeen.ui.toast",
-            "XKeen.ui.diff",
-            "XKeen.runtime",
-            "XKeen.runtime.lazy",
-            "XKeen.ui.cm6Runtime",
-            "XKeen.ui.confirm",
-            "XKeen.ui.diffModal",
-            "XKeen.ui.diffModal.setMode"
+            "UnifiedUI.ui.diffModal.open",
+            "UnifiedUI.ui.diffModal.close",
+            "UnifiedUI.ui.diffModal.isOpen",
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.ui.editorEngine",
+            "UnifiedUI.ui.toast",
+            "UnifiedUI.ui.diff",
+            "UnifiedUI.runtime",
+            "UnifiedUI.runtime.lazy",
+            "UnifiedUI.ui.cm6Runtime",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.diffModal",
+            "UnifiedUI.ui.diffModal.setMode"
           ],
           "lazy_features": []
         },
@@ -2837,19 +2837,19 @@
         {
           "path": "static/js/ui/monaco_loader.js",
           "globals": [
-            "XKeen.monacoLoader"
+            "UnifiedUI.monacoLoader"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/monaco_shared.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.monacoShared",
-            "XKeen.monacoLoader",
-            "XKeen.monacoLoader.ensureMonaco",
-            "XKeen.ui.settings",
-            "XKeen.ui.editorEngine"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.monacoShared",
+            "UnifiedUI.monacoLoader",
+            "UnifiedUI.monacoLoader.ensureMonaco",
+            "UnifiedUI.ui.settings",
+            "UnifiedUI.ui.editorEngine"
           ],
           "lazy_features": []
         },
@@ -2876,64 +2876,64 @@
         {
           "path": "static/js/pages/codemirror6.shared.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.cm6Runtime"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.cm6Runtime"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_dom.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.dom"
+            "UnifiedUI.core",
+            "UnifiedUI.core.dom"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_http.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.http"
+            "UnifiedUI.core",
+            "UnifiedUI.core.http"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/core/xk_storage.js",
           "globals": [
-            "XKeen.core",
-            "XKeen.core.storage"
+            "UnifiedUI.core",
+            "UnifiedUI.core.storage"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/modal.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.modal",
-            "XKeen.core",
-            "XKeen.core.uiModal",
-            "XKeen.uiModal"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.core",
+            "UnifiedUI.core.uiModal",
+            "UnifiedUI.uiModal"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/confirm_modal.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.ui.confirm",
-            "XKeen.ui.modal",
-            "XKeen.ui.toast"
+            "UnifiedUI.ui",
+            "UnifiedUI.ui.confirm",
+            "UnifiedUI.ui.modal",
+            "UnifiedUI.ui.toast"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/theme.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.state",
-            "XKeen.ui.applyTheme",
-            "XKeen.ui.initThemeToggle",
-            "XKeen.ui.syncThemeToggleButtons"
+            "UnifiedUI.ui",
+            "UnifiedUI.state",
+            "UnifiedUI.ui.applyTheme",
+            "UnifiedUI.ui.initThemeToggle",
+            "UnifiedUI.ui.syncThemeToggleButtons"
           ],
           "lazy_features": []
         },
@@ -2945,37 +2945,37 @@
         {
           "path": "static/js/util/helpers.js",
           "globals": [
-            "XKeen.util",
-            "XKeen.util.escapeHtml"
+            "UnifiedUI.util",
+            "UnifiedUI.util.escapeHtml"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/util/ansi.js",
           "globals": [
-            "XKeen.util",
-            "XKeen.util.ansiToHtml",
-            "XKeen.util.escapeHtml"
+            "UnifiedUI.util",
+            "UnifiedUI.util.ansiToHtml",
+            "UnifiedUI.util.escapeHtml"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/util/command_job.js",
           "globals": [
-            "XKeen.util",
-            "XKeen.util.commandJob"
+            "UnifiedUI.util",
+            "UnifiedUI.util.commandJob"
           ],
           "lazy_features": []
         },
         {
           "path": "static/js/ui/spinner_fetch.js",
           "globals": [
-            "XKeen.ui",
-            "XKeen.state",
-            "XKeen.ui.showGlobalXkeenSpinner",
-            "XKeen.ui.hideGlobalXkeenSpinner",
-            "XKeen.ui.showToast",
-            "XKeen.ui.showXrayPreflightError"
+            "UnifiedUI.ui",
+            "UnifiedUI.state",
+            "UnifiedUI.ui.showGlobalXkeenSpinner",
+            "UnifiedUI.ui.hideGlobalXkeenSpinner",
+            "UnifiedUI.ui.showToast",
+            "UnifiedUI.ui.showXrayPreflightError"
           ],
           "lazy_features": []
         },
@@ -3012,7 +3012,7 @@
         {
           "path": "static/js/pages/top_level_screen_host.shared.js",
           "globals": [
-            "XKeen.pageConfig"
+            "UnifiedUI.pageConfig"
           ],
           "lazy_features": []
         },
@@ -3032,7 +3032,7 @@
           "lazy_features": []
         },
         {
-          "path": "static/js/pages/top_level_xkeen_screen.js",
+          "path": "static/js/pages/top_level_unified_screen.js",
           "globals": [],
           "lazy_features": []
         }
@@ -3040,103 +3040,103 @@
       "direct_init_globals": [],
       "direct_init_lazy_features": [],
       "all_bootstrap_globals": [
-        "XKeen.core",
-        "XKeen.state",
-        "XKeen.util",
-        "XKeen.ui",
-        "XKeen.runtime",
-        "XKeen.env",
-        "XKeen.features",
-        "XKeen.core.store",
-        "XKeen.store",
-        "XKeen.core.uiShell",
-        "XKeen.uiShell",
-        "XKeen.core.uiModal",
-        "XKeen.uiModal",
-        "XKeen.core.uiSettings",
-        "XKeen.uiSettings",
-        "XKeen.core.uiToast",
-        "XKeen.uiToast",
-        "XKeen.ui.showToast",
-        "XKeen.ui.toast",
-        "XKeen.ui.notify",
-        "XKeen.ui.dismissToast",
-        "XKeen.ui.clearToasts",
-        "XKeen.ui.isToastActive",
-        "XKeen.ui.settings.get",
-        "XKeen.ui.settings.fetch",
-        "XKeen.ui.settings.patch",
-        "XKeen.core.http",
-        "XKeen.ui.settings",
-        "XKeen.ui.settings.DEFAULTS",
-        "XKeen.ui.settings.isLoadedFromServer",
-        "XKeen.ui.settings.setLocal",
-        "XKeen.ui.settings.patchLocal",
-        "XKeen.ui.settings.fetchOnce",
-        "XKeen.ui.settings.subscribe",
-        "XKeen.ui.settings.clampEditorFontScale",
-        "XKeen.ui.settings.getEditorFontScale",
-        "XKeen.ui.settings.isEditorExpertModeEnabled",
-        "XKeen.runtime.lazy",
-        "XKeen.ui.cm6Runtime",
-        "XKeen.monacoLoader",
-        "XKeen.ui.monacoShared",
-        "XKeen.ui.editorEngine",
-        "XKeen.ui.editorEngine.EVENT",
-        "XKeen.ui.editorEngine.VALID",
-        "XKeen.ui.editorEngine.DEFAULT",
-        "XKeen.ui.editorEngine.get",
-        "XKeen.ui.editorEngine.ensureLoaded",
-        "XKeen.ui.editorEngine.set",
-        "XKeen.ui.editorEngine.createFacade",
-        "XKeen.ui.editorEngine.fromCodeMirror",
-        "XKeen.ui.editorEngine.fromMonaco",
-        "XKeen.ui.editorEngine.fromTextarea",
-        "XKeen.ui.editorEngine.isFacade",
-        "XKeen.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
-        "XKeen.ui.editorEngine.ensureSupport",
-        "XKeen.ui.editorEngine.getRuntime",
-        "XKeen.ui.editorEngine.ensureRuntime",
-        "XKeen.ui.editorEngine.isExperimentalCodeMirror6Enabled",
-        "XKeen.ui.editorEngine.getCodeMirrorBackend",
-        "XKeen.ui.editorEngine.onChange",
-        "XKeen.ui.editorEngine.resetFallback",
-        "XKeen.ui.editorEngine.cloneViewState",
-        "XKeen.ui.editorEngine.createViewStateStore",
-        "XKeen.ui.diff",
-        "XKeen.ui.editorActions",
-        "XKeen.ui.editorToolbar",
-        "XKeen.ui.diff.openForScope",
-        "XKeen.ui.editorLinks",
-        "XKeen.ui.diff.registerScope",
-        "XKeen.ui.diff.unregisterScope",
-        "XKeen.ui.diff.getScope",
-        "XKeen.ui.diff.open",
-        "XKeen.ui.diffModal",
-        "XKeen.ui.diffModal.open",
-        "XKeen.ui.diff.listScopes",
-        "XKeen.ui.diff.resolveSourceText",
-        "XKeen.ui.diff.applyTextToScope",
-        "XKeen.ui.diff.describeSource",
-        "XKeen.ui.diff.logDiff",
-        "XKeen.ui.diffModal.close",
-        "XKeen.ui.diffModal.isOpen",
-        "XKeen.ui.modal",
-        "XKeen.ui.confirm",
-        "XKeen.ui.diffModal.setMode",
-        "XKeen.monacoLoader.ensureMonaco",
-        "XKeen.core.dom",
-        "XKeen.core.storage",
-        "XKeen.ui.applyTheme",
-        "XKeen.ui.initThemeToggle",
-        "XKeen.ui.syncThemeToggleButtons",
-        "XKeen.util.escapeHtml",
-        "XKeen.util.ansiToHtml",
-        "XKeen.util.commandJob",
-        "XKeen.ui.showGlobalXkeenSpinner",
-        "XKeen.ui.hideGlobalXkeenSpinner",
-        "XKeen.ui.showXrayPreflightError",
-        "XKeen.pageConfig"
+        "UnifiedUI.core",
+        "UnifiedUI.state",
+        "UnifiedUI.util",
+        "UnifiedUI.ui",
+        "UnifiedUI.runtime",
+        "UnifiedUI.env",
+        "UnifiedUI.features",
+        "UnifiedUI.core.store",
+        "UnifiedUI.store",
+        "UnifiedUI.core.uiShell",
+        "UnifiedUI.uiShell",
+        "UnifiedUI.core.uiModal",
+        "UnifiedUI.uiModal",
+        "UnifiedUI.core.uiSettings",
+        "UnifiedUI.uiSettings",
+        "UnifiedUI.core.uiToast",
+        "UnifiedUI.uiToast",
+        "UnifiedUI.ui.showToast",
+        "UnifiedUI.ui.toast",
+        "UnifiedUI.ui.notify",
+        "UnifiedUI.ui.dismissToast",
+        "UnifiedUI.ui.clearToasts",
+        "UnifiedUI.ui.isToastActive",
+        "UnifiedUI.ui.settings.get",
+        "UnifiedUI.ui.settings.fetch",
+        "UnifiedUI.ui.settings.patch",
+        "UnifiedUI.core.http",
+        "UnifiedUI.ui.settings",
+        "UnifiedUI.ui.settings.DEFAULTS",
+        "UnifiedUI.ui.settings.isLoadedFromServer",
+        "UnifiedUI.ui.settings.setLocal",
+        "UnifiedUI.ui.settings.patchLocal",
+        "UnifiedUI.ui.settings.fetchOnce",
+        "UnifiedUI.ui.settings.subscribe",
+        "UnifiedUI.ui.settings.clampEditorFontScale",
+        "UnifiedUI.ui.settings.getEditorFontScale",
+        "UnifiedUI.ui.settings.isEditorExpertModeEnabled",
+        "UnifiedUI.runtime.lazy",
+        "UnifiedUI.ui.cm6Runtime",
+        "UnifiedUI.monacoLoader",
+        "UnifiedUI.ui.monacoShared",
+        "UnifiedUI.ui.editorEngine",
+        "UnifiedUI.ui.editorEngine.EVENT",
+        "UnifiedUI.ui.editorEngine.VALID",
+        "UnifiedUI.ui.editorEngine.DEFAULT",
+        "UnifiedUI.ui.editorEngine.get",
+        "UnifiedUI.ui.editorEngine.ensureLoaded",
+        "UnifiedUI.ui.editorEngine.set",
+        "UnifiedUI.ui.editorEngine.createFacade",
+        "UnifiedUI.ui.editorEngine.fromCodeMirror",
+        "UnifiedUI.ui.editorEngine.fromMonaco",
+        "UnifiedUI.ui.editorEngine.fromTextarea",
+        "UnifiedUI.ui.editorEngine.isFacade",
+        "UnifiedUI.ui.editorEngine.RUNTIME_CONTRACT_VERSION",
+        "UnifiedUI.ui.editorEngine.ensureSupport",
+        "UnifiedUI.ui.editorEngine.getRuntime",
+        "UnifiedUI.ui.editorEngine.ensureRuntime",
+        "UnifiedUI.ui.editorEngine.isExperimentalCodeMirror6Enabled",
+        "UnifiedUI.ui.editorEngine.getCodeMirrorBackend",
+        "UnifiedUI.ui.editorEngine.onChange",
+        "UnifiedUI.ui.editorEngine.resetFallback",
+        "UnifiedUI.ui.editorEngine.cloneViewState",
+        "UnifiedUI.ui.editorEngine.createViewStateStore",
+        "UnifiedUI.ui.diff",
+        "UnifiedUI.ui.editorActions",
+        "UnifiedUI.ui.editorToolbar",
+        "UnifiedUI.ui.diff.openForScope",
+        "UnifiedUI.ui.editorLinks",
+        "UnifiedUI.ui.diff.registerScope",
+        "UnifiedUI.ui.diff.unregisterScope",
+        "UnifiedUI.ui.diff.getScope",
+        "UnifiedUI.ui.diff.open",
+        "UnifiedUI.ui.diffModal",
+        "UnifiedUI.ui.diffModal.open",
+        "UnifiedUI.ui.diff.listScopes",
+        "UnifiedUI.ui.diff.resolveSourceText",
+        "UnifiedUI.ui.diff.applyTextToScope",
+        "UnifiedUI.ui.diff.describeSource",
+        "UnifiedUI.ui.diff.logDiff",
+        "UnifiedUI.ui.diffModal.close",
+        "UnifiedUI.ui.diffModal.isOpen",
+        "UnifiedUI.ui.modal",
+        "UnifiedUI.ui.confirm",
+        "UnifiedUI.ui.diffModal.setMode",
+        "UnifiedUI.monacoLoader.ensureMonaco",
+        "UnifiedUI.core.dom",
+        "UnifiedUI.core.storage",
+        "UnifiedUI.ui.applyTheme",
+        "UnifiedUI.ui.initThemeToggle",
+        "UnifiedUI.ui.syncThemeToggleButtons",
+        "UnifiedUI.util.escapeHtml",
+        "UnifiedUI.util.ansiToHtml",
+        "UnifiedUI.util.commandJob",
+        "UnifiedUI.ui.showGlobalXkeenSpinner",
+        "UnifiedUI.ui.hideGlobalXkeenSpinner",
+        "UnifiedUI.ui.showXrayPreflightError",
+        "UnifiedUI.pageConfig"
       ],
       "all_bootstrap_lazy_features": [],
       "lazy_runtime_inventory": null

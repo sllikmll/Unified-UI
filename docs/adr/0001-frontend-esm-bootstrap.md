@@ -1,4 +1,4 @@
-# ADR 0001: frontend xkeen-ui использует build-managed ESM bootstrap
+# ADR 0001: frontend unified-ui использует build-managed ESM bootstrap
 
 - Статус: Accepted
 - Дата принятия: 2026-03-27
@@ -16,7 +16,7 @@
 При этом совместимость всё ещё локально присутствует:
 
 1. `static/js/runtime/lazy_runtime.js` остаётся узким adapter для deferred shell/runtime paths;
-2. `window.XKeen` всё ещё используется как bridge для части старого кода.
+2. `window.UnifiedUI` всё ещё используется как bridge для части старого кода.
 
 ## Решение
 
@@ -28,7 +28,7 @@
 2. Shared runtime подключается обычными импортами.
 3. Canonical feature API живёт в модулях и доступен через явные getters.
 4. Lazy loading делается через `import()` или build-managed wrappers без DOM script injection.
-5. `window.XKeen` допускается только как compatibility namespace.
+5. `window.UnifiedUI` допускается только как compatibility namespace.
 6. Flask ограничивается HTML, page config и asset resolution, но не оркестрирует script chain вручную.
 
 ## Что это меняет на практике
@@ -43,7 +43,7 @@ Build assets не считаются отдельной архитектурой
 
 ### Для feature-кода
 
-Новый feature-модуль не должен проектироваться вокруг `window.XKeen.features.*`. Если bridge нужен для старого consumer-а, он должен быть вторичным по отношению к module-local API.
+Новый feature-модуль не должен проектироваться вокруг `window.UnifiedUI.features.*`. Если bridge нужен для старого consumer-а, он должен быть вторичным по отношению к module-local API.
 
 ## Историческая заметка про `legacy_script_loader.js`
 
@@ -60,7 +60,7 @@ Build assets не считаются отдельной архитектурой
 
 ### Стоимость
 
-- узкий compat-слой вокруг `window.XKeen` и `lazy_runtime.js` всё ещё нужно держать дисциплинированно;
+- узкий compat-слой вокруг `window.UnifiedUI` и `lazy_runtime.js` всё ещё нужно держать дисциплинированно;
 - file manager и некоторые runtime consumers нельзя приводить к целевой модели одной механической заменой.
 
 ## Guardrails на переходный период

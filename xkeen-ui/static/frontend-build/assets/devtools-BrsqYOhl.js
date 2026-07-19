@@ -1,1 +1,0 @@
-import{n as e,t}from"./top_level_panel_mihomo.shared-C1Intgdt.js";import{t as n}from"./devtools.screen.bootstrap-Bxvuzk8T.js";e({initialScreen:`devtools`,bootstrap(){return n()}}).then(()=>{try{t()}catch(e){try{console.error(`[XKeen] panel/mihomo/devtools screen registration failed`,e)}catch{}}});

@@ -28,17 +28,17 @@ UX должен быть одинаковым на CodeMirror 6 и Monaco — п
 ## Текущее состояние (точка отсчёта)
 
 - Двухдвижковая архитектура редакторов уже есть: см.
-  [editor_engine.js](../xkeen-ui/static/js/ui/editor_engine.js) и
-  [editor_actions.js](../xkeen-ui/static/js/ui/editor_actions.js). Любая новая
+  [editor_engine.js](../unified-ui/static/js/ui/editor_engine.js) и
+  [editor_actions.js](../unified-ui/static/js/ui/editor_actions.js). Любая новая
   edit-фича подключается через этот фасад.
 - Снэпшоты для Xray уже работают:
-  [routes/backups.py](../xkeen-ui/routes/backups.py) — эндпоинты
+  [routes/backups.py](../unified-ui/routes/backups.py) — эндпоинты
   `/api/xray/snapshots`, `/api/xray/snapshots/read`,
   `/api/xray/snapshots/restore`.
-- Снэпшотов на стороне Mihomo пока нет (`xkeen-ui/routes/mihomo.py` только
+- Снэпшотов на стороне Mihomo пока нет (`unified-ui/routes/mihomo.py` только
   load/save и validate). Это влияет на Phase 3.
 - Dirty-state и baseline на клиенте отслеживается в
-  [config_dirty_state.js](../xkeen-ui/static/js/features/config_dirty_state.js)
+  [config_dirty_state.js](../unified-ui/static/js/features/config_dirty_state.js)
   — оттуда можно брать "сохранённую на диске" версию без повторного запроса.
 - В шаблоне панели уже есть toolbar-хосты для каждого редактора:
   `#routing-toolbar-host`, `#mihomo-toolbar-host`, `#json-editor-toolbar` —
@@ -53,7 +53,7 @@ UX должен быть одинаковым на CodeMirror 6 и Monaco — п
 Расширяем `editor_actions.js` методом
 
 ```
-XKeen.ui.editorActions.openDiff({
+UnifiedUI.ui.editorActions.openDiff({
   left:    { source: 'buffer'|'disk'|'snapshot'|'file'|'text', ... },
   right:   { source: ..., ... },
   mode:    'split' | 'inline',
@@ -131,7 +131,7 @@ XKeen.ui.editorActions.openDiff({
 синхронизирован в `static/vendor/npm/`. Отдельный файл `diff_engine_cm.js` не
 делали — CM6-бэкенд (`MergeView` для split, `unifiedMergeView` для inline)
 живёт прямо в `diff_modal.js` рядом с Monaco-бэкендом, переключение по
-`pickBackend()` через `XKeen.ui.editorEngine.get()`. Все toolbar-операции
+`pickBackend()` через `UnifiedUI.ui.editorEngine.get()`. Все toolbar-операции
 (setMode / navigateDiff / updateSummary / onSourceChanged) диспатчатся по
 `_backendKind`. Стили под dark Monaco-палитру (`.cm-mergeView`,
 `.cm-changedLine`, `.cm-deletedChunk`, `.cm-insertedLine`) добавлены в
@@ -151,9 +151,9 @@ XKeen.ui.editorActions.openDiff({
 Фактически: routing.js / json_editor_modal.js регистрируют `listSnapshots` +
 `readSnapshot` в свой scope; модал подтягивает список асинхронно при открытии
 и при смене источника пересчитывает текст через
-`XKeen.ui.diff.resolveSourceText`. Mihomo не имеет snapshot-эндпоинтов —
+`UnifiedUI.ui.diff.resolveSourceText`. Mihomo не имеет snapshot-эндпоинтов —
 просто не передаёт `listSnapshots`, и в дропдауне остаются только buffer/disk.
-Логирование идёт через `XKeen.ui.diff.logDiff()` → `POST /api/log/event` →
+Логирование идёт через `UnifiedUI.ui.diff.logDiff()` → `POST /api/log/event` →
 `core.log` (`ui.event diff.compare | scope=…, left=…, right=…`).
 
 ### Phase 4 — File Manager — **закрыта**
@@ -177,7 +177,7 @@ XKeen.ui.editorActions.openDiff({
 показывает confirm-модал при размере >2 МБ
 (`COMPARE_SOFT_LIMIT_BYTES = 2 MB`), уважает флаг `truncated`,
 обрабатывает 415/`not_text` для бинарных файлов и подкидывает результат
-в `XKeen.ui.diff.open()` с descriptor `{source: 'text'}` без scope —
+в `UnifiedUI.ui.diff.open()` с descriptor `{source: 'text'}` без scope —
 из-за чего модал прячет dropdown'ы и показывает плоские лейблы. Подсказка
 языка — по расширению (`json`/`yaml`/`js`/…).
 
@@ -212,12 +212,12 @@ CM6 — `view.state.selection.main.head`); fallback — первый хунк в
 
 | Путь                                                         | Назначение                       |
 |--------------------------------------------------------------|----------------------------------|
-| `xkeen-ui/static/js/ui/diff_modal.js`                        | модал, тулбар, навигация          |
-| `xkeen-ui/static/js/ui/diff_engine.js`                       | диспетчер CM6 / Monaco            |
-| `xkeen-ui/static/js/ui/diff_engine_monaco.js`                | Monaco diff editor                |
-| `xkeen-ui/static/js/ui/diff_engine_cm.js`                    | CM6 MergeView / unifiedMergeView  |
-| `xkeen-ui/static/js/ui/source_adapters.js`                   | резолверы источников в текст      |
-| `xkeen-ui/static/css/diff_modal.css`                         | стили модала                      |
+| `unified-ui/static/js/ui/diff_modal.js`                        | модал, тулбар, навигация          |
+| `unified-ui/static/js/ui/diff_engine.js`                       | диспетчер CM6 / Monaco            |
+| `unified-ui/static/js/ui/diff_engine_monaco.js`                | Monaco diff editor                |
+| `unified-ui/static/js/ui/diff_engine_cm.js`                    | CM6 MergeView / unifiedMergeView  |
+| `unified-ui/static/js/ui/source_adapters.js`                   | резолверы источников в текст      |
+| `unified-ui/static/css/diff_modal.css`                         | стили модала                      |
 | `e2e/diff.spec.mjs`                                          | Playwright E2E                    |
 | `tests/static/test_diff_modal.py` (или unit-эквивалент)      | smoke-тесты                       |
 
@@ -225,14 +225,14 @@ CM6 — `view.state.selection.main.head`); fallback — первый хунк в
 
 | Путь                                                              | Что меняем                                |
 |-------------------------------------------------------------------|--------------------------------------------|
-| `xkeen-ui/static/js/ui/editor_actions.js`                         | добавить `openDiff()`                      |
-| `xkeen-ui/static/js/features/routing.js`                          | кнопка "Сравнить" в тулбаре                |
-| `xkeen-ui/static/js/features/inbounds.js`                         | кнопка "Сравнить" в тулбаре                |
-| `xkeen-ui/static/js/features/outbounds.js`                        | кнопка "Сравнить" в тулбаре                |
-| `xkeen-ui/static/js/features/mihomo_panel.js`                     | кнопка "Сравнить" в тулбаре                |
-| `xkeen-ui/static/js/features/config_dirty_state.js`               | публичный геттер baseline для diff         |
-| `xkeen-ui/static/js/features/file_manager/editor.js`              | пункт контекстного меню (Phase 4)          |
-| `xkeen-ui/templates/panel.html`                                   | при необходимости — слот под кнопку        |
+| `unified-ui/static/js/ui/editor_actions.js`                         | добавить `openDiff()`                      |
+| `unified-ui/static/js/features/routing.js`                          | кнопка "Сравнить" в тулбаре                |
+| `unified-ui/static/js/features/inbounds.js`                         | кнопка "Сравнить" в тулбаре                |
+| `unified-ui/static/js/features/outbounds.js`                        | кнопка "Сравнить" в тулбаре                |
+| `unified-ui/static/js/features/mihomo_panel.js`                     | кнопка "Сравнить" в тулбаре                |
+| `unified-ui/static/js/features/config_dirty_state.js`               | публичный геттер baseline для diff         |
+| `unified-ui/static/js/features/file_manager/editor.js`              | пункт контекстного меню (Phase 4)          |
+| `unified-ui/templates/panel.html`                                   | при необходимости — слот под кнопку        |
 | `package.json`                                                    | `@codemirror/merge` (Phase 2)              |
 | `vite.config.mjs`                                                 | отдельный chunk для merge                  |
 | `docs/frontend-page-inventory.md` / `.json`                       | обновить, если кнопки попадают в инвентарь |

@@ -11,7 +11,7 @@ from flask import Flask
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CORES_STATUS_PATH = ROOT / "xkeen-ui" / "routes" / "cores_status.py"
+CORES_STATUS_PATH = ROOT / "unified-ui" / "routes" / "cores_status.py"
 
 
 def _load_cores_status_module():
@@ -19,7 +19,7 @@ def _load_cores_status_module():
     prev_module = sys.modules.get(module_name)
     prev_path = list(sys.path)
     try:
-        sys.path.insert(0, str(ROOT / "xkeen-ui"))
+        sys.path.insert(0, str(ROOT / "unified-ui"))
         spec = importlib.util.spec_from_file_location(module_name, CORES_STATUS_PATH)
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
@@ -329,9 +329,9 @@ def test_cores_updates_returns_stale_cache_while_refresh_runs_in_background(tmp_
 
 
 def test_commands_panel_has_dedicated_prerelease_links_and_styles():
-    template = (ROOT / "xkeen-ui" / "templates" / "panel.html").read_text(encoding="utf-8")
-    styles = (ROOT / "xkeen-ui" / "static" / "styles.css").read_text(encoding="utf-8")
-    script = (ROOT / "xkeen-ui" / "static" / "js" / "features" / "cores_status.js").read_text(encoding="utf-8")
+    template = (ROOT / "unified-ui" / "templates" / "panel.html").read_text(encoding="utf-8")
+    styles = (ROOT / "unified-ui" / "static" / "styles.css").read_text(encoding="utf-8")
+    script = (ROOT / "unified-ui" / "static" / "js" / "features" / "cores_status.js").read_text(encoding="utf-8")
 
     assert 'id="core-xray-prerelease"' in template
     assert 'id="core-mihomo-prerelease"' in template

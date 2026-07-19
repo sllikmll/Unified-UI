@@ -2,13 +2,13 @@ import { defineConfig } from 'vite';
 import path from 'node:path';
 
 const repoRoot = path.resolve('.');
-const uiRoot = path.resolve(repoRoot, 'xkeen-ui');
+const uiRoot = path.resolve(repoRoot, 'unified-ui');
 const staticRoot = path.resolve(uiRoot, 'static');
 const pageDir = path.resolve(staticRoot, 'js/pages');
 
 const CANONICAL_PAGE_ENTRIES = {
   panel: path.resolve(pageDir, 'panel.entry.js'),
-  xkeen: path.resolve(pageDir, 'xkeen.entry.js'),
+  unified: path.resolve(pageDir, 'unified.entry.js'),
   backups: path.resolve(pageDir, 'backups.entry.js'),
   devtools: path.resolve(pageDir, 'devtools.entry.js'),
   mihomo_generator: path.resolve(pageDir, 'mihomo_generator.entry.js'),
