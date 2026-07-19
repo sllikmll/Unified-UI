@@ -6,6 +6,7 @@ import { initMihomoSelectorsPanel, onShowMihomoSelectorsPanel } from '../feature
 import { initMihomoConnectionsPanel, onShowMihomoConnectionsPanel } from '../features/mihomo_connections.js';
 import { initMihomoSubscriptionsButton } from '../features/mihomo_subscriptions.js';
 import { initProxyConnectionsPanel, onShowProxyConnectionsPanel } from '../features/proxy_connections.js';
+import { initAuthPasswordControls } from '../features/auth_password.js';
 import { initMihomoGenerator, getMihomoGeneratorApi } from '../features/mihomo_generator.js';
 import {
   getXkeenStateValue,
@@ -259,6 +260,8 @@ let panelShellViewRuntimeBound = false;
 export function bindPanelShellViewRuntime(sharedShell) {
   if (panelShellViewRuntimeBound) return;
   panelShellViewRuntimeBound = true;
+
+  try { initAuthPasswordControls(); } catch (error) { try { console.error('[XKeen] auth password controls init failed', error); } catch (e) {} }
 
   document.addEventListener('xkeen:panel-view-changed', (event) => {
     const detail = event && event.detail ? event.detail : {};
