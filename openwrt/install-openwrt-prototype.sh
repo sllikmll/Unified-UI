@@ -62,7 +62,16 @@ TMP_DIR="/tmp/unified-ui-openwrt-update-$$"
 ARCHIVE="$TMP_DIR/unified-ui-openwrt.tar.gz"
 mkdir -p "$TMP_DIR"
 trap 'rm -rf "$TMP_DIR"' EXIT INT TERM
-curl -fL --max-time 120 -o "$ARCHIVE" "$UPDATE_URL"
+curl_args="-fL --max-time 120"
+if [ -n "${UNIFIED_UI_DOWNLOAD_PROXY:-}" ]; then
+  curl $curl_args --proxy "$UNIFIED_UI_DOWNLOAD_PROXY" -o "$ARCHIVE" "$UPDATE_URL"
+elif [ -S /tmp/mihomo.sock ]; then
+  curl $curl_args -o "$ARCHIVE" "$UPDATE_URL"
+elif netstat -lnt 2>/dev/null | grep -q '127\.0\.0\.1:7890\|0\.0\.0\.0:7890\|:::7890'; then
+  curl $curl_args --proxy http://127.0.0.1:7890 -o "$ARCHIVE" "$UPDATE_URL"
+else
+  curl $curl_args -o "$ARCHIVE" "$UPDATE_URL"
+fi
 tar -xzf "$ARCHIVE" -C "$TMP_DIR"
 INSTALLER="$(find "$TMP_DIR" -maxdepth 2 -type f -name install.sh | head -1)"
 [ -n "$INSTALLER" ] || { echo "install.sh not found in update archive" >&2; exit 1; }
