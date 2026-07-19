@@ -527,6 +527,7 @@ import { wireTopLevelNavigation } from './top_level_nav.shared.js';
       routing: document.getElementById('view-routing'),
       mihomo: document.getElementById('view-mihomo'),
       'mihomo-selectors': document.getElementById('view-mihomo-selectors'),
+      'dns-routes': document.getElementById('view-dns-routes'),
       'mihomo-connections': document.getElementById('view-mihomo-connections'),
       geodat: document.getElementById('view-geodat'),
       'protocol-wireguard': document.getElementById('view-protocol-wireguard'),

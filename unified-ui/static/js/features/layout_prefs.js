@@ -11,6 +11,7 @@ let layoutPrefsModuleApi = null;
   const TAB_DEFS = Object.freeze([
     { key: 'view:routing', label: 'Роутинг Xray' },
     { key: 'view:mihomo', label: 'Mihomo' },
+    { key: 'view:dns-routes', label: 'Маршруты DNS' },
     { key: 'view:mihomo-connections', label: 'Соединения' },
     { key: 'view:geodat', label: 'DAT GeoIP / GeoSite' },
     { key: 'view:protocol-wireguard', label: 'WireGuard' },

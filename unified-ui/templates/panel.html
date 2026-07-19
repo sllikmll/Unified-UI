@@ -234,6 +234,9 @@
         <button class="top-tab-btn xk-top-tab xk-top-tab-mihomo-selectors active" data-view="mihomo-selectors" data-xk-section="mihomo-selectors">
           Маршрутизация
         </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-dns-routes" data-view="dns-routes" data-xk-section="dns-routes">
+          Маршруты DNS
+        </button>
         <button class="top-tab-btn xk-top-tab xk-top-tab-mihomo" data-view="mihomo" data-xk-section="mihomo">
           Mihomo
         </button>
@@ -1203,6 +1206,72 @@
   </section>
 </div>
 {% endif %}
+
+<div id="view-dns-routes" class="view-section" style="display:none;" data-xk-section="dns-routes">
+  <section class="card xk-dns-routes-card">
+    <div class="commands-header">
+      <div>
+        <div class="commands-title">Маршруты DNS</div>
+        <div class="commands-subtitle">Keenetic/NDMS-style routing: domain/IP lists → router interface. Это отдельный режим рядом с Mihomo selector routing.</div>
+      </div>
+      <div class="xk-dns-routes-actions" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <span id="dns-routes-status" class="status" style="margin:0;">Загрузка…</span>
+        <button type="button" class="btn-secondary" id="dns-routes-refresh-btn">⟳ Обновить</button>
+        <button type="button" class="btn-primary" id="dns-routes-new-btn">➕ Новый список</button>
+      </div>
+    </div>
+
+    <div class="xk-dns-routes-mode" style="display:flex; gap:10px; flex-wrap:wrap; margin:12px 0;">
+      <label class="mode-item" style="min-width:260px;">
+        <input type="radio" name="dns-routing-mode" value="mihomo" checked>
+        <div><strong>Mihomo selectors</strong><br><small class="xk-card-desc">Трафик выбирается selector-группами Mihomo.</small></div>
+      </label>
+      <label class="mode-item" style="min-width:300px;">
+        <input type="radio" name="dns-routing-mode" value="dns-routes">
+        <div><strong>Маршруты DNS / интерфейсы роутера</strong><br><small class="xk-card-desc">Списки доменов/IP маршрутизируются через WireGuard/Amnezia/WAN интерфейсы NDMS.</small></div>
+      </label>
+    </div>
+
+    <div class="xk-dns-routes-grid" style="display:grid; grid-template-columns:minmax(320px, 0.95fr) minmax(420px, 1.2fr); gap:14px; align-items:start;">
+      <aside class="xk-dns-routes-list-panel xk-manual-list-panel" style="border-radius:6px;">
+        <div class="xk-manual-list-head">
+          <div>
+            <div class="commands-title" style="font-size:16px;">Списки NDMS</div>
+            <div class="commands-subtitle">object-group fqdn domain-listN + dns-proxy route.</div>
+          </div>
+        </div>
+        <div id="dns-routes-list" class="xk-dns-routes-list"></div>
+      </aside>
+
+      <main class="xk-dns-routes-editor xk-manual-list-panel" style="border-radius:6px;">
+        <div class="xk-manual-list-head">
+          <div>
+            <div class="commands-title" style="font-size:16px;">Редактор маршрута</div>
+            <div id="dns-routes-editor-note" class="commands-subtitle">Выбери список слева или создай новый.</div>
+          </div>
+          <button type="button" class="btn-primary" id="dns-routes-apply-btn">✅ Применить</button>
+        </div>
+        <div class="xk-dns-routes-form" style="display:grid; gap:10px;">
+          <label class="xk-protocol-field"><span>ID списка</span><input id="dns-routes-name" class="terminal-input" placeholder="domain-list5"></label>
+          <label class="xk-protocol-field"><span>Описание</span><input id="dns-routes-description" class="terminal-input" placeholder="YouTube / Telegram / Manual"></label>
+          <label class="xk-protocol-field"><span>Интерфейс маршрутизации</span><select id="dns-routes-interface" class="terminal-input"></select></label>
+          <label class="xk-protocol-field"><span>Домены, IP и CIDR</span><textarea id="dns-routes-items" class="terminal-input xk-protocol-import-text" style="min-height:260px;" spellcheck="false" placeholder="youtube.com&#10;googlevideo.com&#10;142.250.0.0/15"></textarea></label>
+          <div class="commands-subtitle">Домен указывается корневым: <code>youtube.com</code> покрывает и поддомены через NDMS DNS proxy route. <code>*.youtube.com</code> будет нормализован в <code>youtube.com</code>.</div>
+        </div>
+        <hr style="border-color:rgba(120,160,220,.18); width:100%; margin:14px 0;">
+        <div class="xk-dns-service-generator" style="display:grid; gap:10px;">
+          <div class="commands-title" style="font-size:16px;">Генератор списков по сервисам</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:8px; align-items:end;">
+            <label class="xk-protocol-field"><span>Сервис</span><select id="dns-routes-service" class="terminal-input"></select></label>
+            <label class="xk-protocol-field"><span>DNS для сбора IP</span><input id="dns-routes-dns-server" class="terminal-input" placeholder="1.1.1.1 / 8.8.8.8 / пусто = системный"></label>
+            <button type="button" class="btn-secondary" id="dns-routes-generate-btn">⚙ Сгенерировать</button>
+          </div>
+          <div id="dns-routes-service-preview" class="status" style="margin:0;"></div>
+        </div>
+      </main>
+    </div>
+  </section>
+</div>
 
 <div id="view-mihomo-connections" class="view-section" style="display:none;" data-xk-section="mihomo-connections">
   <section class="card xk-mihomo-connections-card">
