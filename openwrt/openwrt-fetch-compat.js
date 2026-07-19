@@ -132,6 +132,9 @@
       } catch(e) {}
       return res;
     }
+    if(path==='/api/keenetic/dns-routes' && method==='GET') return cgi('/dns-routes', opts);
+    if(path==='/api/keenetic/dns-routes/preview-service' && method==='POST') return cgi('/dns-routes-preview', opts);
+    if(path==='/api/keenetic/dns-routes/apply' && method==='POST') return cgi('/dns-routes-apply', opts);
     if(path==='/api/devtools/branding' && method==='GET') return jsonResponse({ok:true, branding:{title:'Unified UI'}});
     if(path==='/api/devtools/terminal_theme' && method==='GET') return jsonResponse({ok:true, enabled:false});
     if(path==='/api/proxy-connections' && method==='GET') return cgi('/proxy-connections', opts);

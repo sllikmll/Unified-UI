@@ -356,6 +356,171 @@ registry_json() {
   if [ -f "$PROXY_REGISTRY" ]; then cat "$PROXY_REGISTRY"; else printf '{"connections":[]}'; fi
 }
 
+
+DNS_ROUTES_DIR="${UNIFIED_UI_CONF_DIR:-/etc/unified-ui}/dns-routes"
+DNS_ROUTES_INIT="/etc/init.d/unified-ui-dns-routes"
+
+dns_routes_services_json() {
+  printf '{'
+  printf '"youtube":{"label":"YouTube","domains":["youtube.com","youtu.be","ytimg.com","googlevideo.com","ggpht.com","youtube-nocookie.com","youtubei.googleapis.com","yt3.googleusercontent.com"]}'
+  printf ',"telegram":{"label":"Telegram","domains":["telegram.org","telegram.me","t.me","telegra.ph","telegram-cdn.org","cdn-telegram.org","telesco.pe","tdesktop.com"],"ips":["91.105.192.0/23","91.108.4.0/22","91.108.8.0/22","91.108.12.0/22","91.108.16.0/22","91.108.20.0/22","91.108.56.0/22","149.154.160.0/20"]}'
+  printf ',"meta":{"label":"Meta / Instagram / Facebook","domains":["meta.com","facebook.com","fb.com","facebook.net","fbcdn.net","fbsbx.com","instagram.com","cdninstagram.com","ig.me","threads.net","whatsapp.com","whatsapp.net"],"ips":["31.13.0.0/16","57.144.0.0/14","66.220.0.0/16","69.63.0.0/16","69.171.0.0/16","129.134.0.0/16","157.240.0.0/16","163.70.0.0/16","173.252.0.0/16","179.60.0.0/16","185.60.0.0/16"]}'
+  printf ',"chatgpt":{"label":"ChatGPT / OpenAI","domains":["openai.com","chatgpt.com","oaistatic.com","oaiusercontent.com","auth0.openai.com","platform.openai.com","api.openai.com"]}'
+  printf ',"github":{"label":"GitHub","domains":["github.com","api.github.com","raw.githubusercontent.com","githubusercontent.com","objects.githubusercontent.com","githubassets.com","github.io"]}'
+  printf ',"discord":{"label":"Discord","domains":["discord.com","discord.gg","discordapp.com","discordapp.net","discordcdn.com","discord.media"]}'
+  printf ',"spotify":{"label":"Spotify","domains":["spotify.com","scdn.co","spoti.fi","spotifycdn.com","spotifycdn.net","audio-ak-spotify-com.akamaized.net"]}'
+  printf ',"netflix":{"label":"Netflix","domains":["netflix.com","nflxvideo.net","nflximg.net","nflxext.com","nflxso.net"]}'
+  printf '}'
+}
+
+dns_routes_service_domains() {
+  case "$1" in
+    youtube) printf '%s\n' youtube.com youtu.be ytimg.com googlevideo.com ggpht.com youtube-nocookie.com youtubei.googleapis.com yt3.googleusercontent.com ;;
+    telegram) printf '%s\n' telegram.org telegram.me t.me telegra.ph telegram-cdn.org cdn-telegram.org telesco.pe tdesktop.com 91.105.192.0/23 91.108.4.0/22 91.108.8.0/22 91.108.12.0/22 91.108.16.0/22 91.108.20.0/22 91.108.56.0/22 149.154.160.0/20 ;;
+    meta) printf '%s\n' meta.com facebook.com fb.com facebook.net fbcdn.net fbsbx.com instagram.com cdninstagram.com ig.me threads.net whatsapp.com whatsapp.net 31.13.0.0/16 57.144.0.0/14 66.220.0.0/16 69.63.0.0/16 69.171.0.0/16 129.134.0.0/16 157.240.0.0/16 163.70.0.0/16 173.252.0.0/16 179.60.0.0/16 185.60.0.0/16 ;;
+    chatgpt) printf '%s\n' openai.com chatgpt.com oaistatic.com oaiusercontent.com auth0.openai.com platform.openai.com api.openai.com ;;
+    github) printf '%s\n' github.com api.github.com raw.githubusercontent.com githubusercontent.com objects.githubusercontent.com githubassets.com github.io ;;
+    discord) printf '%s\n' discord.com discord.gg discordapp.com discordapp.net discordcdn.com discord.media ;;
+    spotify) printf '%s\n' spotify.com scdn.co spoti.fi spotifycdn.com spotifycdn.net audio-ak-spotify-com.akamaized.net ;;
+    netflix) printf '%s\n' netflix.com nflxvideo.net nflximg.net nflxext.com nflxso.net ;;
+  esac
+}
+
+dns_routes_service_label() {
+  case "$1" in
+    youtube) printf 'YouTube' ;; telegram) printf 'Telegram' ;; meta) printf 'Meta / Instagram / Facebook' ;; chatgpt) printf 'ChatGPT / OpenAI' ;; github) printf 'GitHub' ;; discord) printf 'Discord' ;; spotify) printf 'Spotify' ;; netflix) printf 'Netflix' ;; *) printf '%s' "$1" ;;
+  esac
+}
+
+dns_routes_normalize_item() {
+  printf '%s' "$1" | tr 'A-Z' 'a-z' | sed 's/[;,]//g; s/^\*\.//; s/\.$//; s/^[[:space:]]*//; s/[[:space:]]*$//'
+}
+
+dns_routes_safe_name() {
+  n="$1"
+  n="$(printf '%s' "$n" | tr -cs 'A-Za-z0-9_.-' '-' | sed 's/^-//;s/-$//')"
+  [ -n "$n" ] || n="dns-list-$(date +%s)"
+  printf '%s' "$n"
+}
+
+dns_routes_next_name() {
+  mkdir -p "$DNS_ROUTES_DIR"
+  i=0
+  while [ -e "$DNS_ROUTES_DIR/domain-list$i.items" ]; do i=$((i+1)); done
+  printf 'domain-list%s' "$i"
+}
+
+dns_routes_interfaces_json() {
+  ip -o link show 2>/dev/null | awk -F': ' '
+    BEGIN{printf "["; first=1}
+    {
+      name=$2; sub(/@.*/, "", name);
+      if(name=="lo" || name ~ /^lan[0-9]+$/ || name ~ /^phy/) next;
+      gsub(/\\/, "\\\\", name); gsub(/"/, "\\\"", name);
+      if(!first) printf ","; first=0;
+      printf "{\"name\":\"%s\",\"description\":\"OpenWrt interface\"}", name;
+    }
+    END{printf "]"}'
+}
+
+dns_routes_list_json() {
+  mkdir -p "$DNS_ROUTES_DIR"
+  printf '['
+  first=1
+  for f in "$DNS_ROUTES_DIR"/*.items; do
+    [ -f "$f" ] || continue
+    name="${f##*/}"; name="${name%.items}"
+    meta="$DNS_ROUTES_DIR/$name.meta"
+    desc="$name"; iface=""
+    [ -f "$meta" ] && desc="$(sed -n 's/^description=//p' "$meta" | head -1)"
+    [ -f "$meta" ] && iface="$(sed -n 's/^interface=//p' "$meta" | head -1)"
+    items="$(awk 'NF{gsub(/\\/,"\\\\"); gsub(/"/,"\\\""); if(n++)printf ","; printf "\"%s\"",$0}' "$f")"
+    [ -n "$items" ] || items=""
+    [ "$first" = 1 ] || printf ','; first=0
+    printf '{"name":"%s","description":"%s","interface":"%s","items":[%s],"route_line":"OpenWrt static DNS resolve + nft fwmark"}' \
+      "$(printf '%s' "$name" | json_escape)" "$(printf '%s' "$desc" | json_escape)" "$(printf '%s' "$iface" | json_escape)" "$items"
+  done
+  printf ']'
+}
+
+dns_routes_resolve_items() {
+  dns_server="$1"
+  while IFS= read -r d; do
+    case "$d" in *[!0-9./]*) ;;
+      *) continue ;;
+    esac
+    if [ -n "$dns_server" ]; then nslookup "$d" "$dns_server" 2>/dev/null; else nslookup "$d" 2>/dev/null; fi | awk '/^Address [0-9]+: /{print $3} /^Address: /{print $2}' | grep -E '^[0-9]+(\.[0-9]+){3}$' || true
+  done
+}
+
+dns_routes_install_init() {
+  cat > "$DNS_ROUTES_INIT" <<'DNSINIT'
+#!/bin/sh /etc/rc.common
+START=98
+USE_PROCD=0
+CONF_DIR="/etc/unified-ui/dns-routes"
+mark_for() { idx="$1"; printf '0x%x' $((0x6600 + idx)); }
+table_for() { idx="$1"; printf '%s' $((16600 + idx)); }
+idx_from_name() { printf '%s' "$1" | sed -n 's/^domain-list\([0-9][0-9]*\)$/\1/p'; }
+resolve_domain() {
+  d="$1"
+  nslookup "$d" 127.0.0.1 2>/dev/null | awk '/^Address [0-9]+: /{print $3} /^Address: /{print $2}' | grep -E '^[0-9]+(\.[0-9]+){3}$' || true
+}
+add_item_to_set() {
+  set="$1"; item="$2"
+  [ -n "$item" ] || return 0
+  case "$item" in
+    *[!0-9./]*)
+      resolve_domain "$item" | while IFS= read -r ip; do nft add element inet unified_dns "$set" "{ $ip }" 2>/dev/null || true; done
+      ;;
+    */*|*.*)
+      nft add element inet unified_dns "$set" "{ $item }" 2>/dev/null || true
+      ;;
+  esac
+}
+apply_rules() {
+  mkdir -p "$CONF_DIR"
+  rm -f /tmp/dnsmasq.d/unified-ui-dns-routes.conf 2>/dev/null || true
+  for idx in $(seq 0 99); do
+    mark="$(mark_for "$idx")"; table="$(table_for "$idx")"
+    while ip rule del pref "$table" 2>/dev/null; do :; done
+    while ip rule del fwmark "$mark" table "$table" 2>/dev/null; do :; done
+    ip route flush table "$table" 2>/dev/null || true
+  done
+  nft delete table inet unified_dns 2>/dev/null || true
+  nft add table inet unified_dns
+  nft add chain inet unified_dns prerouting '{ type filter hook prerouting priority mangle; policy accept; }'
+  nft add chain inet unified_dns output '{ type route hook output priority mangle; policy accept; }'
+  for f in "$CONF_DIR"/*.items; do
+    [ -f "$f" ] || continue
+    name="${f##*/}"; name="${name%.items}"
+    idx="$(idx_from_name "$name")"; [ -n "$idx" ] || idx=99
+    set="u_dns_$idx"; mark="$(mark_for "$idx")"; table="$(table_for "$idx")"
+    meta="$CONF_DIR/$name.meta"; iface="$(sed -n 's/^interface=//p' "$meta" 2>/dev/null | head -1)"
+    [ -n "$iface" ] || continue
+    nft add set inet unified_dns "$set" '{ type ipv4_addr; flags interval; auto-merge; }' 2>/dev/null || nft add set inet unified_dns "$set" '{ type ipv4_addr; flags interval; }'
+    while ip rule del pref "$table" 2>/dev/null; do :; done
+    while ip rule del fwmark "$mark" table "$table" 2>/dev/null; do :; done
+    ip route flush table "$table" 2>/dev/null || true
+    ip route add default dev "$iface" table "$table" 2>/dev/null || true
+    ip rule add fwmark "$mark" table "$table" priority "$table" 2>/dev/null || true
+    nft add rule inet unified_dns prerouting ip daddr @"$set" meta mark set "$mark" 2>/dev/null || true
+    nft add rule inet unified_dns output ip daddr @"$set" meta mark set "$mark" 2>/dev/null || true
+    while IFS= read -r item; do add_item_to_set "$set" "$item"; done < "$f"
+  done
+}
+start() { apply_rules; }
+restart() { apply_rules; }
+DNSINIT
+  chmod 755 "$DNS_ROUTES_INIT"
+  "$DNS_ROUTES_INIT" enable >/dev/null 2>&1 || true
+}
+
+dns_routes_apply_all() {
+  dns_routes_install_init
+  "$DNS_ROUTES_INIT" restart 2>&1 || true
+}
+
 require_auth_or_401
 
 case "${PATH_INFO:-}" in
@@ -665,6 +830,69 @@ case "${PATH_INFO:-}" in
     else
       printf '{"ok":true,"id":"%s"}' "$id"
     fi
+    ;;
+
+  /dns-routes)
+    hdr_json
+    printf '{"ok":true,"platform":"openwrt","mode":"dns-routes","lists":%s,"interfaces":%s,"services":%s}' "$(dns_routes_list_json)" "$(dns_routes_interfaces_json)" "$(dns_routes_services_json)"
+    ;;
+  /dns-routes-preview)
+    body="$(read_body)"
+    service="$(printf '%s' "$body" | jsonfilter -e '@.service' 2>/dev/null || true)"
+    dns_server="$(printf '%s' "$body" | jsonfilter -e '@.dns_server' 2>/dev/null || true)"
+    items_tmp="/tmp/unified-ui-dns-preview-$$.items"
+    dns_routes_service_domains "$service" | while IFS= read -r x; do dns_routes_normalize_item "$x"; echo; done | awk 'NF&&!seen[$0]++' > "$items_tmp"
+    if [ ! -s "$items_tmp" ]; then
+      hdr_json '404 Not Found'
+      printf '{"ok":false,"error":"unknown_service"}'
+      rm -f "$items_tmp"
+      exit 0
+    fi
+    resolved_tmp="/tmp/unified-ui-dns-preview-$$.resolved"
+    dns_routes_resolve_items "$dns_server" < "$items_tmp" | awk 'NF&&!seen[$0]++' > "$resolved_tmp"
+    cat "$resolved_tmp" >> "$items_tmp"
+    items_json="$(awk 'NF&&!seen[$0]++{gsub(/\\/,"\\\\"); gsub(/"/,"\\\""); if(n++)printf ","; printf "\"%s\"",$0}' "$items_tmp")"
+    resolved_json="$(awk 'NF{gsub(/\\/,"\\\\"); gsub(/"/,"\\\""); if(n++)printf ","; printf "\"%s\"",$0}' "$resolved_tmp")"
+    rm -f "$items_tmp" "$resolved_tmp"
+    hdr_json
+    printf '{"ok":true,"service":"%s","label":"%s","dns_server":"%s","items":[%s],"resolved_ips":[%s]}' \
+      "$(printf '%s' "$service" | json_escape)" "$(dns_routes_service_label "$service" | json_escape)" "$(printf '%s' "$dns_server" | json_escape)" "$items_json" "$resolved_json"
+    ;;
+  /dns-routes-apply)
+    body="$(read_body)"
+    name="$(printf '%s' "$body" | jsonfilter -e '@.name' 2>/dev/null || true)"
+    desc="$(printf '%s' "$body" | jsonfilter -e '@.description' 2>/dev/null || true)"
+    iface="$(printf '%s' "$body" | jsonfilter -e '@.interface' 2>/dev/null || true)"
+    [ -n "$name" ] || name="$(dns_routes_next_name)"
+    name="$(dns_routes_safe_name "$name")"
+    [ -n "$desc" ] || desc="$name"
+    if [ -z "$iface" ]; then
+      hdr_json '400 Bad Request'
+      printf '{"ok":false,"error":"bad_interface","message":"Выберите интерфейс"}'
+      exit 0
+    fi
+    mkdir -p "$DNS_ROUTES_DIR" "$UNIFIED_UI_BACKUP_DIR"
+    items_file="$DNS_ROUTES_DIR/$name.items"
+    meta_file="$DNS_ROUTES_DIR/$name.meta"
+    backup="$UNIFIED_UI_BACKUP_DIR/openwrt-dns-routes-$(date +%Y%m%d-%H%M%S).tar"
+    tar -cf "$backup" "$DNS_ROUTES_DIR" 2>/dev/null || true
+    tmp_items="$items_file.tmp.$$"
+    printf '%s' "$body" | jsonfilter -e '@.items[*]' 2>/dev/null | while IFS= read -r x; do dns_routes_normalize_item "$x"; echo; done | awk 'NF&&!seen[$0]++' > "$tmp_items"
+    if [ ! -s "$tmp_items" ]; then
+      rm -f "$tmp_items"
+      hdr_json '400 Bad Request'
+      printf '{"ok":false,"error":"empty_items","message":"Список пуст"}'
+      exit 0
+    fi
+    mv "$tmp_items" "$items_file"
+    { printf 'description=%s\n' "$desc"; printf 'interface=%s\n' "$iface"; } > "$meta_file"
+    chmod 600 "$items_file" "$meta_file" 2>/dev/null || true
+    apply_out="$(dns_routes_apply_all)"
+    esc_out="$(printf '%s' "$apply_out" | json_escape)"
+    items_json="$(awk 'NF{gsub(/\\/,"\\\\"); gsub(/"/,"\\\""); if(n++)printf ","; printf "\"%s\"",$0}' "$items_file")"
+    hdr_json
+    printf '{"ok":true,"platform":"openwrt","name":"%s","interface":"%s","backup":"%s","items":[%s],"apply_log":"%s"}' \
+      "$(printf '%s' "$name" | json_escape)" "$(printf '%s' "$iface" | json_escape)" "$(printf '%s' "$backup" | json_escape)" "$items_json" "$esc_out"
     ;;
 
   /api-raw)
