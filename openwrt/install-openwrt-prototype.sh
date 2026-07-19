@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 
 UI_ROOT="/www/unified-ui"
 CGI_PATH="/www/cgi-bin/unified-ui-api"
@@ -171,6 +172,20 @@ validate_profile_content() {
   printf '%s\n__EXIT__%s' "$out" "$code"
 }
 
+
+json_string_value() {
+  key="$1"
+  sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1
+}
+
+rule_provider_file() {
+  name="$1"
+  case "$name" in
+    manual-proxy|manual-proxy@classical|manual|Ручной*) printf '%s/rules/manual-proxy.yaml' "$MIHOMO_RUN_DIR" ;;
+    *) printf '%s/rules/%s.yaml' "$MIHOMO_RUN_DIR" "$name" ;;
+  esac
+}
+
 case "${PATH_INFO:-}" in
   /version)
     hdr_json
@@ -307,6 +322,32 @@ case "${PATH_INFO:-}" in
       printf '{"ok":true,"saved":true,"applied":false,"backup":"%s","validation_output":"%s"}' "$backup" "$esc_out"
     fi
     ;;
+
+  /api-raw)
+    hdr_json
+    raw_path="$(printf '%s' "${QUERY_STRING:-}" | sed -n 's/^path=//p' | sed 's/%2F/\//g; s/%2f/\//g')"
+    printf '{"ok":false,"error":"OpenWrt compat endpoint not mapped","path":"%s"}' "$raw_path"
+    ;;
+  /rule-provider/*)
+    provider="${PATH_INFO#/rule-provider/}"
+    provider="$(printf '%s' "$provider" | sed 's/%40/@/g; s/%20/ /g')"
+    file="$(rule_provider_file "$provider")"
+    if [ "${REQUEST_METHOD:-GET}" = "POST" ]; then
+      body="$(read_body)"
+      content="$(printf '%s' "$body" | jsonfilter -e '@.content' 2>/dev/null || true)"
+      mkdir -p "$(dirname "$file")" "$UNIFIED_UI_BACKUP_DIR"
+      if [ -f "$file" ]; then cp "$file" "$UNIFIED_UI_BACKUP_DIR/rule-provider-$(basename "$file")-$(date +%Y%m%d-%H%M%S).bak"; fi
+      printf '%s\n' "$content" > "$file"
+      esc_content="$(printf '%s' "$content" | json_escape)"
+      hdr_json
+      printf '{"ok":true,"provider":"%s","path":"%s","editable":true,"content":"%s"}' "$provider" "$file" "$esc_content"
+    else
+      hdr_json
+      if [ -f "$file" ]; then content="$(cat "$file")"; else content='payload:'; fi
+      esc_content="$(printf '%s' "$content" | json_escape)"
+      printf '{"ok":true,"provider":"%s","path":"%s","editable":true,"content":"%s","meta":{"type":"file"}}' "$provider" "$file" "$esc_content"
+    fi
+    ;;
   /restart)
     before="$(pidof mihomo 2>/dev/null || true)"
     out="$($MIHOMO_INIT restart 2>&1)"
@@ -324,6 +365,17 @@ case "${PATH_INFO:-}" in
 esac
 CGI
 chmod +x "$CGI_PATH"
+
+
+BUNDLED_UI_DIR="$SCRIPT_DIR/www/unified-ui"
+if [ -f "$BUNDLED_UI_DIR/index.html" ]; then
+  rm -rf "$UI_ROOT"
+  mkdir -p "$UI_ROOT"
+  cp -a "$BUNDLED_UI_DIR/." "$UI_ROOT/"
+  chmod -R a+rX "$UI_ROOT"
+  printf 'Installed Unified UI OpenWrt full panel:\n  %s\n  %s\n  update: %s\n' "$UI_ROOT/index.html" "$CGI_PATH" "$UPDATE_URL"
+  exit 0
+fi
 
 cat > "$UI_ROOT/index.html" <<'HTML'
 <!doctype html>
