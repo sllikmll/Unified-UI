@@ -105,6 +105,10 @@ UNIFIED_UI_CONF_DIR="${UNIFIED_UI_CONF_DIR:-/etc/unified-ui}"
 UNIFIED_UI_BACKUP_DIR="${UNIFIED_UI_BACKUP_DIR:-/etc/unified-ui/backups}"
 UNIFIED_UI_VERSION="${UNIFIED_UI_VERSION:-dev-local}"
 UNIFIED_UI_UPDATE_URL="${UNIFIED_UI_UPDATE_URL:-}"
+UNIFIED_UI_AUTH_USER="${UNIFIED_UI_AUTH_USER:-admin}"
+UNIFIED_UI_AUTH_PASSWORD="${UNIFIED_UI_AUTH_PASSWORD:-admin}"
+UNIFIED_UI_SESSION_FILE="${UNIFIED_UI_SESSION_FILE:-/tmp/unified-ui-session.token}"
+UNIFIED_UI_SESSION_COOKIE="UnifiedUIOpenWrtSession"
 
 json_escape() {
   sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/$/\\n/' | tr -d '\n' | sed 's/\\n$//'
@@ -114,6 +118,56 @@ hdr_json() {
   printf 'Status: %s\r\n' "${1:-200 OK}"
   printf 'Content-Type: application/json; charset=utf-8\r\n'
   printf 'Cache-Control: no-store\r\n\r\n'
+}
+
+hdr_json_cookie() {
+  status="${1:-200 OK}"
+  cookie_line="${2:-}"
+  printf 'Status: %s\r\n' "$status"
+  printf 'Content-Type: application/json; charset=utf-8\r\n'
+  printf 'Cache-Control: no-store\r\n'
+  [ -n "$cookie_line" ] && printf 'Set-Cookie: %s\r\n' "$cookie_line"
+  printf '\r\n'
+}
+
+cookie_value() {
+  name="$1"
+  printf '%s' "${HTTP_COOKIE:-}" | tr ';' '\n' | sed 's/^ *//' | sed -n "s/^$name=//p" | head -1
+}
+
+session_token() {
+  if [ -f "$UNIFIED_UI_SESSION_FILE" ]; then
+    cat "$UNIFIED_UI_SESSION_FILE" 2>/dev/null || true
+  fi
+}
+
+new_session_token() {
+  mkdir -p "$(dirname "$UNIFIED_UI_SESSION_FILE")"
+  token="$(dd if=/dev/urandom bs=24 count=1 2>/dev/null | base64 | tr -d '=+/\n' | cut -c1-32)"
+  [ -n "$token" ] || token="$(date +%s)-$$"
+  printf '%s' "$token" > "$UNIFIED_UI_SESSION_FILE"
+  chmod 600 "$UNIFIED_UI_SESSION_FILE" 2>/dev/null || true
+  printf '%s' "$token"
+}
+
+is_auth_path() {
+  case "${PATH_INFO:-}" in
+    /auth-login|/auth-check|/auth-logout) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_authenticated() {
+  expected="$(session_token)"
+  got="$(cookie_value "$UNIFIED_UI_SESSION_COOKIE")"
+  [ -n "$expected" ] && [ -n "$got" ] && [ "$expected" = "$got" ]
+}
+
+require_auth_or_401() {
+  if is_auth_path || is_authenticated; then return 0; fi
+  hdr_json_cookie '401 Unauthorized'
+  printf '{"ok":false,"authenticated":false,"error":"auth_required"}'
+  exit 0
 }
 
 mihomo_get() {
@@ -161,6 +215,36 @@ ui_update_url() {
     printf '%s' "$UNIFIED_UI_UPDATE_URL"
   elif [ -f "$UNIFIED_UI_BUILD_FILE" ]; then
     jsonfilter -i "$UNIFIED_UI_BUILD_FILE" -e '@.update_url' 2>/dev/null || true
+  fi
+}
+
+build_version() { jsonfilter -i "$UNIFIED_UI_BUILD_FILE" -e '@.version' 2>/dev/null || printf '%s' "$UNIFIED_UI_VERSION"; }
+build_date() { jsonfilter -i "$UNIFIED_UI_BUILD_FILE" -e '@.release_date' 2>/dev/null || true; }
+update_repo() { printf '%s' "${UNIFIED_UI_UPDATE_REPO:-sllikmll/Unified-UI}"; }
+update_channel() { printf '%s' "${UNIFIED_UI_UPDATE_CHANNEL:-stable}"; }
+update_branch() { printf '%s' "${UNIFIED_UI_UPDATE_BRANCH:-main}"; }
+
+curl_github() {
+  url="$1"
+  if curl -fsSL --max-time 20 --proxy http://127.0.0.1:7890 "$url" 2>/tmp/unified-ui-gh.err; then return 0; fi
+  curl -fsSL --max-time 20 "$url" 2>/tmp/unified-ui-gh.err
+}
+
+github_latest_json() {
+  repo="$(update_repo)"
+  tmp="/tmp/unified-ui-gh-latest-$$.json"
+  if curl_github "https://api.github.com/repos/$repo/releases/latest" > "$tmp"; then
+    tag="$(jsonfilter -i "$tmp" -e '@.tag_name' 2>/dev/null || true)"
+    pub="$(jsonfilter -i "$tmp" -e '@.published_at' 2>/dev/null || true)"
+    html="$(jsonfilter -i "$tmp" -e '@.html_url' 2>/dev/null || true)"
+    assets="$(jsonfilter -i "$tmp" -e '@.assets[*].name' 2>/dev/null | awk 'BEGIN{printf "["} {gsub(/"/,"\\\""); if(NR>1)printf ","; printf "{\"name\":\"%s\"}",$0} END{printf "]"}')"
+    rm -f "$tmp"
+    [ -n "$assets" ] || assets='[]'
+    printf '{"ok":true,"latest":{"kind":"stable","tag":"%s","published_at":"%s","url":"%s","assets":%s}}' "$(printf '%s' "$tag" | json_escape)" "$(printf '%s' "$pub" | json_escape)" "$(printf '%s' "$html" | json_escape)" "$assets"
+  else
+    err="$(cat /tmp/unified-ui-gh.err 2>/dev/null | json_escape)"
+    rm -f "$tmp"
+    printf '{"ok":false,"error":"github_unavailable","hint":"GitHub недоступен даже через Mihomo proxy","meta":{"message":"%s"}}' "$err"
   fi
 }
 
@@ -241,10 +325,70 @@ registry_json() {
   if [ -f "$PROXY_REGISTRY" ]; then cat "$PROXY_REGISTRY"; else printf '{"connections":[]}'; fi
 }
 
+require_auth_or_401
+
 case "${PATH_INFO:-}" in
+  /auth-check)
+    hdr_json
+    if is_authenticated; then printf '{"ok":true,"authenticated":true,"user":"%s"}' "$(printf '%s' "$UNIFIED_UI_AUTH_USER" | json_escape)"; else printf '{"ok":true,"authenticated":false}'; fi
+    ;;
+  /auth-login)
+    body="$(read_body)"
+    user="$(printf '%s' "$body" | jsonfilter -e '@.username' 2>/dev/null || true)"
+    pass="$(printf '%s' "$body" | jsonfilter -e '@.password' 2>/dev/null || true)"
+    if [ "$user" = "$UNIFIED_UI_AUTH_USER" ] && [ "$pass" = "$UNIFIED_UI_AUTH_PASSWORD" ]; then
+      token="$(new_session_token)"
+      hdr_json_cookie '200 OK' "$UNIFIED_UI_SESSION_COOKIE=$token; Path=/; HttpOnly; SameSite=Lax"
+      printf '{"ok":true,"authenticated":true,"user":"%s"}' "$(printf '%s' "$UNIFIED_UI_AUTH_USER" | json_escape)"
+    else
+      hdr_json_cookie '403 Forbidden'
+      printf '{"ok":false,"authenticated":false,"error":"bad_credentials"}'
+    fi
+    ;;
+  /auth-logout)
+    rm -f "$UNIFIED_UI_SESSION_FILE" 2>/dev/null || true
+    hdr_json_cookie '200 OK' "$UNIFIED_UI_SESSION_COOKIE=deleted; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
+    printf '{"ok":true,"authenticated":false}'
+    ;;
   /version)
     hdr_json
     mihomo_get /version || printf '{"ok":false,"error":"mihomo request failed"}'
+    ;;
+  /ui-status)
+    hdr_json
+    printf '{"ok":true,"managed":"openwrt","running":true,"service":"uhttpd","label":"Unified UI static + CGI","version":"%s"}' "$(build_version | json_escape)"
+    ;;
+  /update-info)
+    hdr_json
+    ver="$(build_version | json_escape)"; dt="$(build_date | json_escape)"; repo="$(update_repo | json_escape)"; ch="$(update_channel | json_escape)"; br="$(update_branch | json_escape)"; upd="$(ui_update_url | json_escape)"
+    printf '{"ok":true,"build":{"version":"%s","built_utc":"%s","channel":"%s","repo":"%s","update_url":"%s"},"settings":{"repo":"%s","channel":"%s","branch":"%s"},"capabilities":{"curl":true,"tar":true,"tar_exclude":true,"sha256sum":true},"security":{"warnings":[],"will_block_run":false}}' "$ver" "$dt" "$ch" "$repo" "$upd" "$repo" "$ch" "$br"
+    ;;
+  /update-check)
+    hdr_json
+    latest_payload="$(github_latest_json)"
+    case "$latest_payload" in
+      *'"ok":true'*)
+        ver="$(build_version)"; tag="$(printf '%s' "$latest_payload" | sed -n 's/.*"tag":"\([^"]*\)".*/\1/p')"
+        avail=false; [ -n "$tag" ] && [ "$tag" != "$ver" ] && [ "$tag" != "v$ver" ] && avail=true
+        latest_inner="$(printf '%s' "$latest_payload" | sed -n 's/^.*"latest":\(.*\)}$/\1/p')"
+        [ -n "$latest_inner" ] || latest_inner='null'
+        repo="$(update_repo | json_escape)"; ch="$(update_channel | json_escape)"; br="$(update_branch | json_escape)"
+        printf '{"ok":true,"repo":"%s","channel":"%s","branch":"%s","current":{"version":"%s"},"latest":%s,"update_available":%s,"stale":false,"security":{"warnings":[],"will_block_run":false}}' "$repo" "$ch" "$br" "$(printf '%s' "$ver" | json_escape)" "$latest_inner" "$avail"
+        ;;
+      *) printf '%s' "$latest_payload" ;;
+    esac
+    ;;
+  /update-status)
+    hdr_json
+    printf '{"ok":true,"status":{"state":"idle","step":"","error":"","op":""},"lock":{"locked":false},"log_tail":[]}'
+    ;;
+  /env)
+    hdr_json
+    printf '{"ok":true,"items":[{"key":"UNIFIED_UI_AUTH_USER","current":"%s","configured":"%s","effective":"%s"},{"key":"UNIFIED_UI_UPDATE_REPO","current":"%s","configured":"%s","effective":"%s"},{"key":"UNIFIED_UI_UPDATE_CHANNEL","current":"%s","configured":"%s","effective":"%s"},{"key":"UNIFIED_UI_DOWNLOAD_PROXY","current":"http://127.0.0.1:7890","configured":"","effective":"http://127.0.0.1:7890"}]}' "$(printf '%s' "$UNIFIED_UI_AUTH_USER" | json_escape)" "$(printf '%s' "$UNIFIED_UI_AUTH_USER" | json_escape)" "$(printf '%s' "$UNIFIED_UI_AUTH_USER" | json_escape)" "$(update_repo | json_escape)" "$(update_repo | json_escape)" "$(update_repo | json_escape)" "$(update_channel | json_escape)" "$(update_channel | json_escape)" "$(update_channel | json_escape)"
+    ;;
+  /env-save)
+    hdr_json
+    printf '{"ok":true,"saved":false,"message":"OpenWrt env editing is read-only in this build"}'
     ;;
   /configs)
     hdr_json
@@ -515,11 +659,32 @@ chmod +x "$CGI_PATH"
 
 
 BUNDLED_UI_DIR="$SCRIPT_DIR/www/unified-ui"
+install_openwrt_auth_pages() {
+  if [ -f "$UI_ROOT/index.html" ] && [ ! -f "$UI_ROOT/app.html" ]; then
+    mv "$UI_ROOT/index.html" "$UI_ROOT/app.html"
+  fi
+  if [ -f "$UI_ROOT/app.html" ] && ! grep -q 'openwrt-auth-guard' "$UI_ROOT/app.html"; then
+    tmp="$UI_ROOT/app.html.tmp.$$"
+    awk '
+      BEGIN{done=0}
+      /<head[^>]*>/ && !done { print; print "<script id=\"openwrt-auth-guard\">(async()=>{try{const r=await fetch(\x27/cgi-bin/unified-ui-api/auth-check\x27,{cache:\x27no-store\x27});const d=await r.json().catch(()=>({}));if(!d.authenticated) location.replace(\x27/unified-ui/\x27);}catch(e){location.replace(\x27/unified-ui/\x27);}})();</script>"; done=1; next }
+      {print}
+    ' "$UI_ROOT/app.html" > "$tmp" && mv "$tmp" "$UI_ROOT/app.html"
+  fi
+  cat > "$UI_ROOT/index.html" <<'HTML'
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unified UI — вход</title><style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 30% 15%,rgba(37,99,235,.28),transparent 34%),linear-gradient(135deg,#020617,#071126 55%,#020617);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#e5eefc}.card{width:min(420px,calc(100vw - 32px));padding:28px;border-radius:28px;border:1px solid rgba(96,165,250,.22);background:linear-gradient(180deg,rgba(8,18,43,.94),rgba(2,8,23,.92));box-shadow:0 28px 80px rgba(0,0,0,.48),inset 0 1px 0 rgba(255,255,255,.06)}h1{margin:0 0 8px;font-size:30px;letter-spacing:-.04em}.dot{display:inline-block;width:10px;height:10px;border-radius:999px;background:#22c55e;box-shadow:0 0 18px #22c55e;margin-left:8px}.sub{margin:0 0 22px;color:#93a4bf}.field{margin:13px 0}label{display:block;margin:0 0 7px;color:#b8c7df;font-size:13px}input{width:100%;height:44px;border-radius:14px;border:1px solid rgba(148,163,184,.24);background:#020817;color:#eef6ff;padding:0 13px;font-size:15px}button{width:100%;height:46px;margin-top:16px;border:0;border-radius:999px;background:linear-gradient(135deg,#2563eb,#06b6d4);color:white;font-weight:800;cursor:pointer;box-shadow:0 16px 35px rgba(37,99,235,.28)}.err{display:none;margin-top:14px;padding:11px 13px;border-radius:14px;border:1px solid rgba(248,113,113,.35);background:rgba(127,29,29,.32);color:#fecaca}.hint{margin-top:16px;color:#64748b;font-size:12px}</style></head><body><form class="card" id="f"><h1>Unified UI<span class="dot"></span></h1><p class="sub">Вход в панель OpenWrt</p><div class="field"><label>Логин</label><input name="username" autocomplete="username" value="admin"></div><div class="field"><label>Пароль</label><input name="password" type="password" autocomplete="current-password" autofocus></div><button>Войти</button><div class="err" id="err">Неверный логин или пароль</div><div class="hint">Тестовый дефолт, если env не переопределён: admin/admin.</div></form><script>
+(async()=>{try{const r=await fetch('/cgi-bin/unified-ui-api/auth-check',{cache:'no-store'});const d=await r.json();if(d.authenticated) location.replace('/unified-ui/app.html');}catch(e){}})();
+document.getElementById('f').addEventListener('submit',async e=>{e.preventDefault();const fd=new FormData(e.currentTarget);const r=await fetch('/cgi-bin/unified-ui-api/auth-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:fd.get('username'),password:fd.get('password')})});const d=await r.json().catch(()=>({}));if(r.ok&&d.authenticated) location.replace('/unified-ui/app.html'); else document.getElementById('err').style.display='block';});
+</script></body></html>
+HTML
+}
+
 install_logout_fallback() {
   rm -rf /www/logout
   mkdir -p /www/logout
   cat > /www/logout/index.html <<'HTML'
-<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=/unified-ui/"><script>location.replace('/unified-ui/');</script><a href="/unified-ui/">Unified UI</a>
+<!doctype html><meta charset="utf-8"><title>Unified UI — выход</title><script>(async()=>{try{await fetch('/cgi-bin/unified-ui-api/auth-logout',{method:'POST',cache:'no-store'});}catch(e){} location.replace('/unified-ui/');})();</script><a href="/unified-ui/">Unified UI</a>
 HTML
   chmod 755 /www/logout
   chmod 644 /www/logout/index.html
@@ -528,6 +693,7 @@ if [ -f "$BUNDLED_UI_DIR/index.html" ]; then
   rm -rf "$UI_ROOT"
   mkdir -p "$UI_ROOT"
   cp -a "$BUNDLED_UI_DIR/." "$UI_ROOT/"
+  install_openwrt_auth_pages
   chmod -R a+rX "$UI_ROOT"
   install_logout_fallback
   printf 'Installed Unified UI OpenWrt full panel:\n  %s\n  %s\n  update: %s\n' "$UI_ROOT/index.html" "$CGI_PATH" "$UPDATE_URL"

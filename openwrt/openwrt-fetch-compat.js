@@ -96,6 +96,14 @@
       if(target !== 'local') return jsonResponse({ok:false,error:'remote file manager disabled on OpenWrt',code:'remote_disabled'}, {status:400});
       return cgi('/fs-list-path/' + enc(fsPath), opts);
     }
+    if(path==='/api/devtools/ui/status' && method==='GET') return cgi('/ui-status', opts);
+    if(path==='/api/devtools/update/info' && method==='GET') return cgi('/update-info', opts);
+    if(path==='/api/devtools/update/check' && method==='POST') return cgi('/update-check', opts);
+    if(path==='/api/devtools/update/status' && method==='GET') return cgi('/update-status', opts);
+    if(path==='/api/devtools/env' && method==='GET') return cgi('/env', opts);
+    if(path==='/api/devtools/env' && method==='POST') return cgi('/env-save', opts);
+    if(path==='/api/devtools/branding' && method==='GET') return jsonResponse({ok:true, branding:{title:'Unified UI'}});
+    if(path==='/api/devtools/terminal_theme' && method==='GET') return jsonResponse({ok:true, enabled:false});
     if(path==='/api/proxy-connections' && method==='GET') return cgi('/proxy-connections', opts);
     if(path==='/api/proxy-connections/import' && method==='POST') return cgi('/proxy-connections-import', opts);
     if(path==='/api/proxy-connections/apply' && method==='POST') return cgi('/proxy-connections-apply', opts);
