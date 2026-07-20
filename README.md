@@ -262,7 +262,7 @@ curl http://<mikrotik-ip>:9090/version
 | ОС | Файл |
 |---|---|
 | macOS Apple Silicon | `Unified-UI-2.5.1-arm64.dmg` |
-| Windows x64 | `Unified-UI-Setup-2.5.1-x64.exe` |
+| Windows x64 | `Unified-UI-Setup-2.5.2-x64.exe` |
 | Linux Debian/Ubuntu | `Unified-UI-2.5.1-amd64.deb` |
 | Linux RPM distros | `Unified-UI-2.5.1-x86_64.rpm` |
 | Linux portable | `Unified-UI-2.5.1-x86_64.AppImage` |
@@ -314,6 +314,18 @@ tun:
 На macOS Mihomo запрашивает administrator prompt через `osascript`, потому что `utun/routes` без повышенных прав не поднять. На Linux нужны root/capabilities. На Windows — запуск с правами администратора для Wintun/system routes.
 
 Обычный режим без TUN безопасный: только локальный proxy, без перехвата всего трафика системы.
+
+### Windows: восстановление удаления старой сборки
+
+Если удаление из “Панели управления” показывает `NSIS Error: Installer integrity check has failed`, значит установленный `Uninstall Unified UI.exe` повреждён или был частично записан/заблокирован Defender'ом. Это не лечится из уже сломанного uninstall-файла.
+
+Рабочий путь:
+
+1. скачай свежий `Unified-UI-Setup-2.5.2-x64.exe`;
+2. установи его **поверх** текущей установки в ту же папку;
+3. после этого удаляй через “Приложения и компоненты” ещё раз.
+
+Версия `2.5.2` также исправляет `EPERM/Permission denied` при скачивании `mihomo-windows-amd64-v1.19.29.zip`: загрузка теперь идёт во временный `.part`/unique файл, cleanup не валит Electron main process.
 
 ---
 

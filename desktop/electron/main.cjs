@@ -20,6 +20,24 @@ let mihomoProc = null;
 let elevatedMihomoPidFile = null;
 let quitting = false;
 
+function formatBootstrapError(err) {
+  const text = String((err && err.stack) || err || 'Unknown error');
+  const hint = process.platform === 'win32'
+    ? '\n\nЕсли ошибка связана с EPERM/Permission denied в AppData, закрой Unified UI, удали временные файлы download-*/mihomo*.zip из runtime-папки или добавь Unified UI в исключения Defender, затем запусти свежую версию.'
+    : '';
+  return `${text}${hint}`;
+}
+
+process.on('uncaughtException', (err) => {
+  try { dialog.showErrorBox(APP_NAME, formatBootstrapError(err)); } catch (_) {}
+  app.quit();
+});
+
+process.on('unhandledRejection', (err) => {
+  try { dialog.showErrorBox(APP_NAME, formatBootstrapError(err)); } catch (_) {}
+  app.quit();
+});
+
 function log(...args) {
   console.log('[desktop]', ...args);
 }
@@ -173,22 +191,77 @@ function platformMihomoAsset() {
   return { name: `mihomo-linux-amd64-v${MIHOMO_VERSION}.gz`, bin: 'mihomo' };
 }
 
+function safeRm(target, opts = {}) {
+  if (!target) return;
+  const attempts = Number(opts.attempts || 6);
+  const delayMs = Number(opts.delayMs || 250);
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      fs.rmSync(target, { recursive: true, force: true });
+      return;
+    } catch (err) {
+      // Windows Defender / Explorer / AV scanners can keep a just-written file
+      // locked for a short moment. Cleanup must never crash Electron's main
+      // process; leave the temp file behind if Windows is still chewing it.
+      if (!['EPERM', 'EBUSY', 'ENOTEMPTY', 'EACCES'].includes(err.code) || i === attempts - 1) {
+        log('cleanup skipped:', target, err.code || err.message || err);
+        return;
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
+    }
+  }
+}
+
+function uniqueTempPath(dir, suffix) {
+  ensureDir(dir);
+  const safeSuffix = String(suffix || 'tmp').replace(/[^a-zA-Z0-9._-]/g, '_');
+  return path.join(dir, `download-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}-${safeSuffix}`);
+}
+
 function download(url, dest) {
   return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(dest);
-    https.get(url, (res) => {
+    ensureDir(path.dirname(dest));
+    const part = `${dest}.part-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    let settled = false;
+    const fail = (err) => {
+      if (settled) return;
+      settled = true;
+      safeRm(part);
+      reject(err);
+    };
+    const done = () => {
+      if (settled) return;
+      try {
+        safeRm(dest);
+        fs.renameSync(part, dest);
+        settled = true;
+        resolve();
+      } catch (err) {
+        fail(err);
+      }
+    };
+    const file = fs.createWriteStream(part, { flags: 'wx' });
+    file.on('error', fail);
+    const req = https.get(url, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        file.close(); fs.rmSync(dest, { force: true });
-        return download(res.headers.location, dest).then(resolve, reject);
+        req.destroy();
+        file.end(() => {
+          safeRm(part);
+          download(res.headers.location, dest).then(resolve, reject);
+        });
+        return;
       }
       if (res.statusCode !== 200) {
-        file.close(); fs.rmSync(dest, { force: true });
-        return reject(new Error(`download ${url} -> HTTP ${res.statusCode}`));
+        res.resume();
+        file.end(() => fail(new Error(`download ${url} -> HTTP ${res.statusCode}`)));
+        return;
       }
+      res.on('error', fail);
       res.pipe(file);
-      file.on('finish', () => file.close(resolve));
-    }).on('error', (err) => {
-      file.close(); fs.rmSync(dest, { force: true }); reject(err);
+      file.on('finish', () => file.close(done));
+    });
+    req.on('error', (err) => {
+      file.end(() => fail(err));
     });
   });
 }
@@ -206,7 +279,7 @@ async function ensureMihomo() {
     fs.chmodSync(bin, 0o755);
     return bin;
   }
-  const tmp = path.join(rt, asset.name);
+  const tmp = uniqueTempPath(rt, asset.name);
   const url = `https://github.com/MetaCubeX/mihomo/releases/download/v${MIHOMO_VERSION}/${asset.name}`;
   await download(url, tmp);
   if (asset.name.endsWith('.gz')) {
@@ -214,15 +287,16 @@ async function ensureMihomo() {
     fs.writeFileSync(bin, data, { mode: 0o755 });
   } else if (asset.name.endsWith('.zip')) {
     // Windows zip extraction without extra dependencies: use PowerShell Expand-Archive.
-    const out = path.join(rt, 'mihomo-zip');
-    fs.rmSync(out, { recursive: true, force: true });
+    const out = uniqueTempPath(rt, 'mihomo-zip');
+    safeRm(out);
     ensureDir(out);
     runChecked('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', `Expand-Archive -Force ${JSON.stringify(tmp)} ${JSON.stringify(out)}`]);
     const found = fs.readdirSync(out).find((n) => n.toLowerCase().endsWith('.exe'));
     if (!found) throw new Error('mihomo.exe not found in downloaded archive');
     fs.copyFileSync(path.join(out, found), bin);
+    safeRm(out);
   }
-  fs.rmSync(tmp, { force: true });
+  safeRm(tmp);
   return bin;
 }
 
