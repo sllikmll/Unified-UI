@@ -16,7 +16,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     MIHOMO_CONTROLLER_PORT=9090 \
     MIHOMO_MIXED_PORT=7890 \
     MIHOMO_DNS_PORT=1053 \
-    MIHOMO_ENABLE_TUN=false
+    MIHOMO_ENABLE_TUN=false \
+    UNIFIED_UI_AVAILABLE_CORES=mihomo
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl tini iproute2 procps jq gzip \

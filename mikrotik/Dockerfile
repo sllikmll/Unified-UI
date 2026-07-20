@@ -24,6 +24,7 @@ ENV UNIFIED_UI_PORT=8088 \
     MIHOMO_ROOT=/etc/mihomo \
     MIHOMO_TEMPLATES_DIR=/etc/mihomo/templates \
     UNIFIED_UI_NAME='Unified UI MikroTik' \
+    UNIFIED_UI_AVAILABLE_CORES=mihomo \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app/unified-ui

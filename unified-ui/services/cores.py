@@ -133,11 +133,25 @@ class CoreSwitchError(RuntimeError):
 
 
 def detect_available_cores() -> List[str]:
-    """Return list of available cores based on presence of binaries."""
-    cores: List[str] = []
-    if os.path.exists("/opt/sbin/xray"):
+    """Return list of available cores based on env override or binaries.
+
+    Router/container builds can be Mihomo-only while the legacy Entware build
+    keeps Xray support. Prefer an explicit env override when supplied, then
+    fall back to probing known install paths.
+    """
+    override = os.environ.get("UNIFIED_UI_AVAILABLE_CORES") or os.environ.get("UNIFIED_UI_CORES")
+    if override is not None:
+        cores: List[str] = []
+        for raw in str(override).replace(";", ",").split(","):
+            core = raw.strip().lower()
+            if core in ("xray", "mihomo") and core not in cores:
+                cores.append(core)
+        return cores
+
+    cores = []
+    if any(os.path.exists(path) for path in ("/opt/sbin/xray", "/usr/local/bin/xray", "/usr/bin/xray")):
         cores.append("xray")
-    if os.path.exists("/opt/sbin/mihomo"):
+    if any(os.path.exists(path) for path in ("/opt/sbin/mihomo", "/usr/local/bin/mihomo", "/usr/bin/mihomo")):
         cores.append("mihomo")
     return cores
 
