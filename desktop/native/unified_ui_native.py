@@ -59,11 +59,10 @@ else:
     _WEB_PARSER_IMPORT_ERROR = None
 
 DARK_QSS = """
-* { font-family: ".AppleSystemUIFont", "SF Pro Display", "Segoe UI", "Inter", -apple-system, BlinkMacSystemFont, sans-serif; }
 QMainWindow, QWidget {
-    background: #06101d;
-    color: #eaf2ff;
-    font-size: 13px;
+    background: #050B1A;
+    color: #E7ECF8;
+    font-size: 11px;
 }
 QMainWindow {
     border: 0;
@@ -111,7 +110,7 @@ QPushButton:pressed {
     background: #081524;
     border-color: #67e8f9;
 }
-QPushButton#primary {
+QPushButton#primary, QPushButton#ActiveTab {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2563eb, stop:1 #0891b2);
     border-color: #67e8f9;
     color: #ffffff;
@@ -119,7 +118,7 @@ QPushButton#primary {
 QPushButton#primary:hover {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1d4ed8, stop:1 #0284c7);
 }
-QPushButton#danger {
+QPushButton#danger, QPushButton#DangerButton {
     background: #28131a;
     border-color: #8f2431;
     color: #fecdd3;
@@ -272,6 +271,151 @@ QMessageBox, QDialog {
     background: #071426;
     color: #eaf2ff;
 }
+
+QFrame#AppShell {
+    background: #050B1A;
+}
+QFrame#HeaderBar {
+    background: #050B1A;
+    border: 0;
+}
+QLabel#webLogo {
+    font-size: 23px;
+    font-weight: 900;
+    color: #f8fbff;
+}
+QLabel#greenDot, QLabel#Green {
+    color: #25D082;
+    font-weight: 900;
+}
+QPushButton#TopPill, QPushButton#Tab, QPushButton#SmallPill {
+    background: #101B33;
+    border: 1px solid #24385A;
+    border-radius: 10px;
+    color: #C8D2E8;
+    padding: 4px 9px;
+    font-size: 10px;
+    font-weight: 650;
+}
+QPushButton#Tab {
+    border-radius: 7px;
+    min-height: 18px;
+    max-height: 26px;
+}
+QPushButton#ActiveTab {
+    border-radius: 7px;
+    min-height: 18px;
+    max-height: 26px;
+    padding: 4px 10px;
+    font-size: 10px;
+}
+QPushButton#ExitButton {
+    background: #5A1425;
+    border: 1px solid #9A2440;
+    color: white;
+    border-radius: 10px;
+    padding: 4px 10px;
+    font-size: 10px;
+    font-weight: 700;
+}
+QPushButton#WarningButton {
+    background: #7A4614;
+    border: 1px solid #B56A1B;
+    color: white;
+    border-radius: 10px;
+    padding: 4px 10px;
+    font-size: 10px;
+    font-weight: 700;
+}
+QFrame#ActionBar {
+    background: #050B1A;
+    border-top: 1px solid #152643;
+    border-bottom: 1px solid #152643;
+}
+QFrame#Panel {
+    background: #08142A;
+    border: 1px solid #1E3358;
+    border-radius: 14px;
+}
+QFrame#GroupCard {
+    background: #08142A;
+    border: 1px solid #1C2F52;
+    border-radius: 4px;
+}
+QFrame#ProxyCard {
+    background: #0A1730;
+    border: 1px solid #25385A;
+    border-radius: 8px;
+}
+QFrame#ProxyCardActive {
+    background: #0B2030;
+    border: 1px solid #20C878;
+    border-radius: 8px;
+}
+QLabel#LatencyBadge {
+    background: rgba(33, 200, 120, 0.18);
+    color: #2DDA8A;
+    border-radius: 8px;
+    padding: 2px 7px;
+    font-weight: 800;
+    font-size: 10px;
+}
+QLabel#Muted, QLabel#muted {
+    color: #8E9AB5;
+}
+QLabel#Subtle {
+    color: #66738F;
+}
+QLabel#SectionTitle {
+    color: #f8fbff;
+    font-size: 14px;
+    font-weight: 850;
+}
+QLabel#CardTitle {
+    color: #f8fbff;
+    font-size: 11px;
+    font-weight: 850;
+}
+QLabel#Badge {
+    background: #101B33;
+    border: 1px solid #24385A;
+    border-radius: 10px;
+    color: #AEBBD4;
+    padding: 3px 8px;
+    font-size: 10px;
+}
+QPlainTextEdit#ProviderEditor {
+    background: #050A16;
+    color: #E7ECF8;
+    border: 1px solid #1D2D4D;
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 12px;
+}
+
+
+QPushButton#ProxyButton, QPushButton#ProxyButtonActive {
+    background: #0A1730;
+    border: 1px solid #25385A;
+    border-radius: 8px;
+    color: #E7ECF8;
+    padding: 8px 10px;
+    text-align: left;
+    min-height: 44px;
+    max-height: 62px;
+    font-size: 10px;
+    font-weight: 700;
+}
+QPushButton#ProxyButton:hover {
+    background: #10213E;
+    border-color: #355585;
+}
+QPushButton#ProxyButtonActive {
+    background: #0B2030;
+    border: 1px solid #20C878;
+    color: #F7FFFB;
+}
+
 """
 
 
@@ -1347,6 +1491,29 @@ class MihomoRuntime:
                 results.append({"ok": False, "provider": str(name), "error": str(exc)})
         return results
 
+    def rule_providers(self) -> dict[str, Any]:
+        data = self.get("/providers/rules")
+        return data.get("providers", {}) if isinstance(data, dict) else {}
+
+    def update_rule_providers(self) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
+        try:
+            providers = self.rule_providers()
+        except Exception as exc:
+            return [{"ok": False, "provider": "<all>", "error": str(exc)}]
+        for name, provider in providers.items():
+            if not isinstance(provider, dict):
+                continue
+            if str(provider.get("vehicleType") or provider.get("type") or "").upper() not in {"HTTP", "FILE"}:
+                continue
+            quoted = urllib.parse.quote(str(name), safe="")
+            try:
+                self._request("PUT", f"/providers/rules/{quoted}")
+                results.append({"ok": True, "provider": str(name)})
+            except Exception as exc:
+                results.append({"ok": False, "provider": str(name), "error": str(exc)})
+        return results
+
     def connections_data(self) -> dict[str, Any]:
         data = self.get("/connections")
         return data if isinstance(data, dict) else {}
@@ -1443,6 +1610,7 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
         QScrollArea,
         QTableWidget,
         QTableWidgetItem,
+        QStackedWidget,
         QTabWidget,
         QVBoxLayout,
         QWidget,
@@ -2259,38 +2427,460 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             self.metric_widgets["proxies"].setText(f"{nodes} / {groups}")
             self.metric_widgets["connections"].setText(str(connections))
 
+
+    class ProviderEditorPanel(QFrame):
+        def __init__(self) -> None:
+            super().__init__()
+            self.setObjectName("Panel")
+            layout = QVBoxLayout(self)
+            layout.setContentsMargins(12, 12, 12, 10)
+            layout.setSpacing(9)
+
+            head = QHBoxLayout()
+            title_box = QVBoxLayout()
+            title = QLabel("manual-proxy")
+            title.setObjectName("CardTitle")
+            self.path = QLabel(str(runtime.manual_rules_path))
+            self.path.setObjectName("Muted")
+            title_box.addWidget(title)
+            title_box.addWidget(self.path)
+            search = QPushButton("⌕")
+            search.setObjectName("SmallPill")
+            search.setFixedSize(30, 30)
+            head.addLayout(title_box, 1)
+            head.addWidget(search)
+            layout.addLayout(head)
+
+            badges = QHBoxLayout()
+            for text, green in [
+                ("provider: manual-proxy@classical", False),
+                ("type: file", False),
+                ("behavior: classical", False),
+                ("можно сохранять", True),
+            ]:
+                b = QLabel(text)
+                b.setObjectName("Green" if green else "Badge")
+                badges.addWidget(b)
+            badges.addStretch(1)
+            layout.addLayout(badges)
+
+            self.editor = QPlainTextEdit()
+            self.editor.setObjectName("ProviderEditor")
+            layout.addWidget(self.editor, 1)
+
+            buttons = QHBoxLayout()
+            buttons.addStretch(1)
+            save = QPushButton("💾 Сохранить")
+            save.setObjectName("SmallPill")
+            norm = QPushButton("✨ Нормализовать")
+            norm.setObjectName("SmallPill")
+            update = QPushButton("⟳ Обновить provider")
+            update.setObjectName("SmallPill")
+            save.clicked.connect(self.save)
+            norm.clicked.connect(self.normalize)
+            update.clicked.connect(self.update_provider)
+            buttons.addWidget(save)
+            buttons.addWidget(norm)
+            buttons.addWidget(update)
+            layout.addLayout(buttons)
+
+            self.status = QLabel("OK · локальный список можно редактировать")
+            self.status.setObjectName("Muted")
+            layout.addWidget(self.status)
+            self.load()
+
+        def load(self) -> None:
+            runtime.manual_rules_path.parent.mkdir(parents=True, exist_ok=True)
+            if not runtime.manual_rules_path.exists():
+                runtime.manual_rules_path.write_text("payload: []\n", encoding="utf-8")
+            self.editor.setPlainText(runtime.manual_rules_path.read_text(encoding="utf-8"))
+
+        def save(self) -> None:
+            runtime.manual_rules_path.write_text(self.editor.toPlainText(), encoding="utf-8")
+            self.status.setText("OK · сохранено, перезапускаю Mihomo…")
+            try:
+                runtime.restart()
+                self.status.setText("OK · локальный список сохранён и применён")
+            except Exception as e:
+                self.status.setText(f"Ошибка restart: {e}")
+
+        def normalize(self) -> None:
+            text = self.editor.toPlainText().strip()
+            if not text:
+                self.editor.setPlainText("payload: []\n")
+            elif not text.startswith("payload:"):
+                lines = [x.strip() for x in text.splitlines() if x.strip()]
+                self.editor.setPlainText("payload:\n" + "\n".join(f"  - {x}" for x in lines) + "\n")
+            self.status.setText("OK · YAML нормализован")
+
+        def update_provider(self) -> None:
+            try:
+                runtime.update_rule_providers()
+                self.status.setText("OK · provider обновлён")
+            except Exception as e:
+                self.status.setText(f"Ошибка обновления provider: {e}")
+
+    class WebRoutingPage(QWidget):
+        def __init__(self) -> None:
+            super().__init__()
+            root = QHBoxLayout(self)
+            root.setContentsMargins(0, 0, 0, 0)
+            root.setSpacing(12)
+
+            left = QWidget()
+            left_layout = QVBoxLayout(left)
+            left_layout.setContentsMargins(0, 0, 0, 0)
+            left_layout.setSpacing(8)
+
+            top = QHBoxLayout()
+            title = QLabel("Маршрутизация")
+            title.setObjectName("SectionTitle")
+            self.ok = QLabel("OK")
+            self.ok.setObjectName("Green")
+            ping = QPushButton("⚡ Обновить все пинги")
+            ping.setObjectName("SmallPill")
+            refresh = QPushButton("⟳ Обновить")
+            refresh.setObjectName("SmallPill")
+            ping.clicked.connect(self.ping_all)
+            refresh.clicked.connect(self.refresh)
+            top.addWidget(title)
+            top.addWidget(self.ok)
+            top.addSpacing(10)
+            top.addWidget(ping)
+            top.addWidget(refresh)
+            top.addStretch(1)
+            self.tile_btn = QPushButton("▦ Плитки")
+            self.tile_btn.setObjectName("ActiveTab")
+            self.list_btn = QPushButton("☰ Списки")
+            self.list_btn.setObjectName("Tab")
+            self.tile_btn.clicked.connect(lambda: self.set_mode("tiles"))
+            self.list_btn.clicked.connect(lambda: self.set_mode("lists"))
+            top.addWidget(self.tile_btn)
+            top.addWidget(self.list_btn)
+            left_layout.addLayout(top)
+
+            self.stats = QLabel("Групп: — · узлов/служебных proxy: — · controller: " + runtime.controller)
+            self.stats.setObjectName("Muted")
+            left_layout.addWidget(self.stats)
+
+            self.scroll = QScrollArea()
+            self.scroll.setWidgetResizable(True)
+            self.content = QWidget()
+            self.groups_box = QVBoxLayout(self.content)
+            self.groups_box.setContentsMargins(0, 0, 0, 0)
+            self.groups_box.setSpacing(10)
+            self.scroll.setWidget(self.content)
+            left_layout.addWidget(self.scroll, 1)
+
+            self.status = QLabel("Готово")
+            self.status.setObjectName("Muted")
+            left_layout.addWidget(self.status)
+
+            self.editor_panel = ProviderEditorPanel()
+            root.addWidget(left, 65)
+            root.addWidget(self.editor_panel, 35)
+            self.mode = "tiles"
+            self.refresh()
+
+        def set_mode(self, mode: str) -> None:
+            self.mode = mode
+            self.tile_btn.setObjectName("ActiveTab" if mode == "tiles" else "Tab")
+            self.list_btn.setObjectName("ActiveTab" if mode == "lists" else "Tab")
+            self.tile_btn.style().unpolish(self.tile_btn); self.tile_btn.style().polish(self.tile_btn)
+            self.list_btn.style().unpolish(self.list_btn); self.list_btn.style().polish(self.list_btn)
+            self.refresh()
+
+        def clear_groups(self) -> None:
+            while self.groups_box.count():
+                item = self.groups_box.takeAt(0)
+                widget = item.widget()
+                if widget:
+                    widget.deleteLater()
+
+        def selector_items(self) -> list[tuple[str, dict[str, Any]]]:
+            proxies = runtime.proxies()
+            items: list[tuple[str, dict[str, Any]]] = []
+            preferred = ["AI", "CDN", "GLOBAL", "GitHub", "Telegram", "YouTube", "Маршрутизация", "Остальное", "Ручной список"]
+            raw = [(str(n), d) for n, d in proxies.items() if isinstance(d, dict) and d.get("type") in {"Selector", "URLTest", "Fallback", "LoadBalance"}]
+            order = {name: idx for idx, name in enumerate(preferred)}
+            return sorted(raw, key=lambda x: (order.get(x[0], 999), x[0].lower()))
+
+        def selector_options(self, group_name: str, data: dict[str, Any]) -> list[str]:
+            try:
+                config = cfg_mgr.config_data()
+            except Exception:
+                config = {}
+            try:
+                providers = runtime.proxy_providers()
+            except Exception:
+                providers = {}
+            return cfg_mgr.selectable_options_for_group(config, group_name, data, providers)
+
+        def proxy_meta(self, proxy_name: str) -> tuple[str, str, bool]:
+            try:
+                proxy = runtime.proxies().get(proxy_name)
+            except Exception:
+                proxy = None
+            if not isinstance(proxy, dict):
+                return "Proxy", "—", True
+            ptype = str(proxy.get("type") or "Proxy")
+            alive = proxy.get("alive") is not False
+            delay = "0 ms"
+            hist = proxy.get("history") or []
+            if isinstance(hist, list) and hist:
+                latest = hist[-1] if isinstance(hist[-1], dict) else {}
+                if latest.get("delay") is not None:
+                    try:
+                        delay = f"{int(latest.get('delay'))} ms"
+                    except Exception:
+                        delay = f"{latest.get('delay')} ms"
+            elif not alive:
+                delay = "offline"
+            return ptype, delay, alive
+
+        def refresh(self) -> None:
+            self.clear_groups()
+            try:
+                items = self.selector_items()
+                all_proxies = runtime.proxies()
+            except Exception as e:
+                self.status.setText(f"Не удалось загрузить маршрутизацию: {e}")
+                self.ok.setText("OFF")
+                return
+            groups = len(items)
+            nodes = max(0, len(all_proxies) - groups)
+            self.stats.setText(f"Групп: {groups} · узлов/служебных proxy: {nodes} · controller: {runtime.controller}")
+            for name, data in items:
+                self.render_group(name, data)
+            self.groups_box.addStretch(1)
+            self.status.setText(f"Селекторов: {groups}")
+            self.ok.setText("OK")
+
+        def render_group(self, name: str, data: dict[str, Any]) -> None:
+            card = QFrame()
+            card.setObjectName("GroupCard")
+            layout = QVBoxLayout(card)
+            layout.setContentsMargins(12, 10, 12, 12)
+            layout.setSpacing(8)
+            head = QHBoxLayout()
+            left = QVBoxLayout()
+            t = QLabel(name)
+            t.setObjectName("CardTitle")
+            st = QLabel(str(data.get("type") or "Selector"))
+            st.setObjectName("Muted")
+            left.addWidget(t)
+            left.addWidget(st)
+            now = str(data.get("now") or "—")
+            current = QLabel(f"Сейчас: {now}")
+            current.setObjectName("Muted")
+            head.addLayout(left)
+            head.addStretch(1)
+            head.addWidget(current)
+            layout.addLayout(head)
+            options = self.selector_options(name, data)
+            if self.mode == "lists":
+                row = QHBoxLayout()
+                combo = QComboBox()
+                combo.addItems(options)
+                if now in options:
+                    combo.setCurrentIndex(options.index(now))
+                apply = QPushButton("Выбрать")
+                apply.setObjectName("ActiveTab")
+                apply.clicked.connect(lambda _=False, g=name, c=combo: self.select(g, c.currentText()))
+                row.addWidget(combo, 1)
+                row.addWidget(apply)
+                layout.addLayout(row)
+            else:
+                grid = QGridLayout()
+                grid.setHorizontalSpacing(7)
+                grid.setVerticalSpacing(7)
+                for idx, proxy in enumerate(options):
+                    ptype, delay, alive = self.proxy_meta(proxy)
+                    label = proxy if len(proxy) <= 22 else proxy[:20] + "…"
+                    btn = QPushButton(f"{label}\n{ptype} · {'online' if alive else 'offline'}\n{delay}")
+                    btn.setObjectName("ProxyButtonActive" if proxy == now else "ProxyButton")
+                    btn.setFixedHeight(60)
+                    btn.clicked.connect(lambda _=False, g=name, p=proxy: self.select(g, p))
+                    grid.addWidget(btn, idx // 5, idx % 5)
+                layout.addLayout(grid)
+            self.groups_box.addWidget(card)
+
+        def select(self, group: str, proxy: str) -> None:
+            try:
+                selectors = dict(self.selector_items())
+                valid = set(self.selector_options(group, selectors.get(group) or {}))
+                if proxy not in valid:
+                    raise ValueError(f"`{proxy}` не входит в selector `{group}`")
+                runtime.select_proxy(group, proxy)
+                self.refresh()
+            except Exception as e:
+                QMessageBox.critical(self, APP_NAME, f"Не удалось выбрать proxy:\n{e}")
+
+        def ping_all(self) -> None:
+            try:
+                proxies = runtime.proxies()
+                checked = ok = 0
+                for name, data in proxies.items():
+                    if isinstance(data, dict) and data.get("type") not in {"Direct", "Reject", "Selector", "URLTest", "Fallback", "LoadBalance"}:
+                        checked += 1
+                        if runtime.delay(name) is not None:
+                            ok += 1
+                self.status.setText(f"Пинги: {ok}/{checked}")
+                self.refresh()
+            except Exception as e:
+                self.status.setText(f"Ошибка пингов: {e}")
+
     class MainWindow(QMainWindow):
         def __init__(self) -> None:
             super().__init__()
             self.setWindowTitle(APP_NAME)
-            self.resize(1500, 930)
-            tabs = QTabWidget()
+            self.resize(1280, 720)
+            self.runtime_restart_in_progress = False
+            self.tab_buttons: dict[str, QPushButton] = {}
+            self.page_names: list[str] = []
+
+            shell = QFrame()
+            shell.setObjectName("AppShell")
+            root = QVBoxLayout(shell)
+            root.setContentsMargins(12, 10, 12, 10)
+            root.setSpacing(8)
+
+            root.addWidget(self.build_header())
+            root.addWidget(self.build_tabs())
+            root.addWidget(self.build_action_bar())
+
+            self.stack = QStackedWidget()
+            self.routing = WebRoutingPage()
             self.dashboard = DashboardTab()
-            self.selectors = SelectorsTab()
             self.connections = ConnectionsTab()
             self.manual = ManualTab()
             self.config = ConfigTab()
             self.inventory = InventoryTab()
             self.imports = ImportTab(on_changed=self.refresh_all)
             self.logs = LogsTab()
-            tabs.addTab(self.dashboard, "Обзор")
-            tabs.addTab(self.selectors, "Селекторы")
-            tabs.addTab(self.connections, "Соединения")
-            tabs.addTab(self.imports, "Импорт")
-            tabs.addTab(self.inventory, "Конфиги/Подписки")
-            tabs.addTab(self.manual, "Ручной список")
-            tabs.addTab(self.config, "Конфиг")
-            tabs.addTab(self.logs, "Логи")
-            self.setCentralWidget(tabs)
+            self.add_page("Маршрутизация", self.routing)
+            self.add_page("Mihomo", self.config)
+            self.add_page("Соединения", self.connections)
+            self.add_page("WireGuard", self.imports)
+            self.add_page("Amnezia", ImportTab(on_changed=self.refresh_all))
+            self.add_page("Hysteria2", ImportTab(on_changed=self.refresh_all))
+            self.add_page("VLESS", ImportTab(on_changed=self.refresh_all))
+            self.add_page("Trojan", ImportTab(on_changed=self.refresh_all))
+            self.add_page("Meiru", ImportTab(on_changed=self.refresh_all))
+            self.add_page("NativeProxy", self.inventory)
+            self.add_page("Файлы", self.logs)
+            self.add_page("Mihomo Генератор", self.imports)
+            self.add_page("Маршруты DNS", self.manual)
+            root.addWidget(self.stack, 1)
+            self.setCentralWidget(shell)
             self.statusBar().showMessage(f"Runtime: {runtime.runtime}")
+            self.activate_page("Маршрутизация")
             self.timer = QTimer(self)
             self.timer.timeout.connect(self.refresh_light)
             self.timer.start(4000)
-            self.runtime_restart_in_progress = False
             self.refresh_all()
+
+        def build_header(self) -> QFrame:
+            header = QFrame()
+            header.setObjectName("HeaderBar")
+            header.setFixedHeight(92)
+            layout = QHBoxLayout(header)
+            layout.setContentsMargins(0, 0, 0, 0)
+            logo_row = QHBoxLayout()
+            logo = QLabel("Unified UI")
+            logo.setObjectName("webLogo")
+            dot = QLabel("●")
+            dot.setObjectName("greenDot")
+            logo_row.addWidget(logo)
+            logo_row.addWidget(dot)
+            logo_row.addStretch(1)
+            layout.addLayout(logo_row, 1)
+
+            right = QVBoxLayout()
+            right.setSpacing(8)
+            row = QHBoxLayout()
+            for text in ["🌐 Светлая тема", "◉ Интерфейс", "Настройки", "👤 pavel", "v2.6.2-native", "↻ Проверить обновления"]:
+                b = QPushButton(text)
+                b.setObjectName("TopPill")
+                row.addWidget(b)
+            right.addLayout(row)
+            row2 = QHBoxLayout()
+            update = QPushButton("🟠 Обновление v2.6.2-native")
+            update.setObjectName("TopPill")
+            row2.addWidget(update)
+            row2.addStretch(1)
+            exit_btn = QPushButton("Выйти")
+            exit_btn.setObjectName("ExitButton")
+            exit_btn.clicked.connect(self.close)
+            row2.addWidget(exit_btn)
+            right.addLayout(row2)
+            layout.addLayout(right, 2)
+            return header
+
+        def build_tabs(self) -> QFrame:
+            bar = QFrame()
+            bar.setFixedHeight(32)
+            layout = QHBoxLayout(bar)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(5)
+            for name in ["Маршрутизация", "Mihomo", "Соединения", "WireGuard", "Amnezia", "Hysteria2", "VLESS", "Trojan", "Meiru", "NativeProxy", "Файлы", "Mihomo Генератор", "Маршруты DNS"]:
+                b = QPushButton(name)
+                b.setObjectName("Tab")
+                b.clicked.connect(lambda _=False, n=name: self.activate_page(n))
+                self.tab_buttons[name] = b
+                layout.addWidget(b)
+            layout.addStretch(1)
+            return bar
+
+        def build_action_bar(self) -> QFrame:
+            bar = QFrame()
+            bar.setObjectName("ActionBar")
+            bar.setFixedHeight(43)
+            layout = QHBoxLayout(bar)
+            layout.setContentsMargins(6, 6, 6, 6)
+            stop = QPushButton("Stop unified")
+            stop.setObjectName("DangerButton")
+            restart = QPushButton("Restart unified")
+            restart.setObjectName("WarningButton")
+            stop.clicked.connect(self.stop_runtime)
+            restart.clicked.connect(self.restart_runtime)
+            self.auto_restart = QCheckBox("Авто-перезапуск unified")
+            self.auto_restart.setChecked(True)
+            layout.addWidget(stop)
+            layout.addWidget(restart)
+            layout.addStretch(1)
+            layout.addWidget(self.auto_restart)
+            return bar
+
+        def add_page(self, name: str, widget: QWidget) -> None:
+            self.page_names.append(name)
+            self.stack.addWidget(widget)
+
+        def activate_page(self, name: str) -> None:
+            if name in self.page_names:
+                self.stack.setCurrentIndex(self.page_names.index(name))
+            for tab_name, btn in self.tab_buttons.items():
+                btn.setObjectName("ActiveTab" if tab_name == name else "Tab")
+                btn.style().unpolish(btn)
+                btn.style().polish(btn)
+
+        def stop_runtime(self) -> None:
+            runtime.stop()
+            self.statusBar().showMessage("Mihomo остановлен")
+
+        def restart_runtime(self) -> None:
+            self.statusBar().showMessage("Перезапускаю Mihomo…")
+            try:
+                runtime.restart()
+                self.statusBar().showMessage("Mihomo перезапущен")
+                self.refresh_all()
+            except Exception as e:
+                QMessageBox.critical(self, APP_NAME, f"Не удалось перезапустить Mihomo:\n{e}")
 
         def ensure_runtime_alive(self) -> None:
             if runtime.proc is not None and runtime.proc.poll() is None:
+                return
+            if not getattr(self, "auto_restart", None) or not self.auto_restart.isChecked():
                 return
             if self.runtime_restart_in_progress:
                 return
@@ -2302,7 +2892,7 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
                 try:
                     runtime.start()
                     log_native_event("runtime watchdog: mihomo restarted")
-                    QTimer.singleShot(0, lambda: self.statusBar().showMessage("Mihomo запущен, системная проксификация активна"))
+                    QTimer.singleShot(0, lambda: self.statusBar().showMessage("Mihomo запущен, TUN активен"))
                 except Exception as exc:
                     log_native_event(f"runtime watchdog restart failed: {exc}")
                     QTimer.singleShot(0, lambda: self.statusBar().showMessage(f"Mihomo не запустился: {exc}"))
@@ -2314,14 +2904,14 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
         def refresh_light(self) -> None:
             try:
                 self.ensure_runtime_alive()
-                self.dashboard.refresh()
+                self.routing.refresh()
                 self.connections.refresh()
             except Exception as e:
                 self.statusBar().showMessage(str(e))
 
         def refresh_all(self) -> None:
+            self.routing.refresh()
             self.dashboard.refresh()
-            self.selectors.refresh()
             self.connections.refresh()
             self.inventory.refresh()
             self.manual.load()
