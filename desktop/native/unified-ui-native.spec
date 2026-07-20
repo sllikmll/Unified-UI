@@ -9,11 +9,15 @@ hiddenimports = [
     'PySide6.QtCore',
     'PySide6.QtGui',
     'PySide6.QtWidgets',
+    'yaml',
+    'services.mihomo_proxy_parsers',
+    'services.mihomo_generator_proxies',
+    'services.mihomo_proxy_config',
 ]
 
 a = Analysis(
     [str(ROOT / 'desktop' / 'native' / 'unified_ui_native.py')],
-    pathex=[str(ROOT)],
+    pathex=[str(ROOT), str(ROOT / 'unified-ui')],
     binaries=[],
     datas=[],
     hiddenimports=hiddenimports,

@@ -9,6 +9,8 @@ runtime files itself.
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
 import gzip
 import json
 import os
@@ -16,19 +18,43 @@ import platform
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
 import zipfile
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 MIHOMO_VERSION = "1.19.29"
 APP_NAME = "Unified UI Native"
 DEFAULT_CONTROLLER_PORT = int(os.environ.get("MIHOMO_CONTROLLER_PORT", "19190"))
 DEFAULT_MIXED_PORT = int(os.environ.get("MIHOMO_MIXED_PORT", "17990"))
 DEFAULT_DNS_PORT = int(os.environ.get("MIHOMO_DNS_PORT", "15354"))
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+WEB_UI_DIR = REPO_ROOT / "unified-ui"
+if WEB_UI_DIR.exists() and str(WEB_UI_DIR) not in sys.path:
+    sys.path.insert(0, str(WEB_UI_DIR))
+
+try:
+    from services.mihomo_generator_proxies import ensure_leading_dash_for_yaml_block
+    from services.mihomo_proxy_parsers import (
+        ProxyParseResult,
+        parse_openvpn,
+        parse_proxy_uri,
+        parse_tailscale,
+        parse_wireguard,
+    )
+except Exception as exc:  # pragma: no cover - surfaced in GUI diagnostics
+    ProxyParseResult = Any  # type: ignore
+    _WEB_PARSER_IMPORT_ERROR = exc
+else:
+    _WEB_PARSER_IMPORT_ERROR = None
 
 DARK_QSS = """
 QMainWindow, QWidget { background: #07111f; color: #e8f0ff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -121,7 +147,6 @@ log-level: info
 ipv6: false
 external-controller: 127.0.0.1:{DEFAULT_CONTROLLER_PORT}
 secret: ''
-find-process-mode: off
 profile:
   store-selected: true
   store-fake-ip: false
@@ -179,6 +204,258 @@ rules:
   - MATCH,Остальное
 """, encoding="utf-8")
     return cfg
+
+
+@dataclass
+class ImportResult:
+    name: str
+    yaml: str
+    kind: str
+    source: str = ""
+
+
+class NativeConfigManager:
+    """Local config/import/apply layer for the native desktop app."""
+
+    def __init__(self, runtime: "MihomoRuntime") -> None:
+        self.runtime = runtime
+
+    @property
+    def config_path(self) -> Path:
+        return self.runtime.config_path
+
+    @property
+    def backups_dir(self) -> Path:
+        return self.runtime.runtime / "backups"
+
+    @property
+    def subscriptions_path(self) -> Path:
+        return self.runtime.runtime / "subscriptions.json"
+
+    def read_config(self) -> str:
+        ensure_config(self.runtime.runtime)
+        return self.config_path.read_text(encoding="utf-8")
+
+    def validate_text(self, text: str) -> tuple[bool, str]:
+        try:
+            parsed = yaml.safe_load(text) or {}
+            if not isinstance(parsed, dict):
+                return False, "config.yaml должен быть YAML-объектом"
+            if "proxies" not in parsed:
+                return False, "В config.yaml нет секции proxies"
+            if "proxy-groups" not in parsed:
+                return False, "В config.yaml нет секции proxy-groups"
+        except Exception as exc:
+            return False, f"YAML parse error: {exc}"
+        try:
+            mihomo = ensure_mihomo(self.runtime.runtime)
+            cfg_dir = self.config_path.parent
+            cfg_dir.mkdir(parents=True, exist_ok=True)
+            test_cfg = cfg_dir / ".unified-ui-native-test-config.yaml"
+            test_cfg.write_text(text, encoding="utf-8")
+            try:
+                result = subprocess.run(
+                    [str(mihomo), "-t", "-d", str(cfg_dir), "-f", str(test_cfg)],
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=30,
+                    **self.runtime._subprocess_window_kwargs(),
+                )
+            finally:
+                test_cfg.unlink(missing_ok=True)
+            output = (result.stdout or "") + ("\n" if result.stdout and result.stderr else "") + (result.stderr or "")
+            if result.returncode != 0:
+                return False, output.strip() or f"mihomo -t failed: {result.returncode}"
+            return True, output.strip() or "OK"
+        except Exception as exc:
+            return False, f"mihomo validation error: {exc}"
+
+    def backup_current(self) -> Path:
+        self.backups_dir.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        digest = hashlib.sha1(self.read_config().encode("utf-8", errors="ignore")).hexdigest()[:8]
+        dst = self.backups_dir / f"config-{stamp}-{digest}.yaml"
+        shutil.copy2(self.config_path, dst)
+        return dst
+
+    def save_text(self, text: str, *, validate: bool = True) -> tuple[Path | None, str]:
+        if validate:
+            ok, msg = self.validate_text(text)
+            if not ok:
+                raise RuntimeError(msg)
+        backup = self.backup_current() if self.config_path.exists() else None
+        self.config_path.parent.mkdir(parents=True, exist_ok=True)
+        self.config_path.write_text(text.replace("\r\n", "\n").replace("\r", "\n"), encoding="utf-8")
+        return backup, "config.yaml сохранён"
+
+    def save_and_restart(self, text: str) -> tuple[Path | None, str]:
+        backup, msg = self.save_text(text, validate=True)
+        self.runtime.restart()
+        return backup, msg + "; Mihomo перезапущен"
+
+    def _load_yaml_dict(self, text: str) -> dict[str, Any]:
+        data = yaml.safe_load(text) or {}
+        if not isinstance(data, dict):
+            raise ValueError("config.yaml должен быть YAML-объектом")
+        data.setdefault("proxies", [])
+        data.setdefault("proxy-groups", [])
+        if data.get("proxies") is None:
+            data["proxies"] = []
+        if not isinstance(data.get("proxies"), list):
+            raise ValueError("proxies должен быть списком")
+        if not isinstance(data.get("proxy-groups"), list):
+            raise ValueError("proxy-groups должен быть списком")
+        return data
+
+    def group_names(self) -> list[str]:
+        data = self._load_yaml_dict(self.read_config())
+        names: list[str] = []
+        for group in data.get("proxy-groups") or []:
+            if isinstance(group, dict) and str(group.get("name") or "").strip():
+                names.append(str(group.get("name")).strip())
+        return names
+
+    def _unique_proxy_name(self, data: dict[str, Any], desired: str) -> str:
+        existing = {str(p.get("name") or "") for p in data.get("proxies") or [] if isinstance(p, dict)}
+        base = desired.strip() or "Imported Proxy"
+        if base not in existing:
+            return base
+        for i in range(2, 1000):
+            candidate = f"{base} {i}"
+            if candidate not in existing:
+                return candidate
+        raise RuntimeError("Не удалось подобрать уникальное имя прокси")
+
+    def parse_import(self, text: str, *, name: str = "", kind: str = "auto") -> list[ImportResult]:
+        raw = str(text or "").strip()
+        if not raw:
+            raise ValueError("Пустой импорт")
+        kind_l = (kind or "auto").strip().lower()
+        if _WEB_PARSER_IMPORT_ERROR is not None:
+            raise RuntimeError(f"web-парсеры недоступны: {_WEB_PARSER_IMPORT_ERROR}")
+
+        # Multi-line URI subscription pasted directly.
+        uri_lines = [line.strip() for line in raw.splitlines() if "://" in line and not line.strip().startswith("#")]
+        if kind_l in {"auto", "uri", "link"} and uri_lines and len(uri_lines) > 1:
+            return [self._parse_single_uri(line, name if len(uri_lines) == 1 else "") for line in uri_lines]
+
+        if kind_l in {"auto", "uri", "link"} and "://" in raw.splitlines()[0]:
+            return [self._parse_single_uri(raw, name)]
+
+        if kind_l in {"auto", "wireguard", "awg", "amneziawg"} and "[Interface]" in raw and "[Peer]" in raw:
+            res = parse_wireguard(raw, custom_name=name or None)
+            return [ImportResult(name=res.name, yaml=res.yaml, kind="wireguard", source="wireguard-conf")]
+
+        if kind_l in {"auto", "openvpn"} and ("client" in raw.lower() and "remote " in raw.lower()):
+            res = parse_openvpn(raw, custom_name=name or None)
+            return [ImportResult(name=res.name, yaml=res.yaml, kind="openvpn", source="openvpn-conf")]
+
+        if kind_l in {"auto", "tailscale"} and ("auth-key" in raw or "accept-routes" in raw):
+            res = parse_tailscale(raw, custom_name=name or None)
+            return [ImportResult(name=res.name, yaml=res.yaml, kind="tailscale", source="tailscale-settings")]
+
+        # YAML proxy block or full Mihomo config.
+        data = yaml.safe_load(raw)
+        if isinstance(data, dict) and isinstance(data.get("proxies"), list):
+            imports = []
+            for item in data["proxies"]:
+                if isinstance(item, dict) and item.get("name"):
+                    imports.append(ImportResult(name=str(item["name"]), yaml=yaml.safe_dump([item], allow_unicode=True, sort_keys=False), kind=str(item.get("type") or "yaml"), source="mihomo-yaml"))
+            if imports:
+                return imports
+        if isinstance(data, list):
+            imports = []
+            for item in data:
+                if isinstance(item, dict) and item.get("name"):
+                    imports.append(ImportResult(name=str(item["name"]), yaml=yaml.safe_dump([item], allow_unicode=True, sort_keys=False), kind=str(item.get("type") or "yaml"), source="proxy-yaml"))
+            if imports:
+                return imports
+        if isinstance(data, dict) and data.get("name"):
+            return [ImportResult(name=str(data["name"]), yaml=yaml.safe_dump([data], allow_unicode=True, sort_keys=False), kind=str(data.get("type") or "yaml"), source="proxy-yaml")]
+        raise ValueError("Не понял формат. Поддерживаются URI, WG/AWG .conf, OpenVPN, Tailscale, proxy YAML и полный Mihomo YAML.")
+
+    def _parse_single_uri(self, text: str, name: str = "") -> ImportResult:
+        line = text.strip()
+        # Some subscriptions are base64 with URI lines inside.
+        if "://" not in line:
+            try:
+                decoded = base64.b64decode(line + "=" * (-len(line) % 4)).decode("utf-8", errors="ignore")
+                line = next((x.strip() for x in decoded.splitlines() if "://" in x), line)
+            except Exception:
+                pass
+        res = parse_proxy_uri(line, custom_name=name or None)
+        return ImportResult(name=res.name, yaml=res.yaml, kind=line.split(":", 1)[0].lower(), source="uri")
+
+    def apply_imports(self, imports: list[ImportResult], groups: list[str] | None = None, *, restart: bool = True) -> tuple[list[str], Path | None, str]:
+        if not imports:
+            raise ValueError("Нет прокси для импорта")
+        data = self._load_yaml_dict(self.read_config())
+        group_names = self.group_names()
+        target_groups = [g for g in (groups or []) if g]
+        if not target_groups:
+            target_groups = [group_names[0]] if group_names else []
+        added: list[str] = []
+        for imp in imports:
+            block = ensure_leading_dash_for_yaml_block(imp.yaml)
+            parsed = yaml.safe_load(block)
+            if not isinstance(parsed, list) or not parsed or not isinstance(parsed[0], dict):
+                raise ValueError(f"Импорт {imp.name}: парсер вернул невалидный YAML")
+            proxy = parsed[0]
+            proxy["name"] = self._unique_proxy_name(data, str(proxy.get("name") or imp.name))
+            data["proxies"].append(proxy)
+            added.append(str(proxy["name"]))
+            for group in data.get("proxy-groups") or []:
+                if not isinstance(group, dict):
+                    continue
+                gname = str(group.get("name") or "").strip()
+                if target_groups and gname not in target_groups:
+                    continue
+                proxies = group.get("proxies")
+                if proxies is None:
+                    proxies = []
+                    group["proxies"] = proxies
+                if isinstance(proxies, list) and proxy["name"] not in proxies:
+                    proxies.append(proxy["name"])
+        new_text = yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=140)
+        backup, msg = self.save_text(new_text, validate=True)
+        if restart:
+            self.runtime.restart()
+            msg += "; Mihomo перезапущен"
+        return added, backup, msg
+
+    def add_subscription_provider(self, url: str, name: str = "subscription_1", interval: int = 3600, *, restart: bool = True) -> tuple[Path | None, str]:
+        url = str(url or "").strip()
+        name = str(name or "subscription_1").strip()
+        if not url.startswith(("http://", "https://")):
+            raise ValueError("Subscription URL должен начинаться с http:// или https://")
+        data = self._load_yaml_dict(self.read_config())
+        providers = data.get("proxy-providers")
+        if not isinstance(providers, dict):
+            providers = {}
+            data["proxy-providers"] = providers
+        providers[name] = {
+            "type": "http",
+            "url": url,
+            "interval": int(interval),
+            "path": f"./providers/{name}.yaml",
+            "health-check": {"enable": True, "url": "https://www.gstatic.com/generate_204", "interval": 300},
+        }
+        groups = data.get("proxy-groups") or []
+        for group in groups:
+            if isinstance(group, dict) and str(group.get("type") or "").lower() in {"select", "url-test", "fallback", "load-balance"}:
+                use = group.get("use")
+                if use is None:
+                    use = []
+                    group["use"] = use
+                if isinstance(use, list) and name not in use:
+                    use.append(name)
+        new_text = yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=140)
+        backup, msg = self.save_text(new_text, validate=True)
+        if restart:
+            self.runtime.restart()
+            msg += "; Mihomo перезапущен"
+        return backup, f"provider {name} добавлен; {msg}"
 
 
 @dataclass
@@ -258,6 +535,12 @@ class MihomoRuntime:
                 self.proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 self.proc.kill()
+        self.proc = None
+
+    def restart(self) -> None:
+        self.stop()
+        time.sleep(0.4)
+        self.start()
 
     def _request(self, method: str, path: str, body: bytes | None = None) -> Any:
         url = self.controller + path
@@ -336,7 +619,9 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
     from PySide6.QtCore import QTimer, Qt
     from PySide6.QtWidgets import (
         QApplication,
+        QCheckBox,
         QComboBox,
+        QFileDialog,
         QGroupBox,
         QHBoxLayout,
         QLabel,
@@ -351,6 +636,8 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
         QVBoxLayout,
         QWidget,
     )
+
+    cfg_mgr = NativeConfigManager(runtime)
 
     class SelectorsTab(QWidget):
         def __init__(self) -> None:
@@ -511,27 +798,207 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
         def __init__(self) -> None:
             super().__init__()
             layout = QVBoxLayout(self)
-            self.editor = QPlainTextEdit()
-            buttons = QHBoxLayout()
-            save = QPushButton("Сохранить config.yaml")
-            save.setObjectName("primary")
-            save.clicked.connect(self.save)
-            reload_btn = QPushButton("Перечитать")
+            top = QHBoxLayout()
+            open_btn = QPushButton("Открыть файл…")
+            open_btn.clicked.connect(self.open_file)
+            validate_btn = QPushButton("Проверить")
+            validate_btn.clicked.connect(self.validate)
+            save = QPushButton("Сохранить без restart")
+            save.clicked.connect(self.save_only)
+            apply = QPushButton("Применить + restart")
+            apply.setObjectName("primary")
+            apply.clicked.connect(self.apply_restart)
+            reload_btn = QPushButton("Перечитать active")
             reload_btn.clicked.connect(self.load)
-            buttons.addStretch(1)
-            buttons.addWidget(reload_btn)
-            buttons.addWidget(save)
-            layout.addWidget(QLabel(str(runtime.config_path)))
+            top.addWidget(open_btn)
+            top.addWidget(validate_btn)
+            top.addStretch(1)
+            top.addWidget(reload_btn)
+            top.addWidget(save)
+            top.addWidget(apply)
+            self.path_label = QLabel(str(runtime.config_path))
+            self.path_label.setObjectName("muted")
+            self.editor = QPlainTextEdit()
+            self.status = QLabel("Готово")
+            self.status.setObjectName("muted")
+            layout.addWidget(self.path_label)
+            layout.addLayout(top)
             layout.addWidget(self.editor, 1)
-            layout.addLayout(buttons)
+            layout.addWidget(self.status)
             self.load()
 
         def load(self) -> None:
-            self.editor.setPlainText(runtime.config_path.read_text(encoding="utf-8"))
+            self.editor.setPlainText(cfg_mgr.read_config())
+            self.status.setText(f"Загружен active config: {runtime.config_path}")
 
-        def save(self) -> None:
-            runtime.config_path.write_text(self.editor.toPlainText(), encoding="utf-8")
-            QMessageBox.information(self, APP_NAME, "Config сохранён. Перезапуск Mihomo добавим следующим шагом.")
+        def open_file(self) -> None:
+            path, _ = QFileDialog.getOpenFileName(self, "Открыть Mihomo config", str(Path.home()), "YAML (*.yaml *.yml);;All files (*)")
+            if not path:
+                return
+            self.editor.setPlainText(Path(path).read_text(encoding="utf-8"))
+            self.status.setText(f"Открыт файл: {path}")
+
+        def validate(self) -> None:
+            ok, msg = cfg_mgr.validate_text(self.editor.toPlainText())
+            self.status.setText(("OK: " if ok else "Ошибка: ") + msg[:500])
+            if ok:
+                QMessageBox.information(self, APP_NAME, "Config валиден. Mihomo принял `-t`.")
+            else:
+                QMessageBox.critical(self, APP_NAME, f"Config невалиден:\n\n{msg[:4000]}")
+
+        def save_only(self) -> None:
+            try:
+                backup, msg = cfg_mgr.save_text(self.editor.toPlainText(), validate=True)
+                self.status.setText(f"{msg}. Backup: {backup or 'нет'}")
+                QMessageBox.information(self, APP_NAME, f"{msg}\nBackup: {backup or 'нет'}")
+            except Exception as e:
+                QMessageBox.critical(self, APP_NAME, f"Не удалось сохранить config:\n{e}")
+
+        def apply_restart(self) -> None:
+            try:
+                backup, msg = cfg_mgr.save_and_restart(self.editor.toPlainText())
+                self.status.setText(f"{msg}. Backup: {backup or 'нет'}")
+                QMessageBox.information(self, APP_NAME, f"{msg}\nBackup: {backup or 'нет'}")
+            except Exception as e:
+                QMessageBox.critical(self, APP_NAME, f"Не удалось применить config:\n{e}")
+
+    class ImportTab(QWidget):
+        def __init__(self) -> None:
+            super().__init__()
+            layout = QVBoxLayout(self)
+            title = QLabel("Импорт прокси / подписок")
+            title.setObjectName("title")
+            form = QHBoxLayout()
+            self.kind = QComboBox()
+            self.kind.addItems(["auto", "uri", "wireguard", "openvpn", "tailscale", "yaml", "subscription"])
+            self.name = QLineEdit()
+            self.name.setPlaceholderText("Имя прокси/provider (опционально)")
+            self.group = QComboBox()
+            self.group.setEditable(True)
+            self.restart = QCheckBox("Применить и restart Mihomo")
+            self.restart.setChecked(True)
+            form.addWidget(QLabel("Формат:"))
+            form.addWidget(self.kind)
+            form.addWidget(QLabel("Имя:"))
+            form.addWidget(self.name, 1)
+            form.addWidget(QLabel("Группа:"))
+            form.addWidget(self.group, 1)
+            form.addWidget(self.restart)
+            buttons = QHBoxLayout()
+            file_btn = QPushButton("Загрузить из файла…")
+            file_btn.clicked.connect(self.load_file)
+            preview_btn = QPushButton("Распознать")
+            preview_btn.clicked.connect(self.preview)
+            apply_btn = QPushButton("Импортировать")
+            apply_btn.setObjectName("primary")
+            apply_btn.clicked.connect(self.apply)
+            buttons.addWidget(file_btn)
+            buttons.addStretch(1)
+            buttons.addWidget(preview_btn)
+            buttons.addWidget(apply_btn)
+            self.input = QPlainTextEdit()
+            self.input.setPlaceholderText("Вставь vless:// / vmess:// / trojan:// / hysteria2://, WireGuard/AmneziaWG .conf, OpenVPN .ovpn, YAML proxy block/full config или subscription URL")
+            self.preview_box = QPlainTextEdit()
+            self.preview_box.setReadOnly(True)
+            self.preview_box.setPlaceholderText("Здесь появится распознанный proxy YAML")
+            self.status = QLabel("Поддержка: VLESS, VMess, Trojan, SS, Hysteria2, WireGuard/AmneziaWG, OpenVPN, Tailscale, YAML, subscription provider")
+            self.status.setObjectName("muted")
+            layout.addWidget(title)
+            layout.addLayout(form)
+            layout.addWidget(QLabel("Ввод:"))
+            layout.addWidget(self.input, 2)
+            layout.addLayout(buttons)
+            layout.addWidget(QLabel("Preview:"))
+            layout.addWidget(self.preview_box, 1)
+            layout.addWidget(self.status)
+            self.refresh_groups()
+
+        def refresh_groups(self) -> None:
+            current = self.group.currentText()
+            self.group.clear()
+            names = cfg_mgr.group_names()
+            self.group.addItems(names)
+            if current:
+                self.group.setCurrentText(current)
+            elif names:
+                self.group.setCurrentText(names[0])
+
+        def load_file(self) -> None:
+            path, _ = QFileDialog.getOpenFileName(self, "Импортировать файл", str(Path.home()), "Configs (*.conf *.ovpn *.yaml *.yml *.txt);;All files (*)")
+            if not path:
+                return
+            self.input.setPlainText(Path(path).read_text(encoding="utf-8", errors="ignore"))
+            if not self.name.text().strip():
+                self.name.setText(Path(path).stem)
+            self.status.setText(f"Загружен файл: {path}")
+
+        def _parse(self) -> list[ImportResult]:
+            kind = self.kind.currentText().strip().lower()
+            if kind == "subscription":
+                return []
+            return cfg_mgr.parse_import(self.input.toPlainText(), name=self.name.text().strip(), kind=kind)
+
+        def preview(self) -> None:
+            try:
+                if self.kind.currentText().strip().lower() == "subscription":
+                    url = self.input.toPlainText().strip()
+                    name = self.name.text().strip() or "subscription_1"
+                    self.preview_box.setPlainText(f"proxy-providers:\n  {name}:\n    type: http\n    url: {url}\n    interval: 3600\n")
+                    self.status.setText("Subscription provider будет добавлен в proxy-providers и use у selector-групп")
+                    return
+                imports = self._parse()
+                self.preview_box.setPlainText("\n---\n".join(imp.yaml.strip() for imp in imports))
+                self.status.setText(f"Распознано прокси: {', '.join(imp.name for imp in imports)}")
+            except Exception as e:
+                QMessageBox.critical(self, APP_NAME, f"Не удалось распознать импорт:\n{e}")
+
+        def apply(self) -> None:
+            try:
+                if self.kind.currentText().strip().lower() == "subscription":
+                    provider = self.name.text().strip() or "subscription_1"
+                    backup, msg = cfg_mgr.add_subscription_provider(self.input.toPlainText().strip(), provider, restart=self.restart.isChecked())
+                    self.status.setText(f"{msg}. Backup: {backup or 'нет'}")
+                    QMessageBox.information(self, APP_NAME, f"{msg}\nBackup: {backup or 'нет'}")
+                    self.refresh_groups()
+                    return
+                imports = self._parse()
+                group_text = self.group.currentText().strip()
+                groups = [group_text] if group_text else []
+                added, backup, msg = cfg_mgr.apply_imports(imports, groups, restart=self.restart.isChecked())
+                self.preview_box.setPlainText("\n---\n".join(imp.yaml.strip() for imp in imports))
+                self.status.setText(f"Добавлено: {', '.join(added)}. {msg}. Backup: {backup or 'нет'}")
+                QMessageBox.information(self, APP_NAME, f"Добавлено: {', '.join(added)}\n{msg}\nBackup: {backup or 'нет'}")
+                self.refresh_groups()
+            except Exception as e:
+                QMessageBox.critical(self, APP_NAME, f"Импорт не выполнен:\n{e}")
+
+    class LogsTab(QWidget):
+        def __init__(self) -> None:
+            super().__init__()
+            layout = QVBoxLayout(self)
+            buttons = QHBoxLayout()
+            reload_btn = QPushButton("Обновить логи")
+            reload_btn.clicked.connect(self.load)
+            buttons.addStretch(1)
+            buttons.addWidget(reload_btn)
+            self.logs = QPlainTextEdit()
+            self.logs.setReadOnly(True)
+            layout.addWidget(QLabel(str(runtime.runtime / "logs")))
+            layout.addLayout(buttons)
+            layout.addWidget(self.logs, 1)
+            self.load()
+
+        def load(self) -> None:
+            parts = []
+            for name in ("native-app.log", "mihomo-native.log"):
+                path = runtime.runtime / "logs" / name
+                parts.append(f"===== {path} =====")
+                if path.exists():
+                    text = path.read_text(encoding="utf-8", errors="replace")
+                    parts.append("\n".join(text.splitlines()[-250:]))
+                else:
+                    parts.append("<нет файла>")
+            self.logs.setPlainText("\n".join(parts))
 
     class DashboardTab(QWidget):
         def __init__(self) -> None:
@@ -564,11 +1031,15 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             self.connections = ConnectionsTab()
             self.manual = ManualTab()
             self.config = ConfigTab()
+            self.imports = ImportTab()
+            self.logs = LogsTab()
             tabs.addTab(self.dashboard, "Обзор")
             tabs.addTab(self.selectors, "Селекторы")
             tabs.addTab(self.connections, "Соединения")
+            tabs.addTab(self.imports, "Импорт")
             tabs.addTab(self.manual, "Ручной список")
             tabs.addTab(self.config, "Конфиг")
+            tabs.addTab(self.logs, "Логи")
             self.setCentralWidget(tabs)
             self.statusBar().showMessage(f"Runtime: {runtime.runtime}")
             self.timer = QTimer(self)
@@ -589,6 +1060,7 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             self.connections.refresh()
 
         def closeEvent(self, event) -> None:  # type: ignore[override]
+            log_native_event("main window closeEvent")
             runtime.stop()
             event.accept()
 
@@ -599,6 +1071,7 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
     app.setApplicationName(APP_NAME)
     app.setStyleSheet(DARK_QSS)
     app.setQuitOnLastWindowClosed(False)
+    app.aboutToQuit.connect(lambda: log_native_event("app aboutToQuit"))
 
     startup = QWidget()
     startup.setWindowTitle(APP_NAME)
