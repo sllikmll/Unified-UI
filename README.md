@@ -26,6 +26,7 @@
 | Платформа | Файл | Статус |
 |---|---|---|
 | macOS Apple Silicon | [Unified-UI-Native-2.6.4-mac-arm64.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-mac-arm64.zip) | Есть |
+| Windows x64 installer / setup wizard | [Unified-UI-Native-Setup-2.6.4-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-Setup-2.6.4-x64.exe) | Есть |
 | Windows x64 portable | [Unified-UI-Native-2.6.4-windows-x64-portable.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-windows-x64-portable.zip) | Есть |
 | Windows x64 standalone EXE | [Unified-UI-Native-2.6.4-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-x64.exe) | Есть |
 | Linux x64 portable | [Unified-UI-Native-2.6.4-linux-x64-portable.tar.gz](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-linux-x64-portable.tar.gz) | Есть |
@@ -304,6 +305,7 @@ curl http://<mikrotik-ip>:9090/version
 | ОС | Файл |
 |---|---|
 | macOS Apple Silicon | `Unified-UI-Native-2.6.4-mac-arm64.zip` |
+| Windows x64 installer / setup wizard | `Unified-UI-Native-Setup-2.6.4-x64.exe` |
 | Windows x64 portable | `Unified-UI-Native-2.6.4-windows-x64-portable.zip` |
 | Windows x64 standalone EXE | `Unified-UI-Native-2.6.4-x64.exe` |
 | Linux portable | `Unified-UI-Native-2.6.4-linux-x64-portable.tar.gz` |
@@ -312,6 +314,7 @@ curl http://<mikrotik-ip>:9090/version
 
 Что важно в `2.6.4`:
 
+- для Windows рекомендуемый вариант — `Unified-UI-Native-Setup-2.6.4-x64.exe`: NSIS-мастер установки, установка в `Program Files`, ярлыки Start Menu/Desktop и uninstall через “Приложения и компоненты”;
 - компактные selector-плитки ближе к web-панели;
 - proxy nodes из подписки доступны в selector-группах, а не теряются после импорта;
 - per-node ping: отдельное обновление на узле, зелёный online, красный offline, серый not checked;
