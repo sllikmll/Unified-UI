@@ -27,6 +27,7 @@
 |---|---|---|
 | macOS Apple Silicon | [Unified-UI-Native-2.6.4-mac-arm64.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-mac-arm64.zip) | Есть |
 | Windows x64 portable | [Unified-UI-Native-2.6.4-windows-x64-portable.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-windows-x64-portable.zip) | Есть |
+| Windows x64 standalone EXE | [Unified-UI-Native-2.6.4-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-x64.exe) | Есть |
 | Linux x64 portable | [Unified-UI-Native-2.6.4-linux-x64-portable.tar.gz](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-linux-x64-portable.tar.gz) | Есть |
 | Linux Debian/Ubuntu | [Unified-UI-Native-2.6.4-linux-x64.deb](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-linux-x64.deb) | Есть |
 | Linux RPM | [Unified-UI-Native-2.6.4-linux-x64.rpm](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-linux-x64.rpm) | Есть |
@@ -304,6 +305,7 @@ curl http://<mikrotik-ip>:9090/version
 |---|---|
 | macOS Apple Silicon | `Unified-UI-Native-2.6.4-mac-arm64.zip` |
 | Windows x64 portable | `Unified-UI-Native-2.6.4-windows-x64-portable.zip` |
+| Windows x64 standalone EXE | `Unified-UI-Native-2.6.4-x64.exe` |
 | Linux portable | `Unified-UI-Native-2.6.4-linux-x64-portable.tar.gz` |
 | Linux Debian/Ubuntu | `Unified-UI-Native-2.6.4-linux-x64.deb` |
 | Linux RPM | `Unified-UI-Native-2.6.4-linux-x64.rpm` |
