@@ -201,24 +201,55 @@ class MihomoRuntime:
     def manual_rules_path(self) -> Path:
         return self.runtime / "mihomo" / "rules" / "manual-proxy.yaml"
 
+    def _subprocess_window_kwargs(self) -> dict[str, Any]:
+        """Hide helper console windows on Windows builds.
+
+        PyInstaller --windowed removes our app console, but child console
+        programs can still spawn their own black window unless CREATE_NO_WINDOW
+        is set. Mihomo is a console binary on Windows, so this is mandatory for
+        a real desktop app.
+        """
+        if sys.platform != "win32":
+            return {}
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        return {
+            "startupinfo": startupinfo,
+            "creationflags": subprocess.CREATE_NO_WINDOW,
+        }
+
     def start(self) -> None:
         mihomo = ensure_mihomo(self.runtime)
         cfg = ensure_config(self.runtime)
         logs = self.runtime / "logs"
         logs.mkdir(parents=True, exist_ok=True)
-        test = subprocess.run([str(mihomo), "-t", "-d", str(cfg.parent), "-f", str(cfg)], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        popen_kwargs = self._subprocess_window_kwargs()
+        test = subprocess.run(
+            [str(mihomo), "-t", "-d", str(cfg.parent), "-f", str(cfg)],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            **popen_kwargs,
+        )
         if test.returncode != 0:
             raise RuntimeError(f"Mihomo config invalid\nSTDOUT:\n{test.stdout}\nSTDERR:\n{test.stderr}")
         log_file = (logs / "mihomo-native.log").open("ab")
-        self.proc = subprocess.Popen([str(mihomo), "-d", str(cfg.parent), "-f", str(cfg)], stdout=log_file, stderr=log_file)
+        self.proc = subprocess.Popen(
+            [str(mihomo), "-d", str(cfg.parent), "-f", str(cfg)],
+            stdout=log_file,
+            stderr=log_file,
+            **popen_kwargs,
+        )
         deadline = time.time() + 35
         while time.time() < deadline:
+            if self.proc.poll() is not None:
+                raise RuntimeError(f"Mihomo exited during startup with code {self.proc.returncode}; see {logs / 'mihomo-native.log'}")
             try:
                 self.get("/version")
                 return
             except Exception:
                 time.sleep(0.35)
-        raise RuntimeError("Mihomo controller did not become ready")
+        raise RuntimeError(f"Mihomo controller did not become ready; see {logs / 'mihomo-native.log'}")
 
     def stop(self) -> None:
         if self.proc and self.proc.poll() is None:
