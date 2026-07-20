@@ -67,6 +67,8 @@ QPushButton:hover { background: #1b3152; }
 QPushButton:pressed { background: #0f1d31; }
 QPushButton#danger { border-color: #7f1d1d; background: #3b1116; color: #fecaca; }
 QPushButton#primary { border-color: #2563eb; background: #1d4ed8; color: white; }
+QPushButton#tile { padding: 5px 8px; min-height: 30px; border-radius: 7px; text-align: left; }
+QPushButton#tileActive { padding: 5px 8px; min-height: 30px; border-radius: 7px; text-align: left; border-color: #2563eb; background: #1d4ed8; color: white; }
 QLabel#title { font-size: 22px; font-weight: 800; color: #f8fbff; }
 QLabel#muted { color: #93a4bf; }
 QLineEdit, QTextEdit, QPlainTextEdit, QComboBox { background: #0b1628; color: #e8f0ff; border: 1px solid #263d5e; border-radius: 8px; padding: 7px; selection-background-color: #2563eb; }
@@ -473,6 +475,31 @@ class NativeConfigManager:
             return [ImportResult(name=str(data["name"]), yaml=yaml.safe_dump([data], allow_unicode=True, sort_keys=False), kind=str(data.get("type") or "yaml"), source="proxy-yaml")]
         raise ValueError("Не понял формат. Поддерживаются URI, WG/AWG .conf, OpenVPN, Tailscale, proxy YAML и полный Mihomo YAML.")
 
+    def _parse_wireguard_uri(self, line: str, name: str = "") -> ImportResult:
+        parsed = urllib.parse.urlparse(line.strip())
+        qs = {k: v[-1] for k, v in urllib.parse.parse_qs(parsed.query, keep_blank_values=True).items()}
+        private_key = urllib.parse.unquote(parsed.username or "")
+        host = parsed.hostname or ""
+        port = parsed.port or 51820
+        public_key = urllib.parse.unquote(qs.get("publickey") or qs.get("public-key") or "")
+        address = urllib.parse.unquote(qs.get("address") or "10.0.0.2/32")
+        mtu = urllib.parse.unquote(qs.get("mtu") or "")
+        dns = urllib.parse.unquote(qs.get("dns") or "")
+        allowed = urllib.parse.unquote(qs.get("allowedips") or qs.get("allowed-ips") or "0.0.0.0/0, ::/0")
+        reserved = urllib.parse.unquote(qs.get("reserved") or qs.get("clientid") or qs.get("client-id") or "")
+        if not private_key or not host or not public_key:
+            raise ValueError("wireguard:// URI должен содержать private key, endpoint host и publickey")
+        conf = ["[Interface]", f"PrivateKey = {private_key}", f"Address = {address}"]
+        if dns:
+            conf.append(f"DNS = {dns}")
+        if mtu:
+            conf.append(f"MTU = {mtu}")
+        if reserved:
+            conf.append(f"Reserved = {reserved}")
+        conf += ["", "[Peer]", f"PublicKey = {public_key}", f"AllowedIPs = {allowed}", f"Endpoint = {host}:{port}"]
+        res = parse_wireguard("\n".join(conf) + "\n", custom_name=name or urllib.parse.unquote(parsed.fragment or "") or None)
+        return ImportResult(name=res.name, yaml=res.yaml, kind="wireguard", source="wireguard-uri")
+
     def _parse_single_uri(self, text: str, name: str = "") -> ImportResult:
         line = text.strip()
         # Some subscriptions are base64 with URI lines inside.
@@ -482,17 +509,53 @@ class NativeConfigManager:
                 line = next((x.strip() for x in decoded.splitlines() if "://" in x), line)
             except Exception:
                 pass
+        if line.lower().startswith("wireguard://"):
+            return self._parse_wireguard_uri(line, name)
         res = parse_proxy_uri(line, custom_name=name or None)
         return ImportResult(name=res.name, yaml=res.yaml, kind=line.split(":", 1)[0].lower(), source="uri")
 
-    def apply_imports(self, imports: list[ImportResult], groups: list[str] | None = None, *, restart: bool = True) -> tuple[list[str], Path | None, str]:
+    def decode_subscription_text(self, raw: bytes | str) -> str:
+        if isinstance(raw, bytes):
+            text = raw.decode("utf-8", errors="replace")
+            raw_bytes = raw
+        else:
+            text = str(raw or "")
+            raw_bytes = text.encode("utf-8", errors="ignore")
+        if "://" in text:
+            return text
+        compact = b"".join(raw_bytes.split())
+        try:
+            decoded = base64.b64decode(compact + b"=" * (-len(compact) % 4)).decode("utf-8", errors="replace")
+            if "://" in decoded:
+                return decoded
+        except Exception:
+            pass
+        return text
+
+    def fetch_subscription_text(self, url: str) -> str:
+        req = urllib.request.Request(str(url).strip(), headers={"User-Agent": f"ClashMeta/{MIHOMO_VERSION}; mihomo/{MIHOMO_VERSION}"})
+        with urllib.request.urlopen(req, timeout=25) as response:
+            return self.decode_subscription_text(response.read())
+
+    def parse_subscription_text(self, text: str) -> list[ImportResult]:
+        decoded = self.decode_subscription_text(text)
+        uri_lines = [line.strip() for line in decoded.splitlines() if "://" in line and not line.strip().startswith("#")]
+        imports: list[ImportResult] = []
+        errors: list[str] = []
+        for line in uri_lines:
+            try:
+                imports.append(self._parse_single_uri(line))
+            except Exception as exc:
+                errors.append(f"{line[:80]}: {exc}")
         if not imports:
-            raise ValueError("Нет прокси для импорта")
-        data = self._load_yaml_dict(self.read_config())
-        group_names = self.group_names()
-        target_groups = [g for g in (groups or []) if g]
-        if not target_groups:
-            target_groups = [group_names[0]] if group_names else []
+            detail = "\n".join(errors[:5])
+            raise ValueError("В подписке не найдено поддерживаемых прокси" + (f":\n{detail}" if detail else ""))
+        return imports
+
+    def fetch_subscription_imports(self, url: str) -> list[ImportResult]:
+        return self.parse_subscription_text(self.fetch_subscription_text(url))
+
+    def _append_imports_to_data(self, data: dict[str, Any], imports: list[ImportResult], target_groups: list[str]) -> list[str]:
         added: list[str] = []
         for imp in imports:
             block = ensure_leading_dash_for_yaml_block(imp.yaml)
@@ -500,7 +563,11 @@ class NativeConfigManager:
             if not isinstance(parsed, list) or not parsed or not isinstance(parsed[0], dict):
                 raise ValueError(f"Импорт {imp.name}: парсер вернул невалидный YAML")
             proxy = parsed[0]
-            proxy["name"] = self._unique_proxy_name(data, str(proxy.get("name") or imp.name))
+            desired_name = str(proxy.get("name") or imp.name)
+            existing_names = {str(p.get("name") or "") for p in data.get("proxies") or [] if isinstance(p, dict)}
+            if desired_name in existing_names:
+                continue
+            proxy["name"] = self._unique_proxy_name(data, desired_name)
             data["proxies"].append(proxy)
             added.append(str(proxy["name"]))
             for group in data.get("proxy-groups") or []:
@@ -515,6 +582,17 @@ class NativeConfigManager:
                     group["proxies"] = proxies
                 if isinstance(proxies, list) and proxy["name"] not in proxies:
                     proxies.append(proxy["name"])
+        return added
+
+    def apply_imports(self, imports: list[ImportResult], groups: list[str] | None = None, *, restart: bool = True) -> tuple[list[str], Path | None, str]:
+        if not imports:
+            raise ValueError("Нет прокси для импорта")
+        data = self._load_yaml_dict(self.read_config())
+        group_names = self.group_names()
+        target_groups = [g for g in (groups or []) if g]
+        if not target_groups:
+            target_groups = [group_names[0]] if group_names else []
+        added = self._append_imports_to_data(data, imports, target_groups)
         new_text = yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=140)
         backup, msg = self.save_text(new_text, validate=True)
         if restart:
@@ -522,7 +600,7 @@ class NativeConfigManager:
             msg += "; Mihomo перезапущен"
         return added, backup, msg
 
-    def add_subscription_provider(self, url: str, name: str = "", interval: int = 3600, groups: list[str] | None = None, *, restart: bool = True) -> tuple[str, Path | None, str]:
+    def add_subscription_provider(self, url: str, name: str = "", interval: int = 3600, groups: list[str] | None = None, *, restart: bool = True, mirror_static: bool = True, subscription_text: str | None = None) -> tuple[str, list[str], Path | None, str]:
         url = str(url or "").strip()
         if not url.startswith(("http://", "https://")):
             raise ValueError("Subscription URL должен начинаться с http:// или https://")
@@ -553,6 +631,14 @@ class NativeConfigManager:
                 group["use"] = use
             if isinstance(use, list) and name not in use:
                 use.append(name)
+        added_static: list[str] = []
+        mirror_error = ""
+        if mirror_static:
+            try:
+                imports = self.parse_subscription_text(subscription_text) if subscription_text is not None else self.fetch_subscription_imports(url)
+                added_static = self._append_imports_to_data(data, imports, list(target_groups))
+            except Exception as exc:
+                mirror_error = str(exc)
         new_text = yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=140)
         backup, msg = self.save_text(new_text, validate=True)
         if restart:
@@ -562,7 +648,11 @@ class NativeConfigManager:
             except Exception:
                 pass
             msg += "; Mihomo перезапущен"
-        return name, backup, f"provider {name} добавлен; {msg}"
+        if added_static:
+            msg += f"; ноды подписки добавлены в proxies: {len(added_static)}"
+        elif mirror_error:
+            msg += f"; provider добавлен, но ноды не удалось зеркалировать: {mirror_error}"
+        return name, added_static, backup, f"provider {name} добавлен; {msg}"
 
 
 @dataclass
@@ -863,11 +953,14 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
                 now = str(data.get("now") or "")
                 for idx, proxy in enumerate(all_names):
                     btn = QPushButton(proxy)
-                    btn.setMinimumHeight(48)
+                    btn.setMinimumHeight(34)
+                    btn.setMaximumHeight(42)
                     if proxy == now:
-                        btn.setObjectName("primary")
+                        btn.setObjectName("tileActive")
+                    else:
+                        btn.setObjectName("tile")
                     btn.clicked.connect(lambda _=False, g=name, p=proxy: self.select(g, p))
-                    grid.addWidget(btn, idx // 4, idx % 4)
+                    grid.addWidget(btn, idx // 5, idx % 5)
                 self.groups_box.addWidget(group)
             self.groups_box.addStretch(1)
 
@@ -1079,6 +1172,8 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             self.group.setEditable(True)
             self.restart = QCheckBox("Применить и restart Mihomo")
             self.restart.setChecked(True)
+            self.mirror_static = QCheckBox("Сразу добавить ноды в селекторы")
+            self.mirror_static.setChecked(True)
             form.addWidget(QLabel("Формат:"))
             form.addWidget(self.kind)
             form.addWidget(QLabel("Имя:"))
@@ -1086,6 +1181,7 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             form.addWidget(QLabel("Группа:"))
             form.addWidget(self.group, 1)
             form.addWidget(self.restart)
+            form.addWidget(self.mirror_static)
             buttons = QHBoxLayout()
             file_btn = QPushButton("Загрузить из файла…")
             file_btn.clicked.connect(self.load_file)
@@ -1145,8 +1241,11 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
                 if self.kind.currentText().strip().lower() == "subscription":
                     url = self.input.toPlainText().strip()
                     name = self.name.text().strip() or "subscription_1"
-                    self.preview_box.setPlainText(f"proxy-providers:\n  {name}:\n    type: http\n    url: {url}\n    interval: 3600\n")
-                    self.status.setText("Subscription provider будет добавлен в proxy-providers и use у selector-групп")
+                    imports = cfg_mgr.fetch_subscription_imports(url)
+                    sample = "\n".join(f"  - {imp.name} ({imp.kind})" for imp in imports[:80])
+                    more = "" if len(imports) <= 80 else f"\n  ... ещё {len(imports)-80}"
+                    self.preview_box.setPlainText(f"proxy-providers:\n  {name}:\n    type: http\n    url: {url}\n    interval: 3600\n\n# Ноды подписки ({len(imports)}):\n{sample}{more}\n")
+                    self.status.setText(f"Распознано нод подписки: {len(imports)}. Provider + ноды будут добавлены в выбранную группу.")
                     return
                 imports = self._parse()
                 self.preview_box.setPlainText("\n---\n".join(imp.yaml.strip() for imp in imports))
@@ -1157,11 +1256,24 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
         def apply(self) -> None:
             try:
                 if self.kind.currentText().strip().lower() == "subscription":
-                    provider = self.name.text().strip() or "subscription_1"
-                    backup, msg = cfg_mgr.add_subscription_provider(self.input.toPlainText().strip(), provider, restart=self.restart.isChecked())
+                    provider = self.name.text().strip()
+                    group_text = self.group.currentText().strip()
+                    groups = [group_text] if group_text else []
+                    actual_provider, added_static, backup, msg = cfg_mgr.add_subscription_provider(
+                        self.input.toPlainText().strip(),
+                        provider,
+                        groups=groups,
+                        restart=self.restart.isChecked(),
+                        mirror_static=self.mirror_static.isChecked(),
+                    )
+                    self.name.setText(actual_provider)
+                    if added_static:
+                        self.preview_box.setPlainText("Добавлены ноды в selectors/proxies:\n" + "\n".join(f"- {x}" for x in added_static))
                     self.status.setText(f"{msg}. Backup: {backup or 'нет'}")
                     QMessageBox.information(self, APP_NAME, f"{msg}\nBackup: {backup or 'нет'}")
                     self.refresh_groups()
+                    if self.on_changed:
+                        self.on_changed()
                     return
                 imports = self._parse()
                 group_text = self.group.currentText().strip()
@@ -1171,6 +1283,8 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
                 self.status.setText(f"Добавлено: {', '.join(added)}. {msg}. Backup: {backup or 'нет'}")
                 QMessageBox.information(self, APP_NAME, f"Добавлено: {', '.join(added)}\n{msg}\nBackup: {backup or 'нет'}")
                 self.refresh_groups()
+                if self.on_changed:
+                    self.on_changed()
             except Exception as e:
                 QMessageBox.critical(self, APP_NAME, f"Импорт не выполнен:\n{e}")
 
