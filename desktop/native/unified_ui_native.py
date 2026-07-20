@@ -59,195 +59,218 @@ else:
     _WEB_PARSER_IMPORT_ERROR = None
 
 DARK_QSS = """
-* { font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif; }
+* { font-family: ".AppleSystemUIFont", "SF Pro Display", "Segoe UI", "Inter", -apple-system, BlinkMacSystemFont, sans-serif; }
 QMainWindow, QWidget {
-    background: #050b14;
-    color: #e6edf8;
+    background: #06101d;
+    color: #eaf2ff;
     font-size: 13px;
 }
 QMainWindow {
     border: 0;
 }
 QTabWidget::pane {
-    border: 1px solid #14243a;
-    border-radius: 18px;
-    background: #07111f;
+    border: 1px solid #183251;
+    border-radius: 24px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #071426, stop:1 #091d33);
     top: -1px;
-    padding: 10px;
+    padding: 14px;
 }
 QTabBar::tab {
-    background: #091525;
-    color: #8fa4bf;
-    border: 1px solid #13243a;
-    padding: 10px 15px;
-    border-radius: 11px;
-    margin: 4px 5px 8px 0;
-    min-height: 18px;
+    background: #0a182b;
+    color: #8fa6c4;
+    border: 1px solid #17304c;
+    padding: 10px 16px;
+    border-radius: 13px;
+    margin: 6px 6px 10px 0;
+    min-height: 20px;
+    font-weight: 750;
 }
 QTabBar::tab:hover {
-    background: #0e1d31;
-    color: #dce8f8;
-    border-color: #234263;
+    background: #10243d;
+    color: #eef6ff;
+    border-color: #2c5d88;
 }
 QTabBar::tab:selected {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2563eb, stop:1 #0891b2);
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2563eb, stop:0.55 #0ea5e9, stop:1 #06b6d4);
     color: #ffffff;
-    border-color: #38bdf8;
+    border-color: #67e8f9;
 }
 QPushButton {
-    background: #0b1728;
-    color: #dce8f8;
-    border: 1px solid #1f344f;
-    border-radius: 11px;
-    padding: 9px 13px;
-    font-weight: 650;
+    background: #0c1b2f;
+    color: #e6f0ff;
+    border: 1px solid #244466;
+    border-radius: 13px;
+    padding: 9px 14px;
+    font-weight: 750;
 }
 QPushButton:hover {
-    background: #10223a;
-    border-color: #31577f;
+    background: #132a47;
+    border-color: #3b82b6;
 }
 QPushButton:pressed {
-    background: #07111f;
-    border-color: #38bdf8;
+    background: #081524;
+    border-color: #67e8f9;
 }
 QPushButton#primary {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2563eb, stop:1 #0ea5e9);
-    border-color: #38bdf8;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2563eb, stop:1 #0891b2);
+    border-color: #67e8f9;
     color: #ffffff;
 }
 QPushButton#primary:hover {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1d4ed8, stop:1 #0284c7);
 }
 QPushButton#danger {
-    background: #251016;
-    border-color: #7f1d1d;
-    color: #fecaca;
+    background: #28131a;
+    border-color: #8f2431;
+    color: #fecdd3;
 }
 QPushButton#danger:hover {
-    background: #3a121c;
-    border-color: #ef4444;
+    background: #421722;
+    border-color: #fb7185;
 }
 QPushButton#tile, QPushButton#tileActive {
-    padding: 8px 10px;
-    min-height: 38px;
-    max-height: 48px;
+    padding: 8px 11px;
+    min-height: 36px;
+    max-height: 44px;
     border-radius: 12px;
     text-align: left;
-    font-weight: 650;
+    font-weight: 800;
 }
 QPushButton#tile {
-    background: #091525;
-    border: 1px solid #18304b;
-    color: #d7e4f7;
+    background: #0b1a2d;
+    border: 1px solid #1d3b5c;
+    color: #dce9fb;
 }
 QPushButton#tile:hover {
-    background: #10243c;
-    border-color: #2b5f87;
+    background: #123050;
+    border-color: #38bdf8;
 }
 QPushButton#tileActive {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1d4ed8, stop:1 #0891b2);
-    border: 1px solid #67e8f9;
+    border: 1px solid #a5f3fc;
     color: #ffffff;
 }
 QLabel#title {
-    font-size: 25px;
-    font-weight: 850;
+    font-size: 29px;
+    font-weight: 900;
     color: #f8fbff;
     padding: 4px 0 8px 0;
 }
+QLabel#heroTitle {
+    font-size: 38px;
+    font-weight: 950;
+    color: #f8fbff;
+    padding: 0 0 4px 0;
+}
 QLabel#muted {
-    color: #8da1bb;
+    color: #8da8c8;
+}
+QLabel#metricValue {
+    font-size: 23px;
+    font-weight: 900;
+    color: #ffffff;
+}
+QLabel#metricLabel {
+    color: #8da8c8;
+    font-size: 12px;
+    font-weight: 750;
 }
 QLineEdit, QTextEdit, QPlainTextEdit, QComboBox {
-    background: #081321;
-    color: #e6edf8;
-    border: 1px solid #1c314d;
-    border-radius: 12px;
+    background: #081625;
+    color: #eaf2ff;
+    border: 1px solid #21405f;
+    border-radius: 13px;
     padding: 9px 10px;
     selection-background-color: #2563eb;
     selection-color: #ffffff;
 }
 QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QComboBox:focus {
-    border-color: #38bdf8;
-    background: #0b1728;
+    border-color: #67e8f9;
+    background: #0c1d32;
 }
 QComboBox::drop-down {
     border: 0;
-    width: 28px;
+    width: 30px;
 }
 QComboBox QAbstractItemView {
-    background: #081321;
-    border: 1px solid #234263;
-    color: #e6edf8;
+    background: #081625;
+    border: 1px solid #2b5478;
+    color: #eaf2ff;
     selection-background-color: #1d4ed8;
     outline: 0;
 }
 QTableWidget {
-    background: #07111f;
-    alternate-background-color: #0a1627;
-    gridline-color: #13243a;
-    border: 1px solid #162a43;
-    border-radius: 14px;
-    selection-background-color: #17345a;
+    background: #081422;
+    alternate-background-color: #0b1a2c;
+    gridline-color: #17304c;
+    border: 1px solid #1b3856;
+    border-radius: 18px;
+    selection-background-color: #173b63;
     selection-color: #ffffff;
 }
 QTableWidget::item {
-    padding: 7px;
+    padding: 8px;
     border: 0;
 }
 QHeaderView::section {
-    background: #0c1b2e;
-    color: #c7d7ed;
+    background: #0d2036;
+    color: #d4e6ff;
     border: 0;
-    border-right: 1px solid #14243a;
-    border-bottom: 1px solid #203857;
-    padding: 9px;
-    font-weight: 800;
+    border-right: 1px solid #183251;
+    border-bottom: 1px solid #295278;
+    padding: 10px;
+    font-weight: 900;
 }
 QGroupBox {
-    background: #07111f;
-    border: 1px solid #162a43;
-    border-radius: 16px;
-    margin-top: 16px;
-    padding: 16px 12px 12px 12px;
-    font-weight: 800;
-    color: #e6edf8;
+    background: #081422;
+    border: 1px solid #1b3856;
+    border-radius: 20px;
+    margin-top: 18px;
+    padding: 18px 14px 14px 14px;
+    font-weight: 900;
+    color: #eef6ff;
 }
 QGroupBox::title {
     subcontrol-origin: margin;
-    left: 14px;
-    padding: 0 8px;
-    color: #cfe0f7;
-    background: #050b14;
+    left: 16px;
+    padding: 0 9px;
+    color: #d9ebff;
+    background: #06101d;
+}
+QFrame#metricCard, QFrame#heroCard {
+    background: #081a2e;
+    border: 1px solid #1f4263;
+    border-radius: 22px;
 }
 QScrollArea {
     border: 0;
     background: transparent;
 }
 QScrollBar:vertical {
-    background: #050b14;
+    background: #06101d;
     width: 12px;
     margin: 3px;
     border-radius: 6px;
 }
 QScrollBar::handle:vertical {
-    background: #1e3a5f;
+    background: #27517a;
     min-height: 36px;
     border-radius: 6px;
 }
 QScrollBar::handle:vertical:hover {
-    background: #2f5f8f;
+    background: #3b82b6;
 }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
     height: 0;
 }
 QStatusBar {
-    background: #050b14;
-    color: #8da1bb;
-    border-top: 1px solid #13243a;
+    background: #06101d;
+    color: #8da8c8;
+    border-top: 1px solid #183251;
 }
-QMessageBox {
-    background: #07111f;
+QMessageBox, QDialog {
+    background: #071426;
+    color: #eaf2ff;
 }
 """
 
@@ -500,8 +523,50 @@ class NativeConfigManager:
                 names.append(str(group.get("name")).strip())
         return names
 
+    @staticmethod
+    def selectable_options_for_group(config: dict[str, Any], group_name: str, live_selector: dict[str, Any], providers: dict[str, Any] | None = None) -> list[str]:
+        seen: set[str] = set()
+        options: list[str] = []
+
+        def add(value: Any) -> None:
+            name = str(value or "").strip()
+            if not name or name in seen:
+                return
+            seen.add(name)
+            options.append(name)
+
+        for item in live_selector.get("all") or []:
+            add(item)
+
+        group_cfg: dict[str, Any] = {}
+        for group in (config or {}).get("proxy-groups") or []:
+            if isinstance(group, dict) and str(group.get("name") or "") == group_name:
+                group_cfg = group
+                break
+
+        for item in group_cfg.get("proxies") or []:
+            add(item)
+
+        configured_providers = {str(item) for item in (group_cfg.get("use") or [])}
+        if configured_providers and isinstance(providers, dict):
+            for provider_name, provider in providers.items():
+                if str(provider_name) not in configured_providers or not isinstance(provider, dict):
+                    continue
+                for item in provider.get("proxies") or []:
+                    add(item.get("name") if isinstance(item, dict) else item)
+
+        return options
+
     def config_data(self) -> dict[str, Any]:
         return self._load_yaml_dict(self.read_config())
+
+    def save_config_data(self, data: dict[str, Any], *, restart: bool = True) -> tuple[Path | None, str]:
+        text = yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=140)
+        backup, msg = self.save_text(text, validate=True)
+        if restart:
+            self.runtime.restart()
+            msg += "; Mihomo перезапущен"
+        return backup, msg
 
     def _normalize_runtime_config_data(self, data: dict[str, Any]) -> bool:
         changed = False
@@ -612,6 +677,59 @@ class NativeConfigManager:
             })
         return items
 
+    def update_subscription_provider(self, old_name: str, *, new_name: str, url: str, interval: int, restart: bool = True) -> tuple[Path | None, str]:
+        old_name = str(old_name or "").strip()
+        new_name = str(new_name or "").strip() or old_name
+        url = str(url or "").strip()
+        if not old_name:
+            raise ValueError("Не выбран provider")
+        if not url.startswith(("http://", "https://")):
+            raise ValueError("Subscription URL должен начинаться с http:// или https://")
+        data = self._load_yaml_dict(self.read_config())
+        providers = data.get("proxy-providers")
+        if not isinstance(providers, dict) or old_name not in providers:
+            raise ValueError(f"Provider `{old_name}` не найден")
+        if new_name != old_name and new_name in providers:
+            raise ValueError(f"Provider `{new_name}` уже существует")
+        provider_raw = providers.pop(old_name)
+        provider: dict[str, Any] = dict(provider_raw) if isinstance(provider_raw, dict) else {"type": "http"}
+        provider["type"] = "http"
+        provider["url"] = url
+        provider["interval"] = int(interval)
+        provider.setdefault("path", f"./providers/{new_name}.yaml")
+        old_path = str(provider.get("path") or "")
+        if old_path.endswith(f"/{old_name}.yaml") or old_path == f"./providers/{old_name}.yaml":
+            provider["path"] = f"./providers/{new_name}.yaml"
+        provider.setdefault("health-check", {"enable": True, "url": "https://www.gstatic.com/generate_204", "interval": 300})
+        providers[new_name] = provider
+        if new_name != old_name:
+            for group in data.get("proxy-groups") or []:
+                if not isinstance(group, dict):
+                    continue
+                use = group.get("use")
+                if isinstance(use, list):
+                    group["use"] = [new_name if str(item) == old_name else item for item in use]
+        backup, msg = self.save_config_data(data, restart=restart)
+        return backup, f"Provider `{old_name}` обновлён как `{new_name}`; {msg}"
+
+    def delete_subscription_provider(self, name: str, *, restart: bool = True) -> tuple[Path | None, str]:
+        name = str(name or "").strip()
+        if not name:
+            raise ValueError("Не выбран provider")
+        data = self._load_yaml_dict(self.read_config())
+        providers = data.get("proxy-providers")
+        if not isinstance(providers, dict) or name not in providers:
+            raise ValueError(f"Provider `{name}` не найден")
+        providers.pop(name, None)
+        for group in data.get("proxy-groups") or []:
+            if not isinstance(group, dict):
+                continue
+            use = group.get("use")
+            if isinstance(use, list):
+                group["use"] = [item for item in use if str(item) != name]
+        backup, msg = self.save_config_data(data, restart=restart)
+        return backup, f"Provider `{name}` удалён; {msg}"
+
     def proxy_group_items(self) -> list[dict[str, Any]]:
         data = self.config_data()
         items: list[dict[str, Any]] = []
@@ -656,6 +774,67 @@ class NativeConfigManager:
                     "details": "; ".join(extra),
                 })
         return items
+
+    def static_proxy_config(self, name: str) -> dict[str, Any]:
+        name = str(name or "").strip()
+        data = self._load_yaml_dict(self.read_config())
+        for proxy in data.get("proxies") or []:
+            if isinstance(proxy, dict) and str(proxy.get("name") or "") == name:
+                return dict(proxy)
+        raise ValueError(f"Static proxy `{name}` не найден")
+
+    def update_static_proxy(self, old_name: str, proxy: dict[str, Any], *, restart: bool = True) -> tuple[Path | None, str]:
+        old_name = str(old_name or "").strip()
+        if not old_name:
+            raise ValueError("Не выбран static proxy")
+        if not isinstance(proxy, dict) or not str(proxy.get("name") or "").strip():
+            raise ValueError("Proxy YAML должен быть объектом с полем `name`")
+        new_name = str(proxy.get("name") or "").strip()
+        data = self._load_yaml_dict(self.read_config())
+        proxies = data.get("proxies")
+        if not isinstance(proxies, list):
+            raise ValueError("proxies должен быть списком")
+        found = False
+        for idx, item in enumerate(proxies):
+            if isinstance(item, dict) and str(item.get("name") or "") == old_name:
+                proxies[idx] = proxy
+                found = True
+                break
+        if not found:
+            raise ValueError(f"Static proxy `{old_name}` не найден")
+        if new_name != old_name:
+            for item in proxies:
+                if isinstance(item, dict) and item is not proxy and str(item.get("name") or "") == new_name:
+                    raise ValueError(f"Static proxy `{new_name}` уже существует")
+            for group in data.get("proxy-groups") or []:
+                if not isinstance(group, dict):
+                    continue
+                group_proxies = group.get("proxies")
+                if isinstance(group_proxies, list):
+                    group["proxies"] = [new_name if str(item) == old_name else item for item in group_proxies]
+        backup, msg = self.save_config_data(data, restart=restart)
+        return backup, f"Static proxy `{old_name}` обновлён как `{new_name}`; {msg}"
+
+    def delete_static_proxy(self, name: str, *, restart: bool = True) -> tuple[Path | None, str]:
+        name = str(name or "").strip()
+        if not name:
+            raise ValueError("Не выбран static proxy")
+        data = self._load_yaml_dict(self.read_config())
+        proxies = data.get("proxies")
+        if not isinstance(proxies, list):
+            raise ValueError("proxies должен быть списком")
+        before = len(proxies)
+        data["proxies"] = [item for item in proxies if not (isinstance(item, dict) and str(item.get("name") or "") == name)]
+        if len(data["proxies"]) == before:
+            raise ValueError(f"Static proxy `{name}` не найден")
+        for group in data.get("proxy-groups") or []:
+            if not isinstance(group, dict):
+                continue
+            group_proxies = group.get("proxies")
+            if isinstance(group_proxies, list):
+                group["proxies"] = [item for item in group_proxies if str(item) != name]
+        backup, msg = self.save_config_data(data, restart=restart)
+        return backup, f"Static proxy `{name}` удалён; {msg}"
 
     def rule_provider_items(self) -> list[dict[str, Any]]:
         data = self.config_data()
@@ -875,7 +1054,7 @@ class NativeConfigManager:
         group_names = self.group_names()
         target_groups = [g for g in (groups or []) if g]
         if not target_groups:
-            target_groups = [group_names[0]] if group_names else []
+            target_groups = self._selected_or_all_selector_groups(data, [])
         added = self._append_imports_to_data(data, imports, target_groups)
         new_text = yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=140)
         backup, msg = self.save_text(new_text, validate=True)
@@ -1191,7 +1370,10 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
         QApplication,
         QCheckBox,
         QComboBox,
+        QDialog,
+        QDialogButtonBox,
         QFileDialog,
+        QFormLayout,
         QGridLayout,
         QGroupBox,
         QHBoxLayout,
@@ -1200,6 +1382,7 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
         QMainWindow,
         QMessageBox,
         QPushButton,
+        QFrame,
         QPlainTextEdit,
         QScrollArea,
         QTableWidget,
@@ -1283,43 +1466,17 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             delay = self.proxy_delay_label(proxy_name)
             return proxy_name if delay == "—" else f"{proxy_name} · {delay}"
 
-        def selector_options(self, data: dict[str, Any]) -> list[str]:
-            seen: set[str] = set()
-            options: list[str] = []
-
-            def add(value: Any) -> None:
-                name = str(value or "").strip()
-                if not name or name in seen:
-                    return
-                seen.add(name)
-                options.append(name)
-
-            for item in data.get("all") or []:
-                add(item)
-
+        def selector_options(self, group_name: str, data: dict[str, Any]) -> list[str]:
+            """Return only options that Mihomo can actually select for this group."""
+            try:
+                config = cfg_mgr.config_data()
+            except Exception:
+                config = {}
             try:
                 providers = runtime.proxy_providers()
             except Exception:
                 providers = {}
-            if isinstance(providers, dict):
-                for provider in providers.values():
-                    if not isinstance(provider, dict):
-                        continue
-                    for item in provider.get("proxies") or []:
-                        if isinstance(item, dict):
-                            add(item.get("name"))
-                        else:
-                            add(item)
-
-            try:
-                proxies = runtime.proxies()
-            except Exception:
-                proxies = {}
-            if isinstance(proxies, dict):
-                for name, proxy in proxies.items():
-                    if isinstance(proxy, dict) and proxy.get("type") not in {"Selector", "URLTest", "Fallback", "LoadBalance"}:
-                        add(name)
-            return options
+            return cfg_mgr.selectable_options_for_group(config, group_name, data, providers)
 
         def refresh(self) -> None:
             self.clear_groups()
@@ -1344,7 +1501,7 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
                 current = QLabel(f"Сейчас: {data.get('now', '—')}")
                 current.setObjectName("muted")
                 combo = QComboBox()
-                all_names = self.selector_options(data)
+                all_names = self.selector_options(name, data)
                 combo.addItems([self.proxy_display_label(x) for x in all_names])
                 combo.setProperty("proxy_names", all_names)
                 now = str(data.get("now") or "")
@@ -1363,7 +1520,7 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             for name, data in items:
                 group = QGroupBox(f"{name} · сейчас: {data.get('now', '—')}")
                 grid = QGridLayout(group)
-                all_names = self.selector_options(data)
+                all_names = self.selector_options(name, data)
                 now = str(data.get("now") or "")
                 for idx, proxy in enumerate(all_names):
                     btn = QPushButton(self.proxy_display_label(proxy))
@@ -1380,6 +1537,11 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
 
         def select(self, group: str, proxy: str) -> None:
             try:
+                selectors = dict(self.selector_items())
+                selector_data = selectors.get(group) or {}
+                valid = set(self.selector_options(group, selector_data))
+                if proxy not in valid:
+                    raise ValueError(f"`{proxy}` не входит в список вариантов selector `{group}`. Обнови подписки/селекторы или добавь эту ноду в группу через Конфиги/Подписки.")
                 runtime.select_proxy(group, proxy)
                 self.refresh()
             except Exception as e:
@@ -1706,11 +1868,12 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             current = self.group.currentText()
             self.group.clear()
             names = cfg_mgr.group_names()
+            self.group.addItem("Все селекторы")
             self.group.addItems(names)
             if current:
                 self.group.setCurrentText(current)
-            elif names:
-                self.group.setCurrentText(names[0])
+            else:
+                self.group.setCurrentText("Все селекторы")
 
         def load_file(self) -> None:
             path, _ = QFileDialog.getOpenFileName(self, "Импортировать файл", str(Path.home()), "Configs (*.conf *.ovpn *.yaml *.yml *.txt);;All files (*)")
@@ -1749,7 +1912,7 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
                 if self.kind.currentText().strip().lower() == "subscription":
                     provider = self.name.text().strip()
                     group_text = self.group.currentText().strip()
-                    groups = [group_text] if group_text else []
+                    groups = [] if group_text == "Все селекторы" else ([group_text] if group_text else [])
                     actual_provider, added_static, backup, msg = cfg_mgr.add_subscription_provider(
                         self.input.toPlainText().strip(),
                         provider,
@@ -1768,7 +1931,7 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
                     return
                 imports = self._parse()
                 group_text = self.group.currentText().strip()
-                groups = [group_text] if group_text else []
+                groups = [] if group_text == "Все селекторы" else ([group_text] if group_text else [])
                 added, backup, msg = cfg_mgr.apply_imports(imports, groups, restart=self.restart.isChecked())
                 self.preview_box.setPlainText("\n---\n".join(imp.yaml.strip() for imp in imports))
                 self.status.setText(f"Добавлено: {', '.join(added)}. {msg}. Backup: {backup or 'нет'}")
@@ -1788,8 +1951,22 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             refresh.clicked.connect(self.refresh)
             update = QPushButton("Обновить HTTP-подписки")
             update.clicked.connect(self.update_providers)
+            edit_provider = QPushButton("Редактировать подписку")
+            edit_provider.clicked.connect(self.edit_provider)
+            delete_provider = QPushButton("Удалить подписку")
+            delete_provider.setObjectName("danger")
+            delete_provider.clicked.connect(self.delete_provider)
+            edit_proxy = QPushButton("Редактировать proxy")
+            edit_proxy.clicked.connect(self.edit_proxy)
+            delete_proxy = QPushButton("Удалить proxy")
+            delete_proxy.setObjectName("danger")
+            delete_proxy.clicked.connect(self.delete_proxy)
             top.addWidget(QLabel("Текущие конфиги, подписки, группы и ручные списки"))
             top.addStretch(1)
+            top.addWidget(edit_provider)
+            top.addWidget(delete_provider)
+            top.addWidget(edit_proxy)
+            top.addWidget(delete_proxy)
             top.addWidget(update)
             top.addWidget(refresh)
             layout.addLayout(top)
@@ -1835,6 +2012,103 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             except Exception as e:
                 self.status.setText(f"Ошибка чтения config.yaml: {e}")
 
+        def selected_table_name(self, table: QTableWidget, label: str) -> str:
+            row = table.currentRow()
+            if row < 0:
+                raise ValueError(f"Выбери строку в таблице `{label}`")
+            item = table.item(row, 0)
+            name = item.text().strip() if item else ""
+            if not name:
+                raise ValueError(f"В выбранной строке `{label}` нет имени")
+            return name
+
+        def edit_provider(self) -> None:
+            try:
+                name = self.selected_table_name(self.providers, "Подписки / proxy-providers")
+                items = {item["name"]: item for item in cfg_mgr.proxy_provider_items()}
+                current = items.get(name) or {}
+                dialog = QDialog(self)
+                dialog.setWindowTitle(f"Редактировать подписку: {name}")
+                form = QFormLayout(dialog)
+                name_edit = QLineEdit(name)
+                url_edit = QLineEdit(str(current.get("url") or ""))
+                interval_edit = QLineEdit(str(current.get("interval") or "3600"))
+                form.addRow("Provider name", name_edit)
+                form.addRow("URL", url_edit)
+                form.addRow("Interval", interval_edit)
+                buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+                buttons.accepted.connect(dialog.accept)
+                buttons.rejected.connect(dialog.reject)
+                form.addRow(buttons)
+                if dialog.exec() != QDialog.Accepted:
+                    return
+                backup, msg = cfg_mgr.update_subscription_provider(
+                    name,
+                    new_name=name_edit.text().strip(),
+                    url=url_edit.text().strip(),
+                    interval=int(interval_edit.text().strip() or "3600"),
+                    restart=True,
+                )
+                self.status.setText(f"{msg}. Backup: {backup or 'нет'}")
+                QMessageBox.information(self, APP_NAME, f"{msg}\nBackup: {backup or 'нет'}")
+                self.refresh()
+            except Exception as e:
+                QMessageBox.critical(self, APP_NAME, f"Не удалось отредактировать подписку:\n{e}")
+
+        def delete_provider(self) -> None:
+            try:
+                name = self.selected_table_name(self.providers, "Подписки / proxy-providers")
+                answer = QMessageBox.question(self, APP_NAME, f"Удалить подписку/provider `{name}` из config.yaml и всех групп?")
+                if answer != QMessageBox.Yes:
+                    return
+                backup, msg = cfg_mgr.delete_subscription_provider(name, restart=True)
+                self.status.setText(f"{msg}. Backup: {backup or 'нет'}")
+                QMessageBox.information(self, APP_NAME, f"{msg}\nBackup: {backup or 'нет'}")
+                self.refresh()
+            except Exception as e:
+                QMessageBox.critical(self, APP_NAME, f"Не удалось удалить подписку:\n{e}")
+
+        def edit_proxy(self) -> None:
+            try:
+                name = self.selected_table_name(self.proxies, "Статические proxies")
+                proxy = cfg_mgr.static_proxy_config(name)
+                dialog = QDialog(self)
+                dialog.setWindowTitle(f"Редактировать static proxy: {name}")
+                layout = QVBoxLayout(dialog)
+                editor = QPlainTextEdit()
+                editor.setPlainText(yaml.safe_dump(proxy, allow_unicode=True, sort_keys=False, width=120))
+                layout.addWidget(QLabel("Proxy YAML:"))
+                layout.addWidget(editor, 1)
+                buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+                buttons.accepted.connect(dialog.accept)
+                buttons.rejected.connect(dialog.reject)
+                layout.addWidget(buttons)
+                dialog.resize(760, 560)
+                if dialog.exec() != QDialog.Accepted:
+                    return
+                parsed = yaml.safe_load(editor.toPlainText())
+                if not isinstance(parsed, dict):
+                    raise ValueError("Proxy YAML должен быть объектом")
+                backup, msg = cfg_mgr.update_static_proxy(name, parsed, restart=True)
+                self.status.setText(f"{msg}. Backup: {backup or 'нет'}")
+                QMessageBox.information(self, APP_NAME, f"{msg}\nBackup: {backup or 'нет'}")
+                self.refresh()
+            except Exception as e:
+                QMessageBox.critical(self, APP_NAME, f"Не удалось отредактировать proxy:\n{e}")
+
+        def delete_proxy(self) -> None:
+            try:
+                name = self.selected_table_name(self.proxies, "Статические proxies")
+                answer = QMessageBox.question(self, APP_NAME, f"Удалить static proxy `{name}` из config.yaml и всех групп?")
+                if answer != QMessageBox.Yes:
+                    return
+                backup, msg = cfg_mgr.delete_static_proxy(name, restart=True)
+                self.status.setText(f"{msg}. Backup: {backup or 'нет'}")
+                QMessageBox.information(self, APP_NAME, f"{msg}\nBackup: {backup or 'нет'}")
+                self.refresh()
+            except Exception as e:
+                QMessageBox.critical(self, APP_NAME, f"Не удалось удалить proxy:\n{e}")
+
         def update_providers(self) -> None:
             results = runtime.update_proxy_providers()
             ok = sum(1 for x in results if x.get("ok"))
@@ -1874,27 +2148,66 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
         def __init__(self) -> None:
             super().__init__()
             layout = QVBoxLayout(self)
+            hero = QFrame()
+            hero.setObjectName("heroCard")
+            hero_layout = QVBoxLayout(hero)
             title = QLabel("Unified UI Native")
-            title.setObjectName("title")
-            self.version = QLabel("Mihomo: —")
-            self.version.setObjectName("muted")
-            self.traffic = QLabel("Traffic: —")
-            self.traffic.setObjectName("muted")
-            layout.addWidget(title)
-            layout.addWidget(QLabel("Нативное Qt-приложение: без WebView, без Flask UI, прямой Mihomo API."))
-            layout.addWidget(self.version)
-            layout.addWidget(self.traffic)
+            title.setObjectName("heroTitle")
+            subtitle = QLabel("Командный центр проксификации: добавил подписку, выбрал группы, включил маршрутизацию — и трафик пошёл куда надо.")
+            subtitle.setObjectName("muted")
+            hero_layout.addWidget(title)
+            hero_layout.addWidget(subtitle)
+            layout.addWidget(hero)
+
+            self.metrics = QGridLayout()
+            layout.addLayout(self.metrics)
+            self.metric_widgets: dict[str, QLabel] = {}
+            for idx, (key, label) in enumerate([
+                ("version", "MIHOMO"),
+                ("controller", "CONTROLLER"),
+                ("proxies", "УЗЛОВ / ГРУПП"),
+                ("connections", "СОЕДИНЕНИЯ"),
+            ]):
+                card = QFrame()
+                card.setObjectName("metricCard")
+                card_layout = QVBoxLayout(card)
+                label_widget = QLabel(label)
+                label_widget.setObjectName("metricLabel")
+                value_widget = QLabel("—")
+                value_widget.setObjectName("metricValue")
+                card_layout.addWidget(label_widget)
+                card_layout.addWidget(value_widget)
+                self.metric_widgets[key] = value_widget
+                self.metrics.addWidget(card, 0, idx)
+
+            actions = QGroupBox("Быстрые действия")
+            actions_layout = QHBoxLayout(actions)
+            actions_layout.addWidget(QLabel("1) Импортируй subscription URL  →  2) открой Селекторы  →  3) выбери ноду для AI/GitHub/YouTube/Telegram"))
+            actions_layout.addStretch(1)
+            layout.addWidget(actions)
             layout.addStretch(1)
 
         def refresh(self) -> None:
-            self.version.setText(f"Mihomo: {runtime.version()}")
-            self.traffic.setText("Traffic: потоковый счётчик будет подключён отдельным фоновым worker'ом")
+            try:
+                proxies = runtime.proxies()
+                groups = sum(1 for p in proxies.values() if isinstance(p, dict) and p.get("type") in {"Selector", "URLTest", "Fallback", "LoadBalance"})
+                nodes = max(0, len(proxies) - groups)
+            except Exception:
+                groups = nodes = 0
+            try:
+                connections = len(runtime.connections())
+            except Exception:
+                connections = 0
+            self.metric_widgets["version"].setText(runtime.version())
+            self.metric_widgets["controller"].setText(runtime.controller.replace("http://", ""))
+            self.metric_widgets["proxies"].setText(f"{nodes} / {groups}")
+            self.metric_widgets["connections"].setText(str(connections))
 
     class MainWindow(QMainWindow):
         def __init__(self) -> None:
             super().__init__()
             self.setWindowTitle(APP_NAME)
-            self.resize(1320, 860)
+            self.resize(1500, 930)
             tabs = QTabWidget()
             self.dashboard = DashboardTab()
             self.selectors = SelectorsTab()
