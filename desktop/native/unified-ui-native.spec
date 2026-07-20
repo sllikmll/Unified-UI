@@ -39,6 +39,7 @@ exe = EXE(
     strip=False,
     upx=False,
     console=False,
+    uac_admin=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

@@ -350,6 +350,13 @@ profile:
   store-fake-ip: false
 unified-delay: true
 tcp-concurrent: true
+tun:
+  enable: true
+  stack: system
+  auto-route: true
+  auto-detect-interface: true
+  dns-hijack:
+    - any:53
 dns:
   enable: true
   listen: 127.0.0.1:{DEFAULT_DNS_PORT}
@@ -481,7 +488,9 @@ class NativeConfigManager:
         normalized_note = ""
         try:
             data = self._load_yaml_dict(text)
-            if self._normalize_runtime_config_data(data):
+            changed = self._normalize_runtime_config_data(data)
+            changed = self.ensure_all_selectors_have_all_nodes(data) or changed
+            if changed:
                 text = yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=140)
                 normalized_note = "; runtime-поля нормализованы"
         except Exception:
@@ -560,6 +569,38 @@ class NativeConfigManager:
     def config_data(self) -> dict[str, Any]:
         return self._load_yaml_dict(self.read_config())
 
+    def ensure_all_selectors_have_all_nodes(self, data: dict[str, Any]) -> bool:
+        changed = False
+        provider_names = [str(name) for name in (data.get("proxy-providers") or {}).keys()] if isinstance(data.get("proxy-providers"), dict) else []
+        proxy_names = [str(item.get("name")) for item in (data.get("proxies") or []) if isinstance(item, dict) and str(item.get("name") or "").strip()]
+        for group in data.get("proxy-groups") or []:
+            if not isinstance(group, dict):
+                continue
+            if str(group.get("type") or "").lower() not in {"select", "url-test", "fallback", "load-balance"}:
+                continue
+            group_name = str(group.get("name") or "")
+            proxies = group.get("proxies")
+            if proxies is None:
+                proxies = []
+                group["proxies"] = proxies
+                changed = True
+            if isinstance(proxies, list):
+                for proxy_name in proxy_names:
+                    if proxy_name != group_name and proxy_name not in proxies:
+                        proxies.append(proxy_name)
+                        changed = True
+            use = group.get("use")
+            if use is None:
+                use = []
+                group["use"] = use
+                changed = True
+            if isinstance(use, list):
+                for provider_name in provider_names:
+                    if provider_name not in use:
+                        use.append(provider_name)
+                        changed = True
+        return changed
+
     def save_config_data(self, data: dict[str, Any], *, restart: bool = True) -> tuple[Path | None, str]:
         text = yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=140)
         backup, msg = self.save_text(text, validate=True)
@@ -593,6 +634,24 @@ class NativeConfigManager:
             dns = {}
             data["dns"] = dns
             changed = True
+
+        tun = data.get("tun")
+        if not isinstance(tun, dict):
+            tun = {}
+            data["tun"] = tun
+            changed = True
+        desired_tun = {
+            "enable": True,
+            "stack": "system",
+            "auto-route": True,
+            "auto-detect-interface": True,
+            "dns-hijack": ["any:53"],
+        }
+        for key, value in desired_tun.items():
+            if tun.get(key) != value:
+                tun[key] = value
+                changed = True
+
         desired_dns_listen = f"127.0.0.1:{DEFAULT_DNS_PORT}"
         if dns.get("listen") != desired_dns_listen:
             dns["listen"] = desired_dns_listen
@@ -644,6 +703,7 @@ class NativeConfigManager:
         """
         data = self._load_yaml_dict(self.read_config())
         changed = self._normalize_runtime_config_data(data)
+        changed = self.ensure_all_selectors_have_all_nodes(data) or changed
         if changed:
             backup = self.backup_current() if self.config_path.exists() else None
             self.config_path.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=140), encoding="utf-8")
@@ -1207,29 +1267,25 @@ class MihomoRuntime:
         self.proc = None
 
     def force_cleanup_processes(self, *, delayed: bool = False) -> None:
-        """Best-effort cleanup for packaged desktop runtimes.
+        """Best-effort cleanup for the child Mihomo runtime.
 
-        On Windows PyInstaller onefile can leave a bootstrap process and Mihomo
-        can survive if startup failed after spawning it. The user expectation is
-        simple: closing the app should not leave Mihomo/Unified UI process tails.
+        Do not globally taskkill `Unified UI Native.exe` or every `mihomo.exe` on
+        normal close. A delayed global taskkill can race with a quick relaunch
+        and leave a visible app window without the Mihomo child process.
         """
+        pid = self.proc.pid if self.proc else None
         try:
             self.stop()
         except Exception:
             pass
-        if platform.system().lower() != "windows":
+        if platform.system().lower() != "windows" or pid is None:
             return
         try:
             if delayed:
-                cmd = (
-                    'cmd /c "timeout /t 1 /nobreak >nul 2>nul & '
-                    'taskkill /F /IM mihomo.exe >nul 2>nul & '
-                    'taskkill /F /IM "Unified UI Native.exe" >nul 2>nul & '
-                    'taskkill /F /IM "Unified-UI-Native*.exe" >nul 2>nul"'
-                )
+                cmd = f'cmd /c "timeout /t 1 /nobreak >nul 2>nul & taskkill /F /PID {pid} >nul 2>nul"'
                 subprocess.Popen(cmd, shell=True, **self._subprocess_window_kwargs())
             else:
-                subprocess.run(["taskkill", "/F", "/IM", "mihomo.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **self._subprocess_window_kwargs())
+                subprocess.run(["taskkill", "/F", "/PID", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **self._subprocess_window_kwargs())
         except Exception:
             pass
 
@@ -2230,10 +2286,34 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             self.timer = QTimer(self)
             self.timer.timeout.connect(self.refresh_light)
             self.timer.start(4000)
+            self.runtime_restart_in_progress = False
             self.refresh_all()
+
+        def ensure_runtime_alive(self) -> None:
+            if runtime.proc is not None and runtime.proc.poll() is None:
+                return
+            if self.runtime_restart_in_progress:
+                return
+            self.runtime_restart_in_progress = True
+            self.statusBar().showMessage("Mihomo не запущен — перезапускаю runtime…")
+            log_native_event("runtime watchdog: mihomo not running, restarting")
+
+            def restart_runtime() -> None:
+                try:
+                    runtime.start()
+                    log_native_event("runtime watchdog: mihomo restarted")
+                    QTimer.singleShot(0, lambda: self.statusBar().showMessage("Mihomo запущен, системная проксификация активна"))
+                except Exception as exc:
+                    log_native_event(f"runtime watchdog restart failed: {exc}")
+                    QTimer.singleShot(0, lambda: self.statusBar().showMessage(f"Mihomo не запустился: {exc}"))
+                finally:
+                    QTimer.singleShot(0, lambda: setattr(self, "runtime_restart_in_progress", False))
+
+            threading.Thread(target=restart_runtime, daemon=True).start()
 
         def refresh_light(self) -> None:
             try:
+                self.ensure_runtime_alive()
                 self.dashboard.refresh()
                 self.connections.refresh()
             except Exception as e:
