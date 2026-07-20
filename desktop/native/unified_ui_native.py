@@ -15,6 +15,7 @@ import gzip
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -283,6 +284,15 @@ class NativeConfigManager:
         return dst
 
     def save_text(self, text: str, *, validate: bool = True) -> tuple[Path | None, str]:
+        normalized_note = ""
+        try:
+            data = self._load_yaml_dict(text)
+            if self._normalize_runtime_config_data(data):
+                text = yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=140)
+                normalized_note = "; runtime-поля нормализованы"
+        except Exception:
+            # Let the normal validator return the precise YAML/config error.
+            pass
         if validate:
             ok, msg = self.validate_text(text)
             if not ok:
@@ -290,7 +300,7 @@ class NativeConfigManager:
         backup = self.backup_current() if self.config_path.exists() else None
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
         self.config_path.write_text(text.replace("\r\n", "\n").replace("\r", "\n"), encoding="utf-8")
-        return backup, "config.yaml сохранён"
+        return backup, "config.yaml сохранён" + normalized_note
 
     def save_and_restart(self, text: str) -> tuple[Path | None, str]:
         backup, msg = self.save_text(text, validate=True)
@@ -321,6 +331,61 @@ class NativeConfigManager:
 
     def config_data(self) -> dict[str, Any]:
         return self._load_yaml_dict(self.read_config())
+
+    def _normalize_runtime_config_data(self, data: dict[str, Any]) -> bool:
+        changed = False
+
+        def set_if(key: str, value: Any) -> None:
+            nonlocal changed
+            if data.get(key) != value:
+                data[key] = value
+                changed = True
+
+        set_if("external-controller", f"127.0.0.1:{DEFAULT_CONTROLLER_PORT}")
+        set_if("mixed-port", DEFAULT_MIXED_PORT)
+        set_if("allow-lan", True)
+        set_if("bind-address", "127.0.0.1")
+        set_if("ipv6", False)
+
+        mode = str(data.get("find-process-mode") or "").strip().lower()
+        if mode not in {"strict", "always"}:
+            data["find-process-mode"] = "strict"
+            changed = True
+
+        dns = data.get("dns")
+        if not isinstance(dns, dict):
+            dns = {}
+            data["dns"] = dns
+            changed = True
+        desired_dns_listen = f"127.0.0.1:{DEFAULT_DNS_PORT}"
+        if dns.get("listen") != desired_dns_listen:
+            dns["listen"] = desired_dns_listen
+            changed = True
+        if dns.get("ipv6") is not False:
+            dns["ipv6"] = False
+            changed = True
+        return changed
+
+    def ensure_runtime_compatible_config(self) -> bool:
+        """Normalize config fields owned by the native runtime.
+
+        Imported router/Keenetic/OpenWrt configs often carry controller/DNS/proxy
+        ports that belong to another environment. The native app always talks to
+        DEFAULT_CONTROLLER_PORT, so letting an old `external-controller: :9090`
+        survive makes Mihomo start successfully while the GUI waits forever on
+        127.0.0.1:19190.
+        """
+        data = self._load_yaml_dict(self.read_config())
+        changed = self._normalize_runtime_config_data(data)
+        if changed:
+            backup = self.backup_current() if self.config_path.exists() else None
+            self.config_path.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=140), encoding="utf-8")
+            if backup:
+                (self.runtime.runtime / "logs").mkdir(parents=True, exist_ok=True)
+                with (self.runtime.runtime / "logs" / "native-app.log").open("a", encoding="utf-8") as fh:
+                    fh.write(f"\n=== Unified UI Native ===\nruntime config sanitized; backup={backup}\n")
+        return changed
+
 
     def proxy_provider_items(self) -> list[dict[str, Any]]:
         data = self.config_data()
@@ -693,8 +758,9 @@ class MihomoRuntime:
         }
 
     def start(self) -> None:
-        mihomo = ensure_mihomo(self.runtime)
         cfg = ensure_config(self.runtime)
+        NativeConfigManager(self).ensure_runtime_compatible_config()
+        mihomo = ensure_mihomo(self.runtime)
         logs = self.runtime / "logs"
         logs.mkdir(parents=True, exist_ok=True)
         popen_kwargs = self._subprocess_window_kwargs()
@@ -792,12 +858,42 @@ class MihomoRuntime:
                 results.append({"ok": False, "provider": str(name), "error": str(exc)})
         return results
 
-    def connections(self) -> list[dict[str, Any]]:
+    def connections_data(self) -> dict[str, Any]:
         data = self.get("/connections")
-        if not isinstance(data, dict):
-            return []
+        return data if isinstance(data, dict) else {}
+
+    def connections(self) -> list[dict[str, Any]]:
+        data = self.connections_data()
         connections = data.get("connections")
         return connections if isinstance(connections, list) else []
+
+    def connection_history_from_logs(self, limit: int = 80) -> list[dict[str, Any]]:
+        log_path = self.runtime / "logs" / "mihomo-native.log"
+        if not log_path.exists():
+            return []
+        try:
+            lines = log_path.read_text(encoding="utf-8", errors="ignore").splitlines()[-2000:]
+        except Exception:
+            return []
+        rows: list[dict[str, Any]] = []
+        pattern = re.compile(r'msg="\[(TCP|UDP)\] ([^ ]+) --> ([^ ]+)(?: .*? using ([^" ]+))?')
+        for line in reversed(lines):
+            match = pattern.search(line)
+            if not match:
+                continue
+            proto, source, destination, proxy = match.groups()
+            host = destination.rsplit(":", 1)[0] if ":" in destination else destination
+            rows.append({
+                "id": "log",
+                "metadata": {"network": proto, "source": source, "remoteDestination": destination, "host": host},
+                "chains": [proxy or "—"],
+                "upload": None,
+                "download": None,
+                "history": True,
+            })
+            if len(rows) >= limit:
+                break
+        return rows
 
     def traffic(self) -> dict[str, Any]:
         # Mihomo's /traffic endpoint is a streaming endpoint. Do not call it
@@ -1014,18 +1110,50 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             self.table.setAlternatingRowColors(True)
             self.table.setSelectionBehavior(QTableWidget.SelectRows)
             layout.addWidget(self.table, 1)
+            self.status = QLabel("Живые соединения Mihomo. Логи ниже — история, эта вкладка показывает только активные сейчас.")
+            self.status.setObjectName("muted")
+            layout.addWidget(self.status)
+            self.timer = QTimer(self)
+            self.timer.setInterval(2000)
+            self.timer.timeout.connect(self.refresh)
+            self.timer.start()
+            self.refresh()
 
         def refresh(self) -> None:
             flt = self.filter.text().strip().lower()
             rows = []
-            for c in runtime.connections():
+            try:
+                data = runtime.connections_data()
+            except Exception as exc:
+                self.status.setText(f"Не удалось прочитать /connections: {exc}")
+                self.table.setRowCount(0)
+                return
+            connections = data.get("connections")
+            if not isinstance(connections, list):
+                connections = []
+            live_count = len(connections)
+            showing_history = False
+            if not connections:
+                connections = runtime.connection_history_from_logs(limit=80)
+                showing_history = bool(connections)
+            for c in connections:
+                if not isinstance(c, dict):
+                    continue
                 meta = c.get("metadata") or {}
                 chains = c.get("chains") or []
+                destination = meta.get("destinationIP") or meta.get("dstIP") or meta.get("remoteDestination") or ""
+                port = meta.get("destinationPort") or meta.get("dstPort") or ""
+                if port:
+                    destination = f"{destination}:{port}" if destination else str(port)
+                source = meta.get("sourceIP") or meta.get("sourceIPAddr") or meta.get("source") or ""
+                source_port = meta.get("sourcePort") or meta.get("srcPort") or ""
+                if source_port:
+                    source = f"{source}:{source_port}" if source else str(source_port)
                 row = [
                     str(c.get("id", "")),
-                    str(c.get("metadata", {}).get("sourceIP") or c.get("metadata", {}).get("sourceIPAddr") or ""),
-                    str(meta.get("destinationIP") or meta.get("dstIP") or ""),
-                    str(meta.get("host") or meta.get("destinationHost") or ""),
+                    str(source),
+                    str(destination),
+                    str(meta.get("host") or meta.get("destinationHost") or meta.get("network") or ""),
                     " → ".join(map(str, chains)),
                     human_bytes(c.get("upload")),
                     human_bytes(c.get("download")),
@@ -1038,12 +1166,22 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
                 for col, value in enumerate(row):
                     self.table.setItem(r, col, QTableWidgetItem(value))
             self.table.resizeColumnsToContents()
+            upload = human_bytes(data.get("uploadTotal"))
+            download = human_bytes(data.get("downloadTotal"))
+            suffix = "" if not flt else f" · после фильтра: {len(rows)}"
+            if showing_history:
+                self.status.setText(f"Активных соединений: 0 · показана история из mihomo-native.log: {len(rows)}{suffix} · всего ↑ {upload} ↓ {download} · автообновление 2с")
+            else:
+                self.status.setText(f"Активных соединений: {live_count}{suffix} · всего ↑ {upload} ↓ {download} · автообновление 2с")
 
         def close_selected(self) -> None:
             row = self.table.currentRow()
             if row < 0:
                 return
             conn_id = self.table.item(row, 0).text()
+            if conn_id == "log":
+                QMessageBox.information(self, APP_NAME, "Это строка истории из лога, активного соединения для разрыва уже нет.")
+                return
             try:
                 runtime.close_connection(conn_id)
                 self.refresh()
