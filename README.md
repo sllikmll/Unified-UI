@@ -10,7 +10,7 @@
 |---|---|
 | Репозиторий | https://github.com/sllikmll/Unified-UI |
 | Скачать последнюю сборку | https://github.com/sllikmll/Unified-UI/releases/latest |
-| Native desktop для macOS Apple Silicon | https://github.com/sllikmll/Unified-UI/releases/download/v2.6.0-native/Unified-UI-Native-2.6.0-arm64.dmg |
+| Native desktop для macOS Apple Silicon | https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-mac-arm64.zip |
 | Legacy desktop/docker релиз | https://github.com/sllikmll/Unified-UI/releases/tag/v2.5.2 |
 | Docker image | `ghcr.io/sllikmll/unified-ui:latest` |
 | Версия Mihomo в desktop/native/docker сборках | `v1.19.29` |
@@ -25,16 +25,19 @@
 
 | Платформа | Файл | Статус |
 |---|---|---|
-| macOS Apple Silicon | [Unified-UI-Native-2.6.0-arm64.dmg](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.0-native/Unified-UI-Native-2.6.0-arm64.dmg) | Есть |
-| Windows x64 portable | [Unified-UI-Native-2.6.0-windows-x64-portable.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.0-native/Unified-UI-Native-2.6.0-windows-x64-portable.zip) | Есть |
-| Linux x64 | native build в работе | Пока используй Docker/AppImage legacy |
+| macOS Apple Silicon | [Unified-UI-Native-2.6.4-mac-arm64.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-mac-arm64.zip) | Есть |
+| Windows x64 portable | [Unified-UI-Native-2.6.4-windows-x64-portable.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-windows-x64-portable.zip) | Есть |
+| Linux x64 portable | [Unified-UI-Native-2.6.4-linux-x64-portable.tar.gz](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-linux-x64-portable.tar.gz) | Есть |
+| Linux Debian/Ubuntu | [Unified-UI-Native-2.6.4-linux-x64.deb](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-linux-x64.deb) | Есть |
+| Linux RPM | [Unified-UI-Native-2.6.4-linux-x64.rpm](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-linux-x64.rpm) | Есть |
 
 Native app:
 
 - рисует интерфейс настоящими Qt Widgets;
-- **не использует QWebEngine/WebView**;
+- **не использует QWebEngine/WebView** и не открывает web-панель внутри окна;
 - **не запускает Flask UI server**;
-- напрямую управляет Mihomo через `external-controller API`.
+- напрямую управляет Mihomo через `external-controller API`;
+- умеет импортировать HTTP-подписки/статические прокси, добавлять узлы в selector-группы и показывать per-node ping статусы: серый — не проверялся, зелёный — online, красный — offline.
 
 ### Legacy desktop / Docker
 
@@ -54,8 +57,8 @@ https://github.com/sllikmll/Unified-UI/releases/latest
 | **OpenWrt** | `http://<router-ip>/unified-ui/` | Static full-panel + CGI API + standalone Mihomo | Версия без Python stack на маленьком overlay |
 | **MikroTik / RouterOS container** | `http://<router-ip>:8088/` | RouterOS container: Unified UI + Mihomo | Full-панель внутри RouterOS container |
 | **Docker / Compose** | `http://localhost:8088/` | Container: Flask Unified UI + Mihomo | Серверы, NAS, homelab, desktop Docker |
-| **Desktop Electron** | Нативное окно приложения | Electron + Flask backend + Mihomo | Локальный proxy или full-system TUN routing |
-| **Desktop Qt** | Нативное Qt-окно | PySide6/QtWebEngine + Flask backend + Mihomo | Та же веб-панель в Qt shell |
+| **Desktop Native** | Нативное Qt Widgets приложение | PySide6 + Mihomo controller API, без WebView/Flask UI | Локальный proxy/full-system TUN routing, импорт подписок, selector-группы |
+| **Legacy Desktop Qt/WebView** | Нативное окно-оболочка | PySide6/QtWebEngine + Flask backend + Mihomo | Старый режим совместимости |
 
 ---
 
@@ -82,7 +85,6 @@ https://github.com/sllikmll/Unified-UI/releases/latest
 
 ```text
 ghcr.io/sllikmll/unified-ui:latest
-ghcr.io/sllikmll/unified-ui:2.5.1
 ```
 
 Быстрый запуск proxy-mode:
@@ -200,6 +202,12 @@ gzip -1 -f unified-ui-mikrotik-docker-archive.tar
 unified-ui-mikrotik-docker-archive.tar.gz
 ```
 
+Готовый архив из релиза `v2.6.4-native`:
+
+```text
+https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/unified-ui-mikrotik-docker-archive-2.6.4.tar.gz
+```
+
 Его нужно загрузить на MikroTik в Files, например в корень или на USB-диск.
 
 ### Установка на RouterOS
@@ -286,9 +294,33 @@ curl http://<mikrotik-ip>:9090/version
 
 Подробнее: `mikrotik/README.md` и `mikrotik/routeros-install-template.rsc`.
 
-## 3. Desktop Electron
+## 3. Desktop Native `2.6.4`
 
-Артефакты релиза `v2.5.1`:
+Актуальная native-сборка — это не WebView и не Flask-панель в окне. Приложение напрямую управляет локальным Mihomo через controller API.
+
+Артефакты релиза `v2.6.4-native`:
+
+| ОС | Файл |
+|---|---|
+| macOS Apple Silicon | `Unified-UI-Native-2.6.4-mac-arm64.zip` |
+| Windows x64 portable | `Unified-UI-Native-2.6.4-windows-x64-portable.zip` |
+| Linux portable | `Unified-UI-Native-2.6.4-linux-x64-portable.tar.gz` |
+| Linux Debian/Ubuntu | `Unified-UI-Native-2.6.4-linux-x64.deb` |
+| Linux RPM | `Unified-UI-Native-2.6.4-linux-x64.rpm` |
+
+Что важно в `2.6.4`:
+
+- компактные selector-плитки ближе к web-панели;
+- proxy nodes из подписки доступны в selector-группах, а не теряются после импорта;
+- per-node ping: отдельное обновление на узле, зелёный online, красный offline, серый not checked;
+- runtime-sanitization для импортированных router/OpenWrt/Keenetic Mihomo configs;
+- Windows/Linux/macOS артефакты плюс SHA256SUMS.
+
+---
+
+## 4. Legacy Desktop Electron
+
+Артефакты старого релиза `v2.5.1`:
 
 | ОС | Файл |
 |---|---|
@@ -360,7 +392,7 @@ tun:
 
 ---
 
-## 4. Desktop Qt
+## 5. Legacy Desktop Qt/WebView
 
 Qt-сборка — отдельная нативная оболочка:
 
@@ -418,7 +450,7 @@ hdiutil create -volname 'Unified UI Qt' \
 
 ---
 
-## 5. Keenetic / Entware
+## 6. Keenetic / Entware
 
 ### Требования
 
@@ -472,7 +504,7 @@ http://<IP_роутера>:8088/
 
 ---
 
-## 6. OpenWrt / standalone Mihomo
+## 7. OpenWrt / standalone Mihomo
 
 OpenWrt-сборка — full-panel snapshot той же Unified UI, но без Flask/Python на роутере.
 
