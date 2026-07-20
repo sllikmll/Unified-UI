@@ -9,9 +9,40 @@
 | Что | Ссылка |
 |---|---|
 | Репозиторий | https://github.com/sllikmll/Unified-UI |
-| Последний desktop/docker релиз | https://github.com/sllikmll/Unified-UI/releases/tag/v2.5.1 |
+| Скачать последнюю сборку | https://github.com/sllikmll/Unified-UI/releases/latest |
+| Native desktop для macOS Apple Silicon | https://github.com/sllikmll/Unified-UI/releases/download/v2.5.3-native/Unified-UI-Native-2.5.3-arm64.dmg |
+| Legacy desktop/docker релиз | https://github.com/sllikmll/Unified-UI/releases/tag/v2.5.2 |
 | Docker image | `ghcr.io/sllikmll/unified-ui:latest` |
-| Версия Mihomo в desktop/docker сборках | `v1.19.29` |
+| Версия Mihomo в desktop/native/docker сборках | `v1.19.29` |
+
+---
+
+## Скачать
+
+### Рекомендуемый desktop-вариант: Native app
+
+Если нужно именно **полноценное приложение, а не web-панель внутри окна**, скачивай native-сборку:
+
+| Платформа | Файл | Статус |
+|---|---|---|
+| macOS Apple Silicon | [Unified-UI-Native-2.5.3-arm64.dmg](https://github.com/sllikmll/Unified-UI/releases/download/v2.5.3-native/Unified-UI-Native-2.5.3-arm64.dmg) | Есть |
+| Windows x64 | [Unified-UI-Native-2.5.3-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.5.3-native/Unified-UI-Native-2.5.3-x64.exe) | Есть |
+| Linux x64 | native build в работе | Пока используй Docker/AppImage legacy |
+
+Native app:
+
+- рисует интерфейс настоящими Qt Widgets;
+- **не использует QWebEngine/WebView**;
+- **не запускает Flask UI server**;
+- напрямую управляет Mihomo через `external-controller API`.
+
+### Legacy desktop / Docker
+
+Старые desktop-сборки Electron/Qt-webview и Docker доступны в релизах:
+
+```text
+https://github.com/sllikmll/Unified-UI/releases/latest
+```
 
 ---
 
