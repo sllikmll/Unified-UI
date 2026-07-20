@@ -1611,7 +1611,7 @@ def human_bytes(value: Any) -> str:
     return f"{n:.1f} {units[i]}"
 
 
-def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> int:
+def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_screenshot: str | None = None) -> int:
     from PySide6.QtCore import QTimer, Qt
     from PySide6.QtWidgets import (
         QApplication,
@@ -3080,7 +3080,25 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
                 app.setQuitOnLastWindowClosed(True)
                 log_native_event("main window shown")
                 startup.close()
-                if gui_smoke_seconds is not None:
+
+                def save_gui_screenshot() -> None:
+                    if not gui_screenshot:
+                        return
+                    try:
+                        screenshot_path = Path(gui_screenshot).expanduser()
+                        screenshot_path.parent.mkdir(parents=True, exist_ok=True)
+                        pixmap = win.grab()
+                        if not pixmap.save(str(screenshot_path), "PNG"):
+                            raise RuntimeError(f"Qt failed to save screenshot to {screenshot_path}")
+                        log_native_event(f"gui screenshot saved: {screenshot_path}")
+                    except Exception:
+                        log_native_error("GUI SCREENSHOT ERROR\n" + traceback.format_exc())
+                    finally:
+                        QTimer.singleShot(250, app.quit)
+
+                if gui_screenshot:
+                    QTimer.singleShot(1200, save_gui_screenshot)
+                elif gui_smoke_seconds is not None:
                     QTimer.singleShot(int(gui_smoke_seconds * 1000), app.quit)
             except Exception:
                 tb = traceback.format_exc()
@@ -3123,11 +3141,12 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--gui-smoke", type=float, default=None, metavar="SECONDS", help="Open the real GUI, keep it alive for N seconds, then exit")
+    parser.add_argument("--gui-screenshot", default=None, metavar="PNG", help="Open the real GUI, save the main window as PNG, then exit")
     args = parser.parse_args()
     runtime = MihomoRuntime.create()
     if args.smoke:
         return run_smoke(runtime)
-    return run_gui(runtime, gui_smoke_seconds=args.gui_smoke)
+    return run_gui(runtime, gui_smoke_seconds=args.gui_smoke, gui_screenshot=args.gui_screenshot)
 
 
 if __name__ == "__main__":
