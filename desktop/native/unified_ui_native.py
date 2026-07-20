@@ -593,11 +593,70 @@ def run_gui(runtime: MihomoRuntime) -> int:
             runtime.stop()
             event.accept()
 
+    import threading
+    import traceback
+
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setStyleSheet(DARK_QSS)
-    win = MainWindow()
-    win.show()
+
+    startup = QWidget()
+    startup.setWindowTitle(APP_NAME)
+    startup.resize(520, 180)
+    startup_layout = QVBoxLayout(startup)
+    startup_title = QLabel("Unified UI Native")
+    startup_title.setObjectName("title")
+    startup_status = QLabel("Запускаю Mihomo runtime…")
+    startup_status.setObjectName("muted")
+    startup_layout.addWidget(startup_title)
+    startup_layout.addWidget(QLabel("Окно приложения уже живое. Если Mihomo тупит — теперь это будет видно, а не чёрная магия без окна."))
+    startup_layout.addWidget(startup_status)
+    startup_layout.addStretch(1)
+    startup.show()
+
+    result: dict[str, Any] = {}
+    holder: dict[str, Any] = {"window": None}
+
+    def log_native_error(text: str) -> Path:
+        log_dir = runtime.runtime / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        path = log_dir / "native-app.log"
+        with path.open("a", encoding="utf-8") as f:
+            f.write("\n=== Unified UI Native startup error ===\n")
+            f.write(text)
+            f.write("\n")
+        return path
+
+    def start_runtime_in_background() -> None:
+        try:
+            runtime.start()
+            result["ok"] = True
+        except Exception:
+            tb = traceback.format_exc()
+            log_path = log_native_error(tb)
+            result["error"] = tb
+            result["log_path"] = str(log_path)
+
+    threading.Thread(target=start_runtime_in_background, daemon=True).start()
+
+    def poll_startup() -> None:
+        if not result:
+            return
+        startup.timer.stop()  # type: ignore[attr-defined]
+        if result.get("ok"):
+            startup.close()
+            win = MainWindow()
+            holder["window"] = win
+            win.show()
+            return
+        msg = result.get("error", "Unknown startup error")
+        log_path = result.get("log_path", str(runtime.runtime / "logs" / "native-app.log"))
+        startup_status.setText(f"Ошибка запуска. Лог: {log_path}")
+        QMessageBox.critical(startup, APP_NAME, f"Не удалось запустить Mihomo runtime.\n\nЛог: {log_path}\n\n{msg[-2500:]}")
+
+    startup.timer = QTimer(startup)  # type: ignore[attr-defined]
+    startup.timer.timeout.connect(poll_startup)  # type: ignore[attr-defined]
+    startup.timer.start(250)  # type: ignore[attr-defined]
     return app.exec()
 
 
@@ -628,7 +687,6 @@ def main() -> int:
     runtime = MihomoRuntime.create()
     if args.smoke:
         return run_smoke(runtime)
-    runtime.start()
     return run_gui(runtime)
 
 
