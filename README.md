@@ -120,7 +120,142 @@ config.yaml.pre-tun.bak
 
 ---
 
-## 2. Desktop Electron
+## 2. MikroTik / RouterOS container
+
+MikroTik-версия — это отдельный ARM64 container для RouterOS `container` package. Проверенный сценарий — RB5009/RouterOS container runtime.
+
+Что внутри контейнера:
+
+- Flask Unified UI из `unified-ui/`;
+- bundled `mihomo-linux-arm64`;
+- Unified UI на `:8088`;
+- Mihomo controller на `:9090`;
+- mixed proxy на `:1080`;
+- DNS listener на `:1053`;
+- persistent state в RouterOS `root-dir`, обычно `/usb1/docker/unified-ui-mikrotik`.
+
+### Сборка образа
+
+RouterOS плохо переваривает обычный buildx/OCI archive и может падать с:
+
+```text
+download/extract error: no config found in manifest
+```
+
+Поэтому нужен classic `docker-archive` через `skopeo`:
+
+```sh
+# From repo root
+sh -n mikrotik/entrypoint.sh
+npm run frontend:build
+
+# Если собираешь не на arm64-хосте
+docker run --privileged --rm tonistiigi/binfmt --install arm64
+
+docker build --platform linux/arm64 \
+  -f mikrotik/Dockerfile \
+  -t unified-ui-mikrotik:routeros .
+
+skopeo copy \
+  docker-daemon:unified-ui-mikrotik:routeros \
+  docker-archive:unified-ui-mikrotik-docker-archive.tar:unified-ui-mikrotik:routeros
+
+gzip -1 -f unified-ui-mikrotik-docker-archive.tar
+```
+
+На выходе нужен файл:
+
+```text
+unified-ui-mikrotik-docker-archive.tar.gz
+```
+
+Его нужно загрузить на MikroTik в Files, например в корень или на USB-диск.
+
+### Установка на RouterOS
+
+В репозитории есть готовый шаблон:
+
+```text
+mikrotik/routeros-install-template.rsc
+```
+
+Перед импортом замени placeholders локально:
+
+```routeros
+:local SUB_URL "<MIHOMO_SUBSCRIPTION_URL>"
+:local AUTH_USER "<UI_USER>"
+:local AUTH_PASSWORD "<UI_PASSWORD>"
+:local SECRET_KEY "<UI_SECRET_KEY>"
+```
+
+Шаблон делает backup RouterOS перед заменой контейнера:
+
+```routeros
+/system backup save name=pre-unified-ui-mikrotik
+/export file=pre-unified-ui-mikrotik
+```
+
+И создаёт runtime layout:
+
+| Объект | Значение |
+|---|---|
+| container comment | `unified-ui-mikrotik` |
+| container root-dir | `/usb1/docker/unified-ui-mikrotik` |
+| veth | `MIHOMO` |
+| container IP | `192.168.254.3/24` |
+| RouterOS gateway IP | `192.168.254.1/24` |
+| UI dstnat | `<router-ip>:8088 -> 192.168.254.3:8088` |
+| Mihomo API dstnat | `<router-ip>:9090 -> 192.168.254.3:9090` |
+| mixed proxy inside container | `1080` |
+| DNS inside container | `1053` |
+
+Пример ключевых RouterOS-команд из шаблона:
+
+```routeros
+/interface/veth add name=MIHOMO address=192.168.254.3/24 gateway=192.168.254.1 comment="unified-ui-mikrotik"
+/ip/address add address=192.168.254.1/24 interface=MIHOMO comment="unified-ui-mikrotik"
+/ip/firewall/nat add chain=srcnat action=masquerade src-address=192.168.254.0/24 comment="unified-ui-mikrotik"
+/ip/firewall/nat add chain=dstnat action=dst-nat protocol=tcp dst-port=8088 to-addresses=192.168.254.3 to-ports=8088 comment="unified-ui-mikrotik-ui"
+/ip/firewall/nat add chain=dstnat action=dst-nat protocol=tcp dst-port=9090 to-addresses=192.168.254.3 to-ports=9090 comment="unified-ui-mikrotik-api"
+/container/add file=unified-ui-mikrotik-docker-archive.tar.gz interface=MIHOMO root-dir=/usb1/docker/unified-ui-mikrotik envlist=UNIFIED_UI_MIKROTIK hostname=unified-ui-mikrotik logging=yes start-on-boot=yes dns=1.1.1.1,8.8.8.8,9.9.9.9 comment="unified-ui-mikrotik"
+/container/start [find where comment="unified-ui-mikrotik"]
+```
+
+После запуска:
+
+```text
+Unified UI: http://<mikrotik-ip>:8088/
+Mihomo API: http://<mikrotik-ip>:9090/
+```
+
+### Важно про секреты
+
+RouterOS пишет env values в logs при старте контейнера. Поэтому `UNIFIED_UI_AUTH_PASSWORD`, `UNIFIED_UI_SECRET_KEY` и `MIHOMO_SUB_URL` нужны только для первого запуска. После успешного первого старта контейнер сохраняет auth/config в persistent `root-dir`, и sensitive env лучше удалить:
+
+```routeros
+:foreach e in=[/container/envs find where list="UNIFIED_UI_MIKROTIK" and key="UNIFIED_UI_AUTH_PASSWORD"] do={ /container/envs/remove $e }
+:foreach e in=[/container/envs find where list="UNIFIED_UI_MIKROTIK" and key="UNIFIED_UI_SECRET_KEY"] do={ /container/envs/remove $e }
+:foreach e in=[/container/envs find where list="UNIFIED_UI_MIKROTIK" and key="MIHOMO_SUB_URL"] do={ /container/envs/remove $e }
+```
+
+### Проверка
+
+```routeros
+/container/print detail where comment="unified-ui-mikrotik"
+/log/print where message~"unified-mikrotik|unified-ui-mikrotik|mihomo"
+/ip/firewall/nat/print where comment~"unified-ui-mikrotik"
+```
+
+Снаружи:
+
+```sh
+curl -I http://<mikrotik-ip>:8088/
+curl http://<mikrotik-ip>:9090/version
+```
+
+Подробнее: `mikrotik/README.md` и `mikrotik/routeros-install-template.rsc`.
+
+## 3. Desktop Electron
 
 Артефакты релиза `v2.5.1`:
 
@@ -182,7 +317,7 @@ tun:
 
 ---
 
-## 3. Desktop Qt
+## 4. Desktop Qt
 
 Qt-сборка — отдельная нативная оболочка:
 
@@ -240,7 +375,7 @@ hdiutil create -volname 'Unified UI Qt' \
 
 ---
 
-## 4. Keenetic / Entware
+## 5. Keenetic / Entware
 
 ### Требования
 
@@ -294,7 +429,7 @@ http://<IP_роутера>:8088/
 
 ---
 
-## 5. OpenWrt / standalone Mihomo
+## 6. OpenWrt / standalone Mihomo
 
 OpenWrt-сборка — full-panel snapshot той же Unified UI, но без Flask/Python на роутере.
 
@@ -362,6 +497,18 @@ OpenWrt-версия ставит:
 | `/etc/mihomo/rules/manual-proxy.yaml` | Ручной список/provider file |
 | `/etc/init.d/mihomo` | Init-сервис Mihomo |
 
+## MikroTik / RouterOS
+
+| Объект | Назначение |
+|---|---|
+| `/usb1/docker/unified-ui-mikrotik` | Container `root-dir` / persistent state |
+| `MIHOMO` | RouterOS veth для контейнера |
+| `192.168.254.3` | IP контейнера |
+| `192.168.254.1` | Gateway IP на RouterOS стороне veth |
+| `UNIFIED_UI_MIKROTIK` | RouterOS container envlist первого запуска |
+| `mikrotik/routeros-install-template.rsc` | Шаблон установки |
+| `unified-ui-mikrotik-docker-archive.tar.gz` | Classic docker-archive для `/container/add file=...` |
+
 ## Desktop runtime
 
 | Shell | Runtime path |
@@ -403,6 +550,25 @@ Docker:
 ```sh
 docker build -t ghcr.io/sllikmll/unified-ui:latest .
 docker run --rm -p 8088:8088 -p 9090:9090 ghcr.io/sllikmll/unified-ui:latest
+```
+
+MikroTik / RouterOS container:
+
+```sh
+sh -n mikrotik/entrypoint.sh
+npm run frontend:build
+
+docker run --privileged --rm tonistiigi/binfmt --install arm64
+
+docker build --platform linux/arm64 \
+  -f mikrotik/Dockerfile \
+  -t unified-ui-mikrotik:routeros .
+
+skopeo copy \
+  docker-daemon:unified-ui-mikrotik:routeros \
+  docker-archive:unified-ui-mikrotik-docker-archive.tar:unified-ui-mikrotik:routeros
+
+gzip -1 -f unified-ui-mikrotik-docker-archive.tar
 ```
 
 ---
