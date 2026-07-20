@@ -22,11 +22,12 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+import urllib.parse
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import yaml
 
@@ -316,6 +317,103 @@ class NativeConfigManager:
                 names.append(str(group.get("name")).strip())
         return names
 
+    def config_data(self) -> dict[str, Any]:
+        return self._load_yaml_dict(self.read_config())
+
+    def proxy_provider_items(self) -> list[dict[str, Any]]:
+        data = self.config_data()
+        providers = data.get("proxy-providers") or {}
+        if not isinstance(providers, dict):
+            return []
+        items: list[dict[str, Any]] = []
+        for name, provider in providers.items():
+            if not isinstance(provider, dict):
+                continue
+            used_by = []
+            for group in data.get("proxy-groups") or []:
+                if isinstance(group, dict) and name in (group.get("use") or []):
+                    used_by.append(str(group.get("name") or ""))
+            items.append({
+                "name": str(name),
+                "type": str(provider.get("type") or ""),
+                "url": str(provider.get("url") or provider.get("path") or ""),
+                "path": str(provider.get("path") or ""),
+                "interval": str(provider.get("interval") or ""),
+                "used_by": ", ".join(x for x in used_by if x),
+            })
+        return items
+
+    def proxy_group_items(self) -> list[dict[str, Any]]:
+        data = self.config_data()
+        items: list[dict[str, Any]] = []
+        for group in data.get("proxy-groups") or []:
+            if not isinstance(group, dict):
+                continue
+            items.append({
+                "name": str(group.get("name") or ""),
+                "type": str(group.get("type") or ""),
+                "proxies": ", ".join(map(str, group.get("proxies") or [])),
+                "use": ", ".join(map(str, group.get("use") or [])),
+                "now": "",
+            })
+        return items
+
+    def static_proxy_items(self) -> list[dict[str, Any]]:
+        data = self.config_data()
+        items: list[dict[str, Any]] = []
+        for proxy in data.get("proxies") or []:
+            if isinstance(proxy, dict):
+                items.append({
+                    "name": str(proxy.get("name") or ""),
+                    "type": str(proxy.get("type") or ""),
+                    "server": str(proxy.get("server") or ""),
+                    "port": str(proxy.get("port") or ""),
+                })
+        return items
+
+    def rule_provider_items(self) -> list[dict[str, Any]]:
+        data = self.config_data()
+        providers = data.get("rule-providers") or {}
+        if not isinstance(providers, dict):
+            return []
+        return [
+            {
+                "name": str(name),
+                "type": str(provider.get("type") or "") if isinstance(provider, dict) else "",
+                "behavior": str(provider.get("behavior") or "") if isinstance(provider, dict) else "",
+                "path": str(provider.get("path") or provider.get("url") or "") if isinstance(provider, dict) else "",
+            }
+            for name, provider in providers.items()
+        ]
+
+    def _unique_provider_name(self, data: dict[str, Any], desired: str, url: str = "") -> str:
+        providers = data.get("proxy-providers")
+        if not isinstance(providers, dict):
+            return desired.strip() or "subscription_1"
+        base = desired.strip() or "subscription_1"
+        existing = providers.get(base)
+        if not isinstance(existing, dict):
+            return base
+        if url and str(existing.get("url") or "").strip() == url.strip():
+            return base
+        for i in range(2, 1000):
+            candidate = f"subscription_{i}" if base == "subscription_1" else f"{base}_{i}"
+            if candidate not in providers:
+                return candidate
+        raise RuntimeError("Не удалось подобрать уникальное имя provider")
+
+    def _selected_or_all_selector_groups(self, data: dict[str, Any], groups: list[str] | None) -> list[str]:
+        selected = [str(g).strip() for g in (groups or []) if str(g).strip()]
+        if selected:
+            return selected
+        names: list[str] = []
+        for group in data.get("proxy-groups") or []:
+            if isinstance(group, dict) and str(group.get("type") or "").lower() in {"select", "url-test", "fallback", "load-balance"}:
+                name = str(group.get("name") or "").strip()
+                if name:
+                    names.append(name)
+        return names
+
     def _unique_proxy_name(self, data: dict[str, Any], desired: str) -> str:
         existing = {str(p.get("name") or "") for p in data.get("proxies") or [] if isinstance(p, dict)}
         base = desired.strip() or "Imported Proxy"
@@ -424,9 +522,8 @@ class NativeConfigManager:
             msg += "; Mihomo перезапущен"
         return added, backup, msg
 
-    def add_subscription_provider(self, url: str, name: str = "subscription_1", interval: int = 3600, *, restart: bool = True) -> tuple[Path | None, str]:
+    def add_subscription_provider(self, url: str, name: str = "", interval: int = 3600, groups: list[str] | None = None, *, restart: bool = True) -> tuple[str, Path | None, str]:
         url = str(url or "").strip()
-        name = str(name or "subscription_1").strip()
         if not url.startswith(("http://", "https://")):
             raise ValueError("Subscription URL должен начинаться с http:// или https://")
         data = self._load_yaml_dict(self.read_config())
@@ -434,6 +531,7 @@ class NativeConfigManager:
         if not isinstance(providers, dict):
             providers = {}
             data["proxy-providers"] = providers
+        name = self._unique_provider_name(data, name or "subscription_1", url)
         providers[name] = {
             "type": "http",
             "url": url,
@@ -441,21 +539,30 @@ class NativeConfigManager:
             "path": f"./providers/{name}.yaml",
             "health-check": {"enable": True, "url": "https://www.gstatic.com/generate_204", "interval": 300},
         }
-        groups = data.get("proxy-groups") or []
-        for group in groups:
-            if isinstance(group, dict) and str(group.get("type") or "").lower() in {"select", "url-test", "fallback", "load-balance"}:
-                use = group.get("use")
-                if use is None:
-                    use = []
-                    group["use"] = use
-                if isinstance(use, list) and name not in use:
-                    use.append(name)
+        target_groups = set(self._selected_or_all_selector_groups(data, groups))
+        for group in data.get("proxy-groups") or []:
+            if not isinstance(group, dict):
+                continue
+            if str(group.get("type") or "").lower() not in {"select", "url-test", "fallback", "load-balance"}:
+                continue
+            if target_groups and str(group.get("name") or "").strip() not in target_groups:
+                continue
+            use = group.get("use")
+            if use is None:
+                use = []
+                group["use"] = use
+            if isinstance(use, list) and name not in use:
+                use.append(name)
         new_text = yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=140)
         backup, msg = self.save_text(new_text, validate=True)
         if restart:
             self.runtime.restart()
+            try:
+                self.runtime.update_proxy_providers()
+            except Exception:
+                pass
             msg += "; Mihomo перезапущен"
-        return backup, f"provider {name} добавлен; {msg}"
+        return name, backup, f"provider {name} добавлен; {msg}"
 
 
 @dataclass
@@ -572,6 +679,29 @@ class MihomoRuntime:
         data = self.get("/proxies")
         return data.get("proxies", {}) if isinstance(data, dict) else {}
 
+    def proxy_providers(self) -> dict[str, Any]:
+        data = self.get("/providers/proxies")
+        return data.get("providers", {}) if isinstance(data, dict) else {}
+
+    def update_proxy_providers(self) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
+        try:
+            providers = self.proxy_providers()
+        except Exception as exc:
+            return [{"ok": False, "provider": "<all>", "error": str(exc)}]
+        for name, provider in providers.items():
+            if not isinstance(provider, dict):
+                continue
+            if str(provider.get("vehicleType") or "").upper() != "HTTP":
+                continue
+            quoted = urllib.parse.quote(str(name), safe="")
+            try:
+                self._request("PUT", f"/providers/proxies/{quoted}")
+                results.append({"ok": True, "provider": str(name)})
+            except Exception as exc:
+                results.append({"ok": False, "provider": str(name), "error": str(exc)})
+        return results
+
     def connections(self) -> list[dict[str, Any]]:
         data = self.get("/connections")
         if not isinstance(data, dict):
@@ -622,6 +752,7 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
         QCheckBox,
         QComboBox,
         QFileDialog,
+        QGridLayout,
         QGroupBox,
         QHBoxLayout,
         QLabel,
@@ -630,6 +761,7 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
         QMessageBox,
         QPushButton,
         QPlainTextEdit,
+        QScrollArea,
         QTableWidget,
         QTableWidgetItem,
         QTabWidget,
@@ -645,20 +777,31 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             self.layout = QVBoxLayout(self)
             header = QHBoxLayout()
             self.mode = QComboBox()
-            self.mode.addItems(["Списки", "Плитки позже"])
+            self.mode.addItems(["Списки", "Плитки"])
+            self.mode.currentTextChanged.connect(self.refresh)
             refresh = QPushButton("Обновить селекторы")
             refresh.clicked.connect(self.refresh)
             ping = QPushButton("Обновить все пинги")
             ping.clicked.connect(self.ping_all)
+            providers = QPushButton("Обновить подписки")
+            providers.clicked.connect(self.update_providers)
             header.addWidget(QLabel("Вид:"))
             header.addWidget(self.mode)
             header.addStretch(1)
+            header.addWidget(providers)
             header.addWidget(ping)
             header.addWidget(refresh)
             self.layout.addLayout(header)
-            self.groups_box = QVBoxLayout()
-            self.layout.addLayout(self.groups_box)
-            self.layout.addStretch(1)
+            self.scroll = QScrollArea()
+            self.scroll.setWidgetResizable(True)
+            self.content = QWidget()
+            self.groups_box = QVBoxLayout(self.content)
+            self.groups_box.setContentsMargins(0, 0, 0, 0)
+            self.scroll.setWidget(self.content)
+            self.layout.addWidget(self.scroll, 1)
+            self.status = QLabel("Готово")
+            self.status.setObjectName("muted")
+            self.layout.addWidget(self.status)
 
         def clear_groups(self) -> None:
             while self.groups_box.count():
@@ -667,22 +810,42 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
                 if widget:
                     widget.deleteLater()
 
+        def selector_items(self) -> list[tuple[str, dict[str, Any]]]:
+            proxies = runtime.proxies()
+            items: list[tuple[str, dict[str, Any]]] = []
+            for name, data in proxies.items():
+                if isinstance(data, dict) and data.get("type") in {"Selector", "URLTest", "Fallback", "LoadBalance"}:
+                    items.append((str(name), data))
+            return items
+
         def refresh(self) -> None:
             self.clear_groups()
-            proxies = runtime.proxies()
-            for name, data in proxies.items():
-                if data.get("type") not in {"Selector", "URLTest", "Fallback", "LoadBalance"}:
-                    continue
+            try:
+                items = self.selector_items()
+            except Exception as e:
+                self.status.setText(f"Не удалось загрузить селекторы: {e}")
+                return
+            if not items:
+                self.status.setText("Селекторов нет в live Mihomo. Проверь config.yaml и restart Mihomo.")
+                return
+            if self.mode.currentText() == "Плитки":
+                self.render_tiles(items)
+            else:
+                self.render_lists(items)
+            self.status.setText(f"Селекторов: {len(items)}")
+
+        def render_lists(self, items: list[tuple[str, dict[str, Any]]]) -> None:
+            for name, data in items:
                 group = QGroupBox(name)
                 row = QHBoxLayout(group)
                 current = QLabel(f"Сейчас: {data.get('now', '—')}")
                 current.setObjectName("muted")
                 combo = QComboBox()
-                all_names = data.get("all") or []
+                all_names = [str(x) for x in (data.get("all") or [])]
                 combo.addItems(all_names)
                 now = data.get("now")
                 if now in all_names:
-                    combo.setCurrentText(now)
+                    combo.setCurrentText(str(now))
                 apply = QPushButton("Выбрать")
                 apply.setObjectName("primary")
                 apply.clicked.connect(lambda _=False, g=name, c=combo: self.select(g, c.currentText()))
@@ -690,6 +853,23 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
                 row.addWidget(combo, 1)
                 row.addWidget(apply)
                 self.groups_box.addWidget(group)
+            self.groups_box.addStretch(1)
+
+        def render_tiles(self, items: list[tuple[str, dict[str, Any]]]) -> None:
+            for name, data in items:
+                group = QGroupBox(f"{name} · сейчас: {data.get('now', '—')}")
+                grid = QGridLayout(group)
+                all_names = [str(x) for x in (data.get("all") or [])]
+                now = str(data.get("now") or "")
+                for idx, proxy in enumerate(all_names):
+                    btn = QPushButton(proxy)
+                    btn.setMinimumHeight(48)
+                    if proxy == now:
+                        btn.setObjectName("primary")
+                    btn.clicked.connect(lambda _=False, g=name, p=proxy: self.select(g, p))
+                    grid.addWidget(btn, idx // 4, idx % 4)
+                self.groups_box.addWidget(group)
+            self.groups_box.addStretch(1)
 
         def select(self, group: str, proxy: str) -> None:
             try:
@@ -698,13 +878,25 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             except Exception as e:
                 QMessageBox.critical(self, APP_NAME, f"Не удалось выбрать proxy:\n{e}")
 
+        def update_providers(self) -> None:
+            results = runtime.update_proxy_providers()
+            ok = sum(1 for x in results if x.get("ok"))
+            failed = len(results) - ok
+            self.status.setText(f"Подписки обновлены: {ok}/{len(results)}" + (f" · ошибок: {failed}" if failed else ""))
+            self.refresh()
+
         def ping_all(self) -> None:
             proxies = runtime.proxies()
+            checked = 0
+            ok = 0
             for name, data in proxies.items():
-                if data.get("type") not in {"Direct", "Reject", "Selector", "URLTest", "Fallback", "LoadBalance"}:
+                if isinstance(data, dict) and data.get("type") not in {"Direct", "Reject", "Selector", "URLTest", "Fallback", "LoadBalance"}:
+                    checked += 1
                     delay = runtime.delay(name)
                     if delay is not None:
+                        ok += 1
                         data["history"] = [{"delay": delay}]
+            self.status.setText(f"Пинги: {ok}/{checked}")
             self.refresh()
 
     class ConnectionsTab(QWidget):
@@ -779,7 +971,10 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             buttons.addStretch(1)
             buttons.addWidget(reload_btn)
             buttons.addWidget(save)
+            self.summary = QLabel("")
+            self.summary.setObjectName("muted")
             layout.addWidget(QLabel(str(runtime.manual_rules_path)))
+            layout.addWidget(self.summary)
             layout.addWidget(self.editor, 1)
             layout.addLayout(buttons)
             self.load()
@@ -789,6 +984,12 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             if not runtime.manual_rules_path.exists():
                 runtime.manual_rules_path.write_text("payload: []\n", encoding="utf-8")
             self.editor.setPlainText(runtime.manual_rules_path.read_text(encoding="utf-8"))
+            try:
+                groups = ", ".join(cfg_mgr.group_names()) or "—"
+                providers = ", ".join(x.get("name", "") for x in cfg_mgr.proxy_provider_items()) or "—"
+                self.summary.setText(f"Группы: {groups} · Подписки/providers: {providers}")
+            except Exception:
+                self.summary.setText("Группы/providers: не удалось прочитать config.yaml")
 
         def save(self) -> None:
             runtime.manual_rules_path.write_text(self.editor.toPlainText(), encoding="utf-8")
@@ -863,8 +1064,9 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
                 QMessageBox.critical(self, APP_NAME, f"Не удалось применить config:\n{e}")
 
     class ImportTab(QWidget):
-        def __init__(self) -> None:
+        def __init__(self, on_changed: Callable[[], None] | None = None) -> None:
             super().__init__()
+            self.on_changed = on_changed
             layout = QVBoxLayout(self)
             title = QLabel("Импорт прокси / подписок")
             title.setObjectName("title")
@@ -972,6 +1174,69 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             except Exception as e:
                 QMessageBox.critical(self, APP_NAME, f"Импорт не выполнен:\n{e}")
 
+    class InventoryTab(QWidget):
+        def __init__(self) -> None:
+            super().__init__()
+            layout = QVBoxLayout(self)
+            top = QHBoxLayout()
+            refresh = QPushButton("Обновить")
+            refresh.clicked.connect(self.refresh)
+            update = QPushButton("Обновить HTTP-подписки")
+            update.clicked.connect(self.update_providers)
+            top.addWidget(QLabel("Текущие конфиги, подписки, группы и ручные списки"))
+            top.addStretch(1)
+            top.addWidget(update)
+            top.addWidget(refresh)
+            layout.addLayout(top)
+            self.providers = QTableWidget(0, 6)
+            self.providers.setHorizontalHeaderLabels(["Provider", "Type", "URL/Path", "Cache path", "Interval", "Используется группами"])
+            self.groups = QTableWidget(0, 4)
+            self.groups.setHorizontalHeaderLabels(["Группа", "Type", "Proxies", "Use providers"])
+            self.proxies = QTableWidget(0, 4)
+            self.proxies.setHorizontalHeaderLabels(["Static proxy", "Type", "Server", "Port"])
+            self.rules = QTableWidget(0, 4)
+            self.rules.setHorizontalHeaderLabels(["Rule provider", "Type", "Behavior", "Path/URL"])
+            for title, table in [
+                ("Подписки / proxy-providers", self.providers),
+                ("Группы / proxy-groups", self.groups),
+                ("Статические proxies", self.proxies),
+                ("Rule-providers / ручные списки", self.rules),
+            ]:
+                box = QGroupBox(title)
+                box_layout = QVBoxLayout(box)
+                table.setAlternatingRowColors(True)
+                table.setSelectionBehavior(QTableWidget.SelectRows)
+                box_layout.addWidget(table)
+                layout.addWidget(box, 1)
+            self.status = QLabel("Готово")
+            self.status.setObjectName("muted")
+            layout.addWidget(self.status)
+            self.refresh()
+
+        def fill_table(self, table: QTableWidget, rows: list[dict[str, Any]], keys: list[str]) -> None:
+            table.setRowCount(len(rows))
+            for r, row in enumerate(rows):
+                for c, key in enumerate(keys):
+                    table.setItem(r, c, QTableWidgetItem(str(row.get(key) or "")))
+            table.resizeColumnsToContents()
+
+        def refresh(self) -> None:
+            try:
+                self.fill_table(self.providers, cfg_mgr.proxy_provider_items(), ["name", "type", "url", "path", "interval", "used_by"])
+                self.fill_table(self.groups, cfg_mgr.proxy_group_items(), ["name", "type", "proxies", "use"])
+                self.fill_table(self.proxies, cfg_mgr.static_proxy_items(), ["name", "type", "server", "port"])
+                self.fill_table(self.rules, cfg_mgr.rule_provider_items(), ["name", "type", "behavior", "path"])
+                self.status.setText(f"Config: {runtime.config_path} · Manual: {runtime.manual_rules_path}")
+            except Exception as e:
+                self.status.setText(f"Ошибка чтения config.yaml: {e}")
+
+        def update_providers(self) -> None:
+            results = runtime.update_proxy_providers()
+            ok = sum(1 for x in results if x.get("ok"))
+            failed = len(results) - ok
+            self.status.setText(f"HTTP-подписки обновлены: {ok}/{len(results)}" + (f" · ошибок: {failed}" if failed else ""))
+            self.refresh()
+
     class LogsTab(QWidget):
         def __init__(self) -> None:
             super().__init__()
@@ -1031,12 +1296,14 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             self.connections = ConnectionsTab()
             self.manual = ManualTab()
             self.config = ConfigTab()
-            self.imports = ImportTab()
+            self.inventory = InventoryTab()
+            self.imports = ImportTab(on_changed=self.refresh_all)
             self.logs = LogsTab()
             tabs.addTab(self.dashboard, "Обзор")
             tabs.addTab(self.selectors, "Селекторы")
             tabs.addTab(self.connections, "Соединения")
             tabs.addTab(self.imports, "Импорт")
+            tabs.addTab(self.inventory, "Конфиги/Подписки")
             tabs.addTab(self.manual, "Ручной список")
             tabs.addTab(self.config, "Конфиг")
             tabs.addTab(self.logs, "Логи")
@@ -1058,6 +1325,9 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             self.dashboard.refresh()
             self.selectors.refresh()
             self.connections.refresh()
+            self.inventory.refresh()
+            self.manual.load()
+            self.config.load()
 
         def closeEvent(self, event) -> None:  # type: ignore[override]
             log_native_event("main window closeEvent")
