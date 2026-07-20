@@ -459,13 +459,30 @@ class NativeConfigManager:
     def static_proxy_items(self) -> list[dict[str, Any]]:
         data = self.config_data()
         items: list[dict[str, Any]] = []
+        used_by: dict[str, list[str]] = {}
+        for group in data.get("proxy-groups") or []:
+            if not isinstance(group, dict):
+                continue
+            gname = str(group.get("name") or "")
+            for proxy_name in group.get("proxies") or []:
+                used_by.setdefault(str(proxy_name), []).append(gname)
         for proxy in data.get("proxies") or []:
             if isinstance(proxy, dict):
+                name = str(proxy.get("name") or "")
+                extra = []
+                for key in ("ip", "private-key", "public-key", "pre-shared-key", "dns", "allowed-ips", "remote-dns-resolve", "persistent-keepalive"):
+                    if proxy.get(key) not in (None, "", []):
+                        value = proxy.get(key)
+                        if "key" in key:
+                            value = "***"
+                        extra.append(f"{key}={value}")
                 items.append({
-                    "name": str(proxy.get("name") or ""),
+                    "name": name,
                     "type": str(proxy.get("type") or ""),
                     "server": str(proxy.get("server") or ""),
                     "port": str(proxy.get("port") or ""),
+                    "used_by": ", ".join(used_by.get(name, [])),
+                    "details": "; ".join(extra),
                 })
         return items
 
@@ -820,7 +837,15 @@ class MihomoRuntime:
                 return
             except Exception:
                 time.sleep(0.35)
-        raise RuntimeError(f"Mihomo controller did not become ready; see {logs / 'mihomo-native.log'}")
+        tail = ""
+        log_path = logs / "mihomo-native.log"
+        try:
+            if log_path.exists():
+                tail = "\n\nПоследние строки mihomo-native.log:\n" + "\n".join(log_path.read_text(encoding="utf-8", errors="replace").splitlines()[-40:])
+        except Exception:
+            tail = ""
+        self.force_cleanup_processes(delayed=False)
+        raise RuntimeError(f"Mihomo controller did not become ready; see {log_path}{tail}")
 
     def stop(self) -> None:
         if self.proc and self.proc.poll() is None:
@@ -830,6 +855,33 @@ class MihomoRuntime:
             except subprocess.TimeoutExpired:
                 self.proc.kill()
         self.proc = None
+
+    def force_cleanup_processes(self, *, delayed: bool = False) -> None:
+        """Best-effort cleanup for packaged desktop runtimes.
+
+        On Windows PyInstaller onefile can leave a bootstrap process and Mihomo
+        can survive if startup failed after spawning it. The user expectation is
+        simple: closing the app should not leave Mihomo/Unified UI process tails.
+        """
+        try:
+            self.stop()
+        except Exception:
+            pass
+        if platform.system().lower() != "windows":
+            return
+        try:
+            if delayed:
+                cmd = (
+                    'cmd /c "timeout /t 1 /nobreak >nul 2>nul & '
+                    'taskkill /F /IM mihomo.exe >nul 2>nul & '
+                    'taskkill /F /IM "Unified UI Native.exe" >nul 2>nul & '
+                    'taskkill /F /IM "Unified-UI-Native*.exe" >nul 2>nul"'
+                )
+                subprocess.Popen(cmd, shell=True, **self._subprocess_window_kwargs())
+            else:
+                subprocess.run(["taskkill", "/F", "/IM", "mihomo.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **self._subprocess_window_kwargs())
+        except Exception:
+            pass
 
     def restart(self) -> None:
         self.stop()
@@ -1289,14 +1341,21 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             layout = QVBoxLayout(self)
             self.editor = QPlainTextEdit()
             buttons = QHBoxLayout()
+            example_btn = QPushButton("Вставить пример")
+            example_btn.clicked.connect(self.insert_example)
             save = QPushButton("Сохранить")
             save.setObjectName("primary")
             save.clicked.connect(self.save)
+            save_restart = QPushButton("Сохранить + restart")
+            save_restart.setObjectName("primary")
+            save_restart.clicked.connect(self.save_restart)
             reload_btn = QPushButton("Перечитать")
             reload_btn.clicked.connect(self.load)
+            buttons.addWidget(example_btn)
             buttons.addStretch(1)
             buttons.addWidget(reload_btn)
             buttons.addWidget(save)
+            buttons.addWidget(save_restart)
             self.summary = QLabel("")
             self.summary.setObjectName("muted")
             layout.addWidget(QLabel(str(runtime.manual_rules_path)))
@@ -1317,9 +1376,37 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             except Exception:
                 self.summary.setText("Группы/providers: не удалось прочитать config.yaml")
 
+        def insert_example(self) -> None:
+            example = """payload:
+  # Домены целиком и поддомены. После сохранения трафик пойдёт в группу `Ручной список`.
+  - DOMAIN-SUFFIX,example.com
+  - DOMAIN-SUFFIX,openai.com
+  - DOMAIN-KEYWORD,youtube
+
+  # IP/CIDR тоже можно, если rule-provider behavior=classical.
+  - IP-CIDR,1.1.1.1/32,no-resolve
+"""
+            current = self.editor.toPlainText().strip()
+            if current and current != "payload: []":
+                self.editor.appendPlainText("\n" + example)
+            else:
+                self.editor.setPlainText(example)
+            self.status_message("Пример добавлен. Нажми `Сохранить + restart`, чтобы применить.")
+
+        def status_message(self, text: str) -> None:
+            self.summary.setText(text + " · Файл: " + str(runtime.manual_rules_path))
+
         def save(self) -> None:
             runtime.manual_rules_path.write_text(self.editor.toPlainText(), encoding="utf-8")
-            QMessageBox.information(self, APP_NAME, "Ручной список сохранён. Для правил обычно достаточно перезапуска Mihomo.")
+            QMessageBox.information(self, APP_NAME, "Ручной список сохранён. Чтобы правила вступили в силу, нажми `Сохранить + restart` или перезапусти Mihomo.")
+
+        def save_restart(self) -> None:
+            runtime.manual_rules_path.write_text(self.editor.toPlainText(), encoding="utf-8")
+            try:
+                runtime.restart()
+                QMessageBox.information(self, APP_NAME, "Ручной список сохранён, Mihomo перезапущен.")
+            except Exception as e:
+                QMessageBox.critical(self, APP_NAME, f"Ручной список сохранён, но restart не удался:\n{e}")
 
     class ConfigTab(QWidget):
         def __init__(self) -> None:
@@ -1539,8 +1626,8 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             self.providers.setHorizontalHeaderLabels(["Provider", "Type", "URL/Path", "Cache path", "Interval", "Используется группами"])
             self.groups = QTableWidget(0, 4)
             self.groups.setHorizontalHeaderLabels(["Группа", "Type", "Proxies", "Use providers"])
-            self.proxies = QTableWidget(0, 4)
-            self.proxies.setHorizontalHeaderLabels(["Static proxy", "Type", "Server", "Port"])
+            self.proxies = QTableWidget(0, 6)
+            self.proxies.setHorizontalHeaderLabels(["Static proxy", "Type", "Server", "Port", "Группы", "Details"] )
             self.rules = QTableWidget(0, 4)
             self.rules.setHorizontalHeaderLabels(["Rule provider", "Type", "Behavior", "Path/URL"])
             for title, table in [
@@ -1571,7 +1658,7 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
             try:
                 self.fill_table(self.providers, cfg_mgr.proxy_provider_items(), ["name", "type", "url", "path", "interval", "used_by"])
                 self.fill_table(self.groups, cfg_mgr.proxy_group_items(), ["name", "type", "proxies", "use"])
-                self.fill_table(self.proxies, cfg_mgr.static_proxy_items(), ["name", "type", "server", "port"])
+                self.fill_table(self.proxies, cfg_mgr.static_proxy_items(), ["name", "type", "server", "port", "used_by", "details"])
                 self.fill_table(self.rules, cfg_mgr.rule_provider_items(), ["name", "type", "behavior", "path"])
                 self.status.setText(f"Config: {runtime.config_path} · Manual: {runtime.manual_rules_path}")
             except Exception as e:
@@ -1678,8 +1765,9 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
 
         def closeEvent(self, event) -> None:  # type: ignore[override]
             log_native_event("main window closeEvent")
-            runtime.stop()
+            runtime.force_cleanup_processes(delayed=True)
             event.accept()
+            QApplication.quit()
 
     import threading
     import traceback
@@ -1688,7 +1776,10 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None) -> i
     app.setApplicationName(APP_NAME)
     app.setStyleSheet(DARK_QSS)
     app.setQuitOnLastWindowClosed(False)
-    app.aboutToQuit.connect(lambda: log_native_event("app aboutToQuit"))
+    def _on_about_to_quit() -> None:
+        log_native_event("app aboutToQuit")
+        runtime.force_cleanup_processes(delayed=True)
+    app.aboutToQuit.connect(_on_about_to_quit)
 
     startup = QWidget()
     startup.setWindowTitle(APP_NAME)
