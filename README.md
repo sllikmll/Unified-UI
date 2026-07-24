@@ -9,8 +9,15 @@
 | Что | Ссылка |
 |---|---|
 | Репозиторий | https://github.com/sllikmll/Unified-UI |
-| Скачать последнюю сборку | https://github.com/sllikmll/Unified-UI/releases/latest |
-| Native desktop для macOS Apple Silicon | https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-mac-arm64.zip |
+| **Актуальный Native desktop релиз** | **[`v2.6.4-native`](https://github.com/sllikmll/Unified-UI/releases/tag/v2.6.4-native)** |
+| Windows installer | [Unified-UI-Native-Setup-2.6.4-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-Setup-2.6.4-x64.exe) |
+| Windows standalone EXE | [Unified-UI-Native-2.6.4-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-x64.exe) |
+| Windows portable ZIP | [Unified-UI-Native-2.6.4-windows-x64-portable.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-windows-x64-portable.zip) |
+| macOS Apple Silicon | [Unified-UI-Native-2.6.4-mac-arm64.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-mac-arm64.zip) |
+| Linux portable | [Unified-UI-Native-2.6.4-linux-x64-portable.tar.gz](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-linux-x64-portable.tar.gz) |
+| Linux `.deb` | [Unified-UI-Native-2.6.4-linux-x64.deb](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-linux-x64.deb) |
+| Linux `.rpm` | [Unified-UI-Native-2.6.4-linux-x64.rpm](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/Unified-UI-Native-2.6.4-linux-x64.rpm) |
+| SHA256 / manifest | [SHA256SUMS](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/SHA256SUMS), [native-release-manifest.json](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/native-release-manifest.json) |
 | Legacy desktop/docker релиз | https://github.com/sllikmll/Unified-UI/releases/tag/v2.5.2 |
 | Docker image | `ghcr.io/sllikmll/unified-ui:latest` |
 | Версия Mihomo в desktop/native/docker сборках | `v1.19.29` |
