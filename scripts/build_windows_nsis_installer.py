@@ -22,7 +22,8 @@ PUBLISHER = "sllikmll"
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", default="2.6.4", help="Release version used in filenames and registry metadata")
-    parser.add_argument("--app-exe", required=True, type=Path, help="Path to Unified UI Native standalone .exe")
+    parser.add_argument("--app-exe", default=None, type=Path, help="Path to the main Unified UI Native .exe. Defaults to <app-dir>/Unified UI Native.exe")
+    parser.add_argument("--app-dir", default=None, type=Path, help="Path to the PyInstaller onedir bundle directory to install")
     parser.add_argument("--out", default=None, type=Path, help="Output setup .exe path")
     parser.add_argument("--workdir", default=Path("build/native-windows-installer"), type=Path)
     parser.add_argument("--makensis", default=None, type=Path, help="Path to makensis.exe; defaults to PATH lookup")
@@ -34,7 +35,7 @@ def nsis_quote(value: str | Path) -> str:
     return str(value).replace('\\', '\\\\').replace('"', '$\\"')
 
 
-def installer_script(*, version: str, app_exe: Path, out_exe: Path) -> str:
+def installer_script(*, version: str, app_dir: Path, app_exe: Path, out_exe: Path) -> str:
     # Keep custom Russian text here intentionally; tests assert this stays Unicode-safe.
     return f'''Unicode true
 SetCompressor /SOLID lzma
@@ -73,7 +74,7 @@ InstallDirRegKey HKCU "Software\\${{COMPANY_NAME}}\\${{APP_NAME}}" "InstallDir"
 
 Section "Install"
   SetOutPath "$INSTDIR"
-  File /oname=${{APP_EXE}} "{nsis_quote(app_exe)}"
+  File /r "{nsis_quote(app_dir)}\\*.*"
   WriteRegStr HKCU "Software\\${{COMPANY_NAME}}\\${{APP_NAME}}" "InstallDir" "$INSTDIR"
   WriteUninstaller "$INSTDIR\\Uninstall.exe"
   CreateDirectory "$SMPROGRAMS\\Unified UI Native"
@@ -87,6 +88,7 @@ Section "Uninstall"
   Delete "$SMPROGRAMS\\Unified UI Native\\Unified UI Native.lnk"
   Delete "$SMPROGRAMS\\Unified UI Native\\Удалить Unified UI Native.lnk"
   RMDir "$SMPROGRAMS\\Unified UI Native"
+  RMDir /r "$INSTDIR\\_internal"
   Delete "$INSTDIR\\${{APP_EXE}}"
   Delete "$INSTDIR\\Uninstall.exe"
   RMDir "$INSTDIR"
@@ -114,16 +116,28 @@ def find_makensis(explicit: Path | None) -> str:
 
 def main() -> int:
     args = parse_args()
-    app_exe = args.app_exe.resolve()
+    if args.app_dir is not None:
+        app_dir = args.app_dir.resolve()
+    elif args.app_exe is not None:
+        app_dir = args.app_exe.resolve().parent
+    else:
+        app_dir = (Path("dist") / APP_NAME).resolve()
+    if not app_dir.is_dir():
+        print(f"app dir not found: {app_dir}", file=sys.stderr)
+        return 2
+    app_exe = args.app_exe.resolve() if args.app_exe is not None else app_dir / f"{APP_NAME}.exe"
     if not app_exe.is_file():
         print(f"app exe not found: {app_exe}", file=sys.stderr)
+        return 2
+    if app_exe.parent != app_dir:
+        print(f"app exe must be inside app dir: {app_exe} not in {app_dir}", file=sys.stderr)
         return 2
     out = args.out or Path(f"dist-artifacts/Unified-UI-Native-Setup-{args.version}-x64.exe")
     out = out.resolve()
     args.workdir.mkdir(parents=True, exist_ok=True)
     out.parent.mkdir(parents=True, exist_ok=True)
     nsi = args.workdir / "Unified-UI-Native-Setup.nsi"
-    script = installer_script(version=args.version, app_exe=app_exe, out_exe=out)
+    script = installer_script(version=args.version, app_dir=app_dir, app_exe=app_exe, out_exe=out)
     nsi.write_text(script, encoding="utf-8-sig")
     raw = nsi.read_bytes()
     if not raw.startswith(b"\xef\xbb\xbf"):
