@@ -6,5 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <StartupObject>UnifiedUiWpfPreview.MainWindow</StartupObject>
+    <AssemblyName>Unified UI WPF</AssemblyName>
+    <Product>Unified UI WPF</Product>
+    <Version>0.5.0</Version>
+    <FileVersion>0.5.0.0</FileVersion>
+    <InformationalVersion>0.5.0-final-nonqt</InformationalVersion>
   </PropertyGroup>
 </Project>

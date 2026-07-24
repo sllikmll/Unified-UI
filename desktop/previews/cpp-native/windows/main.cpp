@@ -15,11 +15,11 @@
 #pragma comment(lib, "winhttp.lib")
 #pragma comment(lib, "ws2_32.lib")
 
-static const wchar_t* APP_TITLE = L"Unified UI — C++ Win32 User Test v0.4.1";
-static const char* VERSION = "0.4.1";
+static const wchar_t* APP_TITLE = L"Unified UI — C++ Win32 Final v0.5.0";
+static const char* VERSION = "0.5.0";
 static const wchar_t* QT_PAGE_MAP = L"Маршрутизация | Mihomo | Соединения | VLESS | WireGuard | AmneziaWG | Hysteria2 | Trojan | Mieru | NaiveProxy | Логи | Mihomo Генератор | Конфиг | Ручной список | Маршруты DNS | Интерфейс | Настройки";
 static const wchar_t* DESIGN_TOKENS = L"Qt Native palette: #050B1A #08142A #0A1730 #67E8F9 #20C878 #EF4E5F; selector tiles; readable tables; compact cards";
-static const wchar_t* UX_PHRASES = L"Unified UI · Mihomo runtime · proxy-providers · rule-providers · config.yaml · manual-proxy.yaml · готовый конечный вариант для ручного тестирования";
+static const wchar_t* UX_PHRASES = L"Unified UI · Mihomo runtime · proxy-providers · rule-providers · config.yaml · manual-proxy.yaml · готовый конечный вариант для production/ручного тестирования";
 static const wchar_t* BRIDGE_HOST = L"127.0.0.1";
 static const int BRIDGE_PORT = 19191;
 static HWND gOutput{}, gDomain{}, gImport{}, gSubName{}, gSubUrl{}, gGroup{}, gProxy{};
@@ -30,7 +30,7 @@ std::wstring GetText(HWND h){ int len=GetWindowTextLengthW(h); std::wstring s(le
 void SetOut(const std::wstring& text){ SetWindowTextW(gOutput,text.c_str()); }
 
 std::wstring BridgeRequest(const std::wstring& method, const std::wstring& endpoint, const std::string& body=""){
-    HINTERNET session=WinHttpOpen(L"UnifiedUI-Cpp-Win32/0.4.1", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    HINTERNET session=WinHttpOpen(L"UnifiedUI-Cpp-Win32/0.5.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if(!session) return L"WinHTTP session failed";
     HINTERNET connect=WinHttpConnect(session, BRIDGE_HOST, BRIDGE_PORT, 0);
     if(!connect){ WinHttpCloseHandle(session); return L"WinHTTP connect failed to BRIDGE_URL http://127.0.0.1:19191"; }
@@ -97,7 +97,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp){
         gSubName=Edit(hwnd,L"subscription_1",12,230,180,24); gSubUrl=Edit(hwnd,L"https://example.com/sub",202,230,360,24); Btn(hwnd,L"Add subscription",501,572,228,160); Btn(hwnd,L"Update subscription",503,740,228,170); Btn(hwnd,L"Delete subscription",504,918,228,170);
         gImport=Edit(hwnd,L"- name: manual-node\r\n  type: http\r\n  server: 1.2.3.4\r\n  port: 8080",12,266,550,92,ES_MULTILINE|WS_VSCROLL); Btn(hwnd,L"Import static",502,572,266,160); Btn(hwnd,L"Delete static proxy",505,740,266,170);
         gDomain=Edit(hwnd,L"youtube.com\r\ngithub.com\r\nopenai.com",12,370,550,78,ES_MULTILINE|WS_VSCROLL); Btn(hwnd,L"Resolve DNS",601,572,370,160); Btn(hwnd,L"Logs",701,572,408,160);
-        gOutput=Edit(hwnd,L"Unified UI C++ Win32 user-test production via unified-ui-native-bridge.exe\r\nBRIDGE_URL http://127.0.0.1:19191\r\nFeatures: runtime-start-stop-restart, Mihomo runtime, selector tiles, select-proxy, per-node-ping, proxy-table, provider-update, connections-table, close-connection, config-read-save-validate, subscription-add-update-delete, static-proxy-import-update-delete, proxy-providers, rule-providers, dns-routes-manual-resolver, logs-viewer, settings-runtime-paths, config.yaml, manual-proxy.yaml",12,466,1220,260,ES_MULTILINE|WS_VSCROLL|ES_AUTOVSCROLL);
+        gOutput=Edit(hwnd,L"Unified UI C++ Win32 final production via unified-ui-native-bridge.exe\r\nBRIDGE_URL http://127.0.0.1:19191\r\nFeatures: runtime-start-stop-restart, Mihomo runtime, selector tiles, select-proxy, per-node-ping, proxy-table, provider-update, connections-table, close-connection, config-read-save-validate, subscription-add-update-delete, static-proxy-import-update-delete, proxy-providers, rule-providers, dns-routes-manual-resolver, logs-viewer, settings-runtime-paths, config.yaml, manual-proxy.yaml",12,466,1220,260,ES_MULTILINE|WS_VSCROLL|ES_AUTOVSCROLL);
         EnsureBridgeStarted(hwnd); return 0;
     }
     if(msg==WM_COMMAND){ RunAction(LOWORD(wp),hwnd); return 0; }
@@ -108,10 +108,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp){
 int WINAPI wWinMain(HINSTANCE h, HINSTANCE, PWSTR cmd, int show){
     std::wstring args=cmd?cmd:L"";
     if(args.find(L"--smoke")!=std::wstring::npos){
-        std::string json = "{\"ok\":true,\"app\":\"Unified UI C++ Win32\",\"version\":\"0.4.1\",\"ui\":\"Win32/C++\",\"quality\":\"user-test-production\",\"backend\":\"unified-ui-native-bridge\",\"features\":[\"runtime-start-stop-restart\",\"mihomo-version-health\",\"selector-list-and-tiles\",\"select-proxy\",\"per-node-ping\",\"proxy-table\",\"provider-update\",\"connections-table\",\"close-connection\",\"config-read-save-validate\",\"subscription-add-update-delete\",\"static-proxy-import-update-delete\",\"rule-providers\",\"dns-routes-manual-resolver\",\"logs-viewer\",\"settings-runtime-paths\",\"subscription-update-delete\",\"static-proxy-delete\"]}";
+        std::string json = "{\"ok\":true,\"app\":\"Unified UI C++ Win32\",\"version\":\"0.5.0\",\"ui\":\"Win32/C++\",\"quality\":\"final-production\",\"backend\":\"unified-ui-native-bridge\",\"features\":[\"runtime-start-stop-restart\",\"mihomo-version-health\",\"selector-list-and-tiles\",\"select-proxy\",\"per-node-ping\",\"proxy-table\",\"provider-update\",\"connections-table\",\"close-connection\",\"config-read-save-validate\",\"subscription-add-update-delete\",\"static-proxy-import-update-delete\",\"rule-providers\",\"dns-routes-manual-resolver\",\"logs-viewer\",\"settings-runtime-paths\",\"subscription-update-delete\",\"static-proxy-delete\"]}";
         DWORD written=0; HANDLE out=GetStdHandle(STD_OUTPUT_HANDLE); WriteFile(out,json.c_str(),(DWORD)json.size(),&written,nullptr); return 0;
     }
-    WNDCLASSW wc{}; wc.lpfnWndProc=WndProc; wc.hInstance=h; wc.lpszClassName=L"UnifiedUiCppWin32ProductionCandidate"; wc.hbrBackground=(HBRUSH)(COLOR_WINDOW+1); RegisterClassW(&wc);
+    WNDCLASSW wc{}; wc.lpfnWndProc=WndProc; wc.hInstance=h; wc.lpszClassName=L"UnifiedUiCppWin32Final"; wc.hbrBackground=(HBRUSH)(COLOR_WINDOW+1); RegisterClassW(&wc);
     HWND hwnd=CreateWindowExW(0,wc.lpszClassName,APP_TITLE,WS_OVERLAPPEDWINDOW|WS_VISIBLE,CW_USEDEFAULT,CW_USEDEFAULT,1280,820,nullptr,nullptr,h,nullptr);
     ShowWindow(hwnd,show); MSG m{}; while(GetMessageW(&m,nullptr,0,0)){ TranslateMessage(&m); DispatchMessageW(&m); } return (int)m.wParam;
 }

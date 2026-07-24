@@ -41,12 +41,12 @@ def test_preview_release_version_bumped_for_production_candidates():
     manifest_script = read("scripts/build_desktop_previews_manifest.py")
     readme = read("README.md")
 
-    assert "0.4.1" in manifest_script
-    assert "v0.4.1-desktop-user-test" in manifest_script
-    assert "v0.4.1-desktop-user-test" in readme
-    assert "Unified-UI-Avalonia-UserTest-0.4.1-win-x64.zip" in manifest_script
-    assert "Unified-UI-WPF-UserTest-0.4.1-win-x64.zip" in manifest_script
-    assert "Unified-UI-Cpp-Win32-UserTest-0.4.1-win-x64.zip" in manifest_script
+    assert "0.5.0" in manifest_script
+    assert "v0.5.0-desktop-final" in manifest_script
+    assert "v0.5.0-desktop-final" in readme
+    assert "Unified-UI-Avalonia-Final-0.5.0-win-x64.zip" in manifest_script
+    assert "Unified-UI-WPF-Final-0.5.0-win-x64.zip" in manifest_script
+    assert "Unified-UI-Cpp-Win32-Final-0.5.0-win-x64.zip" in manifest_script
 
 
 def test_apps_use_real_bridge_runtime_not_static_mock_only():

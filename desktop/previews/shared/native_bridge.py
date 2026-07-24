@@ -44,7 +44,7 @@ if not hasattr(native_core, "ensure_leading_dash_for_yaml_block"):
 
     native_core.ensure_leading_dash_for_yaml_block = _ensure_leading_dash_for_yaml_block
 
-BRIDGE_VERSION = "0.4.1"
+BRIDGE_VERSION = "0.5.0"
 DEFAULT_BRIDGE_HOST = "127.0.0.1"
 DEFAULT_BRIDGE_PORT = 19191
 PRODUCTION_FEATURES = [

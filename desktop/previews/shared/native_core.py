@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Non-Qt runtime/config core for Unified UI desktop user-test builds.
+"""Non-Qt runtime/config core for Unified UI desktop final production builds.
 
 This module intentionally contains no PySide/Qt imports. It is extracted from
 `desktop/native/unified_ui_native.py` so Avalonia/WPF/C++ candidates can reuse

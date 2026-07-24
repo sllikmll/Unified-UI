@@ -41,26 +41,26 @@
 | Linux RPM | [Unified-UI-Native-2.6.7-linux-x64.rpm](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-2.6.7-linux-x64.rpm) | Есть |
 
 
-### Windows user-test desktop builds: Avalonia / WPF / C++ Win32
+### Windows final desktop builds: Avalonia / WPF / C++ Win32
 
-готовый конечный вариант для ручного тестирования пользователями: **[`v0.4.1-desktop-user-test`](https://github.com/sllikmll/Unified-UI/releases/tag/v0.4.1-desktop-user-test)**. Все три Windows-кандидата используют общий **non-Qt** `unified-ui-native-bridge.exe` и повторяют карту Qt Native: `Маршрутизация`, `Mihomo`, `Соединения`, протокольные вкладки, `Логи`, `Mihomo Генератор`, `Конфиг`, `Ручной список`, `Маршруты DNS`, `Интерфейс`, `Настройки`.
+готовый конечный вариант для production/ручного тестирования пользователями: **[`v0.5.0-desktop-final-nonqt`](https://github.com/sllikmll/Unified-UI/releases/tag/v0.5.0-desktop-final-nonqt)**. Все три Windows-кандидата используют общий **non-Qt** `unified-ui-native-bridge.exe` и повторяют карту Qt Native: `Маршрутизация`, `Mihomo`, `Соединения`, протокольные вкладки, `Логи`, `Mihomo Генератор`, `Конфиг`, `Ручной список`, `Маршруты DNS`, `Интерфейс`, `Настройки`.
 
 | Вариант | Файл | Что внутри |
 |---|---|---|
-| C# Avalonia | [Unified-UI-Avalonia-UserTest-0.4.1-win-x64.zip](https://github.com/sllikmll/Unified-UI/releases/download/v0.4.1-desktop-user-test/Unified-UI-Avalonia-UserTest-0.4.1-win-x64.zip) | Основной cross-platform кандидат: sidebar/app-shell, selector tiles, cards, config.yaml editor, subscriptions/import, DNS resolver, logs/settings. |
-| C# WPF | [Unified-UI-WPF-UserTest-0.4.1-win-x64.zip](https://github.com/sllikmll/Unified-UI/releases/download/v0.4.1-desktop-user-test/Unified-UI-WPF-UserTest-0.4.1-win-x64.zip) | Windows-first кандидат с тем же набором экранов и bridge actions для ручного UX-теста. |
-| C++ Win32 native | [Unified-UI-Cpp-Win32-UserTest-0.4.1-win-x64.zip](https://github.com/sllikmll/Unified-UI/releases/download/v0.4.1-desktop-user-test/Unified-UI-Cpp-Win32-UserTest-0.4.1-win-x64.zip) | Самый лёгкий native-кандидат: WinHTTP bridge control room, runtime/config/import/DNS/log actions. |
-| Проверка | [DESKTOP_PREVIEWS_SHA256SUMS](https://github.com/sllikmll/Unified-UI/releases/download/v0.4.1-desktop-user-test/DESKTOP_PREVIEWS_SHA256SUMS), [desktop-previews-manifest.json](https://github.com/sllikmll/Unified-UI/releases/download/v0.4.1-desktop-user-test/desktop-previews-manifest.json) | SHA256 и manifest по user-test artifacts. |
+| C# Avalonia | [Unified-UI-Avalonia-Final-0.5.0-win-x64.zip](https://github.com/sllikmll/Unified-UI/releases/download/v0.5.0-desktop-final-nonqt/Unified-UI-Avalonia-Final-0.5.0-win-x64.zip) | Основной cross-platform кандидат: sidebar/app-shell, selector tiles, cards, config.yaml editor, subscriptions/import, DNS resolver, logs/settings. |
+| C# WPF | [Unified-UI-WPF-Final-0.5.0-win-x64.zip](https://github.com/sllikmll/Unified-UI/releases/download/v0.5.0-desktop-final-nonqt/Unified-UI-WPF-Final-0.5.0-win-x64.zip) | Windows-first кандидат с тем же набором экранов и bridge actions для ручной UX-проверки. |
+| C++ Win32 native | [Unified-UI-Cpp-Win32-Final-0.5.0-win-x64.zip](https://github.com/sllikmll/Unified-UI/releases/download/v0.5.0-desktop-final-nonqt/Unified-UI-Cpp-Win32-Final-0.5.0-win-x64.zip) | Самый лёгкий native-кандидат: WinHTTP bridge control room, runtime/config/import/DNS/log actions. |
+| Проверка | [DESKTOP_PREVIEWS_SHA256SUMS](https://github.com/sllikmll/Unified-UI/releases/download/v0.5.0-desktop-final-nonqt/DESKTOP_PREVIEWS_SHA256SUMS), [desktop-final-manifest.json](https://github.com/sllikmll/Unified-UI/releases/download/v0.5.0-desktop-final-nonqt/desktop-final-manifest.json) | SHA256 и manifest по final artifacts. |
 
 Bridge/runtime слой вынесен в `desktop/previews/shared/native_core.py` и не импортирует `PySide6`/Qt. Общий функциональный набор: `runtime-start-stop-restart`, `mihomo-version-health`, `selector-list-and-tiles`, `select-proxy`, `per-node-ping`, `proxy-table`, `provider-update`, `connections-table`, `close-connection`, `config-read-save-validate`, `subscription-add-update-delete`, `subscription-update-delete`, `static-proxy-import-update-delete`, `static-proxy-delete`, `rule-providers`, `dns-routes-manual-resolver`, `logs-viewer`, `settings-runtime-paths`.
 
-Native app:
+Отдельно: основной исторический `Desktop Native` в таблице выше остаётся Qt Widgets-приложением. Этот раздел описывает именно **альтернативные Windows final non-Qt builds**:
 
-- рисует интерфейс настоящими Qt Widgets;
-- **не использует QWebEngine/WebView** и не открывает web-панель внутри окна;
-- **не запускает Flask UI server**;
-- напрямую управляет Mihomo через `external-controller API`;
-- умеет импортировать HTTP-подписки/статические прокси, добавлять узлы в selector-группы и показывать per-node ping статусы: серый — не проверялся, зелёный — online, красный — offline.
+- Avalonia/WPF/C++ не импортируют Qt/PySide;
+- bridge/runtime слой тоже не импортирует Qt/PySide;
+- UI работает через локальный `unified-ui-native-bridge.exe`;
+- bridge напрямую управляет Mihomo через `external-controller API` и локальный `config.yaml`;
+- поддержаны подписки, static proxy import/delete, selector groups, per-node ping, DNS resolver, logs, config save/apply.
 
 
 ### Download portal / установочная витрина

@@ -36,7 +36,7 @@ def test_windows_apps_expose_qt_native_page_map_and_design_tokens():
         "cpp": read("desktop/previews/cpp-native/windows/main.cpp"),
     }
     for name, source in sources.items():
-        assert "0.4.1" in source, name
+        assert "0.5.0" in source, name
         for page in QT_PAGES:
             assert page in source, f"{name} missing page {page}"
         for token in DESIGN_TOKENS:
@@ -47,7 +47,7 @@ def test_windows_apps_expose_qt_native_page_map_and_design_tokens():
 
 def test_bridge_has_user_testing_endpoints_for_full_lifecycle():
     bridge = read("desktop/previews/shared/native_bridge.py")
-    assert 'BRIDGE_VERSION = "0.4.1"' in bridge
+    assert 'BRIDGE_VERSION = "0.5.0"' in bridge
     for endpoint in [
         "/api/subscription/update",
         "/api/subscription/delete",
@@ -78,7 +78,7 @@ def test_windows_user_test_stack_is_non_qt():
 def test_040_manifest_and_readme_are_new_release_line():
     manifest = read("scripts/build_desktop_previews_manifest.py")
     readme = read("README.md")
-    assert "0.4.1" in manifest
-    assert "v0.4.1-desktop-user-test" in manifest
-    assert "v0.4.1-desktop-user-test" in readme
-    assert "готовый конечный вариант для ручного тестирования" in readme
+    assert "0.5.0" in manifest
+    assert "v0.5.0-desktop-final" in manifest
+    assert "v0.5.0-desktop-final" in readme
+    assert "готовый конечный вариант для production/ручного тестирования" in readme
