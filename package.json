@@ -31,7 +31,9 @@
     "desktop:pack:all": "npm run frontend:build && electron-builder --mac dmg --arm64 && electron-builder --linux deb rpm AppImage --x64 && electron-builder --win nsis --x64",
     "native:manifest": "python3 scripts/build_native_release_manifest.py --allow-missing",
     "native:manifest:strict": "python3 scripts/build_native_release_manifest.py --write-sha256sums",
-    "native:portal:open": "python3 -m http.server 8765 -d docs"
+    "native:portal:open": "python3 -m http.server 8765 -d docs",
+    "native:windows:installer": "python3 scripts/build_windows_nsis_installer.py --app-exe dist-artifacts/Unified-UI-Native-2.6.4-x64.exe",
+    "native:windows:installer:nsi": "python3 scripts/build_windows_nsis_installer.py --app-exe dist-artifacts/Unified-UI-Native-2.6.4-x64.exe --skip-build"
   },
   "devDependencies": {
     "@codemirror/autocomplete": "^6.20.1",

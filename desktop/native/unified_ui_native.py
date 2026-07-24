@@ -1638,6 +1638,7 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
         QPushButton,
         QFrame,
         QPlainTextEdit,
+        QProgressBar,
         QScrollArea,
         QTableWidget,
         QTableWidgetItem,
@@ -1659,15 +1660,18 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
             self.mode.currentTextChanged.connect(self.refresh)
             refresh = QPushButton("Обновить селекторы")
             refresh.clicked.connect(self.refresh)
-            ping = QPushButton("Обновить все пинги")
-            ping.clicked.connect(self.ping_all)
+            self.ping_all_btn = QPushButton("Обновить все пинги")
+            self.ping_all_btn.clicked.connect(self.ping_all)
+            self.ping_all_in_progress = False
+            self.ping_all_queue: queue.Queue[tuple[str, Any]] | None = None
+            self.ping_all_timer: QTimer | None = None
             providers = QPushButton("Обновить подписки")
             providers.clicked.connect(self.update_providers)
             header.addWidget(QLabel("Вид:"))
             header.addWidget(self.mode)
             header.addStretch(1)
             header.addWidget(providers)
-            header.addWidget(ping)
+            header.addWidget(self.ping_all_btn)
             header.addWidget(refresh)
             self.layout.addLayout(header)
             self.scroll = QScrollArea()
@@ -1810,18 +1814,74 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
             self.refresh()
 
         def ping_all(self) -> None:
-            proxies = runtime.proxies()
-            checked = 0
-            ok = 0
-            for name, data in proxies.items():
-                if isinstance(data, dict) and data.get("type") not in {"Direct", "Reject", "Selector", "URLTest", "Fallback", "LoadBalance"}:
-                    checked += 1
-                    delay = runtime.delay(name)
-                    if delay is not None:
-                        ok += 1
-                        data["history"] = [{"delay": delay}]
-            self.status.setText(f"Пинги: {ok}/{checked}")
-            self.refresh()
+            if self.ping_all_in_progress:
+                self.status.setText("Пинги уже обновляются…")
+                return
+            try:
+                proxies = runtime.proxies()
+                names = [
+                    str(name)
+                    for name, data in proxies.items()
+                    if isinstance(data, dict) and data.get("type") not in {"Direct", "Reject", "Selector", "URLTest", "Fallback", "LoadBalance"}
+                ]
+            except Exception as e:
+                self.status.setText(f"Ошибка подготовки пингов: {e}")
+                return
+            if not names:
+                self.status.setText("Пинговать нечего")
+                return
+            self.ping_all_in_progress = True
+            self.ping_all_btn.setEnabled(False)
+            self.status.setText(f"Пинги: 0/{len(names)}…")
+            q: queue.Queue[tuple[str, Any]] = queue.Queue()
+            self.ping_all_queue = q
+            total = len(names)
+
+            def worker() -> None:
+                ok = 0
+                done = 0
+                with concurrent.futures.ThreadPoolExecutor(max_workers=min(6, max(1, total))) as pool:
+                    futures = {pool.submit(runtime.delay, name): name for name in names}
+                    for future in concurrent.futures.as_completed(futures):
+                        name = futures[future]
+                        delay: Any = None
+                        try:
+                            delay = future.result()
+                        except Exception as exc:
+                            delay = exc
+                        done += 1
+                        if isinstance(delay, int):
+                            ok += 1
+                        q.put(("progress", done, ok, total, name, delay))
+                q.put(("done", ok, total))
+
+            def drain() -> None:
+                if self.ping_all_queue is None:
+                    return
+                while True:
+                    try:
+                        event = self.ping_all_queue.get_nowait()
+                    except queue.Empty:
+                        break
+                    if event[0] == "progress":
+                        _, done, ok, total_count, name, delay = event
+                        suffix = f" · {name}: {delay} ms" if isinstance(delay, int) else f" · {name}: ошибка" if isinstance(delay, Exception) else f" · {name}: —"
+                        self.status.setText(f"Пинги: {ok}/{done} из {total_count}{suffix}")
+                    elif event[0] == "done":
+                        _, ok, total_count = event
+                        self.status.setText(f"Пинги: {ok}/{total_count}")
+                        self.ping_all_in_progress = False
+                        self.ping_all_btn.setEnabled(True)
+                        if self.ping_all_timer:
+                            self.ping_all_timer.stop()
+                        self.ping_all_queue = None
+                        self.refresh()
+
+            self.ping_all_timer = QTimer(self)
+            self.ping_all_timer.setInterval(120)
+            self.ping_all_timer.timeout.connect(drain)
+            self.ping_all_timer.start()
+            threading.Thread(target=worker, daemon=True).start()
 
     class ConnectionsTab(QWidget):
         def __init__(self) -> None:
@@ -2698,6 +2758,8 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
         def __init__(self) -> None:
             super().__init__()
             self.setObjectName("Panel")
+            self.setMinimumWidth(280)
+            self.setMaximumWidth(420)
             layout = QVBoxLayout(self)
             layout.setContentsMargins(12, 12, 12, 10)
             layout.setSpacing(9)
@@ -2719,9 +2781,9 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
 
             badges = QHBoxLayout()
             for text, green in [
-                ("provider: manual-proxy@classical", False),
-                ("type: file", False),
-                ("behavior: classical", False),
+                ("provider: manual", False),
+                ("file", False),
+                ("classical", False),
                 ("можно сохранять", True),
             ]:
                 b = QLabel(text)
@@ -2736,11 +2798,11 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
 
             buttons = QHBoxLayout()
             buttons.addStretch(1)
-            save = QPushButton("💾 Сохранить")
+            save = QPushButton("Сохранить")
             save.setObjectName("SmallPill")
-            norm = QPushButton("✨ Нормализовать")
+            norm = QPushButton("Нормализовать")
             norm.setObjectName("SmallPill")
-            update = QPushButton("⟳ Обновить provider")
+            update = QPushButton("Обновить")
             update.setObjectName("SmallPill")
             save.clicked.connect(self.save)
             norm.clicked.connect(self.normalize)
@@ -2803,16 +2865,19 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
             title.setObjectName("SectionTitle")
             self.ok = QLabel("OK")
             self.ok.setObjectName("Green")
-            ping = QPushButton("⚡ Обновить все пинги")
-            ping.setObjectName("SmallPill")
+            self.ping_all_btn = QPushButton("⚡ Обновить все пинги")
+            self.ping_all_btn.setObjectName("SmallPill")
+            self.ping_all_in_progress = False
+            self.ping_all_queue: queue.Queue[tuple[str, Any]] | None = None
+            self.ping_all_timer: QTimer | None = None
             refresh = QPushButton("⟳ Обновить")
             refresh.setObjectName("SmallPill")
-            ping.clicked.connect(self.ping_all)
+            self.ping_all_btn.clicked.connect(self.ping_all)
             refresh.clicked.connect(self.refresh)
             top.addWidget(title)
             top.addWidget(self.ok)
             top.addSpacing(10)
-            top.addWidget(ping)
+            top.addWidget(self.ping_all_btn)
             top.addWidget(refresh)
             top.addStretch(1)
             self.tile_btn = QPushButton("▦ Плитки")
@@ -2843,8 +2908,8 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
             left_layout.addWidget(self.status)
 
             self.editor_panel = ProviderEditorPanel()
-            root.addWidget(left, 65)
-            root.addWidget(self.editor_panel, 35)
+            root.addWidget(left, 79)
+            root.addWidget(self.editor_panel, 21)
             self.mode = "tiles"
             self.refresh()
 
@@ -3032,18 +3097,74 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
                 QMessageBox.critical(self, APP_NAME, f"Не удалось выбрать proxy:\n{e}")
 
         def ping_all(self) -> None:
+            if self.ping_all_in_progress:
+                self.status.setText("Пинги уже обновляются…")
+                return
             try:
                 proxies = runtime.proxies()
-                checked = ok = 0
-                for name, data in proxies.items():
-                    if isinstance(data, dict) and data.get("type") not in {"Direct", "Reject", "Selector", "URLTest", "Fallback", "LoadBalance"}:
-                        checked += 1
-                        if runtime.delay(name) is not None:
-                            ok += 1
-                self.status.setText(f"Пинги: {ok}/{checked}")
-                self.refresh()
+                names = [
+                    str(name)
+                    for name, data in proxies.items()
+                    if isinstance(data, dict) and data.get("type") not in {"Direct", "Reject", "Selector", "URLTest", "Fallback", "LoadBalance"}
+                ]
             except Exception as e:
-                self.status.setText(f"Ошибка пингов: {e}")
+                self.status.setText(f"Ошибка подготовки пингов: {e}")
+                return
+            if not names:
+                self.status.setText("Пинговать нечего")
+                return
+            self.ping_all_in_progress = True
+            self.ping_all_btn.setEnabled(False)
+            self.status.setText(f"Пинги: 0/{len(names)}…")
+            q: queue.Queue[tuple[str, Any]] = queue.Queue()
+            self.ping_all_queue = q
+            total = len(names)
+
+            def worker() -> None:
+                ok = 0
+                done = 0
+                with concurrent.futures.ThreadPoolExecutor(max_workers=min(6, max(1, total))) as pool:
+                    futures = {pool.submit(runtime.delay, name): name for name in names}
+                    for future in concurrent.futures.as_completed(futures):
+                        name = futures[future]
+                        delay: Any = None
+                        try:
+                            delay = future.result()
+                        except Exception as exc:
+                            delay = exc
+                        done += 1
+                        if isinstance(delay, int):
+                            ok += 1
+                        q.put(("progress", done, ok, total, name, delay))
+                q.put(("done", ok, total))
+
+            def drain() -> None:
+                if self.ping_all_queue is None:
+                    return
+                while True:
+                    try:
+                        event = self.ping_all_queue.get_nowait()
+                    except queue.Empty:
+                        break
+                    if event[0] == "progress":
+                        _, done, ok, total_count, name, delay = event
+                        suffix = f" · {name}: {delay} ms" if isinstance(delay, int) else f" · {name}: ошибка" if isinstance(delay, Exception) else f" · {name}: —"
+                        self.status.setText(f"Пинги: {ok}/{done} из {total_count}{suffix}")
+                    elif event[0] == "done":
+                        _, ok, total_count = event
+                        self.status.setText(f"Пинги: {ok}/{total_count}")
+                        self.ping_all_in_progress = False
+                        self.ping_all_btn.setEnabled(True)
+                        if self.ping_all_timer:
+                            self.ping_all_timer.stop()
+                        self.ping_all_queue = None
+                        self.refresh()
+
+            self.ping_all_timer = QTimer(self)
+            self.ping_all_timer.setInterval(120)
+            self.ping_all_timer.timeout.connect(drain)
+            self.ping_all_timer.start()
+            threading.Thread(target=worker, daemon=True).start()
 
 
     class InterfaceTab(QWidget):
@@ -3120,6 +3241,7 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
             self.runtime_restart_in_progress = False
             self.tab_buttons: dict[str, QPushButton] = {}
             self.page_names: list[str] = []
+            self.page_index_by_name: dict[str, int] = {}
 
             shell = QFrame()
             shell.setObjectName("AppShell")
@@ -3173,7 +3295,7 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
             self.timer = QTimer(self)
             self.timer.timeout.connect(self.refresh_light)
             self.timer.start(4000)
-            self.refresh_all()
+            QTimer.singleShot(100, self.refresh_current_page)
 
         def build_header(self) -> QFrame:
             header = QFrame()
@@ -3194,36 +3316,27 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
             right = QVBoxLayout()
             right.setSpacing(8)
             row = QHBoxLayout()
-            top_actions = [
-                ("🌐 Светлая тема", self.toggle_theme),
-                ("◉ Интерфейс", lambda: self.activate_page("Интерфейс")),
-                ("Настройки", lambda: self.activate_page("Настройки")),
-                ("👤 pavel", lambda: self.activate_page("Настройки")),
-                ("v2.6.4-native", lambda: self.activate_page("Интерфейс")),
-                ("↻ Проверить обновления", lambda: self.activate_page("Mihomo")),
-            ]
-            for text, handler in top_actions:
-                b = QPushButton(text)
-                b.setObjectName("TopPill")
-                b.clicked.connect(handler)
-                row.addWidget(b)
+            interface_btn = QPushButton("◉ Интерфейс")
+            interface_btn.setObjectName("TopPill")
+            interface_btn.clicked.connect(lambda: self.activate_page("Интерфейс"))
+            settings_btn = QPushButton("Настройки")
+            settings_btn.setObjectName("TopPill")
+            settings_btn.clicked.connect(lambda: self.activate_page("Настройки"))
+            row.addWidget(interface_btn)
+            row.addWidget(settings_btn)
+            version = QLabel("v2.6.4-native")
+            version.setObjectName("Muted")
+            row.addWidget(version)
+            row.addStretch(1)
             right.addLayout(row)
             row2 = QHBoxLayout()
-            update = QPushButton("🟠 Обновление v2.6.4-native")
-            update.setObjectName("TopPill")
-            update.clicked.connect(lambda: self.activate_page("Mihomo"))
-            row2.addWidget(update)
+            status = QLabel("Desktop build · Mihomo runtime")
+            status.setObjectName("Muted")
+            row2.addWidget(status)
             row2.addStretch(1)
-            exit_btn = QPushButton("Выйти")
-            exit_btn.setObjectName("ExitButton")
-            exit_btn.clicked.connect(self.close)
-            row2.addWidget(exit_btn)
             right.addLayout(row2)
             layout.addLayout(right, 2)
             return header
-
-        def toggle_theme(self) -> None:
-            QMessageBox.information(self, APP_NAME, "Светлая тема пока не включена в MVP. Кнопка теперь кликабельна; настройки интерфейса — во вкладке `Интерфейс`." )
 
         def build_tabs(self) -> QFrame:
             bar = QFrame()
@@ -3261,14 +3374,18 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
             return bar
 
         def add_page(self, name: str, widget: QWidget) -> None:
+            if name in self.page_index_by_name:
+                raise ValueError(f"Duplicate Native page name: {name}")
             self.page_names.append(name)
-            self.stack.addWidget(widget)
+            index = self.stack.addWidget(widget)
+            self.page_index_by_name[name] = index
 
         def activate_page(self, name: str) -> None:
-            if name not in self.page_names:
+            index = self.page_index_by_name.get(name)
+            if index is None:
                 self.statusBar().showMessage(f"Страница не найдена: {name}")
                 return
-            self.stack.setCurrentIndex(self.page_names.index(name))
+            self.stack.setCurrentIndex(index)
             for tab_name, btn in self.tab_buttons.items():
                 btn.setObjectName("ActiveTab" if tab_name == name else "Tab")
                 btn.style().unpolish(btn)
@@ -3320,10 +3437,19 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
         def refresh_light(self) -> None:
             try:
                 self.ensure_runtime_alive()
-                self.routing.refresh()
-                self.connections.refresh()
+                page = self.stack.currentWidget()
+                if page in {self.routing, self.connections} and hasattr(page, "refresh"):
+                    page.refresh()  # type: ignore[attr-defined]
             except Exception as e:
                 self.statusBar().showMessage(str(e))
+
+        def refresh_current_page(self) -> None:
+            page = self.stack.currentWidget()
+            if hasattr(page, "refresh"):
+                try:
+                    page.refresh()  # type: ignore[attr-defined]
+                except Exception as exc:
+                    self.statusBar().showMessage(f"Refresh ошибка: {exc}")
 
         def refresh_all(self) -> None:
             self.routing.refresh()
@@ -3341,6 +3467,8 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
             event.accept()
             QApplication.quit()
 
+    import concurrent.futures
+    import queue
     import threading
     import traceback
 
@@ -3355,16 +3483,14 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
 
     startup = QWidget()
     startup.setWindowTitle(APP_NAME)
-    startup.resize(520, 180)
+    startup.setWindowFlag(Qt.FramelessWindowHint, True)
+    startup.setFixedSize(360, 42)
     startup_layout = QVBoxLayout(startup)
-    startup_title = QLabel("Unified UI Native")
-    startup_title.setObjectName("title")
-    startup_status = QLabel("Запускаю Mihomo runtime…")
-    startup_status.setObjectName("muted")
-    startup_layout.addWidget(startup_title)
-    startup_layout.addWidget(QLabel("Окно приложения уже живое. Если Mihomo тупит — теперь это будет видно, а не чёрная магия без окна."))
-    startup_layout.addWidget(startup_status)
-    startup_layout.addStretch(1)
+    startup_layout.setContentsMargins(14, 12, 14, 12)
+    startup_progress = QProgressBar()
+    startup_progress.setRange(0, 0)
+    startup_progress.setTextVisible(False)
+    startup_layout.addWidget(startup_progress)
     startup.show()
 
     result: dict[str, Any] = {}
@@ -3394,12 +3520,13 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
             pass
 
     sys.excepthook = excepthook
+    startup_t0 = time.perf_counter()
 
     def start_runtime_in_background() -> None:
         try:
             log_native_event("mihomo runtime start requested")
             runtime.start()
-            log_native_event("mihomo runtime started successfully")
+            log_native_event(f"mihomo runtime started successfully; elapsed={time.perf_counter() - startup_t0:.3f}s")
             result["ok"] = True
         except Exception:
             tb = traceback.format_exc()
@@ -3415,15 +3542,14 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
         startup.timer.stop()  # type: ignore[attr-defined]
         if result.get("ok"):
             try:
-                startup_status.setText("Mihomo готов. Открываю главное окно…")
-                log_native_event("creating main window")
+                log_native_event(f"creating main window; elapsed={time.perf_counter() - startup_t0:.3f}s")
                 win = MainWindow()
                 holder["window"] = win
                 win.show()
                 win.raise_()
                 win.activateWindow()
                 app.setQuitOnLastWindowClosed(True)
-                log_native_event("main window shown")
+                log_native_event(f"main window shown; elapsed={time.perf_counter() - startup_t0:.3f}s")
                 startup.close()
 
                 def save_gui_screenshot() -> None:
@@ -3451,12 +3577,10 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
             except Exception:
                 tb = traceback.format_exc()
                 log_path = log_native_error("MAIN WINDOW ERROR\n" + tb)
-                startup_status.setText(f"Ошибка главного окна. Лог: {log_path}")
                 QMessageBox.critical(startup, APP_NAME, f"Mihomo запущен, но главное окно не открылось.\n\nЛог: {log_path}\n\n{tb[-2500:]}")
             return
         msg = result.get("error", "Unknown startup error")
         log_path = result.get("log_path", str(runtime.runtime / "logs" / "native-app.log"))
-        startup_status.setText(f"Ошибка запуска. Лог: {log_path}")
         QMessageBox.critical(startup, APP_NAME, f"Не удалось запустить Mihomo runtime.\n\nЛог: {log_path}\n\n{msg[-2500:]}")
 
     startup.timer = QTimer(startup)  # type: ignore[attr-defined]
