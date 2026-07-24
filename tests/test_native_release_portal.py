@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -31,7 +32,7 @@ def test_native_release_manifest_distinguishes_windows_setup_and_standalone(tmp_
 
     out = tmp_path / 'manifest.json'
     result = subprocess.run(
-        ['python3', str(SCRIPT), '--dist', str(tmp_path), '--output', str(out), '--release-base-url', 'https://example.invalid/release'],
+        [sys.executable, str(SCRIPT), '--dist', str(tmp_path), '--output', str(out), '--release-base-url', 'https://example.invalid/release'],
         cwd=str(ROOT),
         capture_output=True,
         text=True,
@@ -48,7 +49,7 @@ def test_native_release_manifest_distinguishes_windows_setup_and_standalone(tmp_
 def test_native_release_manifest_fails_when_required_artifacts_are_missing(tmp_path: Path):
     touch(tmp_path / 'Unified-UI-Native-2.6.5-mac-arm64.zip')
     result = subprocess.run(
-        ['python3', str(SCRIPT), '--dist', str(tmp_path), '--output', str(tmp_path / 'manifest.json')],
+        [sys.executable, str(SCRIPT), '--dist', str(tmp_path), '--output', str(tmp_path / 'manifest.json')],
         cwd=str(ROOT),
         capture_output=True,
         text=True,
