@@ -996,10 +996,13 @@ case "${PATH_INFO:-}" in
     ;;
   /proxy-subscription-status)
     hdr_json
-    configured=false; telegram=false; managed=0
+    configured=false; telegram=false; managed=0; provider_managed=0
     [ -s "$PANEL_SUBSCRIPTION_URL_FILE" ] && configured=true
     [ -s "$PANEL_TELEGRAM_ACTION_FILE" ] && telegram=true
-    if [ -f "$MIHOMO_PROFILE" ]; then managed="$(awk -v s="$PANEL_MANAGED_START" -v e="$PANEL_MANAGED_END" '$0==s{on=1;next}$0==e{on=0}on&&/^-/{n++}END{print n+0}' "$MIHOMO_PROFILE")"; fi
+    if [ -f "$MIHOMO_PROFILE" ]; then managed="$(awk -v s="$PANEL_MANAGED_START" -v e="$PANEL_MANAGED_END" '$0==s{on=1;next}$0==e{on=0}on&&/^[[:space:]]*-[[:space:]]/{n++}END{print n+0}' "$MIHOMO_PROFILE")"; fi
+    provider_managed="$(mihomo_get /providers/proxies/subscription_1 2>/dev/null | jsonfilter -e '@.proxies[*].name' 2>/dev/null | awk 'NF{n++}END{print n+0}' || true)"
+    [ -n "$provider_managed" ] || provider_managed=0
+    managed=$((managed + provider_managed))
     printf '{"ok":true,"configured":%s,"telegram_action":%s,"live_outbounds":%s}' "$configured" "$telegram" "$managed"
     ;;
   /proxy-subscription-telegram-action)

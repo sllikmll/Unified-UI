@@ -379,6 +379,7 @@ def _detect_protocol(text: str) -> str:
 
 def _connection_public(conn: dict[str, Any], usage: dict[str, list[str]] | None = None) -> dict[str, Any]:
     out = {k: v for k, v in conn.items() if k not in {"raw"}}
+    out["readOnly"] = str(conn.get("sourceType") or "").startswith("subscription-")
     out["usedBySelectors"] = sorted((usage or {}).get(str(conn.get("name") or ""), []))
     out["hasRaw"] = bool(conn.get("raw"))
     out["actionAvailable"] = str(conn.get("protocol") or "") == "telegram" and bool(conn.get("raw"))
@@ -399,6 +400,10 @@ def _format_managed_block(connections: list[dict[str, Any]]) -> str:
     """Return list entries intended to be placed inside top-level `proxies:`."""
     blocks = []
     for conn in connections:
+        # Provider-owned nodes are loaded by Mihomo from subscription_1. Keep
+        # them visible in the UI registry without duplicating static proxies.
+        if str(conn.get("sourceType") or "") == "subscription-provider":
+            continue
         if not conn.get("enabled", True):
             continue
         if not conn.get("mihomoSupported", True):
@@ -687,10 +692,23 @@ def _upsert_connections(
     *,
     default_selectors: list[str],
 ) -> tuple[list[dict[str, Any]], int, int]:
-    conns = _managed_connections(data)
+    # Refresh replaces only the previous read-only subscription set. Local
+    # user-managed records survive intact.
+    conns = [
+        item
+        for item in _managed_connections(data)
+        if not str(item.get("sourceType") or "").startswith("subscription-")
+    ]
     created = 0
     replaced = 0
     for conn in incoming:
+        proto = str(conn.get("protocol") or "")
+        if proto == "telegram":
+            conn["sourceType"] = "subscription-action"
+        elif proto == "mieru":
+            conn["sourceType"] = "subscription-static"
+        else:
+            conn["sourceType"] = "subscription-provider"
         found = None
         for idx, old in enumerate(conns):
             if old.get("id") == conn["id"] or (
@@ -815,6 +833,8 @@ def create_proxy_connections_blueprint() -> Blueprint:
         for conn in conns:
             if str(conn.get("id") or "") != conn_id:
                 continue
+            if str(conn.get("sourceType") or "").startswith("subscription-"):
+                return jsonify({"ok": False, "error": "subscription-managed connection is read-only"}), 409
             if "name" in body and str(body.get("name") or "").strip():
                 conn["name"] = str(body.get("name")).strip()
             if "enabled" in body:
@@ -838,6 +858,8 @@ def create_proxy_connections_blueprint() -> Blueprint:
         if len(next_conns) == len(conns):
             return jsonify({"ok": False, "error": "connection not found", "id": conn_id}), 404
         removed = [c for c in conns if str(c.get("id") or "") == conn_id][0]
+        if str(removed.get("sourceType") or "").startswith("subscription-"):
+            return jsonify({"ok": False, "error": "subscription-managed connection is read-only"}), 409
         data["connections"] = next_conns
         _save_registry(data)
         apply_now = str(request.args.get("apply") or "").lower() in {"1", "true", "yes", "on"}

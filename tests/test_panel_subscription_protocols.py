@@ -190,3 +190,62 @@ def test_subscription_duplicate_names_are_protocol_qualified():
     assert len(set(names)) == 2
     for item in parsed:
         assert f"name: '{item['name']}'" in item["proxyYaml"]
+
+
+def test_subscription_records_are_read_only_and_provider_nodes_are_not_duplicated():
+    mod = _reload("routes.proxy_connections")
+    local = {
+        "id": "local-vless",
+        "protocol": "vless",
+        "name": "Local VLESS",
+        "sourceType": "import",
+        "mihomoSupported": True,
+        "enabled": True,
+        "proxyYaml": "- name: 'Local VLESS'\n  type: vless\n",
+    }
+    incoming = [
+        {
+            "id": "sub-vless",
+            "protocol": "vless",
+            "name": "Panel VLESS",
+            "sourceType": "import",
+            "mihomoSupported": True,
+            "enabled": True,
+            "proxyYaml": "- name: 'Panel VLESS'\n  type: vless\n",
+        },
+        {
+            "id": "sub-mieru",
+            "protocol": "mieru",
+            "name": "Panel Mieru",
+            "sourceType": "import",
+            "mihomoSupported": True,
+            "enabled": True,
+            "proxyYaml": "- name: 'Panel Mieru'\n  type: mieru\n",
+        },
+        {
+            "id": "sub-telegram",
+            "protocol": "telegram",
+            "name": "Panel Telegram",
+            "sourceType": "import",
+            "mihomoSupported": False,
+            "enabled": True,
+            "proxyYaml": "# external Telegram action\n",
+        },
+    ]
+    data = {"version": 1, "connections": [local]}
+    conns, _, _ = mod._upsert_connections(data, incoming, default_selectors=["AI"])
+    assert len(conns) == 4
+    assert next(item for item in conns if item["id"] == "local-vless")["sourceType"] == "import"
+    assert next(item for item in conns if item["id"] == "sub-vless")["sourceType"] == "subscription-provider"
+    assert next(item for item in conns if item["id"] == "sub-mieru")["sourceType"] == "subscription-static"
+    assert next(item for item in conns if item["id"] == "sub-telegram")["sourceType"] == "subscription-action"
+    assert all(mod._connection_public(item)["readOnly"] for item in conns if item["id"].startswith("sub-"))
+    block = mod._format_managed_block(conns)
+    assert "Panel VLESS" not in block
+    assert "Panel Mieru" in block
+    assert "Panel Telegram" not in block
+
+    # Reimport replaces the subscription-owned set without duplicating it.
+    conns2, _, _ = mod._upsert_connections(data, incoming, default_selectors=["AI"])
+    assert len(conns2) == 4
+    assert len({item["id"] for item in conns2}) == 4
