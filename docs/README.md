@@ -4,6 +4,7 @@
 
 ## Основные документы
 
+- `subscription-provider-runtime-contract.md` — обязательный контракт для подписок Unified VPN Panel в Mihomo: provider `use`, health-check, stale cache, полный PASS matrix с AWG2/Mieru/NaiveProxy.
 - `README_frontend_migration_plan.md` — текущий статус закрытого migration scope и список guardrails, которые нельзя откатывать.
 - `frontend-target-architecture.md` — целевой архитектурный контракт фронтенда в текущем репозитории.
 - `frontend-feature-api.md` — правила для feature API, registry и compat-слоя.
