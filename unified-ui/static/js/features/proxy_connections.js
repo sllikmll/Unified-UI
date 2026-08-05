@@ -1,7 +1,7 @@
 let initialized = false;
 let cache = { connections: [], protocols: [], selectors: [] };
 
-const PROTOCOLS = ['wireguard', 'amnezia', 'hysteria2', 'vless', 'trojan', 'mieru', 'naiveproxy'];
+const PROTOCOLS = ['wireguard', 'amnezia', 'hysteria2', 'vless', 'trojan', 'vmess', 'shadowsocks', 'mieru', 'naiveproxy', 'telegram'];
 
 function $(sel, root = document) { return root.querySelector(sel); }
 function $all(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
@@ -69,16 +69,15 @@ function renderProtocol(proto) {
       <div class="xk-protocol-item-head">
         <div>
           <h4>${esc(c.name || '—')}</h4>
-          <div class="commands-subtitle">${esc(c.protocolLabel || protocolLabel(proto))} · ${c.mihomoSupported ? 'Mihomo: yes' : 'Mihomo: staging'} · ${c.enabled === false ? 'выключено' : 'включено'}</div>
+          <div class="commands-subtitle">${esc(c.protocolLabel || protocolLabel(proto))} · ${c.mihomoSupported ? 'Mihomo: yes' : 'отдельное действие'} · ${c.enabled === false ? 'выключено' : 'включено'}</div>
         </div>
         <div class="xk-protocol-item-actions">
-          <label class="xk-checkbox-inline"><input type="checkbox" data-conn-enabled="${esc(c.id)}" ${c.enabled === false ? '' : 'checked'}> enabled</label>
-          <button type="button" class="btn-secondary" data-conn-save="${esc(c.id)}">💾</button>
-          <button type="button" class="btn-secondary terminal-tool-btn-danger" data-conn-delete="${esc(c.id)}">Удалить</button>
+          ${c.actionAvailable ? `<button type="button" class="btn-primary" data-conn-action="${esc(c.id)}">Открыть в Telegram</button>` : ''}
+          ${c.readOnly ? '<span class="badge">runtime</span>' : `<label class="xk-checkbox-inline"><input type="checkbox" data-conn-enabled="${esc(c.id)}" ${c.enabled === false ? '' : 'checked'}> enabled</label><button type="button" class="btn-secondary" data-conn-save="${esc(c.id)}">💾</button><button type="button" class="btn-secondary terminal-tool-btn-danger" data-conn-delete="${esc(c.id)}">Удалить</button>`}
         </div>
       </div>
       <div class="xk-protocol-used"><b>В selector’ах сейчас:</b> ${badges}</div>
-      <label class="xk-protocol-field"><span>Должен быть в selector’ах</span><select class="terminal-input" multiple size="6" data-conn-selectors="${esc(c.id)}">${selectorOptions(configured)}</select></label>
+      ${c.readOnly ? '' : `<label class="xk-protocol-field"><span>Должен быть в selector’ах</span><select class="terminal-input" multiple size="6" data-conn-selectors="${esc(c.id)}">${selectorOptions(configured)}</select></label>`}
       <details class="xk-protocol-details"><summary>YAML / metadata</summary>${yamlSnippet(c.proxyYaml)}</details>
     </article>`;
   }).join('');
@@ -114,6 +113,34 @@ async function importProtocol(proto) {
     await applyManaged(proto, true);
     await loadConnections();
   } catch (error) { setStatus(proto, 'Ошибка импорта: ' + error.message, true); }
+}
+async function importSubscription() {
+  const input = $('[data-subscription-url]');
+  const status = $('[data-subscription-status]');
+  const result = $('[data-subscription-result]');
+  const url = String(input?.value || '').trim();
+  const restart = $('[data-subscription-restart]')?.checked !== false;
+  if (!url) { if (status) status.textContent = 'Вставь URL подписки'; return; }
+  if (status) { status.textContent = 'Загружаю, разбираю 10 схем и проверяю Mihomo…'; status.classList.remove('error'); }
+  try {
+    const data = await fetchJson('/api/proxy-connections/subscription/import', {
+      method: 'POST', body: JSON.stringify({ url, apply: true, restart })
+    });
+    const counts = Object.entries(data.protocols || {}).map(([key, value]) => `${protocolLabel(key)}: ${value}`).join(' · ');
+    const errors = Array.isArray(data.errors) ? data.errors : [];
+    if (result) result.innerHTML = `<b>Импортировано: ${Number(data.imported || 0)}</b><br>${esc(counts || '—')}<br>` +
+      (errors.length ? `<span class="error">Ошибки: ${esc(errors.map((x) => `${x.scheme} #${x.index}: ${x.error}`).join('; '))}</span>` : '<span class="routing-editor-badge is-good">Все строки разобраны</span>');
+    if (status) status.textContent = `Готово: создано ${Number(data.created || 0)}, обновлено ${Number(data.replaced || 0)}`;
+    if (input) input.value = '';
+    await loadConnections();
+  } catch (error) {
+    if (status) { status.textContent = 'Ошибка подписки: ' + error.message; status.classList.add('error'); }
+  }
+}
+async function openConnectionAction(id) {
+  const data = await fetchJson('/api/proxy-connections/' + encodeURIComponent(id) + '/action');
+  if (data.action !== 'open' || !String(data.url || '').startsWith('tg://proxy')) throw new Error('Некорректное действие подключения');
+  window.location.href = data.url;
 }
 async function updateConnection(id) {
   const enabled = $(`[data-conn-enabled="${CSS.escape(id)}"]`)?.checked !== false;
@@ -157,9 +184,15 @@ function bind() {
       if (textarea && text) textarea.value = text;
     }));
   });
+  $all('[data-subscription-import]').forEach((btn) => btn.addEventListener('click', importSubscription));
+  $all('[data-subscription-refresh]').forEach((btn) => btn.addEventListener('click', () => loadConnections().catch((e) => {
+    const status = $('[data-subscription-status]');
+    if (status) status.textContent = e.message;
+  })));
   document.addEventListener('click', (event) => {
     const save = event.target && event.target.closest ? event.target.closest('[data-conn-save]') : null;
     const del = event.target && event.target.closest ? event.target.closest('[data-conn-delete]') : null;
+    const action = event.target && event.target.closest ? event.target.closest('[data-conn-action]') : null;
     if (save) {
       const id = save.getAttribute('data-conn-save') || '';
       updateConnection(id).then(() => { const conn = (cache.connections || []).find((x) => x.id === id); return applyManaged(conn?.protocol || 'wireguard', true); }).then(loadConnections).catch((e) => alert(e.message));
@@ -167,6 +200,10 @@ function bind() {
     if (del) {
       const id = del.getAttribute('data-conn-delete') || '';
       deleteConnection(id).then(loadConnections).catch((e) => alert(e.message));
+    }
+    if (action) {
+      const id = action.getAttribute('data-conn-action') || '';
+      openConnectionAction(id).catch((e) => alert(e.message));
     }
   });
 }

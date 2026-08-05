@@ -15,6 +15,7 @@ import os
 import re
 import shutil
 import tempfile
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -48,8 +49,11 @@ PROTOCOLS: dict[str, dict[str, Any]] = {
     "hysteria2": {"label": "Hysteria2", "schemes": ["hysteria2://", "hy2://", "hysteria://"], "mihomo": True},
     "vless": {"label": "VLESS", "schemes": ["vless://"], "mihomo": True},
     "trojan": {"label": "Trojan", "schemes": ["trojan://"], "mihomo": True},
-    "mieru": {"label": "Meiru", "schemes": ["mieru://", "mierus://"], "mihomo": False},
+    "vmess": {"label": "VMess", "schemes": ["vmess://"], "mihomo": True},
+    "shadowsocks": {"label": "Shadowsocks", "schemes": ["ss://"], "mihomo": True},
+    "mieru": {"label": "Mieru", "schemes": ["mieru://", "mierus://"], "mihomo": True},
     "naiveproxy": {"label": "NaiveProxy", "schemes": ["naive://", "naive+https://", "https://"], "mihomo": True},
+    "telegram": {"label": "Telegram MTProxy", "schemes": ["tg://proxy"], "mihomo": False},
 }
 
 START_MARK = "# unified-managed-proxies:start"
@@ -177,16 +181,50 @@ def _name_from_yaml(yaml_text: str) -> str:
 
 
 def _wireguard_from_data_url(link: str) -> str:
-    payload = str(link or "")
-    if not payload.lower().startswith("wireguard://"):
+    payload = str(link or "").strip()
+    scheme = payload.split("://", 1)[0].lower() if "://" in payload else ""
+    if scheme not in {"wireguard", "awg", "amneziawg"}:
         return payload
-    encoded = payload.split("wireguard://", 1)[1].split("#", 1)[0]
+    encoded = payload.split("://", 1)[1].split("#", 1)[0]
     encoded = encoded.split("?", 1)[0]
     try:
         raw = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
         return raw.decode("utf-8", errors="replace")
     except Exception:
         return payload
+
+
+def _wireguard_from_uri(link: str) -> str:
+    """Convert the 3x-ui ``wireguard://`` subscription URI to wg-quick text."""
+    raw = str(link or "").strip()
+    u = urlparse(raw)
+    if (u.scheme or "").lower() != "wireguard" or not u.hostname or not u.username:
+        return _wireguard_from_data_url(raw)
+    query = {key.lower(): values[0] for key, values in parse_qs(u.query, keep_blank_values=True).items() if values}
+    private_key = unquote(u.username)
+    public_key = unquote(query.get("publickey") or query.get("public-key") or "")
+    if not public_key:
+        raise ValueError("WireGuard URI has no peer public key")
+    endpoint_host = u.hostname
+    if ":" in endpoint_host and not endpoint_host.startswith("["):
+        endpoint_host = f"[{endpoint_host}]"
+    endpoint = f"{endpoint_host}:{int(u.port or 51820)}"
+    address = unquote(query.get("address") or "10.0.0.2/32")
+    allowed_ips = unquote(query.get("allowedips") or query.get("allowed-ips") or "0.0.0.0/0")
+    lines = ["[Interface]", f"PrivateKey = {private_key}", f"Address = {address}"]
+    if query.get("dns"):
+        lines.append(f"DNS = {unquote(query['dns'])}")
+    if query.get("mtu"):
+        lines.append(f"MTU = {query['mtu']}")
+    lines.extend(["", "[Peer]", f"PublicKey = {public_key}"])
+    preshared = query.get("presharedkey") or query.get("preshared-key")
+    if preshared:
+        lines.append(f"PresharedKey = {unquote(preshared)}")
+    lines.extend([f"Endpoint = {endpoint}", f"AllowedIPs = {allowed_ips}"])
+    keepalive = query.get("keepalive") or query.get("persistentkeepalive")
+    if keepalive:
+        lines.append(f"PersistentKeepalive = {keepalive}")
+    return "\n".join(lines) + "\n"
 
 
 def _parse_naiveproxy(link: str, custom_name: str | None = None) -> ProxyParseResult:
@@ -222,16 +260,48 @@ def _parse_naiveproxy(link: str, custom_name: str | None = None) -> ProxyParseRe
     return ProxyParseResult(name=name, yaml="\n".join(lines) + "\n")
 
 
-def _parse_mieru_placeholder(link: str, custom_name: str | None = None) -> ProxyParseResult:
+def _parse_mieru(link: str, custom_name: str | None = None) -> ProxyParseResult:
     raw = str(link or "").strip()
     u = urlparse(raw)
     if (u.scheme or "").lower() not in {"mieru", "mierus"}:
         raise ValueError("Not a Mieru URI")
-    name = custom_name or (unquote(u.fragment) if u.fragment else "") or (u.hostname or "Mieru")
-    # Mihomo does not have a stable Mieru outbound type in all builds. Keep it
-    # in registry and expose metadata; it will not be injected as a live proxy.
-    yaml = f"# Mieru connection {name} is stored, but current Mihomo injection is disabled.\n"
-    return ProxyParseResult(name=name, yaml=yaml)
+    query = {key.lower(): values[0] for key, values in parse_qs(u.query, keep_blank_values=True).items() if values}
+    server = u.hostname or ""
+    username = unquote(u.username or "")
+    password = unquote(u.password or "")
+    raw_port = query.get("port") or str(u.port or "")
+    if not server or not username or not password or not raw_port.isdigit():
+        raise ValueError("Invalid Mieru URI")
+    port = int(raw_port)
+    if port < 1 or port > 65535:
+        raise ValueError("Invalid Mieru port")
+    transport = str(query.get("protocol") or "TCP").upper()
+    if transport not in {"TCP", "UDP"}:
+        raise ValueError("Invalid Mieru transport")
+    name = custom_name or unquote(query.get("profile") or "") or (unquote(u.fragment) if u.fragment else "") or server
+    lines = [
+        f"- name: {_yaml_str(name)}",
+        "  type: mieru",
+        f"  server: {_yaml_str(server)}",
+        f"  port-range: {port}-{port}",
+        f"  transport: {transport}",
+        "  udp: true",
+        f"  username: {_yaml_str(username)}",
+        f"  password: {_yaml_str(password)}",
+    ]
+    return ProxyParseResult(name=name, yaml="\n".join(lines) + "\n")
+
+
+def _parse_telegram_action(link: str, custom_name: str | None = None) -> ProxyParseResult:
+    raw = str(link or "").strip()
+    u = urlparse(raw)
+    query = parse_qs(u.query, keep_blank_values=True)
+    if (u.scheme or "").lower() != "tg" or (u.netloc or "").lower() != "proxy":
+        raise ValueError("Not a Telegram proxy URI")
+    if not all(query.get(key, [""])[0] for key in ("server", "port", "secret")):
+        raise ValueError("Invalid Telegram proxy URI")
+    name = custom_name or "Telegram MTProxy"
+    return ProxyParseResult(name=name, yaml=f"# {name} is a Telegram action, not a Mihomo outbound.\n")
 
 
 def _parse_connection(protocol: str, source_text: str, custom_name: str | None = None) -> dict[str, Any]:
@@ -243,7 +313,7 @@ def _parse_connection(protocol: str, source_text: str, custom_name: str | None =
         raise ValueError("empty connection content")
 
     if proto in {"wireguard", "amnezia"}:
-        conf = _wireguard_from_data_url(text)
+        conf = _wireguard_from_uri(text) if proto == "wireguard" else _wireguard_from_data_url(text)
         result = parse_wireguard(conf, custom_name=custom_name)
         yaml_text = result.yaml
         if proto == "amnezia":
@@ -263,7 +333,10 @@ def _parse_connection(protocol: str, source_text: str, custom_name: str | None =
         result = _parse_naiveproxy(text, custom_name=custom_name)
         yaml_text = result.yaml
     elif proto == "mieru":
-        result = _parse_mieru_placeholder(text, custom_name=custom_name)
+        result = _parse_mieru(text, custom_name=custom_name)
+        yaml_text = result.yaml
+    elif proto == "telegram":
+        result = _parse_telegram_action(text, custom_name=custom_name)
         yaml_text = result.yaml
     else:
         result = parse_proxy_uri(text, custom_name=custom_name)
@@ -308,6 +381,7 @@ def _connection_public(conn: dict[str, Any], usage: dict[str, list[str]] | None 
     out = {k: v for k, v in conn.items() if k not in {"raw"}}
     out["usedBySelectors"] = sorted((usage or {}).get(str(conn.get("name") or ""), []))
     out["hasRaw"] = bool(conn.get("raw"))
+    out["actionAvailable"] = str(conn.get("protocol") or "") == "telegram" and bool(conn.get("raw"))
     return out
 
 
@@ -540,6 +614,104 @@ def _sync_usage(data: dict[str, Any]) -> tuple[dict[str, Any], dict[str, list[st
     return data, usage, selectors
 
 
+def _decode_subscription_content(content: str | bytes) -> list[str]:
+    if isinstance(content, bytes):
+        text = content.decode("utf-8", errors="replace").strip()
+    else:
+        text = str(content or "").strip()
+    if not text:
+        raise ValueError("empty subscription")
+    if "://" not in text:
+        compact = re.sub(r"\s+", "", text)
+        try:
+            text = base64.urlsafe_b64decode(compact + "=" * (-len(compact) % 4)).decode("utf-8")
+        except Exception as exc:
+            raise ValueError("subscription is neither URI lines nor valid base64") from exc
+    lines = [line.strip() for line in text.replace("\r", "").split("\n") if line.strip()]
+    if not lines or len(lines) > 1000:
+        raise ValueError("subscription has an invalid number of entries")
+    return lines
+
+
+def _fetch_subscription(url: str) -> list[str]:
+    source = str(url or "").strip()
+    parsed = urlparse(source)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("subscription URL must use http or https")
+    req = urllib.request.Request(source, headers={"User-Agent": "Unified-UI/1 subscription-import"})
+    with urllib.request.urlopen(req, timeout=20) as response:
+        payload = response.read(2 * 1024 * 1024 + 1)
+    if len(payload) > 2 * 1024 * 1024:
+        raise ValueError("subscription is larger than 2 MiB")
+    return _decode_subscription_content(payload)
+
+
+def _parse_subscription(lines: list[str]) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    parsed: list[dict[str, Any]] = []
+    errors: list[dict[str, str]] = []
+    for index, line in enumerate(lines, 1):
+        try:
+            parsed.append(_parse_connection("", line))
+        except Exception as exc:
+            scheme = line.split("://", 1)[0].lower() if "://" in line else "unknown"
+            errors.append({"index": str(index), "scheme": scheme, "error": str(exc)[:300]})
+
+    name_counts: dict[str, int] = {}
+    for conn in parsed:
+        key = str(conn.get("name") or "").casefold()
+        name_counts[key] = name_counts.get(key, 0) + 1
+    for conn in parsed:
+        old_name = str(conn.get("name") or "")
+        if name_counts.get(old_name.casefold(), 0) < 2:
+            continue
+        label = str(conn.get("protocolLabel") or conn.get("protocol") or "Proxy")
+        new_name = f"{label} · {old_name}"
+        yaml_text = str(conn.get("proxyYaml") or "")
+        if yaml_text.lstrip().startswith("- name:"):
+            yaml_text = re.sub(
+                r"^(\s*-\s*name:\s*).*$",
+                lambda match: match.group(1) + _yaml_str(new_name),
+                yaml_text,
+                count=1,
+                flags=re.M,
+            )
+        conn["name"] = new_name
+        conn["proxyYaml"] = yaml_text
+        conn["id"] = _conn_id(str(conn.get("protocol") or "proxy"), new_name, str(conn.get("raw") or ""))
+    return parsed, errors
+
+
+def _upsert_connections(
+    data: dict[str, Any],
+    incoming: list[dict[str, Any]],
+    *,
+    default_selectors: list[str],
+) -> tuple[list[dict[str, Any]], int, int]:
+    conns = _managed_connections(data)
+    created = 0
+    replaced = 0
+    for conn in incoming:
+        found = None
+        for idx, old in enumerate(conns):
+            if old.get("id") == conn["id"] or (
+                old.get("protocol") == conn["protocol"] and old.get("name") == conn["name"]
+            ):
+                found = idx
+                conn["createdAt"] = old.get("createdAt") or conn["createdAt"]
+                conn["enabled"] = old.get("enabled", True)
+                conn["selectors"] = _dedupe_strings(old.get("selectors") or []) or default_selectors
+                break
+        if found is None:
+            conn["selectors"] = default_selectors
+            conns.append(conn)
+            created += 1
+        else:
+            conns[found] = conn
+            replaced += 1
+    data["connections"] = conns
+    return conns, created, replaced
+
+
 def create_proxy_connections_blueprint() -> Blueprint:
     bp = Blueprint("proxy_connections", __name__)
 
@@ -588,6 +760,52 @@ def create_proxy_connections_blueprint() -> Blueprint:
         data["connections"] = conns
         _save_registry(data)
         return jsonify({"ok": True, "connection": _connection_public(conn), "replaced": replaced}), 201 if not replaced else 200
+
+    @bp.post("/api/proxy-connections/subscription/import")
+    def api_subscription_import():
+        body = request.get_json(silent=True) or {}
+        content = str(body.get("content") or "").strip()
+        lines = _decode_subscription_content(content) if content else _fetch_subscription(str(body.get("url") or ""))
+        incoming, errors = _parse_subscription(lines)
+        if not incoming:
+            return jsonify({"ok": False, "error": "subscription has no supported entries", "errors": errors}), 400
+        before = _load_registry()
+        data = json.loads(json.dumps(before))
+        defaults = _default_selectors_for_config(_read_text(_mihomo_config_path()))
+        _, created, replaced = _upsert_connections(data, incoming, default_selectors=defaults)
+        _save_registry(data)
+        apply_result = None
+        if bool(body.get("apply")):
+            try:
+                apply_result = _apply_to_mihomo(restart=bool(body.get("restart")))
+            except Exception:
+                _save_registry(before)
+                raise
+        public = [_connection_public(conn) for conn in incoming]
+        counts: dict[str, int] = {}
+        for conn in incoming:
+            protocol = str(conn.get("protocol") or "unknown")
+            counts[protocol] = counts.get(protocol, 0) + 1
+        return jsonify({
+            "ok": True,
+            "imported": len(incoming),
+            "created": created,
+            "replaced": replaced,
+            "protocols": counts,
+            "errors": errors,
+            "connections": public,
+            "apply": apply_result,
+        })
+
+    @bp.get("/api/proxy-connections/<conn_id>/action")
+    def api_action(conn_id: str):
+        data = _load_registry()
+        conn = next((item for item in _managed_connections(data) if str(item.get("id") or "") == conn_id), None)
+        if conn is None:
+            return jsonify({"ok": False, "error": "connection not found"}), 404
+        if str(conn.get("protocol") or "") != "telegram" or not str(conn.get("raw") or "").startswith("tg://proxy"):
+            return jsonify({"ok": False, "error": "no explicit action for this connection"}), 400
+        return jsonify({"ok": True, "action": "open", "url": str(conn.get("raw"))})
 
     @bp.patch("/api/proxy-connections/<conn_id>")
     def api_update(conn_id: str):

@@ -89,6 +89,26 @@
     nodes.sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru'));
     return {ok:true, selectors, nodes, raw_count:Object.keys(proxies).length, provider_node_count:0, providerByNode:{}, controller:'http://127.0.0.1:9090'};
   }
+  function runtimeProtocol(name, type){
+    const n=String(name||''); const t=String(type||'').toLowerCase();
+    if(t==='wireguard') return /amnezia|awg/i.test(n) ? 'amnezia' : 'wireguard';
+    if(t==='hysteria2'||t==='hysteria') return 'hysteria2';
+    if(t==='vless'||t==='vmess'||t==='trojan'||t==='mieru') return t;
+    if(t==='shadowsocks'||t==='ss') return 'shadowsocks';
+    if((t==='http'||t==='https') && /naive/i.test(n)) return 'naiveproxy';
+    return '';
+  }
+  async function runtimeProxyConnections(){
+    const raw=await cgiJson('/proxies'); const summary=summarizeProxies(raw); const selectors=summary.selectors||[];
+    const labels={wireguard:'WireGuard',amnezia:'Amnezia',hysteria2:'Hysteria2',vless:'VLESS',trojan:'Trojan',vmess:'VMess',shadowsocks:'Shadowsocks',mieru:'Mieru',naiveproxy:'NaiveProxy',telegram:'Telegram MTProxy'};
+    const connections=(summary.nodes||[]).map((node)=>{
+      const protocol=runtimeProtocol(node.name,node.type); if(!protocol) return null;
+      const used=selectors.filter((group)=>Array.isArray(group.all)&&group.all.includes(node.name)).map((group)=>group.name);
+      return {id:'runtime-'+encodeURIComponent(node.name),name:node.name,protocol,protocolLabel:labels[protocol],enabled:true,mihomoSupported:true,selectors:used,usedBySelectors:used,proxyYaml:'Runtime Mihomo node · secrets hidden',readOnly:true,source:'mihomo-runtime'};
+    }).filter(Boolean);
+    try{const status=await cgiJson('/proxy-subscription-status'); if(status.telegram_action) connections.push({id:'telegram-action',name:'Telegram MTProxy',protocol:'telegram',protocolLabel:labels.telegram,enabled:true,mihomoSupported:false,selectors:[],usedBySelectors:[],proxyYaml:'Explicit Telegram action · URI hidden',readOnly:true,actionAvailable:true,source:'telegram-action'});}catch(e){}
+    return {ok:true,connections,count:connections.length,selectors:selectors.map((item)=>item.name),protocols:Object.entries(labels).map(([id,label])=>({id,label})),registry:'mihomo-runtime'};
+  }
   async function proxyDelay(name, timeout){
     const data = await cgiJson('/delay', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nameEncoded:enc(name), timeout:timeout||5000})});
     return {ok:true, proxy:name, delay:data.delay};
@@ -137,12 +157,16 @@
     if(path==='/api/keenetic/dns-routes/apply' && method==='POST') return cgi('/dns-routes-apply', opts);
     if(path==='/api/devtools/branding' && method==='GET') return jsonResponse({ok:true, branding:{title:'Unified UI'}});
     if(path==='/api/devtools/terminal_theme' && method==='GET') return jsonResponse({ok:true, enabled:false});
-    if(path==='/api/proxy-connections' && method==='GET') return cgi('/proxy-connections', opts);
+    if(path==='/api/proxy-connections' && method==='GET') return jsonResponse(await runtimeProxyConnections());
+    if(path==='/api/proxy-connections/subscription/import' && method==='POST') return cgi('/proxy-subscription-import', opts);
+    if(path==='/api/proxy-connections/subscription/status' && method==='GET') return cgi('/proxy-subscription-status', opts);
     if(path==='/api/proxy-connections/import' && method==='POST') return cgi('/proxy-connections-import', opts);
     if(path==='/api/proxy-connections/apply' && method==='POST') return cgi('/proxy-connections-apply', opts);
     if(path==='/api/proxy-connections/preview' && method==='POST') return cgi('/proxy-connections-preview', opts);
     let pcm = path.match(/^\/api\/proxy-connections\/([^/]+)$/);
     if(pcm && (method==='PATCH' || method==='DELETE')) return cgi('/proxy-connections-item/'+enc(decodeURIComponent(pcm[1])), opts);
+    pcm = path.match(/^\/api\/proxy-connections\/([^/]+)\/action$/);
+    if(pcm && method==='GET') return cgi('/proxy-subscription-telegram-action', opts);
     if(path==='/api/mihomo/clash/proxies' && method==='GET') return jsonResponse(summarizeProxies(await cgiJson('/proxies')));
     if(path==='/api/mihomo/clash/proxies/delay-all' && method==='POST'){
       const body=JSON.parse((opts&&opts.body)||'{}'); const names=Array.isArray(body.names)?body.names:[]; const results=[];

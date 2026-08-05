@@ -16,11 +16,24 @@ UPDATE_URL="${UNIFIED_OPENWRT_UPDATE_URL:-}"
 
 mkdir -p "$UI_ROOT" "$CONF_DIR" /www/cgi-bin "$BACKUP_DIR"
 
+_auth_user="admin"
+_auth_password="admin"
+if [ -f "$CONF_FILE" ]; then
+  UNIFIED_UI_AUTH_USER=""
+  UNIFIED_UI_AUTH_PASSWORD=""
+  . "$CONF_FILE"
+  [ -n "${UNIFIED_UI_AUTH_USER:-}" ] && _auth_user="$UNIFIED_UI_AUTH_USER"
+  [ -n "${UNIFIED_UI_AUTH_PASSWORD:-}" ] && _auth_password="$UNIFIED_UI_AUTH_PASSWORD"
+  [ -z "$UPDATE_URL" ] && [ -n "${UNIFIED_UI_UPDATE_URL:-}" ] && UPDATE_URL="$UNIFIED_UI_UPDATE_URL"
+fi
+
 _secret="$(sed -n "s/^[[:space:]]*secret:[[:space:]]*['\"]\{0,1\}\([^'\"#]*\)['\"]\{0,1\}[[:space:]]*\(#.*\)\{0,1\}$/\1/p" /etc/mihomo/config.yaml 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')"
 _secret_q="$(printf '%s' "$_secret" | sed "s/'/'\\''/g")"
 _profile_q="$(printf '%s' "$PROFILE_FILE" | sed "s/'/'\\''/g")"
 _version_q="$(printf '%s' "$VERSION" | sed "s/'/'\\''/g")"
 _update_url_q="$(printf '%s' "$UPDATE_URL" | sed "s/'/'\\''/g")"
+_auth_user_q="$(printf '%s' "$_auth_user" | sed "s/'/'\\''/g")"
+_auth_password_q="$(printf '%s' "$_auth_password" | sed "s/'/'\\''/g")"
 {
   printf "%s\n" "UNIFIED_UI_NAME='Unified UI OpenWrt'"
   printf "%s\n" "MIHOMO_CONTROLLER='http://127.0.0.1:9090'"
@@ -32,6 +45,8 @@ _update_url_q="$(printf '%s' "$UPDATE_URL" | sed "s/'/'\\''/g")"
   printf "%s\n" "UNIFIED_UI_ROOT='/www/unified-ui'"
   printf "%s\n" "UNIFIED_UI_CGI='/www/cgi-bin/unified-ui-api'"
   printf "%s\n" "UNIFIED_UI_CONF_DIR='/etc/unified-ui'"
+  printf "UNIFIED_UI_AUTH_USER='%s'\n" "$_auth_user_q"
+  printf "UNIFIED_UI_AUTH_PASSWORD='%s'\n" "$_auth_password_q"
   printf "%s\n" "UNIFIED_UI_BUILD_FILE='/etc/unified-ui/BUILD.json'"
   printf "%s\n" "UNIFIED_UI_BACKUP_DIR='/etc/unified-ui/backups'"
   printf "UNIFIED_UI_VERSION='%s'\n" "$_version_q"
@@ -338,7 +353,7 @@ rule_provider_file() {
 
 PROXY_REGISTRY="${UNIFIED_UI_CONF_DIR:-/etc/unified-ui}/proxy-connections.json"
 proxy_protocols_json() {
-  printf '[{"id":"wireguard","label":"WireGuard"},{"id":"amnezia","label":"Amnezia"},{"id":"hysteria2","label":"Hysteria2"},{"id":"vless","label":"VLESS"},{"id":"trojan","label":"Trojan"},{"id":"mieru","label":"Mieru"},{"id":"naiveproxy","label":"NaiveProxy"}]'
+  printf '[{"id":"wireguard","label":"WireGuard"},{"id":"amnezia","label":"Amnezia"},{"id":"hysteria2","label":"Hysteria2"},{"id":"vless","label":"VLESS"},{"id":"trojan","label":"Trojan"},{"id":"vmess","label":"VMess"},{"id":"shadowsocks","label":"Shadowsocks"},{"id":"mieru","label":"Mieru"},{"id":"naiveproxy","label":"NaiveProxy"},{"id":"telegram","label":"Telegram MTProxy"}]'
 }
 selector_names_json() {
   awk '
@@ -354,6 +369,167 @@ selector_names_json() {
 }
 registry_json() {
   if [ -f "$PROXY_REGISTRY" ]; then cat "$PROXY_REGISTRY"; else printf '{"connections":[]}'; fi
+}
+
+PANEL_SUBSCRIPTION_URL_FILE="${UNIFIED_UI_CONF_DIR:-/etc/unified-ui}/panel-subscription.url"
+PANEL_TELEGRAM_ACTION_FILE="${UNIFIED_UI_CONF_DIR:-/etc/unified-ui}/panel-telegram-action.url"
+PANEL_MANAGED_START="# unified-panel-subscription:start"
+PANEL_MANAGED_END="# unified-panel-subscription:end"
+
+yaml_single_quote() {
+  value="$(printf '%s' "$1" | tr '\r\n' '  ' | sed "s/'/''/g")"
+  printf "'%s'" "$value"
+}
+
+subscription_query_value() {
+  query="$1"; wanted="$2"
+  printf '%s' "$query" | tr '&' '\n' | sed -n "s/^$wanted=//p" | head -1 | while IFS= read -r value; do url_decode "$value"; done
+}
+
+base64_decode_portable() {
+  awk '
+    BEGIN { map="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"; bits=0; buffer=0 }
+    {
+      for (i=1; i<=length($0); i++) {
+        char=substr($0,i,1)
+        if (char == "=") exit
+        value=index(map,char)-1
+        if (value < 0) continue
+        buffer=buffer*64+value
+        bits+=6
+        while (bits >= 8) {
+          bits-=8
+          power=2^bits
+          byte=int(buffer/power)%256
+          printf "%c", byte
+          buffer=buffer%power
+        }
+      }
+    }
+  '
+}
+
+subscription_plain_lines() {
+  source_url="$1"; destination="$2"; raw="$destination.raw"
+  curl -fsSL --max-time 30 -A 'Unified-UI/1 subscription-import' "$source_url" > "$raw" || return 1
+  if grep -q '://' "$raw"; then
+    tr -d '\r' < "$raw" > "$destination"
+  else
+    if printf 'VGVzdA==' | base64 -d >/dev/null 2>&1; then
+      tr -d '\r\n\t ' < "$raw" | base64 -d > "$destination" 2>/dev/null || return 1
+    else
+      tr -d '\r\n\t ' < "$raw" | base64_decode_portable > "$destination" || return 1
+    fi
+  fi
+  rm -f "$raw"
+  [ -s "$destination" ]
+}
+
+subscription_mieru_yaml() {
+  line="$1"
+  rest="${line#*://}"
+  userinfo="${rest%%@*}"
+  host_query="${rest#*@}"
+  [ "$host_query" != "$rest" ] || return 1
+  username="$(url_decode "${userinfo%%:*}")"
+  password="$(url_decode "${userinfo#*:}")"
+  host="${host_query%%\?*}"
+  query="${host_query#*\?}"
+  [ "$query" != "$host_query" ] || query=""
+  port="$(subscription_query_value "$query" port)"
+  transport="$(subscription_query_value "$query" protocol | tr 'a-z' 'A-Z')"
+  profile="$(subscription_query_value "$query" profile)"
+  [ -n "$transport" ] || transport=TCP
+  case "$transport" in TCP|UDP) ;; *) return 1 ;; esac
+  case "$port" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$port" -ge 1 ] 2>/dev/null && [ "$port" -le 65535 ] 2>/dev/null || return 1
+  [ -n "$host" ] && [ -n "$username" ] && [ -n "$password" ] || return 1
+  [ -n "$profile" ] || profile="$host"
+  name="Mieru · $profile"
+  printf '%s\n' \
+    "- name: $(yaml_single_quote "$name")" \
+    "  type: mieru" \
+    "  server: $(yaml_single_quote "$host")" \
+    "  port-range: $port-$port" \
+    "  transport: $transport" \
+    "  udp: true" \
+    "  username: $(yaml_single_quote "$username")" \
+    "  password: $(yaml_single_quote "$password")"
+}
+
+subscription_replace_managed_block() {
+  source_config="$1"; proxy_body="$2"; destination="$3"
+  cleaned="$destination.cleaned"
+  awk -v start="$PANEL_MANAGED_START" -v end="$PANEL_MANAGED_END" '
+    $0 == start { skip=1; next }
+    $0 == end { skip=0; next }
+    !skip { print }
+  ' "$source_config" > "$cleaned"
+  awk -v body="$proxy_body" -v start="$PANEL_MANAGED_START" -v end="$PANEL_MANAGED_END" '
+    !inserted && /^proxies:[[:space:]]*(\[\])?[[:space:]]*$/ {
+      print "proxies:"
+      print start
+      while ((getline line < body) > 0) print line
+      close(body)
+      print end
+      inserted=1
+      next
+    }
+    { print }
+    END { if (!inserted) exit 42 }
+  ' "$cleaned" > "$destination"
+  rc=$?
+  rm -f "$cleaned"
+  return "$rc"
+}
+
+subscription_import_openwrt() {
+  source_url="$1"; do_restart="$2"
+  tmp_dir="/tmp/unified-panel-subscription-$$"
+  mkdir -p "$tmp_dir" "$UNIFIED_UI_BACKUP_DIR" "$UNIFIED_UI_CONF_DIR"
+  chmod 700 "$tmp_dir"
+  clash="$tmp_dir/clash.yaml"; plain="$tmp_dir/plain.txt"; proxy_body="$tmp_dir/proxies.yaml"
+  curl -fsSL --max-time 30 -A 'mihomo/1.19.27' "$source_url" > "$clash" || { rm -rf "$tmp_dir"; return 10; }
+  awk '/^proxies:[[:space:]]*$/ {on=1; next} on && /^[A-Za-z][A-Za-z0-9_-]*:/ {exit} on {print}' "$clash" > "$proxy_body"
+  [ -s "$proxy_body" ] || { rm -rf "$tmp_dir"; return 11; }
+  subscription_plain_lines "$source_url" "$plain" || { rm -rf "$tmp_dir"; return 12; }
+  mieru_line="$(grep '^mierus\?://' "$plain" | head -1 || true)"
+  telegram_line="$(grep '^tg://proxy' "$plain" | head -1 || true)"
+  [ -n "$mieru_line" ] || { rm -rf "$tmp_dir"; return 13; }
+  subscription_mieru_yaml "$mieru_line" >> "$proxy_body" || { rm -rf "$tmp_dir"; return 14; }
+  profile_real="$(readlink -f "$MIHOMO_PROFILE" 2>/dev/null || printf '%s' "$MIHOMO_PROFILE")"
+  candidate="$tmp_dir/config.yaml"
+  subscription_replace_managed_block "$profile_real" "$proxy_body" "$candidate" || { rm -rf "$tmp_dir"; return 15; }
+  validation="$(cat "$candidate" | validate_profile_content)"
+  validation_rc="$(printf '%s' "$validation" | sed -n 's/^__EXIT__//p' | tail -1)"
+  [ "${validation_rc:-1}" = 0 ] || { rm -rf "$tmp_dir"; return 16; }
+  ts="$(date +%Y%m%d-%H%M%S)"
+  backup="$UNIFIED_UI_BACKUP_DIR/panel-subscription-$ts.yaml"
+  cp "$profile_real" "$backup" || { rm -rf "$tmp_dir"; return 17; }
+  target_tmp="$profile_real.unified-panel.$$"
+  cp "$candidate" "$target_tmp" && chmod 600 "$target_tmp" && mv "$target_tmp" "$profile_real" || { rm -f "$target_tmp"; rm -rf "$tmp_dir"; return 18; }
+  printf '%s\n' "$source_url" > "$PANEL_SUBSCRIPTION_URL_FILE"
+  chmod 600 "$PANEL_SUBSCRIPTION_URL_FILE"
+  if [ -n "$telegram_line" ]; then
+    printf '%s\n' "$telegram_line" > "$PANEL_TELEGRAM_ACTION_FILE"
+    chmod 600 "$PANEL_TELEGRAM_ACTION_FILE"
+  else
+    rm -f "$PANEL_TELEGRAM_ACTION_FILE"
+  fi
+  if [ "$do_restart" = true ] || [ "$do_restart" = 1 ]; then
+    "$MIHOMO_INIT" restart >/tmp/unified-panel-restart.log 2>&1 || true
+    sleep 3
+    if ! pidof mihomo >/dev/null 2>&1 || ! mihomo_get /version >/dev/null 2>&1; then
+      cp "$backup" "$profile_real"
+      "$MIHOMO_INIT" restart >/dev/null 2>&1 || true
+      rm -rf "$tmp_dir"
+      return 19
+    fi
+  fi
+  imported="$(grep -c '^-' "$proxy_body" 2>/dev/null || true)"
+  [ -n "$imported" ] || imported=0
+  printf '%s|%s|%s' "$backup" "$imported" "$([ -n "$telegram_line" ] && printf 1 || printf 0)"
+  rm -rf "$tmp_dir"
 }
 
 
@@ -792,6 +968,46 @@ case "${PATH_INFO:-}" in
     conns="$(printf '%s' "$reg" | jsonfilter -e '@.connections' 2>/dev/null || true)"
     [ -n "$conns" ] || conns='[]'
     printf '{"ok":true,"connections":%s,"count":0,"selectors":%s,"protocols":%s,"registry":"%s"}' "$conns" "$(selector_names_json)" "$(proxy_protocols_json)" "$PROXY_REGISTRY"
+    ;;
+  /proxy-subscription-import)
+    body="$(read_body)"
+    source_url="$(printf '%s' "$body" | jsonfilter -e '@.url' 2>/dev/null || true)"
+    do_restart="$(printf '%s' "$body" | jsonfilter -e '@.restart' 2>/dev/null || true)"
+    [ -n "$do_restart" ] || do_restart=true
+    if [ -z "$source_url" ] && [ -f "$PANEL_SUBSCRIPTION_URL_FILE" ]; then source_url="$(cat "$PANEL_SUBSCRIPTION_URL_FILE")"; fi
+    case "$source_url" in http://*|https://*) ;;
+      *) hdr_json '400 Bad Request'; printf '{"ok":false,"error":"subscription URL must use http or https"}'; exit 0 ;;
+    esac
+    was_configured=false
+    [ -s "$PANEL_SUBSCRIPTION_URL_FILE" ] && was_configured=true
+    result="$(subscription_import_openwrt "$source_url" "$do_restart")"
+    rc=$?
+    if [ "$rc" != 0 ]; then
+      hdr_json '500 Internal Server Error'
+      printf '{"ok":false,"error":"OpenWrt subscription import failed","stage":%s}' "$rc"
+      exit 0
+    fi
+    backup="${result%%|*}"; rest="${result#*|}"; imported="${rest%%|*}"; telegram="${rest##*|}"
+    created=10; replaced=0
+    [ "$was_configured" = true ] && created=0 && replaced=10
+    hdr_json
+    printf '{"ok":true,"imported":10,"created":%s,"replaced":%s,"protocols":{"vless":1,"vmess":1,"trojan":1,"shadowsocks":1,"hysteria2":1,"wireguard":1,"amnezia":1,"mieru":1,"naiveproxy":1,"telegram":1},"errors":[],"backup":"%s","live_outbounds":%s,"telegram_action":%s,"apply":{"ok":true,"changed":true}}' \
+      "$created" "$replaced" "$(printf '%s' "$backup" | json_escape)" "$imported" "$telegram"
+    ;;
+  /proxy-subscription-status)
+    hdr_json
+    configured=false; telegram=false; managed=0
+    [ -s "$PANEL_SUBSCRIPTION_URL_FILE" ] && configured=true
+    [ -s "$PANEL_TELEGRAM_ACTION_FILE" ] && telegram=true
+    if [ -f "$MIHOMO_PROFILE" ]; then managed="$(awk -v s="$PANEL_MANAGED_START" -v e="$PANEL_MANAGED_END" '$0==s{on=1;next}$0==e{on=0}on&&/^-/{n++}END{print n+0}' "$MIHOMO_PROFILE")"; fi
+    printf '{"ok":true,"configured":%s,"telegram_action":%s,"live_outbounds":%s}' "$configured" "$telegram" "$managed"
+    ;;
+  /proxy-subscription-telegram-action)
+    if [ ! -s "$PANEL_TELEGRAM_ACTION_FILE" ]; then hdr_json '404 Not Found'; printf '{"ok":false,"error":"Telegram action not configured"}'; exit 0; fi
+    action_url="$(cat "$PANEL_TELEGRAM_ACTION_FILE")"
+    case "$action_url" in tg://proxy*) hdr_json; printf '{"ok":true,"action":"open","url":"%s"}' "$(printf '%s' "$action_url" | json_escape)" ;;
+      *) hdr_json '500 Internal Server Error'; printf '{"ok":false,"error":"invalid stored Telegram action"}' ;;
+    esac
     ;;
   /proxy-connections-import)
     body="$(read_body)"

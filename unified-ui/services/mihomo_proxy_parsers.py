@@ -1388,9 +1388,9 @@ def parse_shadowsocks(link: str, custom_name: Optional[str] = None) -> ProxyPars
                 host, port_s = hp.rsplit(":", 1)
                 port = int(port_s)
 
-    method = method.strip()
-    password = password.strip()
-    host = host.strip()
+    method = unquote(method.strip())
+    password = unquote(password.strip())
+    host = unquote(host.strip())
     if not (method and password and host and port):
         raise ValueError("Invalid ss link")
 

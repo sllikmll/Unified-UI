@@ -119,8 +119,9 @@ def render_full_panel_snapshot(dst_index: Path, *, version: str) -> None:
                 "MIHOMO_CONTROLLER_PORT": "9090",
                 "UNIFIED_UI_PANEL_SECTIONS_WHITELIST": ",".join([
                     "mihomo-selectors", "mihomo", "mihomo-connections", "geodat",
-                    "protocol-wireguard", "protocol-amnezia", "protocol-hysteria2", "protocol-vless",
-                    "protocol-trojan", "protocol-mieru", "protocol-naiveproxy", "proxy-protocols",
+                    "protocol-subscription", "protocol-wireguard", "protocol-amnezia", "protocol-hysteria2", "protocol-vless",
+                    "protocol-trojan", "protocol-vmess", "protocol-shadowsocks", "protocol-mieru", "protocol-naiveproxy",
+                    "protocol-telegram", "proxy-protocols",
                     "unified", "commands", "files", "ui-settings", "devtools", "settings", "mihomo-generator",
                 ]),
                 "UNIFIED_UI_VERSION": version,
