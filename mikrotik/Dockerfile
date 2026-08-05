@@ -22,6 +22,7 @@ RUN mkdir -p /app /etc/mihomo/rules /etc/mihomo/profiles /data/unified-ui /var/l
 COPY mikrotik/assets/mihomo-linux-arm64 /usr/local/bin/mihomo
 COPY unified-ui/ /app/unified-ui/
 COPY --from=frontend-build /src/unified-ui/static/frontend-build/ /app/unified-ui/static/frontend-build/
+COPY --from=frontend-build /src/unified-ui/static/vendor/ /app/unified-ui/static/vendor/
 COPY mikrotik/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh /usr/local/bin/mihomo
 

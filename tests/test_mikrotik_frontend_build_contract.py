@@ -14,3 +14,7 @@ def test_mikrotik_image_builds_and_copies_production_frontend() -> None:
         "COPY --from=frontend-build /src/unified-ui/static/frontend-build/ "
         "/app/unified-ui/static/frontend-build/"
     ) in text
+    assert (
+        "COPY --from=frontend-build /src/unified-ui/static/vendor/ "
+        "/app/unified-ui/static/vendor/"
+    ) in text
