@@ -1473,6 +1473,79 @@ def parse_hysteria2(link: str, custom_name: Optional[str] = None) -> ProxyParseR
     return ProxyParseResult(name=name, yaml="\n".join(yaml_lines) + "\n")
 
 
+def parse_mieru(link: str, custom_name: Optional[str] = None) -> ProxyParseResult:
+    """Parse mieru:// or mierus:// link into a Mihomo native mieru proxy block."""
+    link = link.strip()
+    u = urlparse(link)
+    scheme = (u.scheme or "").lower()
+    if scheme not in {"mieru", "mierus"}:
+        raise ValueError("Not a Mieru link")
+
+    name = custom_name or (unquote(u.fragment) if u.fragment else "") or (u.hostname or "mieru")
+    server = u.hostname or ""
+    qs = parse_qs(u.query, keep_blank_values=True)
+    port = int(u.port or _qs_first(qs, "port", "443") or 443)
+    username = unquote(u.username or _qs_first(qs, "username", "") or "")
+    password = unquote(u.password or _qs_first(qs, "password", "") or "")
+    transport = (_qs_first(qs, "protocol", "") or _qs_first(qs, "transport", "") or "TCP").upper()
+    port_range = _qs_first(qs, "port-range", "") or _qs_first(qs, "portRange", "") or f"{port}-{port}"
+    if not server or not port_range:
+        raise ValueError("Invalid Mieru link")
+
+    yaml_lines: List[str] = []
+    yaml_lines.append(f"- name: {_yaml_str(name)}")
+    yaml_lines.append("  type: mieru")
+    yaml_lines.append(f"  server: {_yaml_str(server)}")
+    yaml_lines.append(f"  port-range: {_yaml_str(port_range)}")
+    yaml_lines.append(f"  transport: {_yaml_str(transport)}")
+    if username:
+        yaml_lines.append(f"  username: {_yaml_str(username)}")
+    if password:
+        yaml_lines.append(f"  password: {_yaml_str(password)}")
+    yaml_lines.append("  udp: true")
+    return ProxyParseResult(name=name, yaml="\n".join(yaml_lines) + "\n")
+
+
+def parse_naiveproxy(link: str, custom_name: Optional[str] = None) -> ProxyParseResult:
+    """Parse naive://, naive+https://, naiveproxy://, or credential HTTPS into Mihomo HTTP+TLS proxy."""
+    raw = link.strip()
+    low = raw.lower()
+    if low.startswith("naive+https://"):
+        raw = "https://" + raw[len("naive+https://"):]
+    elif low.startswith("naiveproxy://"):
+        raw = "https://" + raw[len("naiveproxy://"):]
+    elif low.startswith("naive://"):
+        raw = "https://" + raw[len("naive://"):]
+    u = urlparse(raw)
+    if (u.scheme or "").lower() not in {"https"}:
+        raise ValueError("Not a NaiveProxy link")
+
+    name = custom_name or (unquote(u.fragment) if u.fragment else "") or (u.hostname or "naiveproxy")
+    server = u.hostname or ""
+    port = int(u.port or 443)
+    username = unquote(u.username or "")
+    password = unquote(u.password or "")
+    qs = parse_qs(u.query, keep_blank_values=True)
+    sni = unquote(_qs_first(qs, "sni", "") or _qs_first(qs, "servername", "") or server)
+    if not server:
+        raise ValueError("Invalid NaiveProxy link")
+
+    yaml_lines: List[str] = []
+    yaml_lines.append(f"- name: {_yaml_str(name)}")
+    yaml_lines.append("  type: http")
+    yaml_lines.append(f"  server: {_yaml_str(server)}")
+    yaml_lines.append(f"  port: {port}")
+    yaml_lines.append("  tls: true")
+    if sni:
+        yaml_lines.append(f"  sni: {_yaml_str(sni)}")
+    if username:
+        yaml_lines.append(f"  username: {_yaml_str(username)}")
+    if password:
+        yaml_lines.append(f"  password: {_yaml_str(password)}")
+    yaml_lines.append("  udp: true")
+    return ProxyParseResult(name=name, yaml="\n".join(yaml_lines) + "\n")
+
+
 def parse_proxy_uri(link: str, custom_name: Optional[str] = None) -> ProxyParseResult:
     """Auto-detect proxy URI scheme and parse it into Mihomo YAML."""
     s = (link or "").strip()
@@ -1489,6 +1562,10 @@ def parse_proxy_uri(link: str, custom_name: Optional[str] = None) -> ProxyParseR
         return parse_shadowsocks(s, custom_name=custom_name)
     if low.startswith("hysteria2://") or low.startswith("hy2://") or low.startswith("hysteria://"):
         return parse_hysteria2(s, custom_name=custom_name)
+    if low.startswith("mieru://") or low.startswith("mierus://"):
+        return parse_mieru(s, custom_name=custom_name)
+    if low.startswith("naive://") or low.startswith("naive+https://") or low.startswith("naiveproxy://"):
+        return parse_naiveproxy(s, custom_name=custom_name)
     if low.startswith("tailscale://"):
         return parse_tailscale(s, custom_name=custom_name)
     raise ValueError("Unsupported proxy scheme")
@@ -1519,5 +1596,7 @@ __all__ = [
     "parse_vmess",
     "parse_shadowsocks",
     "parse_hysteria2",
+    "parse_mieru",
+    "parse_naiveproxy",
     "parse_proxy_uri",
 ]
