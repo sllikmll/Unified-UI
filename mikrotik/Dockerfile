@@ -1,5 +1,7 @@
 FROM node:20-alpine AS frontend-build
 
+RUN apk add --no-cache python3
+
 WORKDIR /src
 COPY package.json package-lock.json ./
 RUN npm ci
