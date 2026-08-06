@@ -288,15 +288,15 @@ def append_extra_provider_blocks(
 def filter_proxy_group_uses(content: str, subscriptions: Sequence[str]) -> str:
     """Adjust `use:` lists in proxy-groups based on active subscriptions.
 
-    * If there are no non-empty subscription URLs, all `use:` blocks are
-      removed entirely (the template providers are not referenced).
-    * If there are N active subscriptions, `use:` lists are rewritten to
-      contain only the provider names that correspond to those subscriptions
-      (proxy-sub, proxy-sub-2, proxy-sub-3, ...). This supports more than 5
-      subscriptions when extra providers were auto-appended.
-
-    This ensures that template stubs do not leak into the final config when
-    the user has not configured any subscriptions.
+    * If the user did not configure subscriptions, remove all `use:` blocks so
+      template provider stubs do not leak into the runtime config.
+    * If subscriptions are configured, every existing `use:` block is rewritten
+      to the active provider names.
+    * Groups that can consume providers (`select`, `fallback`, `url-test`,
+      `load-balance`) but have no `use:` block get one inserted. A provider that
+      is declared but not referenced by any group is visible in provider APIs but
+      not selectable/routable in Mihomo — exactly the stale-runtime failure this
+      guard prevents.
     """
     subs_clean = [str(x).strip() for x in (subscriptions or []) if str(x).strip()]
     active_providers: List[str] = [
@@ -309,11 +309,19 @@ def filter_proxy_group_uses(content: str, subscriptions: Sequence[str]) -> str:
     in_use_block = False
     use_indent: Optional[int] = None
 
-    def flush_use_block() -> None:
-        if active_providers and use_indent is not None:
-            for provider_name in active_providers:
-                out_lines.append(" " * (use_indent + 2) + f"- {provider_name}")
+    def provider_use_lines(indent: int) -> List[str]:
+        if not active_providers:
+            return []
+        return [" " * indent + "use:"] + [
+            " " * (indent + 2) + f"- {provider_name}"
+            for provider_name in active_providers
+        ]
 
+    def flush_use_block() -> None:
+        if use_indent is not None:
+            out_lines.extend(provider_use_lines(use_indent))
+
+    first_pass: List[str] = []
     for line in lines:
         stripped = line.lstrip()
         indent = len(line) - len(stripped)
@@ -323,28 +331,91 @@ def filter_proxy_group_uses(content: str, subscriptions: Sequence[str]) -> str:
                 in_use_block = True
                 use_indent = indent
                 if active_providers:
-                    out_lines.append(" " * indent + "use:")
+                    first_pass.append(" " * indent + "use:")
                 continue
-
-            out_lines.append(line)
+            first_pass.append(line)
             continue
 
         if stripped and indent <= (use_indent or 0) and not stripped.startswith("#"):
-            if active_providers:
-                flush_use_block()
+            if active_providers and use_indent is not None:
+                for provider_name in active_providers:
+                    first_pass.append(" " * (use_indent + 2) + f"- {provider_name}")
             in_use_block = False
             use_indent = None
-            out_lines.append(line)
+            first_pass.append(line)
             continue
 
-        # Still inside original use block: skip original provider entries / comments.
         continue
 
-    if in_use_block and active_providers:
-        flush_use_block()
+    if in_use_block and active_providers and use_indent is not None:
+        for provider_name in active_providers:
+            first_pass.append(" " * (use_indent + 2) + f"- {provider_name}")
+
+    if not active_providers:
+        return "\n".join(first_pass)
+
+    group_types = {"select", "fallback", "url-test", "load-balance"}
+    out_lines = []
+    in_groups = False
+    group: List[str] = []
+
+    def flush_group() -> None:
+        nonlocal group
+        if not group:
+            return
+        block = "\n".join(group)
+        has_use = any(line.lstrip().startswith("use:") for line in group)
+        group_type = ""
+        for line in group:
+            match = re.match(r"^\s{4}type:\s*([^\s#]+)", line)
+            if match:
+                group_type = match.group(1)
+                break
+        if (not has_use) and group_type in group_types:
+            inserted = False
+            patched: List[str] = []
+            for line in group:
+                patched.append(line)
+                if (not inserted) and line.startswith("    proxies:"):
+                    patched.extend(provider_use_lines(4))
+                    inserted = True
+            if not inserted:
+                patched = []
+                for line in group:
+                    patched.append(line)
+                    if (not inserted) and re.match(r"^\s{4}type:\s*", line):
+                        patched.extend(provider_use_lines(4))
+                        inserted = True
+            group = patched
+        out_lines.extend(group)
+        group = []
+
+    for line in first_pass:
+        if line.startswith("proxy-groups:"):
+            in_groups = True
+            out_lines.append(line)
+            continue
+        if in_groups:
+            if line and not line.startswith(" ") and not line.startswith("-"):
+                flush_group()
+                in_groups = False
+                out_lines.append(line)
+                continue
+            if line.startswith("  - name:"):
+                flush_group()
+                group = [line]
+            else:
+                if group:
+                    group.append(line)
+                else:
+                    out_lines.append(line)
+            continue
+        out_lines.append(line)
+
+    if in_groups:
+        flush_group()
 
     return "\n".join(out_lines)
-
 
 def maybe_strip_example_vless(content: str, state: Dict[str, Any], subscriptions: Sequence[str]) -> str:
     """Drop the hardcoded 'Example VLESS' proxy when it is no longer needed."""

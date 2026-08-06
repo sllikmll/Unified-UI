@@ -245,6 +245,9 @@
         <button class="top-tab-btn xk-top-tab xk-top-tab-mihomo-connections" data-view="mihomo-connections" data-xk-section="mihomo-connections">
           Соединения
         </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-protocol" data-view="protocol-subscription" data-xk-section="protocol-subscription proxy-protocols">
+          Подписка
+        </button>
         <button class="top-tab-btn xk-top-tab xk-top-tab-protocol" data-view="protocol-wireguard" data-xk-section="protocol-wireguard proxy-protocols">
           WireGuard
         </button>
@@ -260,11 +263,20 @@
         <button class="top-tab-btn xk-top-tab xk-top-tab-protocol" data-view="protocol-trojan" data-xk-section="protocol-trojan proxy-protocols">
           Trojan
         </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-protocol" data-view="protocol-vmess" data-xk-section="protocol-vmess proxy-protocols">
+          VMess
+        </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-protocol" data-view="protocol-shadowsocks" data-xk-section="protocol-shadowsocks proxy-protocols">
+          Shadowsocks
+        </button>
         <button class="top-tab-btn xk-top-tab xk-top-tab-protocol" data-view="protocol-mieru" data-xk-section="protocol-mieru proxy-protocols">
-          Meiru
+          Mieru
         </button>
         <button class="top-tab-btn xk-top-tab xk-top-tab-protocol" data-view="protocol-naiveproxy" data-xk-section="protocol-naiveproxy proxy-protocols">
           NaiveProxy
+        </button>
+        <button class="top-tab-btn xk-top-tab xk-top-tab-protocol" data-view="protocol-telegram" data-xk-section="protocol-telegram proxy-protocols">
+          Telegram
         </button>
         {% endif %}
         {% if has_xray %}
@@ -1302,14 +1314,44 @@
 </div>
 
 {% if has_mihomo %}
+<div id="view-protocol-subscription" class="view-section xk-protocol-view" style="display:none;" data-xk-section="protocol-subscription proxy-protocols">
+  <section class="card xk-protocol-card">
+    <div class="commands-header">
+      <div>
+        <div class="commands-title">Общая подписка Unified VPN Panel</div>
+        <div class="commands-subtitle">Импортирует VLESS, VMess, Trojan, Shadowsocks, Hysteria2, WireGuard, AmneziaWG, Mieru и NaiveProxy в Mihomo. Telegram MTProxy сохраняется отдельным действием и не подменяется фальшивым outbound.</div>
+      </div>
+      <button type="button" class="btn-secondary" data-subscription-refresh>⟳ Обновить список</button>
+    </div>
+    <div class="xk-protocol-grid">
+      <aside class="xk-protocol-import">
+        <h3>URL подписки</h3>
+        <label class="xk-protocol-field">
+          <span>HTTPS URL</span>
+          <input class="terminal-input" type="url" data-subscription-url autocomplete="off" spellcheck="false" placeholder="https://panel.example/sub/token">
+        </label>
+        <label class="xk-checkbox-inline"><input type="checkbox" data-subscription-restart checked> применить и перезапустить Mihomo</label>
+        <button type="button" class="btn-primary" data-subscription-import>⬇ Импортировать подписку</button>
+        <div class="status" data-subscription-status></div>
+      </aside>
+      <main class="xk-protocol-main">
+        <h3>Результат последнего импорта</h3>
+        <div class="xk-empty-state" data-subscription-result>Здесь появится количество импортированных схем и ошибки отдельных строк. URL и credentials в отчёт не выводятся.</div>
+      </main>
+    </div>
+  </section>
+</div>
 {% set proxy_protocol_views = [
   ('wireguard', 'WireGuard', 'WG .conf / wireguard:// import. Для обычных WG/wg-easy серверов генерируется native Mihomo type: wireguard.'),
-  ('amnezia', 'Amnezia', 'AWG .conf импортируется как WireGuard-compatible outbound, AWG-специфика сохраняется в registry для внешних клиентов.'),
+  ('amnezia', 'Amnezia', 'AWG .conf / awg:// импортируется как native Mihomo WireGuard с amnezia-wg-option.'),
   ('hysteria2', 'Hysteria2', 'hy2:// / hysteria2:// ссылки превращаются в Mihomo type: hysteria2.'),
   ('vless', 'VLESS', 'vless:// Reality/WS/gRPC/XHTTP ссылки превращаются в Mihomo type: vless.'),
   ('trojan', 'Trojan', 'trojan:// ссылки превращаются в Mihomo type: trojan.'),
-  ('mieru', 'Meiru', 'Mieru сохраняется в registry. Native injection зависит от core/build, поэтому пока это staging-вкладка.'),
-  ('naiveproxy', 'NaiveProxy', 'naive:// или naive+https:// импортируется как HTTPS/HTTP proxy для Mihomo-compatible runtime.')
+  ('vmess', 'VMess', 'vmess:// ссылки превращаются в Mihomo type: vmess.'),
+  ('shadowsocks', 'Shadowsocks', 'ss://, включая SS2022 identity chain, превращается в Mihomo type: ss.'),
+  ('mieru', 'Mieru', 'mieru:// / mierus:// превращается в native Mihomo type: mieru.'),
+  ('naiveproxy', 'NaiveProxy', 'naive:// или naive+https:// импортируется как HTTPS/HTTP proxy для Mihomo runtime.'),
+  ('telegram', 'Telegram MTProxy', 'tg://proxy сохраняется как явное действие открытия Telegram и не добавляется в Mihomo.')
 ] %}
 {% for proto_id, proto_label, proto_hint in proxy_protocol_views %}
 <div id="view-protocol-{{ proto_id }}" class="view-section xk-protocol-view" style="display:none;" data-xk-section="protocol-{{ proto_id }} proxy-protocols">

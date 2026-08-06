@@ -105,6 +105,20 @@ https://github.com/sllikmll/Unified-UI/releases/latest
 | **Mihomo Генератор** | Встроенный генератор конфига без iframe и отдельной страницы |
 | **Файлы / Команды / Настройки** | File manager, runtime команды, обновления, env/status |
 
+## Контракт подписок и Mihomo runtime
+
+Для подписок Unified VPN Panel действует отдельный guardrail-документ: [`docs/subscription-provider-runtime-contract.md`](docs/subscription-provider-runtime-contract.md).
+
+Главное:
+
+- subscription URL должен быть одинаковым в persistent source и active Mihomo config;
+- `health-check.url` у provider должен указывать на `https://www.gstatic.com/generate_204`, а не на сам URL подписки;
+- provider nodes обязаны попадать в selector/fallback/url-test/load-balance группы через `use: [subscription_1]`;
+- provider-owned nodes не должны дублироваться в static `proxies:`;
+- Telegram MTProxy — external action, не Mihomo outbound;
+- полный PASS требует VMess, VLESS Reality, Trojan, SS2022, WireGuard/AWG2, Hysteria2, Mieru и NaiveProxy;
+- для инфраструктуры `sllikmll` VLESS Reality использует SNI/serverName `yandex.ru`.
+
 ---
 
 # Установка
