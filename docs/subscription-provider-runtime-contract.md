@@ -99,8 +99,8 @@ Mihomo может держать старый provider cache даже после
 
 Особенно осторожно:
 
-- WireGuard и AWG 2.0 должны быть двумя разными provider-owned nodes; AWG 2.0 обязан сохранять Amnezia options `jc`, `jmin`, `jmax`, `s1`, `s2`, `h1`;
-- WireGuard/AWG2 может давать false-negative на provider health-check;
+- WireGuard, AWG 2.0 и AWG 3.0 должны быть тремя разными provider-owned nodes; AWG 2.0/3.0 обязаны сохранять Amnezia options `jc`, `jmin`, `jmax`, `s1`, `s2`, `h1`, а для AWG3 ещё `HeaderProtectionKey`/rekey/timeout поля;
+- WireGuard/AWG2/AWG3 может давать false-negative на provider health-check;
 - UDP-протоколы и full-tunnel маршрутизация требуют datapath-теста;
 - один LAN за Keenetic не означает одинаковый runtime-path для Keenetic, OpenWrt, MikroTik container и телефона.
 
@@ -136,8 +136,8 @@ yandex.ru
 
 Финальный отчёт должен явно показывать:
 
-| Устройство | Unified UI version | Mihomo version | Subscription label | Provider count | Groups use provider | VMess | VLESS | Trojan | SS2022 | WireGuard | AWG2 | Hysteria2 | Mieru | Naive |
-|---|---|---|---|---:|---|---|---|---|---|---|---|---|---|---|
+| Устройство | Unified UI version | Mihomo version | Subscription label | Provider count | Groups use provider | VMess | VLESS | Trojan | SS2022 | WireGuard | AWG2 | AWG3 | Hysteria2 | Mieru | Naive |
+|---|---|---|---|---:|---|---|---|---|---|---|---|---|---|---|---|
 
 Если Mieru или NaiveProxy отсутствуют в подписке — писать `MISSING`, а не считать строку зелёной.
-Если WireGuard и AWG 2.0 слиты в один узел — писать `FAIL`, даже если health-check зелёный.
+Если WireGuard, AWG 2.0 и AWG 3.0 слиты в один узел — писать `FAIL`, даже если health-check зелёный.

@@ -101,7 +101,7 @@ https://github.com/sllikmll/Unified-UI/releases/latest
 | **Соединения** | Активные Mihomo connections, фильтры, детали, принудительный разрыв соединений |
 | **DAT GeoIP / GeoSite** | Обновление, просмотр и редактирование локальных GeoIP/GeoSite/rule-provider данных |
 | **Маршруты DNS** | Keenetic-style DNS/domain/IP/service lists с привязкой к интерфейсам роутера |
-| **WireGuard / Amnezia / Hysteria2 / VLESS / Trojan / Mieru / NaiveProxy** | Импорт подключений ссылкой или файлом, добавление в selector-группы |
+| **WireGuard / Amnezia AWG2/AWG3 / Hysteria2 / VLESS / Trojan / Mieru / NaiveProxy** | Импорт подключений ссылкой или файлом, добавление в selector-группы |
 | **Mihomo Генератор** | Встроенный генератор конфига без iframe и отдельной страницы |
 | **Файлы / Команды / Настройки** | File manager, runtime команды, обновления, env/status |
 
@@ -116,7 +116,7 @@ https://github.com/sllikmll/Unified-UI/releases/latest
 - provider nodes обязаны попадать в selector/fallback/url-test/load-balance группы через `use: [subscription_1]`;
 - provider-owned nodes не должны дублироваться в static `proxies:`;
 - Telegram MTProxy — external action, не Mihomo outbound;
-- полный PASS требует VMess, VLESS Reality, Trojan, SS2022, WireGuard/AWG2, Hysteria2, Mieru и NaiveProxy;
+- полный PASS требует VMess, VLESS Reality, Trojan, SS2022, WireGuard/AWG2/AWG3, Hysteria2, Mieru и NaiveProxy;
 - для инфраструктуры `sllikmll` VLESS Reality использует SNI/serverName `yandex.ru`.
 
 ---

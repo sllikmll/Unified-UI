@@ -45,7 +45,7 @@ from services.mihomo_yaml import validate_yaml_syntax
 
 PROTOCOLS: dict[str, dict[str, Any]] = {
     "wireguard": {"label": "WireGuard", "schemes": ["wireguard://"], "mihomo": True},
-    "amnezia": {"label": "Amnezia", "schemes": ["awg://", "amneziawg://"], "mihomo": True},
+    "amnezia": {"label": "Amnezia AWG", "schemes": ["awg://", "awg3://", "amneziawg://"], "mihomo": True},
     "hysteria2": {"label": "Hysteria2", "schemes": ["hysteria2://", "hy2://", "hysteria://"], "mihomo": True},
     "vless": {"label": "VLESS", "schemes": ["vless://"], "mihomo": True},
     "trojan": {"label": "Trojan", "schemes": ["trojan://"], "mihomo": True},
@@ -183,7 +183,7 @@ def _name_from_yaml(yaml_text: str) -> str:
 def _wireguard_from_data_url(link: str) -> str:
     payload = str(link or "").strip()
     scheme = payload.split("://", 1)[0].lower() if "://" in payload else ""
-    if scheme not in {"wireguard", "awg", "amneziawg"}:
+    if scheme not in {"wireguard", "awg", "awg3", "amneziawg"}:
         return payload
     encoded = payload.split("://", 1)[1].split("#", 1)[0]
     encoded = encoded.split("?", 1)[0]

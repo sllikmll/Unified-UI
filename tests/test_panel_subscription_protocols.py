@@ -56,6 +56,36 @@ PersistentKeepalive = 25
     assert "jc: 5" in conn["proxyYaml"]
 
 
+def test_awg3_data_uri_preserves_extended_amnezia_options():
+    mod = _reload("routes.proxy_connections")
+    config = """[Interface]
+PrivateKey = private-key
+Address = 10.203.183.2/32
+Jc = 4
+HeaderProtectionKey = awg3-header-key
+ContentPaddingAddition = 10-100
+RekeyAfterTime = 100-120
+RekeyTimeout = 3-7
+RejectAfterTime = 150-180
+KeepaliveTimeout = 5-15
+MaxHandshakeAttempts = 15-20
+[Peer]
+PublicKey = server-public-key
+Endpoint = almaty.example.net:9731
+AllowedIPs = 0.0.0.0/0
+PersistentKeepalive = 25
+"""
+    payload = base64.urlsafe_b64encode(config.encode()).decode().rstrip("=")
+    conn = mod._parse_connection("", f"awg3://{payload}#AWG3-panel")
+    assert conn["protocol"] == "amnezia"
+    assert conn["mihomoSupported"] is True
+    assert "type: wireguard" in conn["proxyYaml"]
+    assert "port: 9731" in conn["proxyYaml"]
+    assert "amnezia-wg-option:" in conn["proxyYaml"]
+    assert "headerprotectionkey: awg3-header-key" in conn["proxyYaml"]
+    assert "maxhandshakeattempts: 15-20" in conn["proxyYaml"]
+
+
 def test_mierus_uri_becomes_native_mihomo_mieru():
     mod = _reload("routes.proxy_connections")
     conn = mod._parse_connection(

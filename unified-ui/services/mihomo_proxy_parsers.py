@@ -704,6 +704,16 @@ def parse_wireguard(conf_text: str, custom_name: Optional[str] = None) -> ProxyP
         "i3",
         "i4",
         "i5",
+        # AWG 3.0 extends client configs with additional handshake/rekey/
+        # padding controls. Preserve them under Mihomo's amnezia-wg-option
+        # instead of silently downgrading the node to AWG2 semantics.
+        "headerprotectionkey",
+        "contentpaddingaddition",
+        "rekeyaftertime",
+        "rekeytimeout",
+        "rejectaftertime",
+        "keepalivetimeout",
+        "maxhandshakeattempts",
         "j1",
         "j2",
         "j3",

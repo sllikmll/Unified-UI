@@ -40,6 +40,38 @@ PresharedKey = 31aIhAPwktDGpH4JDhA8GNvjFXEf/a6+UaQRyOAiyfM=
 Reserved = [209, 98, 59]
 """
 
+
+AMNEZIA_WG_V3_CONF = """
+[Interface]
+PrivateKey = eCtXsJZ27+4PbhDkHnB923tkUn2Gj59wZw5wFA75MnU=
+Address = 10.203.183.2/32
+DNS = 1.1.1.1
+MTU = 1280
+Jc = 4
+Jmin = 10
+Jmax = 50
+S1 = 128
+S2 = 64
+H1 = h1-value
+H2 = h2-value
+H3 = h3-value
+H4 = h4-value
+HeaderProtectionKey = awg3-header-protection-key
+ContentPaddingAddition = 10-100
+RekeyAfterTime = 100-120
+RekeyTimeout = 3-7
+RejectAfterTime = 150-180
+KeepaliveTimeout = 5-15
+MaxHandshakeAttempts = 15-20
+
+[Peer]
+PublicKey = Cr8hWlKvtDt7nrvf+f0brNQQzabAqrjfBvas9pmowjo=
+AllowedIPs = 0.0.0.0/0
+Endpoint = almaty.example.net:9731
+PersistentKeepalive = 25
+PresharedKey = 31aIhAPwktDGpH4JDhA8GNvjFXEf/a6+UaQRyOAiyfM=
+"""
+
 OPENVPN_AUTH_USER_PASS_CONF = """
 client
 dev tun
@@ -115,6 +147,27 @@ def test_parse_wireguard_accepts_amnezia_wg_v2_options():
     assert "j2" not in amnezia
     assert "j3" not in amnezia
     assert "itime" not in amnezia
+
+
+def test_parse_wireguard_accepts_amnezia_wg_v3_options():
+    result = parse_wireguard(AMNEZIA_WG_V3_CONF, custom_name="amnezia-v3")
+    proxy = _parsed_proxy(result.yaml)
+    amnezia = proxy["amnezia-wg-option"]
+
+    assert proxy["name"] == "amnezia-v3"
+    assert proxy["type"] == "wireguard"
+    assert proxy["server"] == "almaty.example.net"
+    assert proxy["port"] == 9731
+    assert proxy["ip"] == "10.203.183.2"
+    assert proxy["allowed-ips"] == ["0.0.0.0/0"]
+    assert amnezia["jc"] == 4
+    assert amnezia["headerprotectionkey"] == "awg3-header-protection-key"
+    assert amnezia["contentpaddingaddition"] == "10-100"
+    assert amnezia["rekeyaftertime"] == "100-120"
+    assert amnezia["rekeytimeout"] == "3-7"
+    assert amnezia["rejectaftertime"] == "150-180"
+    assert amnezia["keepalivetimeout"] == "5-15"
+    assert amnezia["maxhandshakeattempts"] == "15-20"
 
 
 def test_mihomo_parse_wireguard_route_returns_amnezia_wg_v2_yaml(tmp_path):
