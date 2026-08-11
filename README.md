@@ -195,6 +195,33 @@ config.yaml.pre-tun.bak
 
 > `UNIFIED_UI_AUTH_PASSWORD` и `MIHOMO_SUB_URL` нужны только на первом запуске. После создания `/data/unified-ui/auth.json` и `/etc/mihomo/config.yaml` их лучше убрать из env/compose.
 
+### Дефолтный Mihomo-конфиг в Docker/MikroTik образе
+
+Образ поставляется с готовым шаблоном Mihomo, основанным на рабочем Keenetic/Unified UI профиле:
+
+```text
+unified-ui/opt/etc/mihomo/templates/keenetic-default.yaml
+```
+
+На первом запуске, если `/etc/mihomo/config.yaml` ещё не существует, entrypoint создаёт его из этого шаблона и адаптирует под контейнер:
+
+- пути `/opt/etc/mihomo/...` нормализуются в `/etc/mihomo/...`;
+- `mixed-port`, DNS listen и controller берутся из env (`MIHOMO_MIXED_PORT`, `MIHOMO_DNS_PORT`, `MIHOMO_CONTROLLER`);
+- финальное правило остаётся `MATCH,GLOBAL`;
+- IPv6 выключен по умолчанию;
+- TUN добавляется только при `MIHOMO_ENABLE_TUN=true`.
+
+Приватная подписка в образ **не вшита**. Если `MIHOMO_SUB_URL` не задан, entrypoint удаляет `proxy-providers.subscription_1` и убирает `use: [subscription_1]` из selector groups, чтобы первый запуск был валиден без секретов.
+
+Если нужно сразу подключить свою подписку, передай её только через env при первом запуске:
+
+```yaml
+environment:
+  MIHOMO_SUB_URL: "https://example.com/your-subscription"
+```
+
+После создания `/etc/mihomo/config.yaml` переменную лучше удалить из compose/env, потому что конфиг уже сохранён в persistent volume.
+
 ---
 
 ## 2. MikroTik / RouterOS container
