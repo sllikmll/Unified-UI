@@ -31,7 +31,7 @@ RUN mkdir -p /app /etc/mihomo/rules /etc/mihomo/profiles /etc/mihomo/templates /
 RUN set -eux; \
     arch="${TARGETARCH:-amd64}"; \
     case "$arch" in \
-      amd64) mh_arch="amd64" ;; \
+      amd64) mh_arch="amd64-compatible" ;; \
       arm64) mh_arch="arm64" ;; \
       *) echo "unsupported TARGETARCH=$arch" >&2; exit 1 ;; \
     esac; \

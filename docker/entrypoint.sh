@@ -48,59 +48,98 @@ YAML
 fi
 
 if [ ! -s /etc/mihomo/config.yaml ]; then
-  log "creating default Mihomo config"
+  log "creating default Mihomo config from bundled Keenetic template"
   python - <<'PY'
 import os
 from pathlib import Path
 import yaml
-sub = (os.environ.get('MIHOMO_SUB_URL') or os.environ.get('SUB1') or '').strip()
-use = ['subscription_1'] if sub else None
 
-def group(name):
-    g={'name':name,'type':'select'}
-    if use: g['use']=use
-    g['proxies']=['DIRECT'] if name == 'Маршрутизация' else ['DIRECT','Маршрутизация']
-    return g
-cfg={
-  'mixed-port': int(os.environ.get('MIHOMO_MIXED_PORT','7890')),
-  'allow-lan': True,
-  'bind-address': '*',
-  'mode':'rule',
-  'log-level': os.environ.get('MIHOMO_LOG_LEVEL','info'),
-  'ipv6': False,
-  'external-controller': os.environ.get('MIHOMO_CONTROLLER','0.0.0.0:9090'),
-  'secret':'',
-  'find-process-mode':'off',
-  'profile': {'store-selected': True, 'store-fake-ip': False},
-  'unified-delay': True,
-  'tcp-concurrent': True,
-  'dns': {
-    'enable': True,
-    'listen': f"0.0.0.0:{os.environ.get('MIHOMO_DNS_PORT','1053')}",
-    'ipv6': False,
-    'enhanced-mode': 'fake-ip',
-    'fake-ip-range': '198.18.0.1/16',
-    'default-nameserver': ['1.1.1.1','8.8.8.8'],
-    'nameserver': ['https://1.1.1.1/dns-query','https://8.8.8.8/dns-query'],
-  },
-  'proxy-providers': {},
-  'rule-providers': {'manual-proxy': {'type':'file','behavior':'classical','format':'yaml','path':'/etc/mihomo/rules/manual-proxy.yaml'}},
-  'proxy-groups': [group(x) for x in ['Маршрутизация','Ручной список','YouTube','Telegram','Meta','GitHub','AI','Блок РФ','Для РФ недоступно','Остальное']],
-  'rules': [
-    'RULE-SET,manual-proxy,Ручной список',
-    'DOMAIN-SUFFIX,ru,DIRECT', 'DOMAIN-SUFFIX,su,DIRECT', 'DOMAIN-SUFFIX,рф,DIRECT',
-    'DOMAIN-SUFFIX,youtube.com,YouTube', 'DOMAIN-SUFFIX,googlevideo.com,YouTube', 'DOMAIN-SUFFIX,ytimg.com,YouTube',
-    'DOMAIN-SUFFIX,telegram.org,Telegram', 'DOMAIN-SUFFIX,t.me,Telegram',
-    'DOMAIN-SUFFIX,facebook.com,Meta', 'DOMAIN-SUFFIX,instagram.com,Meta',
-    'DOMAIN-SUFFIX,github.com,GitHub', 'DOMAIN-SUFFIX,openai.com,AI', 'DOMAIN-SUFFIX,chatgpt.com,AI',
-    'MATCH,Остальное'
-  ]
-}
+template = Path('/app/unified-ui/opt/etc/mihomo/templates/keenetic-default.yaml')
+if not template.exists():
+    raise SystemExit(f'bundled default template not found: {template}')
+
+sub = (os.environ.get('MIHOMO_SUB_URL') or os.environ.get('SUB1') or '').strip()
+cfg = yaml.safe_load(template.read_text(encoding='utf-8')) or {}
+
+# Runtime/container-safe settings. The template carries routing policy; the
+# entrypoint adapts ports/paths to the image and keeps secrets out of the image.
+cfg['mixed-port'] = int(os.environ.get('MIHOMO_MIXED_PORT', '7890'))
+cfg['allow-lan'] = True
+cfg['bind-address'] = '*'
+cfg['mode'] = cfg.get('mode') or 'rule'
+cfg['log-level'] = os.environ.get('MIHOMO_LOG_LEVEL', cfg.get('log-level') or 'info')
+cfg['ipv6'] = False
+cfg['external-controller'] = os.environ.get('MIHOMO_CONTROLLER', cfg.get('external-controller') or '0.0.0.0:9090')
+cfg['secret'] = ''
+cfg['find-process-mode'] = 'off'
+
+# Normalize file/cache paths from Keenetic Entware (/opt/etc/mihomo) to the
+# container path (/etc/mihomo).
+def normalize_path(value):
+    if not isinstance(value, str):
+        return value
+    return value.replace('/opt/etc/mihomo/', '/etc/mihomo/')
+
+for section in ('proxy-providers', 'rule-providers'):
+    providers = cfg.get(section)
+    if isinstance(providers, dict):
+        for provider in providers.values():
+            if isinstance(provider, dict) and 'path' in provider:
+                provider['path'] = normalize_path(provider['path'])
+
+# The image must not contain the user's private subscription. If MIHOMO_SUB_URL
+# is provided, wire it into subscription_1. Otherwise remove subscription_1 and
+# strip `use: [subscription_1]` from selector groups so first boot is valid.
+providers = cfg.setdefault('proxy-providers', {})
 if sub:
-  cfg['proxy-providers']['subscription_1']={'type':'http','url':sub,'interval':3600,'path':'/etc/mihomo/profiles/subscription_1.yaml','health-check':{'enable':True,'url':'https://www.gstatic.com/generate_204','interval':300}}
+    provider = providers.setdefault('subscription_1', {})
+    provider.update({
+        'type': 'http',
+        'url': sub,
+        'interval': int(provider.get('interval') or 3600),
+        'path': '/etc/mihomo/profiles/subscription_1.yaml',
+        'health-check': provider.get('health-check') or {
+            'enable': True,
+            'url': 'https://www.gstatic.com/generate_204',
+            'interval': 300,
+        },
+    })
+else:
+    providers.pop('subscription_1', None)
+    if not providers:
+        cfg['proxy-providers'] = {}
+    for group in cfg.get('proxy-groups') or []:
+        if not isinstance(group, dict):
+            continue
+        use = group.get('use')
+        if isinstance(use, list):
+            use = [item for item in use if item != 'subscription_1']
+            if use:
+                group['use'] = use
+            else:
+                group.pop('use', None)
+
+# DNS listen port is container-env specific; keep the rest of the policy.
+dns = cfg.setdefault('dns', {})
+if isinstance(dns, dict):
+    dns['enable'] = True
+    dns['listen'] = f"0.0.0.0:{os.environ.get('MIHOMO_DNS_PORT','1053')}"
+    dns['ipv6'] = False
+
 if os.environ.get('MIHOMO_ENABLE_TUN','').lower() in ('1','true','yes','on'):
-  cfg['tun']={'enable':True,'stack':'system','auto-route':True,'auto-detect-interface':True,'strict-route':False}
-Path('/etc/mihomo/config.yaml').write_text(yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False), encoding='utf-8')
+    cfg['tun'] = {
+        'enable': True,
+        'stack': 'system',
+        'auto-route': True,
+        'auto-detect-interface': True,
+        'strict-route': False,
+        'dns-hijack': ['any:53'],
+    }
+
+Path('/etc/mihomo/config.yaml').write_text(
+    yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False),
+    encoding='utf-8',
+)
 PY
 fi
 

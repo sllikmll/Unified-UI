@@ -1,0 +1,664 @@
+proxy-providers:
+  subscription_1:
+    type: http
+    url: https://example.com/replace-with-your-subscription.yaml
+    interval: 43200
+    health-check:
+      enable: true
+      url: https://www.gstatic.com/generate_204
+      interval: 300
+      expected-status: 204
+    header:
+      User-Agent:
+      - ClashMeta/1.19.24; mihomo/1.19.24
+      x-hwid:
+      - 2D5B31759263
+    override:
+      udp: true
+      tfo: true
+proxies:
+- name: test
+  type: wireguard
+  server: 91.235.137.211
+  port: 51820
+  ip: 10.8.0.24
+  private-key: mIsEIcORMNZ6h2YGcWsYk/rN3U2V3Zn4zul7/v6/HWc=
+  public-key: HfuBIdPXN17cJvzUi24JqBAw1mD4rXHiiQxC9md+VV8=
+  pre-shared-key: zKYmaHar6mEJBVc5ChXtLm7N3kYrpFG+0dBjGLhyjWg=
+  dns:
+  - 1.1.1.1
+  remote-dns-resolve: true
+  mtu: 1420
+  persistent-keepalive: 0
+  allowed-ips:
+  - 0.0.0.0/0
+  - ::/0
+  udp: true
+- name: Admger
+  type: wireguard
+  server: 194.147.215.252
+  port: 51820
+  ip: 10.81.30.7
+  private-key: oEwzWAz6AiZ+QN6A2+MGWslcIeZk+BXaWzxbq0TWrE4=
+  public-key: ZXqpUSVqC3sL721OcTHs+W0UOdukIp5T5qEwwmtX/ks=
+  pre-shared-key: d9glIFM8Iyi9apVEg/so7BzZqoZZawu4ByOgaMbc5PI=
+  dns:
+  - 1.1.1.1
+  remote-dns-resolve: true
+  persistent-keepalive: 25
+  allowed-ips:
+  - 0.0.0.0/0
+  - ::/0
+  udp: true
+log-level: info
+allow-lan: true
+geodata-mode: true
+geox-url:
+  geosite: https://github.com/jameszeroX/zkeen-domains/releases/latest/download/zkeen.dat
+  geoip: https://github.com/jameszeroX/zkeen-ip/releases/latest/download/zkeenip.dat
+redir-port: 5000
+tproxy-port: 5001
+routing-mark: 255
+find-process-mode: false
+unified-delay: true
+external-controller: 0.0.0.0:9090
+external-ui: zashboard
+external-ui-url: https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip
+profile:
+  store-selected: true
+sniffer:
+  enable: true
+  sniff:
+    HTTP:
+      ports:
+      - 80
+      - 8080
+    TLS:
+      ports:
+      - 443
+      - 8443
+    QUIC:
+      ports:
+      - 443
+      - 8443
+  skip-dst-address:
+  - rule-set:telegram@ipcidr
+anchors:
+  a1:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+  a2:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+  a3:
+    type: http
+    format: text
+    behavior: classical
+    interval: 86400
+  a4:
+    type: inline
+    behavior: classical
+proxy-groups:
+- name: Заблок. сервисы
+  type: select
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Reject.png
+  include-all: true
+  proxies:
+  - Fallback
+  - Fastest
+  use:
+  - subscription_1
+- name: Ручной список
+  type: select
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Proxy.png
+  include-all: true
+  proxies:
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  - DIRECT
+  use:
+  - subscription_1
+- name: Блок РФ
+  type: select
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Lock.png
+  include-all: true
+  proxies:
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  - DIRECT
+  use:
+  - subscription_1
+- name: Для РФ недоступно
+  type: select
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Global.png
+  include-all: true
+  exclude-filter: 🇷🇺
+  proxies:
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  - DIRECT
+  use:
+  - subscription_1
+- name: Fallback
+  type: fallback
+  use:
+  - subscription_1
+  url: https://www.gstatic.com/generate_204
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Auto.png
+  interval: 300
+  max-failed-times: 3
+  hidden: true
+  include-all: true
+- name: Fastest
+  type: url-test
+  use:
+  - subscription_1
+  url: https://www.gstatic.com/generate_204
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Available.png
+  interval: 300
+  max-failed-times: 3
+  hidden: true
+  include-all: true
+- name: YouTube
+  type: select
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/YouTube.png
+  include-all: true
+  proxies:
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  - DIRECT
+  use:
+  - subscription_1
+- name: Discord
+  type: select
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Discord.png
+  include-all: true
+  proxies:
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  - DIRECT
+  use:
+  - subscription_1
+- name: Twitch
+  type: select
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Twitch.png
+  include-all: true
+  proxies:
+  - DIRECT
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  use:
+  - subscription_1
+- name: Reddit
+  type: select
+  icon: https://www.redditstatic.com/shreddit/assets/favicon/192x192.png
+  include-all: true
+  proxies:
+  - DIRECT
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  use:
+  - subscription_1
+- name: Meta
+  type: select
+  icon: https://github.com/zxc-rv/assets/raw/main/group-icons/meta.png
+  include-all: true
+  proxies:
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  - DIRECT
+  use:
+  - subscription_1
+- name: Spotify
+  type: select
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Spotify.png
+  include-all: true
+  exclude-filter: 🇷🇺
+  proxies:
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  - DIRECT
+  use:
+  - subscription_1
+- name: Speedtest
+  type: select
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Speedtest.png
+  include-all: true
+  proxies:
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  - DIRECT
+  use:
+  - subscription_1
+- name: Telegram
+  type: select
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Telegram.png
+  include-all: true
+  proxies:
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  - DIRECT
+  use:
+  - subscription_1
+- name: Steam
+  type: select
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Steam.png
+  include-all: true
+  proxies:
+  - DIRECT
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  use:
+  - subscription_1
+- name: CDN
+  type: select
+  icon: https://www.svgrepo.com/show/396567/globe-with-meridians.svg
+  include-all: true
+  proxies:
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  - DIRECT
+  use:
+  - subscription_1
+- name: Google
+  type: select
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Google_Search.png
+  include-all: true
+  proxies:
+  - DIRECT
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  use:
+  - subscription_1
+- name: GitHub
+  type: select
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/GitHub.png
+  include-all: true
+  proxies:
+  - DIRECT
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  use:
+  - subscription_1
+- name: AI
+  type: select
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Bot.png
+  include-all: true
+  exclude-filter: 🇷🇺
+  proxies:
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  - DIRECT
+  use:
+  - subscription_1
+- name: Twitter
+  type: select
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Twitter.png
+  include-all: true
+  proxies:
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  - DIRECT
+  use:
+  - subscription_1
+- name: TikTok
+  type: select
+  icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/TikTok.png
+  include-all: true
+  proxies:
+  - Заблок. сервисы
+  - Fallback
+  - Fastest
+  - DIRECT
+  use:
+  - subscription_1
+rule-providers:
+  adlist@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://github.com/zxc-rv/ad-filter/releases/latest/download/adlist.mrs
+  akamai@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/akamai.mrs
+  akamai@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/akamai@ipcidr.mrs
+  amazon@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/amazon.mrs
+  amazon@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/amazon@ipcidr.mrs
+  AS22697@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/asn/AS22697.mrs
+  category-ai@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/category-ai-!cn.mrs
+  cdn77@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/cdn77@ipcidr.mrs
+  cloudflare@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cloudflare.mrs
+  cloudflare@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/cloudflare@ipcidr.mrs
+  digitalocean@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/digitalocean.mrs
+  digitalocean@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/digitalocean@ipcidr.mrs
+  discord@classical:
+    type: http
+    format: text
+    behavior: classical
+    interval: 86400
+    url: https://github.com/zxc-rv/assets/raw/main/rules/discord.list
+  fastly@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/fastly.mrs
+  fastly@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/fastly@ipcidr.mrs
+  gcore@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/gcore@ipcidr.mrs
+  github@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/github.mrs
+  google@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/google.mrs
+  google@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/google@ipcidr.mrs
+  hetzner@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/hetzner.mrs
+  hetzner@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/hetzner@ipcidr.mrs
+  meta@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/meta.mrs
+  meta@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/meta@ipcidr.mrs
+  oracle@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/oracle.mrs
+  oracle@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/oracle@ipcidr.mrs
+  ovh@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/ovh@ipcidr.mrs
+  reddit@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/reddit.mrs
+  refilter@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://github.com/legiz-ru/mihomo-rule-sets/raw/main/re-filter/domain-rule.mrs
+  ru@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/ru.mrs
+  refilter_ipsum@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/legiz-ru/mihomo-rule-sets/raw/main/re-filter/ip-rule.mrs
+  ru-bundle@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://github.com/legiz-ru/mihomo-rule-sets/raw/main/ru-bundle/rule.mrs
+  no-russia-hosts@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://github.com/legiz-ru/mihomo-rule-sets/raw/main/ru-bundle/no-russia-hosts.mrs
+  roblox@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/roblox.mrs
+  scaleway@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/scaleway@ipcidr.mrs
+  spotify@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/spotify.mrs
+  steam@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/steam.mrs
+  speedtest@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/speedtest.mrs
+  telegram@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/telegram.mrs
+  telegram@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/telegram@ipcidr.mrs
+  twitch@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/twitch.mrs
+  twitter@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/twitter.mrs
+  tiktok@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/tiktok.mrs
+  vodafone@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/vodafone@ipcidr.mrs
+  vultr@ipcidr:
+    type: http
+    format: mrs
+    behavior: ipcidr
+    interval: 86400
+    url: https://github.com/zxc-rv/zkeenip-rulesets/releases/latest/download/vultr@ipcidr.mrs
+  youtube@domain:
+    type: http
+    format: mrs
+    behavior: domain
+    interval: 86400
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/youtube.mrs
+  quic@inline:
+    type: inline
+    behavior: classical
+    payload:
+    - AND,((DST-PORT,443),(NETWORK,UDP))
+  user@classical:
+    type: inline
+    behavior: classical
+    payload:
+    - DOMAIN-SUFFIX,example.com
+  manual-proxy@classical:
+    type: file
+    behavior: classical
+    format: yaml
+    path: /opt/etc/mihomo/rules/manual-proxy.yaml
+rules:
+- DOMAIN,3xmsk.dogonin.ru,DIRECT
+- RULE-SET,adlist@domain,REJECT
+- RULE-SET,quic@inline,REJECT
+- RULE-SET,manual-proxy@classical,Ручной список
+- RULE-SET,no-russia-hosts@domain,Для РФ недоступно
+- OR,((DOMAIN-SUFFIX,gql.twitch.tv),(DOMAIN-SUFFIX,usher.ttvnw.net)),Заблок. сервисы
+- RULE-SET,category-ai@domain,AI
+- RULE-SET,steam@domain,Steam
+- RULE-SET,spotify@domain,Spotify
+- RULE-SET,reddit@domain,Reddit
+- RULE-SET,youtube@domain,YouTube
+- RULE-SET,twitch@domain,Twitch
+- RULE-SET,twitter@domain,Twitter
+- RULE-SET,tiktok@domain,TikTok
+- RULE-SET,discord@classical,Discord
+- RULE-SET,speedtest@domain,Speedtest
+- OR,((RULE-SET,meta@domain),(RULE-SET,meta@ipcidr,no-resolve)),Meta
+- OR,((RULE-SET,telegram@domain),(RULE-SET,telegram@ipcidr,no-resolve)),Telegram
+- OR,((RULE-SET,refilter@domain),(RULE-SET,refilter_ipsum@ipcidr,no-resolve),(RULE-SET,ru-bundle@domain),(RULE-SET,user@classical)),Блок
+  РФ
+- OR,((RULE-SET,roblox@domain),(RULE-SET,AS22697@ipcidr)),Заблок. сервисы
+- DOMAIN-SUFFIX,ru,DIRECT
+- DOMAIN-SUFFIX,su,DIRECT
+- DOMAIN-SUFFIX,рф,DIRECT
+- RULE-SET,ru@ipcidr,DIRECT
+- RULE-SET,github@domain,GitHub
+- OR,((RULE-SET,google@domain),(RULE-SET,google@ipcidr)),Google
+- OR,((RULE-SET,amazon@domain),(RULE-SET,amazon@ipcidr)),CDN
+- OR,((RULE-SET,akamai@domain),(RULE-SET,akamai@ipcidr)),CDN
+- OR,((RULE-SET,cloudflare@domain),(RULE-SET,cloudflare@ipcidr)),CDN
+- OR,((RULE-SET,digitalocean@domain),(RULE-SET,digitalocean@ipcidr)),CDN
+- OR,((RULE-SET,fastly@domain),(RULE-SET,fastly@ipcidr)),CDN
+- OR,((RULE-SET,oracle@domain),(RULE-SET,oracle@ipcidr)),CDN
+- OR,((RULE-SET,hetzner@domain),(RULE-SET,hetzner@ipcidr)),CDN
+- RULE-SET,scaleway@ipcidr,CDN
+- RULE-SET,ovh@ipcidr,CDN
+- RULE-SET,vultr@ipcidr,CDN
+- RULE-SET,vodafone@ipcidr,CDN
+- RULE-SET,gcore@ipcidr,CDN
+- RULE-SET,cdn77@ipcidr,CDN
+- MATCH,GLOBAL
+geo-auto-update: true
