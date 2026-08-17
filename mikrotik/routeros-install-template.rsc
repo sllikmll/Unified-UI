@@ -10,6 +10,12 @@
 :local AUTH_PASSWORD "<UI_PASSWORD>"
 :local SECRET_KEY "<UI_SECRET_KEY>"
 
+# Native AWG2/AWG3 imports use official amneziawg-go userspace interfaces.
+# RouterOS 7.23.3 on RB5009 exposes /dev/net/tun and the required network
+# capability to this container automatically. Do not pass Docker-style device
+# or --cap-add syntax to /container/add: RouterOS rejects /dev/net/tun as a
+# container-dev-name. Entrypoint performs a real TUN/CAP_NET_ADMIN preflight.
+
 /system backup save name=pre-unified-ui-mikrotik
 /export file=pre-unified-ui-mikrotik
 

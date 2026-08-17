@@ -32,6 +32,22 @@ class DevtoolsUpdateSmokeTests(unittest.TestCase):
             return f"/usr/bin/{name}"
         return None
 
+    def test_mikrotik_platform_flag_disables_self_update_endpoints(self):
+        devtools = _reload("routes.devtools")
+        with tempfile.TemporaryDirectory() as tmp:
+            app = Flask("devtools-update-disabled")
+            app.register_blueprint(devtools.create_devtools_blueprint(tmp))
+            with patch.dict(os.environ, {"UNIFIED_UI_SELF_UPDATE_DISABLED": "1"}, clear=False):
+                client = app.test_client()
+                responses = [
+                    client.post("/api/devtools/update/check", json={}),
+                    client.post("/api/devtools/update/run", json={}),
+                    client.post("/api/devtools/update/rollback", json={}),
+                ]
+        for response in responses:
+            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.get_json()["error"], "self_update_disabled")
+
     def test_update_info_endpoint_returns_compact_local_update_snapshot(self):
         devtools = _reload("routes.devtools")
 

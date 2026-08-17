@@ -35,7 +35,7 @@ import yaml
 
 MIHOMO_VERSION = "1.19.29"
 APP_NAME = "Unified UI Native"
-APP_VERSION = "2.6.7"
+APP_VERSION = "2.6.8"
 APP_RELEASE_LABEL = f"v{APP_VERSION}-native"
 DEFAULT_CONTROLLER_PORT = int(os.environ.get("MIHOMO_CONTROLLER_PORT", "19190"))
 DEFAULT_MIXED_PORT = int(os.environ.get("MIHOMO_MIXED_PORT", "17990"))
@@ -472,6 +472,11 @@ def mihomo_asset() -> tuple[str, str]:
         return f"mihomo-darwin-{a}-v{MIHOMO_VERSION}.gz", "mihomo"
     if sys.platform == "win32":
         return f"mihomo-windows-{a}-v{MIHOMO_VERSION}.zip", "mihomo.exe"
+    if a == "amd64":
+        # Upstream generic linux-amd64 is built for x86-64-v3.  Native Desktop
+        # promises regular x64 compatibility, so use the explicit baseline
+        # asset on older virtual and physical CPUs as well.
+        return f"mihomo-linux-amd64-compatible-v{MIHOMO_VERSION}.gz", "mihomo"
     return f"mihomo-linux-{a}-v{MIHOMO_VERSION}.gz", "mihomo"
 
 
@@ -3288,8 +3293,10 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
             self.mode = mode
             self.tile_btn.setObjectName("ActiveTab" if mode == "tiles" else "Tab")
             self.list_btn.setObjectName("ActiveTab" if mode == "lists" else "Tab")
-            self.tile_btn.style().unpolish(self.tile_btn); self.tile_btn.style().polish(self.tile_btn)
-            self.list_btn.style().unpolish(self.list_btn); self.list_btn.style().polish(self.list_btn)
+            self.tile_btn.style().unpolish(self.tile_btn)
+            self.tile_btn.style().polish(self.tile_btn)
+            self.list_btn.style().unpolish(self.list_btn)
+            self.list_btn.style().polish(self.list_btn)
             self.refresh()
 
         def clear_groups(self) -> None:
@@ -3760,7 +3767,8 @@ def run_gui(runtime: MihomoRuntime, gui_smoke_seconds: float | None = None, gui_
                     QTimer.singleShot(0, lambda: self.statusBar().showMessage("Mihomo запущен, TUN активен"))
                 except Exception as exc:
                     log_native_event(f"runtime watchdog restart failed: {exc}")
-                    QTimer.singleShot(0, lambda: self.statusBar().showMessage(f"Mihomo не запустился: {exc}"))
+                    message = f"Mihomo не запустился: {exc}"
+                    QTimer.singleShot(0, lambda message=message: self.statusBar().showMessage(message))
                 finally:
                     QTimer.singleShot(0, lambda: setattr(self, "runtime_restart_in_progress", False))
 

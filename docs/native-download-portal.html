@@ -19,7 +19,7 @@
         <h1>Премиум-контроль Mihomo без браузерной мишуры.</h1>
         <p class="lead">Нативное Qt-приложение для macOS, Windows и Linux: selector-группы, подписки, VLESS/WireGuard/Amnezia/Hysteria2/Trojan/Mieru/NaiveProxy, live connections, ручные rule-provider списки и full-system TUN routing.</p>
         <div class="actions">
-          <a class="btn" href="https://github.com/sllikmll/Unified-UI/releases/latest">Скачать latest release</a>
+          <a class="btn" href="https://github.com/sllikmll/Unified-UI/releases/tag/v2.6.8-native">Скачать v2.6.8-native</a>
           <a class="btn secondary" href="https://github.com/sllikmll/Unified-UI">Открыть GitHub</a>
         </div>
       </div>
@@ -31,7 +31,7 @@
           <div class="check"><strong>Safe edits</strong><span>backup перед config save</span></div>
           <div class="check"><strong>TUN ready</strong><span>опционально, с cleanup</span></div>
         </div>
-        <p>Если manifest лежит рядом с этой страницей, карточки ниже покажут точные SHA256 и размеры. Если нет — ссылки ведут на GitHub latest.</p>
+        <p>Если manifest лежит рядом с этой страницей, карточки ниже покажут точные SHA256 и размеры. Если нет — ссылки ведут в tag-specific релиз v2.6.8-native.</p>
       </div>
     </section>
 
@@ -44,16 +44,16 @@
     <p class="footer">Unified UI Native ships as release assets, not git blobs. If a download is missing, the release is incomplete — не делаем вид, что всё нормально.</p>
   </main>
   <script>
-    const TAG = 'v2.6.7-native';
+    const TAG = 'v2.6.8-native';
     const BASE = 'https://github.com/sllikmll/Unified-UI/releases/download/' + TAG;
     const fallback = [
-      ['macOS','macOS Apple Silicon','Unified-UI-Native-2.6.7-mac-arm64.zip'],
-      ['Windows','Windows setup wizard','Unified-UI-Native-Setup-2.6.7-x64.exe'],
-      ['Windows','Windows portable ZIP','Unified-UI-Native-2.6.7-windows-x64-portable.zip'],
-      ['Windows','Windows standalone EXE','Unified-UI-Native-2.6.7-x64.exe'],
-      ['Linux','Linux portable tar.gz','Unified-UI-Native-2.6.7-linux-x64-portable.tar.gz'],
-      ['Linux','Debian/Ubuntu package','Unified-UI-Native-2.6.7-linux-x64.deb'],
-      ['Linux','RPM package','Unified-UI-Native-2.6.7-linux-x64.rpm'],
+      ['macOS','macOS Apple Silicon','Unified-UI-Native-2.6.8-mac-arm64.zip'],
+      ['Windows','Windows setup wizard','Unified-UI-Native-Setup-2.6.8-x64.exe'],
+      ['Windows','Windows portable ZIP','Unified-UI-Native-2.6.8-windows-x64-portable.zip'],
+      ['Windows','Windows standalone EXE','Unified-UI-Native-2.6.8-x64.exe'],
+      ['Linux','Linux portable tar.gz','Unified-UI-Native-2.6.8-linux-x64-portable.tar.gz'],
+      ['Linux','Debian/Ubuntu package','Unified-UI-Native-2.6.8-linux-x64.deb'],
+      ['Linux','RPM package','Unified-UI-Native-2.6.8-linux-x64.rpm'],
     ].map(([platform,label,file])=>({platform,label,file,download_url:BASE+'/'+file,size:0,sha256:''}));
     function size(n){ if(!n) return '—'; const u=['B','KB','MB','GB']; let i=0,v=n; while(v>1024&&i<u.length-1){v/=1024;i++} return v.toFixed(i?1:0)+' '+u[i]; }
     function render(items){

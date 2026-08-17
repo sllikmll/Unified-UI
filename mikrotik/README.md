@@ -11,6 +11,11 @@ This directory contains the full Unified UI + Mihomo container build for MikroTi
   - Unified UI on `:8088`;
   - mixed proxy on `:1080`;
   - DNS listener on `:1053`.
+- Native AmneziaWG support is built from official pinned sources:
+  - `amnezia-vpn/amneziawg-go` tag `v3.1.20260814`, commit `1b86b2ae0e493e7ea93f8c1a0f0cb6735b1551f1`;
+  - `amnezia-vpn/amneziawg-tools` tag `v3.1.20260812`, commit `ee0f0a9aa34ff0a0da4b3433b9512781cfe02843`;
+  - binaries are installed as `/opt/bin/amneziawg-go` and `/opt/bin/awg`;
+  - provenance and binary checksums are kept in `/opt/bin/OFFICIAL_AWG_PROVENANCE.json` and `/opt/bin/SHA256SUMS`.
 - Persistent state lives inside the RouterOS container root-dir, usually:
   - `/usb1/docker/unified-ui-mikrotik`.
 
@@ -49,6 +54,13 @@ The installed runtime on RB5009 uses:
 - dstnat:
   - `172.16.0.22:8088 -> 192.168.254.3:8088`;
   - `172.16.0.22:9090 -> 192.168.254.3:9090`.
+
+Native AmneziaWG imports require Linux networking privileges inside the container:
+
+- NET_ADMIN-equivalent network capability inside the RouterOS container runtime;
+- `/dev/net/tun` visible inside the container.
+
+Empirically, RB5009/RouterOS 7.23.3 exposes `/dev/net/tun` and the required network capability automatically. Do not use Docker `--cap-add` or `devices=/dev/net/tun` in `/container/add`: the latter is rejected as an invalid `container-dev-name`. Without runtime prerequisites, startup logs a non-secret status, skips AWG restore, and still boots UI/Mihomo; AWG Apply fails clearly. The runtime never sends AWG2/AWG3 secrets to Mihomo as built-in `wireguard`; it restores official `amneziawg-go` interfaces and injects Mihomo `type: direct` outbounds with `interface-name` and `routing-mark`.
 
 Do not keep secrets in RouterOS env after first boot. RouterOS logs container env values on start. First boot writes auth/config into persistent container storage, then sensitive env vars can be removed from `UNIFIED_UI_MIKROTIK`.
 

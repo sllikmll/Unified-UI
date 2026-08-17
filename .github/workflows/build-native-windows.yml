@@ -1,0 +1,80 @@
+name: Build Unified UI Native Windows
+
+on:
+  push:
+    branches:
+      - release/platform-refresh
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Native release version
+        required: true
+        default: 2.6.8
+
+permissions:
+  contents: read
+
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ inputs.version || '2.6.8' }}
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: desktop/native/requirements-native.txt
+
+      - name: Install build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r desktop/native/requirements-native.txt
+          choco install nsis --yes --no-progress
+
+      - name: Build and smoke-test portable bundle
+        shell: pwsh
+        run: |
+          python -m PyInstaller --noconfirm desktop/native/unified-ui-native.spec
+          & "dist/Unified UI Native/Unified UI Native.exe" --smoke
+          if ($LASTEXITCODE -ne 0) { throw "portable smoke failed: $LASTEXITCODE" }
+
+      - name: Build and smoke-test onefile executable
+        shell: pwsh
+        run: |
+          $env:UNIFIED_UI_NATIVE_ONEFILE_NAME = "Unified-UI-Native-$env:VERSION-x64"
+          python -m PyInstaller --noconfirm desktop/native/unified-ui-native-onefile.spec
+          & "dist/Unified-UI-Native-$env:VERSION-x64.exe" --smoke
+          if ($LASTEXITCODE -ne 0) { throw "onefile smoke failed: $LASTEXITCODE" }
+
+      - name: Build portable ZIP and NSIS installer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist-artifacts | Out-Null
+          Compress-Archive -Path "dist/Unified UI Native/*" -DestinationPath "dist-artifacts/Unified-UI-Native-$env:VERSION-windows-x64-portable.zip" -CompressionLevel Optimal
+          Copy-Item "dist/Unified-UI-Native-$env:VERSION-x64.exe" "dist-artifacts/Unified-UI-Native-$env:VERSION-x64.exe"
+          python scripts/build_windows_nsis_installer.py --version $env:VERSION --app-dir "dist/Unified UI Native" --out "dist-artifacts/Unified-UI-Native-Setup-$env:VERSION-x64.exe"
+
+      - name: Write checksums
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem dist-artifacts -File | Sort-Object Name
+          $lines = foreach ($file in $files) {
+            $hash = (Get-FileHash -Algorithm SHA256 $file.FullName).Hash.ToLowerInvariant()
+            "$hash  $($file.Name)"
+          }
+          $checksumPath = Join-Path $PWD "dist-artifacts/SHA256SUMS-windows-x64"
+          [IO.File]::WriteAllText($checksumPath, (($lines -join "`n") + "`n"), [Text.UTF8Encoding]::new($false))
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: unified-ui-native-${{ env.VERSION }}-windows-x64
+          path: dist-artifacts/*
+          if-no-files-found: error
+          retention-days: 14

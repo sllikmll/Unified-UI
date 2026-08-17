@@ -42,7 +42,13 @@ from services.mihomo_proxy_parsers import (
 )
 from services.mihomo_proxy_config import insert_proxy_into_groups, remove_proxy_from_groups
 from services.mihomo_yaml import validate_yaml_syntax
-from services.awg_native import NativeAwgRuntime, NativeAwgSpec, build_native_awg_spec, native_mihomo_proxy_yaml
+from services.awg_native import (
+    NativeAwgRuntime,
+    NativeAwgSpec,
+    build_native_awg_spec,
+    native_mihomo_proxy_yaml,
+    preflight_native_awg_runtime,
+)
 
 PROTOCOLS: dict[str, dict[str, Any]] = {
     "wireguard": {"label": "WireGuard", "schemes": ["wireguard://"], "mihomo": True},
@@ -450,15 +456,25 @@ def _native_awg_runtime(specs: list[NativeAwgSpec]) -> dict[str, object]:
     awg_bin = os.environ.get("UNIFIED_AWG_BIN") or "/opt/bin/awg"
     ip_bin = os.environ.get("UNIFIED_IP_BIN") or shutil.which("ip") or "/sbin/ip"
     if specs:
-        missing = [path for path in (go_bin, awg_bin, ip_bin) if not os.path.isfile(path) or not os.access(path, os.X_OK)]
-        if missing:
-            raise RuntimeError("official AmneziaWG runtime is missing: " + ", ".join(missing))
+        preflight = preflight_native_awg_runtime(amneziawg_go=go_bin, awg=awg_bin)
+        if not preflight.ok:
+            raise RuntimeError(preflight.error())
+        if not os.path.isfile(ip_bin) or not os.access(ip_bin, os.X_OK):
+            raise RuntimeError("native AmneziaWG runtime is unavailable: ip tool is missing or not executable at " + ip_bin)
     return NativeAwgRuntime(
         state_dir,
         amneziawg_go=go_bin,
         awg=awg_bin,
         ip=ip_bin,
     ).reconcile(specs)
+
+
+def _native_awg_active_specs() -> list[NativeAwgSpec]:
+    return NativeAwgRuntime(_state_dir() / "awg-native").load_active_specs()
+
+
+def _native_awg_restore(specs: list[NativeAwgSpec]) -> None:
+    _native_awg_runtime(specs)
 
 
 def reconcile_native_awg_startup() -> dict[str, object]:
@@ -669,17 +685,26 @@ def _apply_to_mihomo(*, restart: bool = False) -> dict[str, Any]:
     ok, err = validate_yaml_syntax(patched)
     if not ok:
         raise RuntimeError("generated Mihomo YAML is invalid: " + str(err))
+    previous_native_specs = _native_awg_active_specs()
     native_result = _native_awg_runtime(native_specs)
-    if registry_changed:
-        _save_registry(data)
     backup = None
     changed = patched != cfg
-    if changed:
-        backup = _backup_config(cfg_path)
-        cfg_path.write_text(patched, encoding="utf-8")
     log = ""
-    if restart:
-        log = restart_mihomo_and_get_log(patched)
+    try:
+        if changed:
+            backup = _backup_config(cfg_path)
+            cfg_path.write_text(patched, encoding="utf-8")
+        if restart:
+            log = restart_mihomo_and_get_log(patched)
+        if registry_changed:
+            _save_registry(data)
+    except Exception:
+        try:
+            if changed:
+                cfg_path.write_text(cfg, encoding="utf-8")
+        finally:
+            _native_awg_restore(previous_native_specs)
+        raise
     return {
         "ok": True,
         "changed": changed,

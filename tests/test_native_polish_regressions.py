@@ -20,7 +20,7 @@ def test_native_startup_splash_has_no_debug_copy_and_uses_textless_progress_bar(
 def test_native_header_area_is_removed_but_window_title_keeps_release_label():
     text = source_text()
 
-    assert "Обновление v2.6.7-native" not in text
+    assert "Обновление v2.6.8-native" not in text
     assert "Проверить обновления" not in text
     assert "Светлая тема" not in text
     assert "Выйти" not in text
@@ -31,7 +31,7 @@ def test_native_header_area_is_removed_but_window_title_keeps_release_label():
     assert "QPushButton(\"◉ Интерфейс\")" not in text
     assert "QPushButton(\"Настройки\")" not in text
     assert "version = QLabel(\"v2.6." not in text
-    assert "APP_VERSION = \"2.6.7\"" in text
+    assert "APP_VERSION = \"2.6.8\"" in text
     assert "APP_RELEASE_LABEL" in text
     assert "self.setWindowTitle(f\"{APP_NAME} {APP_RELEASE_LABEL}\")" in text
 
