@@ -1,6 +1,9 @@
 name: Build Unified UI Native Windows
 
 on:
+  push:
+    branches:
+      - release/platform-refresh
   workflow_dispatch:
     inputs:
       version:
@@ -16,7 +19,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      VERSION: ${{ inputs.version }}
+      VERSION: ${{ inputs.version || '2.6.8' }}
       PYTHONUTF8: "1"
     steps:
       - uses: actions/checkout@v4
@@ -70,7 +73,7 @@ jobs:
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: unified-ui-native-${{ inputs.version }}-windows-x64
+          name: unified-ui-native-${{ env.VERSION }}-windows-x64
           path: dist-artifacts/*
           if-no-files-found: error
           retention-days: 14
