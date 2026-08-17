@@ -172,6 +172,50 @@ def test_runtime_reconcile_writes_private_config_and_policy_route(tmp_path):
     manifest = json.loads(runtime.manifest_path.read_text())
     assert manifest["interfaces"][0]["interface"] == spec.interface
     assert "PrivateKey" not in runtime.manifest_path.read_text()
+    active = json.loads(runtime.active_desired_path.read_text())
+    assert active["specs"][0]["setconf"] == spec.setconf
+    assert "PrivateKey = client-private-key" in runtime.active_desired_path.read_text()
+
+
+def test_runtime_reconcile_rolls_back_to_previous_active_desired_on_start_failure(tmp_path):
+    mod = importlib.import_module("services.awg_native")
+    old_spec = mod.build_native_awg_spec("old-awg", AWG2_CONF)
+    new_spec = mod.build_native_awg_spec("new-awg", AWG2_CONF.replace("10.8.1.9/32", "10.9.1.9/32"))
+    commands = []
+    fail_new_setconf = False
+
+    def runner(command, required):
+        commands.append((command, required))
+        if fail_new_setconf and command[:2] == ["/bundle/awg", "setconf"] and command[2] == new_spec.interface:
+            raise RuntimeError("injected setconf failure")
+
+    runtime = mod.NativeAwgRuntime(
+        tmp_path / "awg-native",
+        amneziawg_go="/bundle/amneziawg-go",
+        awg="/bundle/awg",
+        ip="/sbin/ip",
+        runner=runner,
+    )
+    runtime._wait_for_socket = lambda interface: None
+    runtime.reconcile([old_spec])
+
+    commands.clear()
+    fail_new_setconf = True
+    try:
+        runtime.reconcile([new_spec])
+    except RuntimeError as exc:
+        assert "injected setconf failure" in str(exc)
+    else:
+        raise AssertionError("reconcile unexpectedly succeeded")
+
+    manifest = json.loads(runtime.manifest_path.read_text())
+    active = json.loads(runtime.active_desired_path.read_text())
+    assert [item["interface"] for item in manifest["interfaces"]] == [old_spec.interface]
+    assert [item["interface"] for item in active["specs"]] == [old_spec.interface]
+    assert active["specs"][0]["setconf"] == old_spec.setconf
+    assert "10.9.1.9/32" not in runtime.active_desired_path.read_text()
+    assert (["/bundle/amneziawg-go", old_spec.interface], True) in commands
+    assert any(command[:5] == ["/sbin/ip", "link", "del", "dev", new_spec.interface] for command, _ in commands)
 
 
 def test_existing_registry_awg_is_migrated_from_raw_config():
