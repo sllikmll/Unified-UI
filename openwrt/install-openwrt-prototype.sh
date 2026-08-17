@@ -805,6 +805,60 @@ connection_public_json_from_files() {
     "$(printf '%s' "$id" | json_escape)" "$(printf '%s' "$name" | json_escape)" "$(printf '%s' "$proto" | json_escape)" "$(printf '%s' "$proto" | json_escape)" "$selector_json" "$selector_json" "$proxy_yaml" "$(printf '%s' "$iface" | json_escape)" "$mark" "$table" "$prio"
 }
 
+registry_upsert_record() {
+  record_file="$1"; replace_id="$2"; replace_name="$3"; replace_protocol="$4"
+  tmp="$PROXY_REGISTRY.tmp.$$"
+  {
+    printf '{"version":1,"connections":['
+    separator=""
+    if [ -f "$PROXY_REGISTRY" ]; then
+      idx=0
+      while :; do
+        old_id="$(jsonfilter -i "$PROXY_REGISTRY" -e "@.connections[$idx].id" 2>/dev/null || true)"
+        [ -n "$old_id" ] || break
+        old_name="$(jsonfilter -i "$PROXY_REGISTRY" -e "@.connections[$idx].name" 2>/dev/null || true)"
+        old_protocol="$(jsonfilter -i "$PROXY_REGISTRY" -e "@.connections[$idx].protocol" 2>/dev/null || true)"
+        if [ "$old_id" != "$replace_id" ] && { [ "$old_name" != "$replace_name" ] || [ "$old_protocol" != "$replace_protocol" ]; }; then
+          old_object="$(jsonfilter -i "$PROXY_REGISTRY" -e "@.connections[$idx]" 2>/dev/null || true)"
+          [ -z "$old_object" ] || { printf '%s%s' "$separator" "$old_object"; separator=','; }
+        fi
+        idx=$((idx + 1))
+      done
+    fi
+    printf '%s' "$separator"
+    cat "$record_file"
+    printf ']}\n'
+  } > "$tmp"
+  mv "$tmp" "$PROXY_REGISTRY"
+  chmod 600 "$PROXY_REGISTRY"
+}
+
+registry_delete_id() {
+  delete_id="$1"; tmp="$PROXY_REGISTRY.tmp.$$"; found=false
+  {
+    printf '{"version":1,"connections":['
+    separator=""
+    if [ -f "$PROXY_REGISTRY" ]; then
+      idx=0
+      while :; do
+        old_id="$(jsonfilter -i "$PROXY_REGISTRY" -e "@.connections[$idx].id" 2>/dev/null || true)"
+        [ -n "$old_id" ] || break
+        if [ "$old_id" = "$delete_id" ]; then
+          found=true
+        else
+          old_object="$(jsonfilter -i "$PROXY_REGISTRY" -e "@.connections[$idx]" 2>/dev/null || true)"
+          [ -z "$old_object" ] || { printf '%s%s' "$separator" "$old_object"; separator=','; }
+        fi
+        idx=$((idx + 1))
+      done
+    fi
+    printf ']}\n'
+  } > "$tmp"
+  if [ "$found" != true ]; then rm -f "$tmp"; return 3; fi
+  mv "$tmp" "$PROXY_REGISTRY"
+  chmod 600 "$PROXY_REGISTRY"
+}
+
 import_awg_connection() {
   proto="$1"; name="$2"; content="$3"; selector="$(sanitize_awg_selector "${4:-}")"
   tmp_dir="/tmp/unified-awg-import-$$"
@@ -830,11 +884,10 @@ import_awg_connection() {
   proxy_yaml="$(json_escape < "$yaml")"
   selector_json="$(printf '%s' "$selector" | json_escape)"
   mkdir -p "$UNIFIED_UI_CONF_DIR"
-  tmp="$PROXY_REGISTRY.tmp.$$"
-  printf '{"version":1,"connections":[{"id":"%s","name":"%s","protocol":"amnezia","protocolLabel":"Amnezia","sourceType":"import","enabled":true,"mihomoSupported":true,"selectors":["%s"],"usedBySelectors":["%s"],"proxyYaml":"%s","rawContent":"%s","nativeRuntime":{"engine":"amneziawg-go","interface":"%s","routingMark":%s,"routingTable":%s,"rulePriority":%s,"addresses":"%s","mtu":"%s"}}]}\n' \
-    "$(printf '%s' "$id" | json_escape)" "$(printf '%s' "$name" | json_escape)" "$selector_json" "$selector_json" "$proxy_yaml" "$raw_esc" "$(printf '%s' "$iface" | json_escape)" "$mark" "$table" "$prio" "$(printf '%s' "$addresses" | json_escape)" "$(printf '%s' "$mtu" | json_escape)" > "$tmp"
-  mv "$tmp" "$PROXY_REGISTRY"
-  chmod 600 "$PROXY_REGISTRY"
+  record="$tmp_dir/record.json"
+  printf '{"id":"%s","name":"%s","protocol":"amnezia","protocolLabel":"Amnezia","sourceType":"import","enabled":true,"mihomoSupported":true,"selectors":["%s"],"usedBySelectors":["%s"],"proxyYaml":"%s","rawContent":"%s","nativeRuntime":{"engine":"amneziawg-go","interface":"%s","routingMark":%s,"routingTable":%s,"rulePriority":%s,"addresses":"%s","mtu":"%s"}}' \
+    "$(printf '%s' "$id" | json_escape)" "$(printf '%s' "$name" | json_escape)" "$selector_json" "$selector_json" "$proxy_yaml" "$raw_esc" "$(printf '%s' "$iface" | json_escape)" "$mark" "$table" "$prio" "$(printf '%s' "$addresses" | json_escape)" "$(printf '%s' "$mtu" | json_escape)" > "$record"
+  registry_upsert_record "$record" "$id" "$name" amnezia
   connection_public_json_from_files "$id" "$name" amnezia "$selector" "$yaml" "$iface" "$mark" "$table" "$prio"
   rm -rf "$tmp_dir"
 }
@@ -1790,14 +1843,29 @@ case "${PATH_INFO:-}" in
     ;;
   /proxy-connections-item/*)
     id="${PATH_INFO#/proxy-connections-item/}"
-    hdr_json
     if [ "${REQUEST_METHOD:-GET}" = "DELETE" ]; then
-      rm -f "$PROXY_REGISTRY"
-      apply_proxy_connections_openwrt false >/dev/null 2>&1 || true
-      rm -f "$AWG_DESIRED_FILE"
-      [ ! -x "$AWG_HELPER" ] || "$AWG_HELPER" stop >/dev/null 2>&1 || true
-      printf '{"ok":true,"id":"%s","removedName":"%s","apply":{"ok":true,"changed":false,"count":0,"nativeAwg":{"ok":true,"count":0}}}' "$(printf '%s' "$id" | json_escape)" "$(printf '%s' "$id" | json_escape)"
+      registry_backup="/tmp/unified-ui-registry-delete-$$.json"
+      [ ! -f "$PROXY_REGISTRY" ] || cp "$PROXY_REGISTRY" "$registry_backup"
+      if ! registry_delete_id "$id"; then
+        rm -f "$registry_backup"
+        hdr_json '404 Not Found'
+        printf '{"ok":false,"error":"connection_not_found","id":"%s"}' "$(printf '%s' "$id" | json_escape)"
+        exit 0
+      fi
+      result="$(apply_proxy_connections_openwrt false)"
+      rc=$?
+      if [ "$rc" != 0 ]; then
+        [ ! -f "$registry_backup" ] || mv "$registry_backup" "$PROXY_REGISTRY"
+        hdr_json '500 Internal Server Error'
+        printf '{"ok":false,"error":"OpenWrt native AWG delete apply failed","stage":%s}' "$rc"
+        exit 0
+      fi
+      rm -f "$registry_backup"
+      changed="${result%%|*}"; count="${result##*|}"
+      hdr_json
+      printf '{"ok":true,"id":"%s","apply":{"ok":true,"changed":%s,"count":%s,"nativeAwg":{"ok":true,"count":%s}}}' "$(printf '%s' "$id" | json_escape)" "$changed" "$count" "$count"
     else
+      hdr_json
       printf '{"ok":true,"id":"%s"}' "$(printf '%s' "$id" | json_escape)"
     fi
     ;;

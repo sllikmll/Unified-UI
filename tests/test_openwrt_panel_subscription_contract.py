@@ -143,6 +143,19 @@ def test_openwrt_native_awg_apply_preserves_unmarked_group_memberships():
     assert 'if (item != "") print indent "  - " item' in awg_sync
 
 
+def test_openwrt_native_awg_registry_upserts_and_deletes_only_requested_id():
+    text = INSTALLER.read_text(encoding="utf-8")
+    assert "registry_upsert_record()" in text
+    assert 'jsonfilter -i "$PROXY_REGISTRY" -e "@.connections[$idx]"' in text
+    assert 'registry_upsert_record "$record" "$id" "$name" amnezia' in text
+    assert "registry_delete_id()" in text
+    item_route = text.split("/proxy-connections-item/*)", 1)[1].split("/dns-routes)", 1)[0]
+    assert 'registry_delete_id "$id"' in item_route
+    assert 'rm -f "$PROXY_REGISTRY"' not in item_route
+    assert "connection_not_found" in item_route
+    assert 'mv "$registry_backup" "$PROXY_REGISTRY"' in item_route
+
+
 def test_openwrt_archive_builder_bundles_official_awg_runtime_when_present():
     text = BUILDER.read_text(encoding="utf-8")
     assert "copy_official_awg_runtime" in text
