@@ -78,6 +78,10 @@ def test_mikrotik_entrypoint_restores_native_awg_before_mihomo_startup():
     assert "from routes.proxy_connections import _apply_to_mihomo" in text
     assert "_apply_to_mihomo(restart=False)" in text
     assert "log \"restoring native AmneziaWG interfaces\"" in text
+    assert "MIHOMO_RESTART_CMD" in text
+    assert "unified-mihomo-reload" in text
+    assert "/configs?force=true" in text
+    assert "MIHOMO_VALIDATE_CMD" in text
     assert text.index("log \"restoring native AmneziaWG interfaces\"") < text.index("log \"validating Mihomo config\"")
     assert text.index("log \"validating Mihomo config\"") < text.index("log \"starting Mihomo\"")
 

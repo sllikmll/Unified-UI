@@ -33,6 +33,21 @@ export MIHOMO_CONTROLLER_PORT=9090
 export UNIFIED_AWG_GO_BIN="${UNIFIED_AWG_GO_BIN:-/opt/bin/amneziawg-go}"
 export UNIFIED_AWG_BIN="${UNIFIED_AWG_BIN:-/opt/bin/awg}"
 
+MIHOMO_RELOAD_SCRIPT=/usr/local/bin/unified-mihomo-reload
+cat > "$MIHOMO_RELOAD_SCRIPT" <<'RELOAD'
+#!/bin/sh
+set -eu
+curl -fsS --max-time 20 \
+  -X PUT \
+  -H 'Content-Type: application/json' \
+  --data '{"path":"/etc/mihomo/config.yaml"}' \
+  'http://127.0.0.1:9090/configs?force=true' >/dev/null
+curl -fsS --max-time 10 'http://127.0.0.1:9090/version' >/dev/null
+RELOAD
+chmod 755 "$MIHOMO_RELOAD_SCRIPT"
+export MIHOMO_RESTART_CMD="$MIHOMO_RELOAD_SCRIPT"
+export MIHOMO_VALIDATE_CMD='mihomo -t -d /etc/mihomo -f {config}'
+
 if [ ! -c /dev/net/tun ]; then
   log "/dev/net/tun is not available; native AmneziaWG imports require RouterOS container devices=/dev/net/tun and NET_ADMIN"
 fi
