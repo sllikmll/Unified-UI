@@ -53,6 +53,8 @@ def test_openwrt_native_awg_contract_uses_direct_outbound_and_private_state():
     assert "AWG_BIN_DIR=\"${UNIFIED_AWG_BIN_DIR:-/usr/bin}\"" in text
     assert "chmod 600 \"$dst\"" in text
     assert "chmod 600 \"$conf\"" in text
+    assert "printf '%s\\n' \"$addresses\"" in text
+    assert "usleep 100000" in text
     assert "PrivateKey" in text
     assert "PublicKey" in text
     assert "PresharedKey" in text

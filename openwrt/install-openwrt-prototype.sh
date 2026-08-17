@@ -218,7 +218,7 @@ wait_socket() {
   while [ "$i" -lt 50 ]; do
     [ -S "/var/run/amneziawg/$iface.sock" ] && return 0
     [ -S "/var/run/wireguard/$iface.sock" ] && return 0
-    sleep 0.1
+    if command -v usleep >/dev/null 2>&1; then usleep 100000; else sleep 1; fi
     i=$((i + 1))
   done
   return 1
@@ -258,7 +258,7 @@ start_one() {
   echo "$!" > "$STATE_DIR/$iface.pid"
   wait_socket "$iface" || { stop_iface "$iface" "$mark" "$table" "$prio"; echo "UAPI socket timeout for $iface" >&2; return 14; }
   "$AWG_BIN" setconf "$iface" "$conf"
-  printf '%s' "$addresses" | tr ',' '\n' | while IFS= read -r addr; do
+  printf '%s\n' "$addresses" | tr ',' '\n' | while IFS= read -r addr; do
     [ -n "$addr" ] || continue
     "$IP_BIN" address add "$addr" dev "$iface"
   done
