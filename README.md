@@ -396,9 +396,11 @@ mikrotik/routeros-install-template.rsc
 /ip/firewall/nat add chain=srcnat action=masquerade src-address=192.168.254.0/24 comment="unified-ui-mikrotik"
 /ip/firewall/nat add chain=dstnat action=dst-nat protocol=tcp dst-port=8088 to-addresses=192.168.254.3 to-ports=8088 comment="unified-ui-mikrotik-ui"
 /ip/firewall/nat add chain=dstnat action=dst-nat protocol=tcp dst-port=9090 to-addresses=192.168.254.3 to-ports=9090 comment="unified-ui-mikrotik-api"
-/container/add file=unified-ui-mikrotik-docker-archive.tar.gz interface=MIHOMO root-dir=/usb1/docker/unified-ui-mikrotik envlist=UNIFIED_UI_MIKROTIK hostname=unified-ui-mikrotik logging=yes start-on-boot=yes dns=1.1.1.1,8.8.8.8,9.9.9.9 comment="unified-ui-mikrotik"
+/container/add file=unified-ui-mikrotik-docker-archive.tar.gz interface=MIHOMO root-dir=/usb1/docker/unified-ui-mikrotik envlist=UNIFIED_UI_MIKROTIK hostname=unified-ui-mikrotik logging=yes start-on-boot=yes dns=1.1.1.1,8.8.8.8,9.9.9.9 devices=/dev/net/tun comment="unified-ui-mikrotik"
 /container/start [find where comment="unified-ui-mikrotik"]
 ```
+
+Native AWG2/AWG3 imports use official `amneziawg-go` userspace interfaces. RouterOS current container syntax exposes `devices`, so the template passes `/dev/net/tun` as `devices=/dev/net/tun`. RB5009/RouterOS 7.23.x also requires NET_ADMIN-equivalent network capability inside the container runtime. If those prerequisites are absent, container startup logs a non-secret native AWG preflight status, skips AWG restore, and still boots Mihomo and Unified UI; AWG Apply fails clearly until the runtime is fixed.
 
 После запуска:
 

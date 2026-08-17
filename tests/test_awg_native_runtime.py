@@ -1,6 +1,7 @@
 import base64
 import importlib
 import json
+from pathlib import Path
 import stat
 
 import yaml
@@ -223,3 +224,133 @@ def test_startup_reconcile_restores_enabled_native_awg(monkeypatch):
     assert [spec.name for spec in reconciled] == ["mskawg"]
     assert len(saved) == 1
     assert "type: direct" in saved[0]["connections"][0]["proxyYaml"]
+
+
+def test_apply_fails_clearly_without_native_runtime_and_preserves_config(monkeypatch, tmp_path):
+    routes = importlib.import_module("routes.proxy_connections")
+    awg_mod = importlib.import_module("services.awg_native")
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text("proxies: []\nproxy-groups:\n- name: GLOBAL\n  type: select\n  proxies: [DIRECT]\nrules:\n- MATCH,DIRECT\n", encoding="utf-8")
+    registry_path = tmp_path / "proxy-connections.json"
+    original_cfg = cfg_path.read_text(encoding="utf-8")
+    registry_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "connections": [
+                    {
+                        "id": "amnezia-mskawg",
+                        "protocol": "amnezia",
+                        "name": "mskawg",
+                        "sourceType": "import",
+                        "raw": AWG2_CONF,
+                        "proxyYaml": "- name: 'mskawg'\n  type: wireguard\n",
+                        "enabled": True,
+                        "selectors": ["GLOBAL"],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("MIHOMO_CONFIG", str(cfg_path))
+    monkeypatch.setenv("UNIFIED_PROXY_CONNECTIONS_FILE", str(registry_path))
+    monkeypatch.setattr(
+        routes,
+        "preflight_native_awg_runtime",
+        lambda **kwargs: awg_mod.NativeAwgPreflight(
+            ok=False,
+            reasons=["/dev/net/tun is missing", "CAP_NET_ADMIN is not available inside the container"],
+        ),
+    )
+
+    try:
+        routes._apply_to_mihomo(restart=False)
+    except RuntimeError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("AWG apply unexpectedly succeeded without native runtime")
+
+    assert "native AmneziaWG runtime is unavailable" in message
+    assert "/dev/net/tun is missing" in message
+    assert "CAP_NET_ADMIN" in message
+    assert "client-private-key" not in message
+    assert cfg_path.read_text(encoding="utf-8") == original_cfg
+    assert "type: wireguard" in registry_path.read_text(encoding="utf-8")
+
+
+def test_apply_uses_native_awg_when_runtime_preflight_is_capable(monkeypatch, tmp_path):
+    routes = importlib.import_module("routes.proxy_connections")
+    awg_mod = importlib.import_module("services.awg_native")
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text("proxies: []\nproxy-groups:\n- name: GLOBAL\n  type: select\n  proxies: [DIRECT]\nrules:\n- MATCH,DIRECT\n", encoding="utf-8")
+    registry_path = tmp_path / "proxy-connections.json"
+    registry_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "connections": [
+                    {
+                        "id": "amnezia-mskawg",
+                        "protocol": "amnezia",
+                        "name": "mskawg",
+                        "sourceType": "import",
+                        "raw": AWG2_CONF,
+                        "proxyYaml": "- name: 'mskawg'\n  type: wireguard\n",
+                        "enabled": True,
+                        "selectors": ["GLOBAL"],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    go_bin = tmp_path / "amneziawg-go"
+    awg_bin = tmp_path / "awg"
+    ip_bin = tmp_path / "ip"
+    for path in (go_bin, awg_bin, ip_bin):
+        path.write_text("#!/bin/sh\n", encoding="utf-8")
+        path.chmod(0o755)
+    reconciled = []
+
+    def fake_reconcile(self, specs):
+        reconciled.extend(specs)
+        return {"ok": True, "count": len(specs), "interfaces": [spec.interface for spec in specs]}
+
+    monkeypatch.setenv("MIHOMO_CONFIG", str(cfg_path))
+    monkeypatch.setenv("UNIFIED_PROXY_CONNECTIONS_FILE", str(registry_path))
+    monkeypatch.setenv("UNIFIED_AWG_GO_BIN", str(go_bin))
+    monkeypatch.setenv("UNIFIED_AWG_BIN", str(awg_bin))
+    monkeypatch.setenv("UNIFIED_IP_BIN", str(ip_bin))
+    monkeypatch.setattr(
+        routes,
+        "preflight_native_awg_runtime",
+        lambda **kwargs: awg_mod.NativeAwgPreflight(ok=True, reasons=[], net_admin=True),
+    )
+    monkeypatch.setattr(awg_mod.NativeAwgRuntime, "reconcile", fake_reconcile)
+    monkeypatch.setattr(routes.NativeAwgRuntime, "reconcile", fake_reconcile)
+
+    result = routes._apply_to_mihomo(restart=False)
+    patched = cfg_path.read_text(encoding="utf-8")
+    saved = registry_path.read_text(encoding="utf-8")
+
+    assert result["ok"] is True
+    assert result["nativeAwg"]["count"] == 1
+    assert [spec.name for spec in reconciled] == ["mskawg"]
+    assert "type: direct" in patched
+    assert "interface-name" in patched
+    assert "routing-mark" in patched
+    assert "type: wireguard" not in saved
+    assert "client-private-key" not in patched
+
+
+def test_mikrotik_entrypoint_skips_native_restore_when_preflight_unavailable():
+    root = Path(__file__).resolve().parents[1]
+    text = (root / "mikrotik" / "entrypoint.sh").read_text(encoding="utf-8")
+
+    assert "native_awg_preflight()" in text
+    assert "preflight_native_awg_runtime" in text
+    assert "UNIFIED_AWG_RUNTIME_STATUS" in text
+    assert "if native_awg_preflight; then" in text
+    assert "native AmneziaWG restore skipped; UI and Mihomo will continue without native AWG interfaces" in text
+    assert text.index("if native_awg_preflight; then") < text.index("log \"validating Mihomo config\"")

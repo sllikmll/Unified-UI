@@ -10,7 +10,7 @@ Docker archive содержит full-panel, Mihomo `v1.19.29`, official `amnezia
 
 ## Требования
 
-Container должен иметь TUN/сетевые capabilities, нужные userspace AWG. Проверенный RB5009/RouterOS 7.23.3 предоставляет рабочий `/dev/net/tun` container runtime. Нужны veth gateway и masquerade/маршрут для container subnet.
+Container должен иметь TUN/сетевые capabilities, нужные userspace AWG. Текущий RouterOS container syntax поддерживает `devices`, поэтому шаблон передает `devices=/dev/net/tun`. Проверенный RB5009/RouterOS 7.23.3 предоставляет рабочий `/dev/net/tun` container runtime и требует NET_ADMIN-equivalent network capability внутри container runtime. Если runtime недоступен, startup пропускает native AWG restore и продолжает запуск UI/Mihomo; ручной AWG Apply падает с явной ошибкой preflight. Нужны veth gateway и masquerade/маршрут для container subnet.
 
 Шаблон: [`mikrotik/routeros-install-template.rsc`](../../mikrotik/routeros-install-template.rsc).
 

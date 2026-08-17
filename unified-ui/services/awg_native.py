@@ -30,6 +30,71 @@ class NativeAwgSpec:
     rule_priority: int
 
 
+@dataclass(frozen=True)
+class NativeAwgPreflight:
+    ok: bool
+    reasons: list[str]
+    tun: str = "/dev/net/tun"
+    amneziawg_go: str = "/opt/bin/amneziawg-go"
+    awg: str = "/opt/bin/awg"
+    net_admin: bool = False
+
+    def status(self) -> dict[str, object]:
+        return {
+            "ok": self.ok,
+            "available": self.ok,
+            "reasons": self.reasons,
+            "tun": self.tun,
+            "amneziawgGo": self.amneziawg_go,
+            "awg": self.awg,
+            "netAdmin": self.net_admin,
+        }
+
+    def error(self) -> str:
+        return "native AmneziaWG runtime is unavailable: " + "; ".join(self.reasons)
+
+
+def _has_cap_net_admin(status_path: str | Path = "/proc/self/status") -> bool:
+    try:
+        text = Path(status_path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    match = re.search(r"^CapEff:\s*([0-9a-fA-F]+)\s*$", text, flags=re.M)
+    if not match:
+        return False
+    return bool(int(match.group(1), 16) & (1 << 12))
+
+
+def preflight_native_awg_runtime(
+    *,
+    tun: str = "/dev/net/tun",
+    amneziawg_go: str = "/opt/bin/amneziawg-go",
+    awg: str = "/opt/bin/awg",
+    require_net_admin: bool = True,
+) -> NativeAwgPreflight:
+    reasons: list[str] = []
+    tun_path = Path(tun)
+    if not tun_path.exists():
+        reasons.append(f"{tun} is missing")
+    elif not tun_path.is_char_device():
+        reasons.append(f"{tun} is not a character device")
+    for label, path in (("amneziawg-go", amneziawg_go), ("awg", awg)):
+        binary = Path(path)
+        if not binary.is_file() or not os.access(binary, os.X_OK):
+            reasons.append(f"{label} is missing or not executable at {path}")
+    net_admin = _has_cap_net_admin()
+    if require_net_admin and not net_admin:
+        reasons.append("CAP_NET_ADMIN is not available inside the container")
+    return NativeAwgPreflight(
+        ok=not reasons,
+        reasons=reasons,
+        tun=tun,
+        amneziawg_go=amneziawg_go,
+        awg=awg,
+        net_admin=net_admin,
+    )
+
+
 def native_interface_name(name: str) -> str:
     """Return a deterministic Linux-safe interface name (IFNAMSIZ <= 15)."""
     digest = hashlib.sha256(str(name or "awg").encode("utf-8", errors="replace")).hexdigest()[:10]
@@ -249,8 +314,10 @@ class NativeAwgRuntime:
 
 __all__ = [
     "NativeAwgSpec",
+    "NativeAwgPreflight",
     "build_native_awg_spec",
     "native_interface_name",
     "native_mihomo_proxy_yaml",
+    "preflight_native_awg_runtime",
     "NativeAwgRuntime",
 ]

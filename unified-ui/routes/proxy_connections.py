@@ -42,7 +42,13 @@ from services.mihomo_proxy_parsers import (
 )
 from services.mihomo_proxy_config import insert_proxy_into_groups, remove_proxy_from_groups
 from services.mihomo_yaml import validate_yaml_syntax
-from services.awg_native import NativeAwgRuntime, NativeAwgSpec, build_native_awg_spec, native_mihomo_proxy_yaml
+from services.awg_native import (
+    NativeAwgRuntime,
+    NativeAwgSpec,
+    build_native_awg_spec,
+    native_mihomo_proxy_yaml,
+    preflight_native_awg_runtime,
+)
 
 PROTOCOLS: dict[str, dict[str, Any]] = {
     "wireguard": {"label": "WireGuard", "schemes": ["wireguard://"], "mihomo": True},
@@ -450,9 +456,11 @@ def _native_awg_runtime(specs: list[NativeAwgSpec]) -> dict[str, object]:
     awg_bin = os.environ.get("UNIFIED_AWG_BIN") or "/opt/bin/awg"
     ip_bin = os.environ.get("UNIFIED_IP_BIN") or shutil.which("ip") or "/sbin/ip"
     if specs:
-        missing = [path for path in (go_bin, awg_bin, ip_bin) if not os.path.isfile(path) or not os.access(path, os.X_OK)]
-        if missing:
-            raise RuntimeError("official AmneziaWG runtime is missing: " + ", ".join(missing))
+        preflight = preflight_native_awg_runtime(amneziawg_go=go_bin, awg=awg_bin)
+        if not preflight.ok:
+            raise RuntimeError(preflight.error())
+        if not os.path.isfile(ip_bin) or not os.access(ip_bin, os.X_OK):
+            raise RuntimeError("native AmneziaWG runtime is unavailable: ip tool is missing or not executable at " + ip_bin)
     return NativeAwgRuntime(
         state_dir,
         amneziawg_go=go_bin,
