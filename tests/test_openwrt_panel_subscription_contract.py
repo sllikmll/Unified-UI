@@ -22,6 +22,11 @@ def test_openwrt_cgi_contains_full_panel_subscription_contract(tmp_path: Path):
     assert "panel-subscription-$ts.yaml" in text
     assert "cp \"$backup\" \"$profile_real\"" in text
     assert "UNIFIED_UI_AUTH_PASSWORD='%s'" in text
+    assert "AWG_NATIVE_HELPER=\"/usr/sbin/unified-awg-native\"" in text
+    assert "amneziawg-go" in text
+    assert "awg setconf" not in text  # invoked as "$AWG_BIN" setconf for path safety
+    assert "routing-mark:" in text
+    assert "interface-name:" in text
 
     match = re.search(r"cat > \"\$CGI_PATH\" <<'CGI'\n(?P<body>.*?)\nCGI\n", text, re.S)
     assert match, "embedded OpenWrt CGI was not found"
@@ -35,6 +40,36 @@ def test_openwrt_browser_maps_subscription_and_action_endpoints():
     assert "/api/proxy-connections/subscription/import" in compat
     assert "/proxy-subscription-import" in compat
     assert "/proxy-subscription-telegram-action" in compat
+
+
+def test_openwrt_native_awg_contract_uses_direct_outbound_and_private_state():
+    text = INSTALLER.read_text(encoding="utf-8")
+    assert "install_bundled_awg_runtime" in text
+    assert "sha256sum -c SHA256SUMS" in text
+    assert "OFFICIAL_AWG_PROVENANCE.json" in text
+    assert "AWG_BIN_DIR=\"${UNIFIED_AWG_BIN_DIR:-/usr/bin}\"" in text
+    assert "chmod 600 \"$dst\"" in text
+    assert "chmod 600 \"$conf\"" in text
+    assert "PrivateKey" in text
+    assert "PublicKey" in text
+    assert "PresharedKey" in text
+    assert "AllowedIPs" in text
+    assert "Jc" in text or "k==\"jc\"" in text
+    assert "k==\"s3\"" in text
+    assert "k==\"s4\"" in text
+    assert "type: direct" in text
+    assert "interface-name:" in text
+    assert "routing-mark:" in text
+    assert "type: wireguard" not in text
+    assert "amnezia-wg-option" not in text
+
+
+def test_openwrt_archive_builder_bundles_official_awg_runtime_when_present():
+    text = BUILDER.read_text(encoding="utf-8")
+    assert "copy_official_awg_runtime" in text
+    assert 'required = ["amneziawg-go", "awg", "SHA256SUMS", "OFFICIAL_AWG_PROVENANCE.json"]' in text
+    assert "AWG_RUNTIME_DIR = UNIFIED_UI_DIR / \"bin\"" in text
+    assert "copy_official_awg_runtime(tmp_root)" in text
 
 
 def test_openwrt_snapshot_whitelist_keeps_all_protocol_views():

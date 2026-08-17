@@ -13,6 +13,8 @@ BACKUP_DIR="$CONF_DIR/backups"
 PROFILE_FILE="/etc/mihomo/config.yaml"
 VERSION="${UNIFIED_OPENWRT_VERSION:-dev-local}"
 UPDATE_URL="${UNIFIED_OPENWRT_UPDATE_URL:-}"
+AWG_BIN_DIR="${UNIFIED_AWG_BIN_DIR:-/usr/bin}"
+AWG_BUNDLE_DIR="$SCRIPT_DIR/bin"
 
 mkdir -p "$UI_ROOT" "$CONF_DIR" /www/cgi-bin "$BACKUP_DIR"
 
@@ -63,6 +65,35 @@ cat > "$BUILD_FILE" <<EOF
 EOF
 chmod 644 "$BUILD_FILE"
 
+install_bundled_awg_runtime() {
+  [ -d "$AWG_BUNDLE_DIR" ] || return 0
+  [ -f "$AWG_BUNDLE_DIR/amneziawg-go" ] || return 0
+  [ -f "$AWG_BUNDLE_DIR/awg" ] || return 0
+  if [ -f "$AWG_BUNDLE_DIR/SHA256SUMS" ]; then
+    (cd "$AWG_BUNDLE_DIR" && sha256sum -c SHA256SUMS) >/dev/null
+  fi
+  mkdir -p "$AWG_BIN_DIR" "$CONF_DIR/awg-native"
+  for name in amneziawg-go awg; do
+    src="$AWG_BUNDLE_DIR/$name"
+    dst="$AWG_BIN_DIR/$name"
+    tmp="$dst.unified-ui-new.$$"
+    [ -f "$src" ] || continue
+    if [ -f "$dst" ] && cmp -s "$src" "$dst" 2>/dev/null; then
+      chmod 755 "$dst"
+      continue
+    fi
+    [ ! -f "$dst" ] || cp -p "$dst" "$dst.unified-ui-prev"
+    cp "$src" "$tmp"
+    chmod 755 "$tmp"
+    mv -f "$tmp" "$dst"
+  done
+  [ ! -f "$AWG_BUNDLE_DIR/SHA256SUMS" ] || cp "$AWG_BUNDLE_DIR/SHA256SUMS" "$CONF_DIR/awg-native/SHA256SUMS"
+  [ ! -f "$AWG_BUNDLE_DIR/OFFICIAL_AWG_PROVENANCE.json" ] || cp "$AWG_BUNDLE_DIR/OFFICIAL_AWG_PROVENANCE.json" "$CONF_DIR/awg-native/OFFICIAL_AWG_PROVENANCE.json"
+  chmod 600 "$CONF_DIR"/awg-native/* 2>/dev/null || true
+}
+
+install_bundled_awg_runtime
+
 cat > "$UPDATE_SCRIPT" <<'UPD'
 #!/bin/sh
 set -eu
@@ -106,10 +137,131 @@ chmod 755 "$ROUTER_BYPASS_INIT"
 "$ROUTER_BYPASS_INIT" enable >/dev/null 2>&1 || true
 "$ROUTER_BYPASS_INIT" start >/dev/null 2>&1 || true
 
+AWG_NATIVE_HELPER="/usr/sbin/unified-awg-native"
+AWG_NATIVE_INIT="/etc/init.d/unified-awg-native"
+cat > "$AWG_NATIVE_HELPER" <<'AWGN'
+#!/bin/sh
+set -eu
+STATE_DIR="${UNIFIED_AWG_STATE_DIR:-/etc/unified-ui/awg-native}"
+CONFIG_DIR="$STATE_DIR/configs"
+MANIFEST="$STATE_DIR/manifest"
+AWG_GO_BIN="${UNIFIED_AWG_GO_BIN:-/usr/bin/amneziawg-go}"
+AWG_BIN="${UNIFIED_AWG_BIN:-/usr/bin/awg}"
+IP_BIN="${UNIFIED_IP_BIN:-/sbin/ip}"
+
+mkdir -p "$CONFIG_DIR"
+chmod 700 "$STATE_DIR" "$CONFIG_DIR" 2>/dev/null || true
+
+run_optional() { "$@" >/dev/null 2>&1 || true; }
+
+wait_socket() {
+  iface="$1"; i=0
+  while [ "$i" -lt 50 ]; do
+    [ -S "/var/run/amneziawg/$iface.sock" ] && return 0
+    [ -S "/var/run/wireguard/$iface.sock" ] && return 0
+    sleep 0.1
+    i=$((i + 1))
+  done
+  return 1
+}
+
+stop_iface() {
+  iface="$1"; mark="${2:-0}"; table="${3:-0}"; prio="${4:-0}"
+  [ "$prio" = 0 ] || run_optional "$IP_BIN" rule del priority "$prio" fwmark "$mark" table "$table"
+  [ "$table" = 0 ] || run_optional "$IP_BIN" route flush table "$table"
+  if [ -f "$STATE_DIR/$iface.pid" ]; then
+    pid="$(cat "$STATE_DIR/$iface.pid" 2>/dev/null || true)"
+    [ -z "$pid" ] || kill "$pid" >/dev/null 2>&1 || true
+    rm -f "$STATE_DIR/$iface.pid"
+  fi
+  run_optional "$IP_BIN" link del dev "$iface"
+  rm -f "/var/run/amneziawg/$iface.sock" "/var/run/wireguard/$iface.sock"
+}
+
+stop_all() {
+  if [ -f "$MANIFEST" ]; then
+    while IFS='|' read -r iface mark table prio; do
+      [ -n "$iface" ] || continue
+      stop_iface "$iface" "$mark" "$table" "$prio"
+    done < "$MANIFEST"
+  fi
+}
+
+start_one() {
+  iface="$1"; conf="$2"; addresses="$3"; mtu="$4"; mark="$5"; table="$6"; prio="$7"
+  [ -x "$AWG_GO_BIN" ] || { echo "missing amneziawg-go" >&2; return 10; }
+  [ -x "$AWG_BIN" ] || { echo "missing awg" >&2; return 11; }
+  [ -x "$IP_BIN" ] || { echo "missing ip" >&2; return 12; }
+  [ -f "$conf" ] || { echo "missing config" >&2; return 13; }
+  chmod 600 "$conf"
+  stop_iface "$iface" "$mark" "$table" "$prio"
+  "$AWG_GO_BIN" "$iface" >/dev/null 2>&1 &
+  echo "$!" > "$STATE_DIR/$iface.pid"
+  wait_socket "$iface" || { stop_iface "$iface" "$mark" "$table" "$prio"; echo "UAPI socket timeout for $iface" >&2; return 14; }
+  "$AWG_BIN" setconf "$iface" "$conf"
+  printf '%s' "$addresses" | tr ',' '\n' | while IFS= read -r addr; do
+    [ -n "$addr" ] || continue
+    "$IP_BIN" address add "$addr" dev "$iface"
+  done
+  [ -z "$mtu" ] || "$IP_BIN" link set mtu "$mtu" dev "$iface"
+  "$IP_BIN" link set up dev "$iface"
+  "$IP_BIN" route replace default dev "$iface" table "$table"
+  "$IP_BIN" rule add priority "$prio" fwmark "$mark" table "$table"
+}
+
+case "${1:-}" in
+  reconcile)
+    desired="${2:-}"
+    stop_all
+    : > "$MANIFEST.new"
+    if [ -n "$desired" ] && [ -f "$desired" ]; then
+      while IFS='|' read -r iface conf addresses mtu mark table prio; do
+        [ -n "$iface" ] || continue
+        start_one "$iface" "$conf" "$addresses" "$mtu" "$mark" "$table" "$prio"
+        printf '%s|%s|%s|%s\n' "$iface" "$mark" "$table" "$prio" >> "$MANIFEST.new"
+      done < "$desired"
+    fi
+    chmod 600 "$MANIFEST.new"
+    mv -f "$MANIFEST.new" "$MANIFEST"
+    ;;
+  stop)
+    stop_all
+    rm -f "$MANIFEST"
+    ;;
+  *)
+    echo "usage: unified-awg-native reconcile <desired-file>|stop" >&2
+    exit 2
+    ;;
+esac
+AWGN
+chmod 755 "$AWG_NATIVE_HELPER"
+
+cat > "$AWG_NATIVE_INIT" <<'AWGINIT'
+#!/bin/sh /etc/rc.common
+START=94
+STOP=12
+USE_PROCD=0
+start() {
+  [ -x /usr/sbin/unified-awg-native ] || return 0
+  [ -f /etc/unified-ui/awg-native/desired ] || return 0
+  /usr/sbin/unified-awg-native reconcile /etc/unified-ui/awg-native/desired >/dev/null 2>&1 || true
+}
+stop() {
+  [ -x /usr/sbin/unified-awg-native ] || return 0
+  /usr/sbin/unified-awg-native stop >/dev/null 2>&1 || true
+}
+restart() { stop; start; }
+AWGINIT
+chmod 755 "$AWG_NATIVE_INIT"
+"$AWG_NATIVE_INIT" enable >/dev/null 2>&1 || true
+
 cat > "$UNINSTALL_SCRIPT" <<'UNINST'
 #!/bin/sh
 set -eu
+/etc/init.d/unified-awg-native stop >/dev/null 2>&1 || true
+/etc/init.d/unified-awg-native disable >/dev/null 2>&1 || true
 rm -f /www/cgi-bin/unified-ui-api
+rm -f /usr/sbin/unified-awg-native /etc/init.d/unified-awg-native
 rm -rf /www/unified-ui
 rm -rf /etc/unified-ui
 printf 'Unified UI OpenWrt removed.\n'
@@ -352,6 +504,14 @@ rule_provider_file() {
 }
 
 PROXY_REGISTRY="${UNIFIED_UI_CONF_DIR:-/etc/unified-ui}/proxy-connections.json"
+AWG_STATE_DIR="${UNIFIED_UI_CONF_DIR:-/etc/unified-ui}/awg-native"
+AWG_CONFIG_DIR="$AWG_STATE_DIR/configs"
+AWG_DESIRED_FILE="$AWG_STATE_DIR/desired"
+AWG_HELPER="${UNIFIED_AWG_HELPER:-/usr/sbin/unified-awg-native}"
+AWG_GO_BIN="${UNIFIED_AWG_GO_BIN:-/usr/bin/amneziawg-go}"
+AWG_BIN="${UNIFIED_AWG_BIN:-/usr/bin/awg}"
+PROXY_MANAGED_START="# unified-managed-proxies:start"
+PROXY_MANAGED_END="# unified-managed-proxies:end"
 proxy_protocols_json() {
   printf '[{"id":"wireguard","label":"WireGuard"},{"id":"amnezia","label":"Amnezia"},{"id":"hysteria2","label":"Hysteria2"},{"id":"vless","label":"VLESS"},{"id":"trojan","label":"Trojan"},{"id":"vmess","label":"VMess"},{"id":"shadowsocks","label":"Shadowsocks"},{"id":"mieru","label":"Mieru"},{"id":"naiveproxy","label":"NaiveProxy"},{"id":"telegram","label":"Telegram MTProxy"}]'
 }
@@ -369,6 +529,261 @@ selector_names_json() {
 }
 registry_json() {
   if [ -f "$PROXY_REGISTRY" ]; then cat "$PROXY_REGISTRY"; else printf '{"connections":[]}'; fi
+}
+
+safe_id() {
+  printf '%s' "$1" | tr -cs 'A-Za-z0-9_.-' '-' | sed 's/^-//;s/-$//' | cut -c1-96
+}
+
+hash10() {
+  printf '%s' "$1" | sha256sum | awk '{print substr($1,1,10)}'
+}
+
+awg_iface_name() {
+  printf 'uawg%s' "$(hash10 "$1")"
+}
+
+awg_identity() {
+  hex="$(printf '%s' "$1" | sha256sum | awk '{print substr($1,1,8)}')"
+  value="$(printf '%d' "0x$hex" 2>/dev/null || echo 0)"
+  value=$((value % 10000))
+  printf '%s|%s|%s' "$((50000 + value))" "$((20000 + value))" "$((30000 + value))"
+}
+
+awg_uri_to_conf() {
+  raw="$1"
+  case "$raw" in
+    awg://*|awg3://*|amneziawg://*)
+      encoded="${raw#*://}"
+      encoded="${encoded%%#*}"
+      encoded="${encoded%%\?*}"
+      pad=$(( (4 - (${#encoded} % 4)) % 4 ))
+      while [ "$pad" -gt 0 ]; do encoded="${encoded}="; pad=$((pad - 1)); done
+      printf '%s' "$encoded" | tr '_-' '/+' | base64 -d 2>/dev/null
+      ;;
+    *) printf '%s' "$raw" ;;
+  esac
+}
+
+awg_fragment_name() {
+  raw="$1"
+  case "$raw" in
+    *://*#*) url_decode "${raw#*#}" ;;
+    *) printf '' ;;
+  esac
+}
+
+awg_conf_value_file() {
+  file="$1"; section="$2"; key="$3"
+  awk -F= -v section="$section" -v key="$key" '
+    function norm(s){ gsub(/^[ \t]+|[ \t]+$/, "", s); gsub(/[-_]/, "", s); return tolower(s) }
+    /^[ \t]*\[/ {
+      current=$0
+      gsub(/^[ \t]*\[|\][ \t]*$/, "", current)
+      current=tolower(current)
+      next
+    }
+    current == tolower(section) && index($0, "=") {
+      k=$1; v=$0; sub(/^[^=]*=/, "", v)
+      if (norm(k) == norm(key)) {
+        gsub(/^[ \t]+|[ \t]+$/, "", v)
+        print v
+        exit
+      }
+    }
+  ' "$file"
+}
+
+awg_conf_has_native_options() {
+  file="$1"
+  awk -F= '
+    function norm(s){ gsub(/^[ \t]+|[ \t]+$/, "", s); gsub(/[-_]/, "", s); return tolower(s) }
+    /^[ \t]*\[/ { current=$0; gsub(/^[ \t]*\[|\][ \t]*$/, "", current); current=tolower(current); next }
+    current == "interface" && index($0, "=") {
+      k=norm($1)
+      if (k=="jc" || k=="jmin" || k=="jmax" || k=="s1" || k=="s2" || k=="s3" || k=="s4" || k=="h1" || k=="h2" || k=="h3" || k=="h4") found=1
+    }
+    END { exit found ? 0 : 1 }
+  ' "$file"
+}
+
+awg_write_setconf() {
+  src="$1"; dst="$2"
+  # Preserve AWG UAPI material generically: PrivateKey/PublicKey/PresharedKey,
+  # Endpoint/AllowedIPs, and Amnezia fields Jc/Jmin/Jmax/S1-S4/H1-H4.
+  awk -F= '
+    function norm(s){ gsub(/^[ \t]+|[ \t]+$/, "", s); gsub(/[-_]/, "", s); return tolower(s) }
+    function trim(s){ gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+    /^[ \t]*(#|;|$)/ { next }
+    /^[ \t]*\[/ {
+      current=$0
+      gsub(/^[ \t]*\[|\][ \t]*$/, "", current)
+      current=tolower(current)
+      if (current=="interface") print "[Interface]"
+      else if (current=="peer") { print ""; print "[Peer]" }
+      next
+    }
+    current == "interface" && index($0, "=") {
+      k=trim($1); v=$0; sub(/^[^=]*=/, "", v); v=trim(v); nk=norm(k)
+      if (nk=="address" || nk=="dns" || nk=="mtu" || nk=="table" || nk=="preup" || nk=="postup" || nk=="predown" || nk=="postdown" || nk=="name") next
+      print k " = " v
+      next
+    }
+    current == "peer" && index($0, "=") {
+      k=trim($1); v=$0; sub(/^[^=]*=/, "", v); v=trim(v); nk=norm(k)
+      if (nk=="name") next
+      print k " = " v
+    }
+  ' "$src" > "$dst"
+  chmod 600 "$dst"
+}
+
+awg_direct_proxy_yaml_file() {
+  name="$1"; iface="$2"; mark="$3"; out="$4"
+  qname="$(yaml_single_quote "$name")"
+  qiface="$(yaml_single_quote "$iface")"
+  {
+    printf -- "- name: %s\n" "$qname"
+    printf '%s\n' "  type: direct"
+    printf '  interface-name: %s\n' "$qiface"
+    printf '  routing-mark: %s\n' "$mark"
+    printf '%s\n' "  udp: true"
+  } > "$out"
+}
+
+connection_public_json_from_files() {
+  id="$1"; name="$2"; proto="$3"; yaml_file="$4"; iface="$5"; mark="$6"; table="$7"; prio="$8"
+  proxy_yaml="$(json_escape < "$yaml_file")"
+  printf '{"id":"%s","name":"%s","protocol":"%s","protocolLabel":"%s","enabled":true,"mihomoSupported":true,"selectors":[],"usedBySelectors":[],"proxyYaml":"%s","hasRaw":true,"nativeRuntime":{"engine":"amneziawg-go","interface":"%s","routingMark":%s,"routingTable":%s,"rulePriority":%s}}' \
+    "$(printf '%s' "$id" | json_escape)" "$(printf '%s' "$name" | json_escape)" "$(printf '%s' "$proto" | json_escape)" "$(printf '%s' "$proto" | json_escape)" "$proxy_yaml" "$(printf '%s' "$iface" | json_escape)" "$mark" "$table" "$prio"
+}
+
+import_awg_connection() {
+  proto="$1"; name="$2"; content="$3"
+  tmp_dir="/tmp/unified-awg-import-$$"
+  mkdir -p "$tmp_dir" "$UNIFIED_UI_CONF_DIR" "$AWG_CONFIG_DIR"
+  chmod 700 "$tmp_dir" "$AWG_STATE_DIR" "$AWG_CONFIG_DIR" 2>/dev/null || true
+  raw="$tmp_dir/raw.conf"; setconf="$tmp_dir/setconf.conf"; yaml="$tmp_dir/proxy.yaml"
+  awg_uri_to_conf "$content" > "$raw" || { rm -rf "$tmp_dir"; return 20; }
+  [ -n "$name" ] || name="$(awg_fragment_name "$content")"
+  [ -n "$name" ] || name="AmneziaWG"
+  priv="$(awg_conf_value_file "$raw" Interface PrivateKey)"
+  pub="$(awg_conf_value_file "$raw" Peer PublicKey)"
+  endpoint="$(awg_conf_value_file "$raw" Peer Endpoint)"
+  [ -n "$priv" ] && [ -n "$pub" ] && [ -n "$endpoint" ] || { rm -rf "$tmp_dir"; return 21; }
+  iface="$(awg_iface_name "$name")"
+  identity="$(awg_identity "$name")"
+  mark="${identity%%|*}"; rest="${identity#*|}"; table="${rest%%|*}"; prio="${rest##*|}"
+  addresses="$(awg_conf_value_file "$raw" Interface Address | tr -d ' ')"
+  mtu="$(awg_conf_value_file "$raw" Interface MTU)"
+  awg_write_setconf "$raw" "$setconf"
+  awg_direct_proxy_yaml_file "$name" "$iface" "$mark" "$yaml"
+  id="$(safe_id "$proto-$name-$(hash10 "$content")")"
+  raw_esc="$(json_escape < "$raw")"
+  proxy_yaml="$(json_escape < "$yaml")"
+  mkdir -p "$UNIFIED_UI_CONF_DIR"
+  tmp="$PROXY_REGISTRY.tmp.$$"
+  printf '{"version":1,"connections":[{"id":"%s","name":"%s","protocol":"amnezia","protocolLabel":"Amnezia","sourceType":"import","enabled":true,"mihomoSupported":true,"selectors":[],"proxyYaml":"%s","rawContent":"%s","nativeRuntime":{"engine":"amneziawg-go","interface":"%s","routingMark":%s,"routingTable":%s,"rulePriority":%s,"addresses":"%s","mtu":"%s"}}]}\n' \
+    "$(printf '%s' "$id" | json_escape)" "$(printf '%s' "$name" | json_escape)" "$proxy_yaml" "$raw_esc" "$(printf '%s' "$iface" | json_escape)" "$mark" "$table" "$prio" "$(printf '%s' "$addresses" | json_escape)" "$(printf '%s' "$mtu" | json_escape)" > "$tmp"
+  mv "$tmp" "$PROXY_REGISTRY"
+  chmod 600 "$PROXY_REGISTRY"
+  connection_public_json_from_files "$id" "$name" amnezia "$yaml" "$iface" "$mark" "$table" "$prio"
+  rm -rf "$tmp_dir"
+}
+
+proxy_replace_managed_block() {
+  source_config="$1"; proxy_body="$2"; destination="$3"
+  cleaned="$destination.cleaned"
+  awk -v start="$PROXY_MANAGED_START" -v end="$PROXY_MANAGED_END" '
+    $0 ~ "^[[:space:]]*" start "$" { skip=1; next }
+    $0 ~ "^[[:space:]]*" end "$" { skip=0; next }
+    !skip { print }
+  ' "$source_config" > "$cleaned"
+  awk -v body="$proxy_body" -v start="$PROXY_MANAGED_START" -v end="$PROXY_MANAGED_END" '
+    !inserted && /^proxies:[[:space:]]*(\[\])?[[:space:]]*$/ {
+      print "proxies:"
+      print "  " start
+      while ((getline line < body) > 0) print "  " line
+      close(body)
+      print "  " end
+      inserted=1
+      next
+    }
+    { print }
+    END {
+      if (!inserted) {
+        print "proxies:" > "/dev/stderr"
+        exit 42
+      }
+    }
+  ' "$cleaned" > "$destination"
+  rc=$?
+  rm -f "$cleaned"
+  return "$rc"
+}
+
+apply_proxy_connections_openwrt() {
+  restart="${1:-false}"
+  tmp_dir="/tmp/unified-awg-apply-$$"
+  mkdir -p "$tmp_dir" "$AWG_CONFIG_DIR" "$UNIFIED_UI_BACKUP_DIR"
+  chmod 700 "$tmp_dir" "$AWG_STATE_DIR" "$AWG_CONFIG_DIR" 2>/dev/null || true
+  body_file="$tmp_dir/proxies.yaml"; desired="$tmp_dir/desired"; : > "$body_file"; : > "$desired"
+  count=0
+  if [ -f "$PROXY_REGISTRY" ]; then
+    idx=0
+    while :; do
+      id="$(jsonfilter -i "$PROXY_REGISTRY" -e "@.connections[$idx].id" 2>/dev/null || true)"
+      [ -n "$id" ] || break
+      raw="$tmp_dir/$id.raw"; setconf="$AWG_CONFIG_DIR/$(safe_id "$id").conf"; yaml="$tmp_dir/$id.yaml"
+      jsonfilter -i "$PROXY_REGISTRY" -e "@.connections[$idx].rawContent" > "$raw" 2>/dev/null || true
+      if [ ! -s "$raw" ]; then
+        idx=$((idx + 1))
+        continue
+      fi
+      name="$(jsonfilter -i "$PROXY_REGISTRY" -e "@.connections[$idx].name" 2>/dev/null || true)"
+      [ -n "$name" ] || name="AmneziaWG"
+      iface="$(awg_iface_name "$name")"
+      identity="$(awg_identity "$name")"; mark="${identity%%|*}"; rest="${identity#*|}"; table="${rest%%|*}"; prio="${rest##*|}"
+      addresses="$(awg_conf_value_file "$raw" Interface Address | tr -d ' ')"
+      mtu="$(awg_conf_value_file "$raw" Interface MTU)"
+      awg_write_setconf "$raw" "$setconf"
+      awg_direct_proxy_yaml_file "$name" "$iface" "$mark" "$yaml"
+      cat "$yaml" >> "$body_file"
+      printf '%s|%s|%s|%s|%s|%s|%s\n' "$iface" "$setconf" "$addresses" "$mtu" "$mark" "$table" "$prio" >> "$desired"
+      idx=$((idx + 1))
+    done
+  fi
+  count="$(grep -c '^-' "$body_file" 2>/dev/null || true)"
+  profile_real="$(readlink -f "$MIHOMO_PROFILE" 2>/dev/null || printf '%s' "$MIHOMO_PROFILE")"
+  candidate="$tmp_dir/config.yaml"
+  proxy_replace_managed_block "$profile_real" "$body_file" "$candidate" || { rm -rf "$tmp_dir"; return 30; }
+  validation="$(cat "$candidate" | validate_profile_content)"
+  validation_rc="$(printf '%s' "$validation" | sed -n 's/^__EXIT__//p' | tail -1)"
+  [ "${validation_rc:-1}" = 0 ] || { rm -rf "$tmp_dir"; return 31; }
+  if [ -s "$desired" ]; then
+    [ -x "$AWG_HELPER" ] || { rm -rf "$tmp_dir"; return 32; }
+    cp "$desired" "$AWG_DESIRED_FILE.tmp.$$"
+    chmod 600 "$AWG_DESIRED_FILE.tmp.$$"
+    mv "$AWG_DESIRED_FILE.tmp.$$" "$AWG_DESIRED_FILE"
+    "$AWG_HELPER" reconcile "$AWG_DESIRED_FILE" >/tmp/unified-awg-native.log 2>&1 || { rm -rf "$tmp_dir"; return 33; }
+  else
+    rm -f "$AWG_DESIRED_FILE"
+    [ ! -x "$AWG_HELPER" ] || "$AWG_HELPER" stop >/tmp/unified-awg-native.log 2>&1 || true
+  fi
+  changed=false
+  if ! cmp -s "$candidate" "$profile_real"; then
+    changed=true
+    ts="$(date +%Y%m%d-%H%M%S)"
+    backup="$UNIFIED_UI_BACKUP_DIR/proxy-connections-$ts.yaml"
+    cp "$profile_real" "$backup" || { rm -rf "$tmp_dir"; return 34; }
+    target_tmp="$profile_real.unified-proxy.$$"
+    cp "$candidate" "$target_tmp" && chmod 600 "$target_tmp" && mv "$target_tmp" "$profile_real" || { rm -f "$target_tmp"; rm -rf "$tmp_dir"; return 35; }
+  fi
+  if [ "$restart" = true ] || [ "$restart" = 1 ]; then
+    "$MIHOMO_INIT" restart >/tmp/unified-proxy-restart.log 2>&1 || true
+  fi
+  rm -rf "$tmp_dir"
+  printf '%s|%s' "$changed" "$count"
 }
 
 PANEL_SUBSCRIPTION_URL_FILE="${UNIFIED_UI_CONF_DIR:-/etc/unified-ui}/panel-subscription.url"
@@ -483,19 +898,67 @@ subscription_replace_managed_block() {
   return "$rc"
 }
 
+subscription_strip_mihomo_wireguard_blocks() {
+  src="$1"; dst="$2"
+  awk '
+    function flush() {
+      if (n == 0) return
+      skip=0
+      for (i=1; i<=n; i++) {
+        low=tolower(lines[i])
+        if (low ~ ("^[[:space:]]*type:[[:space:]]*wire" "guard([[:space:]]|$)") || low ~ ("amnezia-wg" "-option")) skip=1
+      }
+      if (!skip) for (i=1; i<=n; i++) print lines[i]
+      n=0
+    }
+    /^[[:space:]]*-[[:space:]]/ { flush() }
+    { n++; lines[n]=$0 }
+    END { flush() }
+  ' "$src" > "$dst"
+}
+
+subscription_stage_awg_line() {
+  line="$1"; proxy_body="$2"; desired="$3"
+  tmp_dir="$4"
+  [ -n "$line" ] || return 0
+  raw="$tmp_dir/sub-awg.raw"; setconf="$AWG_CONFIG_DIR/subscription-awg.conf"; yaml="$tmp_dir/sub-awg.yaml"
+  awg_uri_to_conf "$line" > "$raw" || return 41
+  name="$(awg_fragment_name "$line")"; [ -n "$name" ] || name="AmneziaWG subscription"
+  priv="$(awg_conf_value_file "$raw" Interface PrivateKey)"
+  pub="$(awg_conf_value_file "$raw" Peer PublicKey)"
+  endpoint="$(awg_conf_value_file "$raw" Peer Endpoint)"
+  [ -n "$priv" ] && [ -n "$pub" ] && [ -n "$endpoint" ] || return 42
+  iface="$(awg_iface_name "$name")"; identity="$(awg_identity "$name")"
+  mark="${identity%%|*}"; rest="${identity#*|}"; table="${rest%%|*}"; prio="${rest##*|}"
+  addresses="$(awg_conf_value_file "$raw" Interface Address | tr -d ' ')"
+  mtu="$(awg_conf_value_file "$raw" Interface MTU)"
+  awg_write_setconf "$raw" "$setconf"
+  awg_direct_proxy_yaml_file "$name" "$iface" "$mark" "$yaml"
+  cat "$yaml" >> "$proxy_body"
+  printf '%s|%s|%s|%s|%s|%s|%s\n' "$iface" "$setconf" "$addresses" "$mtu" "$mark" "$table" "$prio" >> "$desired"
+}
+
 subscription_import_openwrt() {
   source_url="$1"; do_restart="$2"
   tmp_dir="/tmp/unified-panel-subscription-$$"
-  mkdir -p "$tmp_dir" "$UNIFIED_UI_BACKUP_DIR" "$UNIFIED_UI_CONF_DIR"
+  mkdir -p "$tmp_dir" "$UNIFIED_UI_BACKUP_DIR" "$UNIFIED_UI_CONF_DIR" "$AWG_CONFIG_DIR"
   chmod 700 "$tmp_dir"
-  clash="$tmp_dir/clash.yaml"; plain="$tmp_dir/plain.txt"; proxy_body="$tmp_dir/proxies.yaml"
+  chmod 700 "$AWG_STATE_DIR" "$AWG_CONFIG_DIR" 2>/dev/null || true
+  clash="$tmp_dir/clash.yaml"; plain="$tmp_dir/plain.txt"; proxy_body="$tmp_dir/proxies.yaml"; proxy_filtered="$tmp_dir/proxies-filtered.yaml"; desired="$tmp_dir/desired"
+  : > "$desired"
   curl -fsSL --max-time 30 -A 'mihomo/1.19.27' "$source_url" > "$clash" || { rm -rf "$tmp_dir"; return 10; }
   awk '/^proxies:[[:space:]]*$/ {on=1; next} on && /^[A-Za-z][A-Za-z0-9_-]*:/ {exit} on {print}' "$clash" > "$proxy_body"
   [ -s "$proxy_body" ] || { rm -rf "$tmp_dir"; return 11; }
   subscription_plain_lines "$source_url" "$plain" || { rm -rf "$tmp_dir"; return 12; }
   mieru_line="$(grep '^mierus\?://' "$plain" | head -1 || true)"
+  awg_line="$(grep -E '^(awg|awg3|amneziawg)://' "$plain" | head -1 || true)"
   telegram_line="$(grep '^tg://proxy' "$plain" | head -1 || true)"
   [ -n "$mieru_line" ] || { rm -rf "$tmp_dir"; return 13; }
+  if [ -n "$awg_line" ]; then
+    subscription_strip_mihomo_wireguard_blocks "$proxy_body" "$proxy_filtered"
+    mv "$proxy_filtered" "$proxy_body"
+    subscription_stage_awg_line "$awg_line" "$proxy_body" "$desired" "$tmp_dir" || { rm -rf "$tmp_dir"; return 40; }
+  fi
   subscription_mieru_yaml "$mieru_line" >> "$proxy_body" || { rm -rf "$tmp_dir"; return 14; }
   profile_real="$(readlink -f "$MIHOMO_PROFILE" 2>/dev/null || printf '%s' "$MIHOMO_PROFILE")"
   candidate="$tmp_dir/config.yaml"
@@ -508,6 +971,13 @@ subscription_import_openwrt() {
   cp "$profile_real" "$backup" || { rm -rf "$tmp_dir"; return 17; }
   target_tmp="$profile_real.unified-panel.$$"
   cp "$candidate" "$target_tmp" && chmod 600 "$target_tmp" && mv "$target_tmp" "$profile_real" || { rm -f "$target_tmp"; rm -rf "$tmp_dir"; return 18; }
+  if [ -s "$desired" ]; then
+    cp "$desired" "$AWG_DESIRED_FILE.tmp.$$"
+    chmod 600 "$AWG_DESIRED_FILE.tmp.$$"
+    mv "$AWG_DESIRED_FILE.tmp.$$" "$AWG_DESIRED_FILE"
+    [ -x "$AWG_HELPER" ] || { rm -rf "$tmp_dir"; return 43; }
+    "$AWG_HELPER" reconcile "$AWG_DESIRED_FILE" >/tmp/unified-awg-native.log 2>&1 || { cp "$backup" "$profile_real"; rm -rf "$tmp_dir"; return 44; }
+  fi
   printf '%s\n' "$source_url" > "$PANEL_SUBSCRIPTION_URL_FILE"
   chmod 600 "$PANEL_SUBSCRIPTION_URL_FILE"
   if [ -n "$telegram_line" ]; then
@@ -1017,37 +1487,65 @@ case "${PATH_INFO:-}" in
     proto="$(printf '%s' "$body" | jsonfilter -e '@.protocol' 2>/dev/null || true)"
     name="$(printf '%s' "$body" | jsonfilter -e '@.name' 2>/dev/null || true)"
     content="$(printf '%s' "$body" | jsonfilter -e '@.content' 2>/dev/null || true)"
-    [ -n "$proto" ] || proto=unknown
-    [ -n "$name" ] || name="$proto-$(date +%s)"
-    id="$(printf '%s-%s' "$proto" "$name" | tr -cs 'A-Za-z0-9_.-' '-' | sed 's/^-//;s/-$//')"
-    esc_id="$(printf '%s' "$id" | json_escape)"
-    esc_name="$(printf '%s' "$name" | json_escape)"
-    esc_proto="$(printf '%s' "$proto" | json_escape)"
-    esc_content="$(printf '%s' "$content" | json_escape)"
-    mkdir -p "$UNIFIED_UI_CONF_DIR"
-    tmp="$PROXY_REGISTRY.tmp.$$"
-    printf '{"connections":[{"id":"%s","name":"%s","protocol":"%s","protocolLabel":"%s","enabled":true,"mihomoSupported":false,"selectors":[],"usedBySelectors":[],"proxyYaml":"# OpenWrt registry staging only\\n# Apply full YAML via Mihomo editor for now.","rawContent":"%s"}]}' "$esc_id" "$esc_name" "$esc_proto" "$esc_proto" "$esc_content" > "$tmp"
-    mv "$tmp" "$PROXY_REGISTRY"
-    chmod 600 "$PROXY_REGISTRY"
+    case "$(printf '%s' "$proto" | tr 'A-Z' 'a-z')" in amnezia|awg|awg2|awg3|"") proto=amnezia ;; *) proto="$(printf '%s' "$proto" | tr 'A-Z' 'a-z')" ;; esac
+    case "$content" in *"[Interface]"*"[Peer]"*|awg://*|awg3://*|amneziawg://*) ;;
+      *) hdr_json '400 Bad Request'; printf '{"ok":false,"error":"OpenWrt native import currently supports AmneziaWG config or awg:// links"}'; exit 0 ;;
+    esac
+    conn_json="$(import_awg_connection "$proto" "$name" "$content")"
+    rc=$?
+    if [ "$rc" != 0 ]; then
+      hdr_json '400 Bad Request'
+      printf '{"ok":false,"error":"Invalid AmneziaWG config","stage":%s}' "$rc"
+      exit 0
+    fi
     hdr_json '201 Created'
-    printf '{"ok":true,"connection":{"id":"%s","name":"%s","protocol":"%s","protocolLabel":"%s","enabled":true,"mihomoSupported":false,"selectors":[],"usedBySelectors":[],"proxyYaml":"# OpenWrt registry staging only"},"replaced":false}' "$esc_id" "$esc_name" "$esc_proto" "$esc_proto"
+    printf '{"ok":true,"connection":%s,"replaced":false}' "$conn_json"
     ;;
   /proxy-connections-apply)
+    body="$(read_body)"
+    restart="$(printf '%s' "$body" | jsonfilter -e '@.restart' 2>/dev/null || true)"
+    [ -n "$restart" ] || restart=false
+    result="$(apply_proxy_connections_openwrt "$restart")"
+    rc=$?
+    if [ "$rc" != 0 ]; then
+      hdr_json '500 Internal Server Error'
+      printf '{"ok":false,"error":"OpenWrt native AWG apply failed","stage":%s}' "$rc"
+      exit 0
+    fi
+    changed="${result%%|*}"; count="${result##*|}"
     hdr_json
-    printf '{"ok":true,"changed":false,"count":0,"message":"OpenWrt: registry сохранён. Для генерации native YAML используй Mihomo editor; backend генератор протоколов ещё lightweight."}'
+    printf '{"ok":true,"changed":%s,"count":%s,"nativeAwg":{"ok":true,"count":%s}}' "$changed" "$count" "$count"
     ;;
   /proxy-connections-preview)
     hdr_json
-    printf '{"ok":true,"block":"# OpenWrt proxy-connections registry\\n# Native YAML generation for protocol tabs is not enabled in CGI mode yet.\\n# Use Mihomo editor or Proxy Tools for direct YAML insertion."}'
+    tmp_dir="/tmp/unified-awg-preview-$$"; mkdir -p "$tmp_dir"
+    body_file="$tmp_dir/proxies.yaml"; : > "$body_file"
+    if [ -f "$PROXY_REGISTRY" ]; then
+      raw="$tmp_dir/raw.conf"; yaml="$tmp_dir/proxy.yaml"
+      jsonfilter -i "$PROXY_REGISTRY" -e '@.connections[0].rawContent' > "$raw" 2>/dev/null || true
+      name="$(jsonfilter -i "$PROXY_REGISTRY" -e '@.connections[0].name' 2>/dev/null || true)"
+      [ -n "$name" ] || name=AmneziaWG
+      if [ -s "$raw" ]; then
+        iface="$(awg_iface_name "$name")"; identity="$(awg_identity "$name")"; mark="${identity%%|*}"
+        awg_direct_proxy_yaml_file "$name" "$iface" "$mark" "$yaml"
+        cat "$yaml" > "$body_file"
+      fi
+    fi
+    esc="$(json_escape < "$body_file")"
+    rm -rf "$tmp_dir"
+    printf '{"ok":true,"block":"%s"}' "$esc"
     ;;
   /proxy-connections-item/*)
     id="${PATH_INFO#/proxy-connections-item/}"
     hdr_json
     if [ "${REQUEST_METHOD:-GET}" = "DELETE" ]; then
       rm -f "$PROXY_REGISTRY"
-      printf '{"ok":true,"id":"%s","removedName":"%s","apply":{"ok":true,"changed":false,"count":0}}' "$id" "$id"
+      apply_proxy_connections_openwrt false >/dev/null 2>&1 || true
+      rm -f "$AWG_DESIRED_FILE"
+      [ ! -x "$AWG_HELPER" ] || "$AWG_HELPER" stop >/dev/null 2>&1 || true
+      printf '{"ok":true,"id":"%s","removedName":"%s","apply":{"ok":true,"changed":false,"count":0,"nativeAwg":{"ok":true,"count":0}}}' "$(printf '%s' "$id" | json_escape)" "$(printf '%s' "$id" | json_escape)"
     else
-      printf '{"ok":true,"id":"%s"}' "$id"
+      printf '{"ok":true,"id":"%s"}' "$(printf '%s' "$id" | json_escape)"
     fi
     ;;
 
@@ -1285,7 +1783,7 @@ function parseUriProxy(text,typeHint){const raw=text.trim(); let u; try{u=new UR
  if(scheme==='trojan'){return `  - name: '${yamlQuote(name)}'\n    type: trojan\n    server: ${u.hostname}\n    port: ${u.port||443}\n    password: ${u.username}\n    sni: ${q.sni||q.peer||u.hostname}\n    udp: true\n`;}
  if(scheme==='hysteria2'||scheme==='hy2'){return `  - name: '${yamlQuote(name)}'\n    type: hysteria2\n    server: ${u.hostname}\n    port: ${u.port||443}\n    password: ${u.username||q.auth||''}\n    sni: ${q.sni||u.hostname}\n    skip-cert-verify: ${q.insecure==='1'||q.insecure==='true'?'true':'false'}\n`;}
  return null;}
-function parseWireGuard(text,typeHint){const m=k=>(text.match(new RegExp('^\\s*'+k+'\\s*=\\s*(.+)$','mi'))||[])[1]?.trim(); const name=(text.match(/^\s*Name\s*=\s*(.+)$/mi)||[])[1] || `${typeHint||'WireGuard'}-imported`; const ep=m('Endpoint')||''; const [host,port]=(ep||':').split(':'); const addr=(m('Address')||'10.0.0.2/32').split(',')[0].replace(/\/.*$/,''); return `  - name: '${yamlQuote(name)}'\n    type: wireguard\n    server: ${host}\n    port: ${port||51820}\n    ip: ${addr}\n    private-key: ${m('PrivateKey')||''}\n    public-key: ${m('PublicKey')||''}\n    udp: true\n    mtu: ${m('MTU')||1420}\n`;}
+function parseWireGuard(text,typeHint){const name=(text.match(/^\s*Name\s*=\s*(.+)$/mi)||[])[1] || `${typeHint||'AmneziaWG'}-imported`; const iface=('uawg'+Array.from(name).reduce((a,ch)=>((a*33)+ch.charCodeAt(0))>>>0,5381).toString(16)).slice(0,15); return `  - name: '${yamlQuote(name)}'\n    type: direct\n    interface-name: '${yamlQuote(iface)}'\n    routing-mark: 50000\n    udp: true\n`;}
 function importProtocolConnection(){const type=$('#protocolImportType').value; const text=$('#protocolImportText').value.trim(); if(!text){toast('Вставь ссылку или конфиг');return} let block=parseUriProxy(text,type); if(!block && /PrivateKey\s*=|PublicKey\s*=|Endpoint\s*=/i.test(text)) block=parseWireGuard(text,type); if(!block){$('#protocolImportLog').textContent='Не распознал формат. Поддержано сейчас: vless://, trojan://, hysteria2:///hy2://, WireGuard/Amnezia WG config.'; return;} appendProxyYaml(block);}
 
 async function loadRaw(){for(const [id,path] of [['#rawConfigs','/configs'],['#rawVersion','/version']]){try{$(id).textContent=JSON.stringify(await get(path),null,2)}catch(e){$(id).textContent=e.message}}}

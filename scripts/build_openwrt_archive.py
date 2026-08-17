@@ -20,6 +20,7 @@ INSTALLER_SRC = OPENWRT_DIR / "install-openwrt-prototype.sh"
 README_SRC = OPENWRT_DIR / "README.md"
 FETCH_COMPAT_SRC = OPENWRT_DIR / "openwrt-fetch-compat.js"
 UNIFIED_UI_DIR = REPO_ROOT / "unified-ui"
+AWG_RUNTIME_DIR = UNIFIED_UI_DIR / "bin"
 ARCHIVE_ROOT = "unified-ui-openwrt"
 DEFAULT_ARCHIVE_PATH = REPO_ROOT / "unified-ui-openwrt.tar.gz"
 
@@ -195,6 +196,18 @@ def copy_full_panel_assets(dst_ui_root: Path, *, version: str) -> None:
     (css_dir / "terminal-theme-empty.css").write_text("/* OpenWrt static fallback */\n", encoding="utf-8")
 
 
+def copy_official_awg_runtime(dst_root: Path) -> None:
+    required = ["amneziawg-go", "awg", "SHA256SUMS", "OFFICIAL_AWG_PROVENANCE.json"]
+    if not all((AWG_RUNTIME_DIR / name).is_file() for name in required):
+        return
+    dst = dst_root / "bin"
+    dst.mkdir(parents=True, exist_ok=True)
+    for name in required:
+        shutil.copy2(AWG_RUNTIME_DIR / name, dst / name)
+    os.chmod(dst / "amneziawg-go", 0o755)
+    os.chmod(dst / "awg", 0o755)
+
+
 def main() -> int:
     args = parse_args()
     if not INSTALLER_SRC.is_file():
@@ -222,6 +235,7 @@ def main() -> int:
         os.chmod(tmp_root / "install.sh", 0o755)
         shutil.copy2(README_SRC, tmp_root / "README.md")
         copy_full_panel_assets(tmp_root / "www" / "unified-ui", version=version)
+        copy_official_awg_runtime(tmp_root)
         write_build_json(tmp_root / "BUILD.json", version=version, update_url=update_url)
 
         fd, temp_archive_raw = tempfile.mkstemp(prefix="unified-ui-openwrt-", suffix=".tar.gz", dir=str(archive_path.parent))
