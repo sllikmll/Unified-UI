@@ -47,6 +47,12 @@ def test_readme_keeps_platform_release_lines_separate():
     assert "releases/download/v3.0.0-mikrotik/unified-ui-mikrotik-docker-archive-v3.0.0.tar.gz" in text
     assert "releases/tag/v2.6.8-native" in text
     assert "releases/latest/download/unified-ui-openwrt.tar.gz" not in text
+    assert "v2.4.44-openwrt" not in text
+    assert "v2.6.4-native" not in text
+    openwrt_readme = (ROOT / "openwrt" / "README.md").read_text(encoding="utf-8")
+    assert "releases/latest/download" not in openwrt_readme
+    assert "v2.4.x-unified" not in openwrt_readme
+    assert "v3.0.0-openwrt/unified-ui-openwrt-v3.0.0.tar.gz" in openwrt_readme
 
 
 def test_mikrotik_dockerfile_builds_pinned_official_native_awg_runtime():

@@ -342,10 +342,10 @@ gzip -1 -f unified-ui-mikrotik-docker-archive.tar
 unified-ui-mikrotik-docker-archive.tar.gz
 ```
 
-Готовый архив из релиза `v2.6.4-native`:
+Готовый архив из релиза `v3.0.0-mikrotik`:
 
 ```text
-https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/unified-ui-mikrotik-docker-archive-2.6.4.tar.gz
+https://github.com/sllikmll/Unified-UI/releases/download/v3.0.0-mikrotik/unified-ui-mikrotik-docker-archive-v3.0.0.tar.gz
 ```
 
 Его нужно загрузить на MikroTik в Files, например в корень или на USB-диск.
@@ -668,10 +668,10 @@ OpenWrt-сборка — full-panel snapshot той же Unified UI, но без
 
 ```sh
 cd /tmp
-curl -fL -o unified-ui-openwrt.tar.gz \
-  "https://github.com/sllikmll/Unified-UI/releases/download/v2.4.44-openwrt-dns-routes/unified-ui-openwrt.tar.gz"
+curl -fL -o unified-ui-openwrt-v3.0.0.tar.gz \
+  "https://github.com/sllikmll/Unified-UI/releases/download/v3.0.0-openwrt/unified-ui-openwrt-v3.0.0.tar.gz"
 rm -rf unified-ui-openwrt
-tar -xzf unified-ui-openwrt.tar.gz -C /tmp
+tar -xzf unified-ui-openwrt-v3.0.0.tar.gz -C /tmp
 sh /tmp/unified-ui-openwrt/install.sh
 ```
 

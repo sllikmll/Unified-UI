@@ -87,29 +87,29 @@ standalone Mihomo :9090: active
 ## Release asset
 
 ```text
-unified-ui-openwrt.tar.gz
+unified-ui-openwrt-v3.0.0.tar.gz
 ```
 
-Latest:
+Tag-specific URL:
 
 ```text
-https://github.com/sllikmll/Unified-UI/releases/latest/download/unified-ui-openwrt.tar.gz
+https://github.com/sllikmll/Unified-UI/releases/download/v3.0.0-openwrt/unified-ui-openwrt-v3.0.0.tar.gz
 ```
 
 Checksum:
 
 ```text
-https://github.com/sllikmll/Unified-UI/releases/latest/download/unified-ui-openwrt.tar.gz.sha256
+https://github.com/sllikmll/Unified-UI/releases/download/v3.0.0-openwrt/unified-ui-openwrt-v3.0.0.tar.gz.sha256
 ```
 
 ## Установка на OpenWrt
 
 ```sh
 cd /tmp
-curl -fL -o unified-ui-openwrt.tar.gz \
-  "https://github.com/sllikmll/Unified-UI/releases/latest/download/unified-ui-openwrt.tar.gz"
+curl -fL -o unified-ui-openwrt-v3.0.0.tar.gz \
+  "https://github.com/sllikmll/Unified-UI/releases/download/v3.0.0-openwrt/unified-ui-openwrt-v3.0.0.tar.gz"
 mkdir -p unified-ui-openwrt
-tar -xzf unified-ui-openwrt.tar.gz -C .
+tar -xzf unified-ui-openwrt-v3.0.0.tar.gz -C .
 cd unified-ui-openwrt
 sh install.sh
 ```
@@ -183,8 +183,8 @@ JS errors: []
 
 ```sh
 python3 scripts/build_openwrt_archive.py \
-  --version 2.4.x-unified \
-  --update-url https://github.com/sllikmll/Unified-UI/releases/download/v2.4.x-unified/unified-ui-openwrt.tar.gz
+  --version 3.0.0-openwrt \
+  --update-url https://github.com/sllikmll/Unified-UI/releases/download/v3.0.0-openwrt/unified-ui-openwrt-v3.0.0.tar.gz
 ```
 
 или
