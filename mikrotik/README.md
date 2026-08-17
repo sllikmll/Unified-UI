@@ -58,9 +58,9 @@ The installed runtime on RB5009 uses:
 Native AmneziaWG imports require Linux networking privileges inside the container:
 
 - NET_ADMIN-equivalent network capability inside the RouterOS container runtime;
-- `/dev/net/tun` passed into the container.
+- `/dev/net/tun` visible inside the container.
 
-Current RouterOS container documentation lists `devices` as a container property and `/dev/net/tun` as an available device node, so the template uses `devices=/dev/net/tun` on `/container/add`. Empirically on RB5009/RouterOS 7.23.x, native AWG also needs NET_ADMIN-equivalent network privileges; RouterOS does not use Docker `--cap-add` syntax in `/container/add`. Without these runtime prerequisites, imported AWG2/AWG3 connections cannot create native `uawg*` interfaces. Startup logs a non-secret native AWG preflight status, skips native restore, and continues booting Mihomo and the UI. Manual AWG Apply fails clearly until the runtime is available. The runtime never sends AWG2/AWG3 secrets to Mihomo as built-in `wireguard`; it restores official `amneziawg-go` interfaces and injects Mihomo `type: direct` outbounds with `interface-name` and `routing-mark`.
+Empirically, RB5009/RouterOS 7.23.3 exposes `/dev/net/tun` and the required network capability automatically. Do not use Docker `--cap-add` or `devices=/dev/net/tun` in `/container/add`: the latter is rejected as an invalid `container-dev-name`. Without runtime prerequisites, startup logs a non-secret status, skips AWG restore, and still boots UI/Mihomo; AWG Apply fails clearly. The runtime never sends AWG2/AWG3 secrets to Mihomo as built-in `wireguard`; it restores official `amneziawg-go` interfaces and injects Mihomo `type: direct` outbounds with `interface-name` and `routing-mark`.
 
 Do not keep secrets in RouterOS env after first boot. RouterOS logs container env values on start. First boot writes auth/config into persistent container storage, then sensitive env vars can be removed from `UNIFIED_UI_MIKROTIK`.
 
