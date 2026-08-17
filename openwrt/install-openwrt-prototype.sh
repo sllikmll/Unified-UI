@@ -270,34 +270,34 @@ stop_desired_file() {
 persist_active_desired() {
   desired="$1"
   tmp="$ACTIVE_DESIRED.new.$$"
-  : > "$tmp"
+  : > "$tmp" || return $?
   rm -f "$ACTIVE_CONFIG_DIR"/*.conf 2>/dev/null || true
   if [ -n "$desired" ] && [ -f "$desired" ]; then
     while IFS='|' read -r iface conf addresses mtu mark table prio; do
       [ -n "$iface" ] || continue
       active_conf="$ACTIVE_CONFIG_DIR/$iface.conf"
-      cp "$conf" "$active_conf"
-      chmod 600 "$active_conf"
-      printf '%s|%s|%s|%s|%s|%s|%s\n' "$iface" "$active_conf" "$addresses" "$mtu" "$mark" "$table" "$prio" >> "$tmp"
+      cp "$conf" "$active_conf" || return $?
+      chmod 600 "$active_conf" || return $?
+      printf '%s|%s|%s|%s|%s|%s|%s\n' "$iface" "$active_conf" "$addresses" "$mtu" "$mark" "$table" "$prio" >> "$tmp" || return $?
     done < "$desired"
   fi
-  chmod 600 "$tmp"
-  mv -f "$tmp" "$ACTIVE_DESIRED"
+  chmod 600 "$tmp" || return $?
+  mv -f "$tmp" "$ACTIVE_DESIRED" || return $?
 }
 
 reconcile_file() {
   desired="$1"
-  stop_all
-  : > "$MANIFEST.new"
+  stop_all || return $?
+  : > "$MANIFEST.new" || return $?
   if [ -n "$desired" ] && [ -f "$desired" ]; then
     while IFS='|' read -r iface conf addresses mtu mark table prio; do
       [ -n "$iface" ] || continue
-      start_one "$iface" "$conf" "$addresses" "$mtu" "$mark" "$table" "$prio"
-      printf '%s|%s|%s|%s\n' "$iface" "$mark" "$table" "$prio" >> "$MANIFEST.new"
+      start_one "$iface" "$conf" "$addresses" "$mtu" "$mark" "$table" "$prio" || return $?
+      printf '%s|%s|%s|%s\n' "$iface" "$mark" "$table" "$prio" >> "$MANIFEST.new" || return $?
     done < "$desired"
   fi
-  chmod 600 "$MANIFEST.new"
-  mv -f "$MANIFEST.new" "$MANIFEST"
+  chmod 600 "$MANIFEST.new" || return $?
+  mv -f "$MANIFEST.new" "$MANIFEST" || return $?
 }
 
 start_one() {
@@ -306,27 +306,34 @@ start_one() {
   [ -x "$AWG_BIN" ] || { echo "missing awg" >&2; return 11; }
   [ -x "$IP_BIN" ] || { echo "missing ip" >&2; return 12; }
   [ -f "$conf" ] || { echo "missing config" >&2; return 13; }
-  chmod 600 "$conf"
+  chmod 600 "$conf" || return 15
   stop_iface "$iface" "$mark" "$table" "$prio"
   "$AWG_GO_BIN" -f "$iface" >/dev/null 2>&1 &
-  echo "$!" > "$STATE_DIR/$iface.pid"
+  echo "$!" > "$STATE_DIR/$iface.pid" || { stop_iface "$iface" "$mark" "$table" "$prio"; return 16; }
   wait_socket "$iface" || { stop_iface "$iface" "$mark" "$table" "$prio"; echo "UAPI socket timeout for $iface" >&2; return 14; }
-  "$AWG_BIN" setconf "$iface" "$conf"
-  printf '%s\n' "$addresses" | tr ',' '\n' | while IFS= read -r addr; do
+  "$AWG_BIN" setconf "$iface" "$conf" || { stop_iface "$iface" "$mark" "$table" "$prio"; return 17; }
+  old_ifs="$IFS"; IFS=','
+  for addr in $addresses; do
     [ -n "$addr" ] || continue
-    "$IP_BIN" address add "$addr" dev "$iface"
+    "$IP_BIN" address add "$addr" dev "$iface" || { IFS="$old_ifs"; stop_iface "$iface" "$mark" "$table" "$prio"; return 18; }
   done
-  [ -z "$mtu" ] || "$IP_BIN" link set mtu "$mtu" dev "$iface"
-  "$IP_BIN" link set up dev "$iface"
-  "$IP_BIN" route replace default dev "$iface" table "$table"
-  "$IP_BIN" rule add priority "$prio" fwmark "$mark" table "$table"
+  IFS="$old_ifs"
+  [ -z "$mtu" ] || "$IP_BIN" link set mtu "$mtu" dev "$iface" || { stop_iface "$iface" "$mark" "$table" "$prio"; return 19; }
+  "$IP_BIN" link set up dev "$iface" || { stop_iface "$iface" "$mark" "$table" "$prio"; return 20; }
+  "$IP_BIN" route replace default dev "$iface" table "$table" || { stop_iface "$iface" "$mark" "$table" "$prio"; return 21; }
+  "$IP_BIN" rule add priority "$prio" fwmark "$mark" table "$table" || { stop_iface "$iface" "$mark" "$table" "$prio"; return 22; }
 }
 
 case "${1:-}" in
   reconcile)
     desired="${2:-}"
     if reconcile_file "$desired"; then
-      persist_active_desired "$desired"
+      if ! persist_active_desired "$desired"; then
+        rc=23
+        stop_all
+        [ ! -s "$ACTIVE_DESIRED" ] || reconcile_file "$ACTIVE_DESIRED" || true
+        exit "$rc"
+      fi
     else
       rc=$?
       rm -f "$MANIFEST.new"
