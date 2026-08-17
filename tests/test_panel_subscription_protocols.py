@@ -27,7 +27,7 @@ def test_wireguard_uri_becomes_live_mihomo_wireguard():
     assert "public-key: server-public-key" in conn["proxyYaml"]
 
 
-def test_awg_data_uri_preserves_amnezia_options():
+def test_awg_data_uri_uses_native_amnezia_runtime():
     mod = _reload("routes.proxy_connections")
     config = """[Interface]
 PrivateKey = private-key
@@ -51,12 +51,13 @@ PersistentKeepalive = 25
     conn = mod._parse_connection("", f"awg://{payload}#AWG-panel")
     assert conn["protocol"] == "amnezia"
     assert conn["mihomoSupported"] is True
-    assert "type: wireguard" in conn["proxyYaml"]
-    assert "amnezia-wg-option:" in conn["proxyYaml"]
-    assert "jc: 5" in conn["proxyYaml"]
+    assert "type: direct" in conn["proxyYaml"]
+    assert "interface-name:" in conn["proxyYaml"]
+    assert "amnezia-wg-option:" not in conn["proxyYaml"]
+    assert conn["nativeRuntime"]["engine"] == "amneziawg-go"
 
 
-def test_awg3_data_uri_preserves_extended_amnezia_options():
+def test_awg3_data_uri_uses_native_amnezia_runtime():
     mod = _reload("routes.proxy_connections")
     config = """[Interface]
 PrivateKey = private-key
@@ -79,11 +80,10 @@ PersistentKeepalive = 25
     conn = mod._parse_connection("", f"awg3://{payload}#AWG3-panel")
     assert conn["protocol"] == "amnezia"
     assert conn["mihomoSupported"] is True
-    assert "type: wireguard" in conn["proxyYaml"]
-    assert "port: 9731" in conn["proxyYaml"]
-    assert "amnezia-wg-option:" in conn["proxyYaml"]
-    assert "headerprotectionkey: awg3-header-key" in conn["proxyYaml"]
-    assert "maxhandshakeattempts: 15-20" in conn["proxyYaml"]
+    assert "type: direct" in conn["proxyYaml"]
+    assert "interface-name:" in conn["proxyYaml"]
+    assert "amnezia-wg-option:" not in conn["proxyYaml"]
+    assert conn["nativeRuntime"]["engine"] == "amneziawg-go"
 
 
 def test_mierus_uri_becomes_native_mihomo_mieru():

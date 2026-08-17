@@ -126,6 +126,10 @@ def application(environ, start_response):
 
 
 if __name__ == "__main__":
+    from routes.proxy_connections import reconcile_native_awg_startup
+
+    awg_result = reconcile_native_awg_startup()
+    print(f"[unified-ui] native AWG restored: {awg_result.get('count', 0)} interface(s)", flush=True)
     server_port = _server_port()
     if GEVENT_AVAILABLE:
         try:

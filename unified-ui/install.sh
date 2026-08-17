@@ -10,6 +10,28 @@ INIT_SCRIPT="${UNIFIED_UI_INIT_SCRIPT:-$INIT_SCRIPT_DEFAULT}"
 PYTHON_BIN="/opt/bin/python3"
 LOG_DIR="/opt/var/log"
 RUN_DIR="/opt/var/run"
+AWG_BIN_DIR="/opt/bin"
+
+install_bundled_awg_binary() {
+  AWG_NAME="$1"
+  AWG_SRC="$UI_DIR/bin/$AWG_NAME"
+  AWG_DEST="$AWG_BIN_DIR/$AWG_NAME"
+  AWG_TMP="$AWG_DEST.unified-ui-new.$$"
+
+  [ -f "$AWG_SRC" ] || return 0
+  mkdir -p "$AWG_BIN_DIR"
+  if [ -f "$AWG_DEST" ] && cmp -s "$AWG_SRC" "$AWG_DEST" 2>/dev/null; then
+    chmod 755 "$AWG_DEST"
+    return 0
+  fi
+  if [ -f "$AWG_DEST" ]; then
+    cp -p "$AWG_DEST" "$AWG_DEST.unified-ui-prev"
+  fi
+  cp "$AWG_SRC" "$AWG_TMP"
+  chmod 755 "$AWG_TMP"
+  mv -f "$AWG_TMP" "$AWG_DEST"
+  echo "[+] Установлен официальный AWG runtime: $AWG_DEST"
+}
 
 is_our_ui_init_script() {
   _path="$1"
@@ -1172,6 +1194,13 @@ else
   cp -r "$SRC_DIR"/.[!.]* "$UI_DIR"/ 2>/dev/null || true
   rm -f "$UI_DIR/install.sh"
 fi
+
+case "$ARCH" in
+  aarch64|arm64)
+    install_bundled_awg_binary "amneziawg-go"
+    install_bundled_awg_binary "awg"
+    ;;
+esac
 
 # --- BUILD.json (версия/сборка) ---
 #

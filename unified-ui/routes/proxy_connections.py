@@ -42,6 +42,7 @@ from services.mihomo_proxy_parsers import (
 )
 from services.mihomo_proxy_config import insert_proxy_into_groups, remove_proxy_from_groups
 from services.mihomo_yaml import validate_yaml_syntax
+from services.awg_native import NativeAwgRuntime, NativeAwgSpec, build_native_awg_spec, native_mihomo_proxy_yaml
 
 PROTOCOLS: dict[str, dict[str, Any]] = {
     "wireguard": {"label": "WireGuard", "schemes": ["wireguard://"], "mihomo": True},
@@ -312,14 +313,27 @@ def _parse_connection(protocol: str, source_text: str, custom_name: str | None =
     if not text:
         raise ValueError("empty connection content")
 
+    native_runtime: dict[str, Any] | None = None
     if proto in {"wireguard", "amnezia"}:
         conf = _wireguard_from_uri(text) if proto == "wireguard" else _wireguard_from_data_url(text)
         result = parse_wireguard(conf, custom_name=custom_name)
         yaml_text = result.yaml
         if proto == "amnezia":
-            # Mihomo wireguard outbound can use ordinary WG fields. AWG-specific
-            # Jc/Jmin/S*/H* are preserved in raw metadata for external clients.
-            result = ProxyParseResult(name=custom_name or result.name, yaml=yaml_text)
+            fragment_name = unquote(urlparse(text).fragment).strip() if "://" in text else ""
+            native_name = custom_name or fragment_name or result.name
+            spec = build_native_awg_spec(native_name, conf)
+            result = ProxyParseResult(
+                name=native_name,
+                yaml=native_mihomo_proxy_yaml(native_name, spec.interface, spec.routing_mark),
+            )
+            yaml_text = result.yaml
+            native_runtime = {
+                "engine": "amneziawg-go",
+                "interface": spec.interface,
+                "routingMark": spec.routing_mark,
+                "routingTable": spec.routing_table,
+                "rulePriority": spec.rule_priority,
+            }
     elif proto == "vless":
         result = parse_vless(text, custom_name=custom_name)
         yaml_text = result.yaml
@@ -346,7 +360,7 @@ def _parse_connection(protocol: str, source_text: str, custom_name: str | None =
     if custom_name and yaml_text.lstrip().startswith("- name:"):
         yaml_text = re.sub(r"^(\s*-\s*name:\s*).*$", r"\1" + _yaml_str(custom_name), yaml_text, count=1, flags=re.M)
         name = custom_name
-    return {
+    connection = {
         "id": _conn_id(proto, name, text),
         "protocol": proto,
         "protocolLabel": PROTOCOLS.get(proto, {}).get("label", proto),
@@ -360,6 +374,9 @@ def _parse_connection(protocol: str, source_text: str, custom_name: str | None =
         "enabled": True,
         "selectors": [],
     }
+    if native_runtime is not None:
+        connection["nativeRuntime"] = native_runtime
+    return connection
 
 
 def _detect_protocol(text: str) -> str:
@@ -394,6 +411,64 @@ def _managed_connections(data: dict[str, Any] | None = None) -> list[dict[str, A
         if isinstance(item, dict):
             out.append(item)
     return out
+
+
+def _upgrade_native_awg_connections(
+    connections: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[NativeAwgSpec], bool]:
+    """Migrate local AWG records from Mihomo WireGuard to native interfaces."""
+    migrated: list[dict[str, Any]] = []
+    specs: list[NativeAwgSpec] = []
+    changed = False
+    for original in connections:
+        conn = dict(original)
+        protocol = str(conn.get("protocol") or "").lower()
+        source_type = str(conn.get("sourceType") or "")
+        raw = str(conn.get("raw") or "").strip()
+        if protocol != "amnezia" or source_type == "subscription-provider" or not raw:
+            migrated.append(conn)
+            continue
+
+        name = str(conn.get("name") or "AmneziaWG")
+        parsed = _parse_connection("amnezia", raw, custom_name=name)
+        conf = _wireguard_from_data_url(raw)
+        spec = build_native_awg_spec(name, conf)
+        if conn.get("enabled", True):
+            specs.append(spec)
+
+        for key in ("proxyYaml", "nativeRuntime", "protocolLabel", "mihomoSupported"):
+            conn[key] = parsed[key]
+        if conn != original:
+            changed = True
+        migrated.append(conn)
+    return migrated, specs, changed
+
+
+def _native_awg_runtime(specs: list[NativeAwgSpec]) -> dict[str, object]:
+    state_dir = _state_dir() / "awg-native"
+    go_bin = os.environ.get("UNIFIED_AWG_GO_BIN") or "/opt/bin/amneziawg-go"
+    awg_bin = os.environ.get("UNIFIED_AWG_BIN") or "/opt/bin/awg"
+    ip_bin = os.environ.get("UNIFIED_IP_BIN") or shutil.which("ip") or "/sbin/ip"
+    if specs:
+        missing = [path for path in (go_bin, awg_bin, ip_bin) if not os.path.isfile(path) or not os.access(path, os.X_OK)]
+        if missing:
+            raise RuntimeError("official AmneziaWG runtime is missing: " + ", ".join(missing))
+    return NativeAwgRuntime(
+        state_dir,
+        amneziawg_go=go_bin,
+        awg=awg_bin,
+        ip=ip_bin,
+    ).reconcile(specs)
+
+
+def reconcile_native_awg_startup() -> dict[str, object]:
+    data = _load_registry()
+    connections, specs, changed = _upgrade_native_awg_connections(_managed_connections(data))
+    result = _native_awg_runtime(specs)
+    if changed:
+        data["connections"] = connections
+        _save_registry(data)
+    return result
 
 
 def _format_managed_block(connections: list[dict[str, Any]]) -> str:
@@ -508,9 +583,14 @@ def _selector_usage_from_config(config_text: str, proxy_names: set[str]) -> dict
         stripped = line.lstrip()
         indent = len(line) - len(stripped)
         if indent == 0 and stripped.startswith("proxy-groups:"):
-            in_groups = True; current = ""; in_proxies = False; continue
+            in_groups = True
+            current = ""
+            in_proxies = False
+            continue
         if in_groups and indent == 0 and stripped and not stripped.startswith("#"):
-            in_groups = False; current = ""; in_proxies = False
+            in_groups = False
+            current = ""
+            in_proxies = False
         if not in_groups:
             continue
         if stripped.startswith("- name:"):
@@ -575,7 +655,8 @@ def _backup_config(path: Path) -> Path | None:
 
 def _apply_to_mihomo(*, restart: bool = False) -> dict[str, Any]:
     data = _load_registry()
-    conns = _managed_connections(data)
+    conns, native_specs, registry_changed = _upgrade_native_awg_connections(_managed_connections(data))
+    data["connections"] = conns
     cfg_path = _mihomo_config_path()
     cfg = _read_text(cfg_path)
     if not cfg.strip():
@@ -588,6 +669,9 @@ def _apply_to_mihomo(*, restart: bool = False) -> dict[str, Any]:
     ok, err = validate_yaml_syntax(patched)
     if not ok:
         raise RuntimeError("generated Mihomo YAML is invalid: " + str(err))
+    native_result = _native_awg_runtime(native_specs)
+    if registry_changed:
+        _save_registry(data)
     backup = None
     changed = patched != cfg
     if changed:
@@ -602,6 +686,7 @@ def _apply_to_mihomo(*, restart: bool = False) -> dict[str, Any]:
         "config": str(cfg_path),
         "backup": str(backup) if backup else None,
         "count": len([c for c in conns if c.get("enabled", True) and c.get("mihomoSupported", True)]),
+        "nativeAwg": native_result,
         "restartLog": log[-4000:] if log else "",
     }
 
