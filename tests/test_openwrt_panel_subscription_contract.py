@@ -27,6 +27,9 @@ def test_openwrt_cgi_contains_full_panel_subscription_contract(tmp_path: Path):
     assert "awg setconf" not in text  # invoked as "$AWG_BIN" setconf for path safety
     assert "routing-mark:" in text
     assert "interface-name:" in text
+    awg_uri_helper = text.split("awg_uri_to_conf()", 1)[1].split("awg_fragment_name()", 1)[0]
+    assert 'uri_raw="$1"' in awg_uri_helper
+    assert '\n  raw="$1"' not in awg_uri_helper
 
     match = re.search(r"cat > \"\$CGI_PATH\" <<'CGI'\n(?P<body>.*?)\nCGI\n", text, re.S)
     assert match, "embedded OpenWrt CGI was not found"

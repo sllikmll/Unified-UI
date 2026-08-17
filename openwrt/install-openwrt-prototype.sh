@@ -617,24 +617,24 @@ sanitize_awg_selector() {
 }
 
 awg_uri_to_conf() {
-  raw="$1"
-  case "$raw" in
+  uri_raw="$1"
+  case "$uri_raw" in
     awg://*|awg3://*|amneziawg://*)
-      encoded="${raw#*://}"
+      encoded="${uri_raw#*://}"
       encoded="${encoded%%#*}"
       encoded="${encoded%%\?*}"
       pad=$(( (4 - (${#encoded} % 4)) % 4 ))
       while [ "$pad" -gt 0 ]; do encoded="${encoded}="; pad=$((pad - 1)); done
       printf '%s' "$encoded" | tr '_-' '/+' | base64 -d 2>/dev/null
       ;;
-    *) printf '%s' "$raw" ;;
+    *) printf '%s' "$uri_raw" ;;
   esac
 }
 
 awg_fragment_name() {
-  raw="$1"
-  case "$raw" in
-    *://*#*) url_decode "${raw#*#}" ;;
+  fragment_raw="$1"
+  case "$fragment_raw" in
+    *://*#*) url_decode "${fragment_raw#*#}" ;;
     *) printf '' ;;
   esac
 }
