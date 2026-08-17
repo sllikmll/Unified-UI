@@ -84,6 +84,7 @@ COPY --from=awg-runtime /out/awg /opt/bin/awg
 COPY --from=awg-runtime /out/OFFICIAL_AWG_PROVENANCE.json /opt/bin/OFFICIAL_AWG_PROVENANCE.json
 COPY --from=awg-runtime /out/SHA256SUMS /opt/bin/SHA256SUMS
 COPY unified-ui/ /app/unified-ui/
+RUN rm -f /app/unified-ui/scripts/update_unified_ui.sh
 COPY --from=frontend-build /src/unified-ui/static/frontend-build/ /app/unified-ui/static/frontend-build/
 COPY --from=frontend-build /src/unified-ui/static/vendor/ /app/unified-ui/static/vendor/
 COPY mikrotik/entrypoint.sh /entrypoint.sh

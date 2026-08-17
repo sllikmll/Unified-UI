@@ -68,6 +68,18 @@ def _redact_env_updates(updates: dict) -> dict:
     return out
 
 
+def _self_update_disabled() -> bool:
+    return str(os.environ.get("UNIFIED_UI_SELF_UPDATE_DISABLED") or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _self_update_disabled_response():
+    return jsonify({
+        "ok": False,
+        "error": "self_update_disabled",
+        "message": "Self-update is disabled for this platform image; replace it with an exact platform release asset.",
+    }), 403
+
+
 def _norm_release_version(v: Any) -> str:
     s = str(v or "").strip()
     if s.lower().startswith("v"):
@@ -287,6 +299,8 @@ def create_devtools_blueprint(ui_state_dir: str) -> Blueprint:
         PR/Commit 3 (self-update): query GitHub Releases API and compare with current BUILD.json.
         Network is performed with a short wait and safe caching; the UI must not freeze.
         """
+        if _self_update_disabled():
+            return _self_update_disabled_response()
         payload = request.get_json(silent=True) or {}
         force_refresh = bool(payload.get("force_refresh") or payload.get("force") or False)
         try:
@@ -482,7 +496,8 @@ def create_devtools_blueprint(ui_state_dir: str) -> Blueprint:
         PR/Commit 5 (self-update): spawn update runner via subprocess.Popen.
         The runner performs backup/download/extract/install and writes status/log.
         """
-
+        if _self_update_disabled():
+            return _self_update_disabled_response()
         payload = request.get_json(silent=True) or {}
         skip_backup = bool(payload.get("skip_backup") or payload.get("no_backup") or False)
         # Optional "preflight" data from /api/devtools/update/check so runner can skip network check_latest.
@@ -634,7 +649,8 @@ def create_devtools_blueprint(ui_state_dir: str) -> Blueprint:
 
         PR/Commit 7 (self-update): restore the latest backup created by the updater.
         """
-
+        if _self_update_disabled():
+            return _self_update_disabled_response()
         # Ensure storage exists.
         try:
             ensure_update_dir(ui_state_dir)

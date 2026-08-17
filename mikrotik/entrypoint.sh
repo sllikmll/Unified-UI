@@ -48,6 +48,7 @@ RELOAD
 chmod 755 "$MIHOMO_RELOAD_SCRIPT"
 export MIHOMO_RESTART_CMD="$MIHOMO_RELOAD_SCRIPT"
 export MIHOMO_VALIDATE_CMD='mihomo -t -d /etc/mihomo -f {config}'
+export UNIFIED_UI_SELF_UPDATE_DISABLED=1
 
 python - <<'PY'
 import os, json

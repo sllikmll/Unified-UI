@@ -88,6 +88,9 @@ def test_mikrotik_entrypoint_restores_native_awg_before_mihomo_startup():
     assert "unified-mihomo-reload" in text
     assert "/configs?force=true" in text
     assert "MIHOMO_VALIDATE_CMD" in text
+    assert "UNIFIED_UI_SELF_UPDATE_DISABLED=1" in text
+    dockerfile = (ROOT / "mikrotik" / "Dockerfile").read_text()
+    assert "rm -f /app/unified-ui/scripts/update_unified_ui.sh" in dockerfile
     assert text.index("log \"restoring native AmneziaWG interfaces\"") < text.index("log \"validating Mihomo config\"")
     assert text.index("log \"validating Mihomo config\"") < text.index("log \"starting Mihomo\"")
 
