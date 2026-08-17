@@ -2,8 +2,6 @@
 
 **Unified UI** — единая панель управления Mihomo, маршрутизацией, selector-группами, подключениями и service-rules для роутеров, серверов и desktop-устройств.
 
-Это отдельная Unified UI сборка под инфраструктуру `sllikmll`: одна панель вместо набора разрозненных dashboard’ов и временных обёрток.
-
 ## Быстрые ссылки
 
 | Что | Ссылка |
@@ -792,22 +790,3 @@ skopeo copy \
 
 gzip -1 -f unified-ui-mikrotik-docker-archive.tar
 ```
-
----
-
-# Проверено в `v2.5.1`
-
-| Проверка | Результат |
-|---|---|
-| Electron packaged macOS app | UI стартует, Mihomo `v1.19.29`, ports `18088/19090` listen |
-| Qt packaged macOS app | `--smoke` зелёный, UI `200`, Mihomo `v1.19.29` |
-| Docker normal mode | container `healthy`, UI `/login`, Mihomo API отвечает |
-| Docker TUN config | `tun`, `auto-route`, `dns-hijack` добавляются в config |
-| DMG validation | Electron DMG и Qt DMG checksum valid |
-| GHCR | `2.5.1` и `latest` manifest доступны |
-
----
-
-# Происхождение
-
-Сейчас это отдельный **Unified UI** проект: одна панель для Keenetic, OpenWrt, MikroTik, Docker и desktop-устройств.
