@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import gzip
+import hashlib
+import importlib.util
+import json
 import re
 import subprocess
+import tarfile
 from pathlib import Path
 
 
@@ -9,6 +14,10 @@ ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "openwrt" / "install-openwrt-prototype.sh"
 COMPAT = ROOT / "openwrt" / "openwrt-fetch-compat.js"
 BUILDER = ROOT / "scripts" / "build_openwrt_archive.py"
+SPEC = importlib.util.spec_from_file_location("build_openwrt_archive", BUILDER)
+assert SPEC is not None and SPEC.loader is not None
+openwrt_builder = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(openwrt_builder)
 
 
 def test_openwrt_cgi_contains_full_panel_subscription_contract(tmp_path: Path):
@@ -148,3 +157,81 @@ def test_openwrt_snapshot_whitelist_keeps_all_protocol_views():
         "protocol-telegram",
     ):
         assert f'"{section}"' in builder
+
+
+def _stage_openwrt_archive_payload(root: Path, *, source_date_epoch: int) -> Path:
+    payload = root / openwrt_builder.ARCHIVE_ROOT
+    (payload / "bin").mkdir(parents=True)
+    (payload / "www" / "unified-ui").mkdir(parents=True)
+    (payload / "install.sh").write_text("#!/bin/sh\necho install\n", encoding="utf-8")
+    (payload / "install.sh").chmod(0o755)
+    (payload / "README.md").write_text("readme\n", encoding="utf-8")
+    (payload / "bin" / "mihomo").write_bytes(b"mihomo")
+    (payload / "bin" / "mihomo").chmod(0o755)
+    (payload / "www" / "unified-ui" / "index.html").write_text("<!doctype html>\n", encoding="utf-8")
+    openwrt_builder.write_build_json(
+        payload / "BUILD.json",
+        version="1.2.3",
+        update_url="https://example.test/update.tar.gz",
+        source_date_epoch=source_date_epoch,
+    )
+    return payload
+
+
+def test_openwrt_archive_is_reproducible_and_normalizes_metadata(tmp_path: Path):
+    epoch = 1_700_000_123
+    archives: list[Path] = []
+    for idx in range(2):
+        build_dir = tmp_path / f"build-{idx}"
+        payload = _stage_openwrt_archive_payload(build_dir, source_date_epoch=epoch)
+        archive = tmp_path / f"out-{idx}" / "unified-ui-openwrt.tar.gz"
+        openwrt_builder.build_archive(payload, archive, source_date_epoch=epoch)
+        archives.append(archive)
+
+    first_bytes = archives[0].read_bytes()
+    second_bytes = archives[1].read_bytes()
+    assert first_bytes == second_bytes
+    assert hashlib.sha256(first_bytes).hexdigest() == hashlib.sha256(second_bytes).hexdigest()
+
+    sha_path = tmp_path / "unified-ui-openwrt.tar.gz.sha256"
+    digest = openwrt_builder.write_sha256(archives[0], sha_path)
+    assert sha_path.read_text(encoding="utf-8") == f"{digest}  {archives[0].name}\n"
+
+    header = first_bytes[:10]
+    assert header[:3] == b"\x1f\x8b\x08"
+    assert int.from_bytes(header[4:8], "little") == epoch
+    assert not (header[3] & gzip.FNAME)
+
+    with tarfile.open(archives[0], "r:gz") as tar:
+        members = tar.getmembers()
+        names = [member.name for member in members]
+        assert names == sorted(names)
+
+        by_name = {member.name: member for member in members}
+        build_json = by_name[f"{openwrt_builder.ARCHIVE_ROOT}/BUILD.json"]
+        install = by_name[f"{openwrt_builder.ARCHIVE_ROOT}/install.sh"]
+        readme = by_name[f"{openwrt_builder.ARCHIVE_ROOT}/README.md"]
+        mihomo = by_name[f"{openwrt_builder.ARCHIVE_ROOT}/bin/mihomo"]
+        index = by_name[f"{openwrt_builder.ARCHIVE_ROOT}/www/unified-ui/index.html"]
+
+        for member in members:
+            assert member.uid == 0
+            assert member.gid == 0
+            assert member.uname == ""
+            assert member.gname == ""
+            assert member.mtime == epoch
+            if member.isdir():
+                assert member.mode == 0o755
+
+        assert install.mode == 0o755
+        assert mihomo.mode == 0o755
+        assert readme.mode == 0o644
+        assert build_json.mode == 0o644
+        assert index.mode == 0o644
+
+        extracted_build = json.loads(tar.extractfile(build_json).read().decode("utf-8"))
+        assert extracted_build == {
+            "version": "1.2.3",
+            "release_date": "2023-11-14T22:15:23Z",
+            "update_url": "https://example.test/update.tar.gz",
+        }

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import json
 import os
+import stat
 import shutil
 import subprocess
 import sys
@@ -32,6 +34,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--sha256", default="", help="Optional path to .sha256 sidecar")
     p.add_argument("--version", default="", help="Optional version override (defaults to git short SHA)")
     p.add_argument("--update-url", default="", help="Optional BUILD.json update_url value")
+    p.add_argument(
+        "--source-date-epoch",
+        type=int,
+        default=None,
+        help="Timestamp used for reproducible archives (defaults to SOURCE_DATE_EPOCH or git commit timestamp).",
+    )
     return p.parse_args()
 
 
@@ -43,10 +51,31 @@ def git_short_head(repo_root: Path) -> str:
         return "local"
 
 
-def write_build_json(dst: Path, *, version: str, update_url: str) -> None:
+def git_head_timestamp(repo_root: Path) -> int:
+    try:
+        out = subprocess.check_output(["git", "log", "-1", "--format=%ct"], cwd=str(repo_root), text=True, stderr=subprocess.DEVNULL)
+        return int(str(out or "").strip())
+    except Exception:
+        return 0
+
+
+def resolve_source_date_epoch(value: int | None, repo_root: Path) -> int:
+    if value is not None:
+        return int(value)
+    env_value = str(os.environ.get("SOURCE_DATE_EPOCH") or "").strip()
+    if env_value:
+        return int(env_value)
+    return git_head_timestamp(repo_root)
+
+
+def release_date_from_epoch(epoch: int) -> str:
+    return datetime.fromtimestamp(int(epoch), timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def write_build_json(dst: Path, *, version: str, update_url: str, source_date_epoch: int) -> None:
     payload = {
         "version": str(version or "").strip(),
-        "release_date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "release_date": release_date_from_epoch(source_date_epoch),
         "update_url": str(update_url or "").strip(),
     }
     dst.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -65,15 +94,46 @@ def shlex_quote(s: str) -> str:
     return "'" + str(s).replace("'", "'\\''") + "'"
 
 
-def build_archive(src_dir: Path, archive_path: Path) -> None:
+def iter_archive_paths(src_dir: Path) -> list[Path]:
+    paths = [src_dir]
+    paths.extend(sorted(src_dir.rglob("*"), key=lambda path: path.relative_to(src_dir).as_posix()))
+    return paths
+
+
+def normalize_archive_tarinfo(info: tarfile.TarInfo, *, source_date_epoch: int) -> tarfile.TarInfo:
+    info.uid = 0
+    info.gid = 0
+    info.uname = ""
+    info.gname = ""
+    info.mtime = int(source_date_epoch)
+    if info.isdir():
+        info.mode = 0o755
+    elif info.issym():
+        info.mode = 0o777
+    elif info.isfile():
+        info.mode = 0o755 if info.mode & stat.S_IXUSR else 0o644
+    return info
+
+
+def build_archive(src_dir: Path, archive_path: Path, *, source_date_epoch: int) -> None:
     archive_path.parent.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(archive_path, "w:gz", format=tarfile.PAX_FORMAT) as tar:
-        tar.add(src_dir, arcname=ARCHIVE_ROOT)
+    with archive_path.open("wb") as raw:
+        with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=int(source_date_epoch), compresslevel=9) as gz:
+            with tarfile.open(fileobj=gz, mode="w", format=tarfile.PAX_FORMAT) as tar:
+                for path in iter_archive_paths(src_dir):
+                    arcname = ARCHIVE_ROOT if path == src_dir else f"{ARCHIVE_ROOT}/{path.relative_to(src_dir).as_posix()}"
+                    tar.add(
+                        path,
+                        arcname=arcname,
+                        recursive=False,
+                        filter=lambda info: normalize_archive_tarinfo(info, source_date_epoch=source_date_epoch),
+                    )
 
 
 def write_sha256(archive_path: Path, sha_path: Path) -> str:
     digest = hashlib.sha256(archive_path.read_bytes()).hexdigest().lower()
-    sha_path.write_text(f"{digest}  {archive_path.name}", encoding="utf-8")
+    sha_path.parent.mkdir(parents=True, exist_ok=True)
+    sha_path.write_text(f"{digest}  {archive_path.name}\n", encoding="utf-8")
     return digest
 
 
@@ -237,6 +297,7 @@ def main() -> int:
     sha_path = Path(args.sha256).resolve() if str(args.sha256 or "").strip() else Path(str(archive_path) + ".sha256")
     version = str(args.version or "").strip() or git_short_head(REPO_ROOT)
     update_url = str(args.update_url or "").strip()
+    source_date_epoch = resolve_source_date_epoch(args.source_date_epoch, REPO_ROOT)
 
     installer_text = build_installer_text(INSTALLER_SRC.read_text(encoding="utf-8"), version=version, update_url=update_url)
 
@@ -250,13 +311,13 @@ def main() -> int:
         copy_full_panel_assets(tmp_root / "www" / "unified-ui", version=version)
         copy_official_awg_runtime(tmp_root)
         copy_mihomo_arm64_runtime(tmp_root)
-        write_build_json(tmp_root / "BUILD.json", version=version, update_url=update_url)
+        write_build_json(tmp_root / "BUILD.json", version=version, update_url=update_url, source_date_epoch=source_date_epoch)
 
         fd, temp_archive_raw = tempfile.mkstemp(prefix="unified-ui-openwrt-", suffix=".tar.gz", dir=str(archive_path.parent))
         os.close(fd)
         temp_archive = Path(temp_archive_raw)
         try:
-            build_archive(tmp_root, temp_archive)
+            build_archive(tmp_root, temp_archive, source_date_epoch=source_date_epoch)
             try:
                 replace_file_with_retries(temp_archive, archive_path)
             except PermissionError:
