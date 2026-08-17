@@ -73,7 +73,13 @@ def insert_proxy_into_groups(content: str, proxy_name: str, target_groups: Itera
             continue
 
         if in_groups and in_proxies_list:
-            if stripped.startswith("- name:") or (stripped and not line.startswith(" " * 4)):
+            # PyYAML emits valid indentless sequences where `proxies:` and its
+            # `- DIRECT` items have the same indentation.  A list item is still
+            # part of the current proxies list even when it has fewer than four
+            # leading spaces.
+            if stripped.startswith("- name:") or (
+                stripped and not stripped.startswith("-") and not line.startswith(" " * 4)
+            ):
                 if current_group in groups_set:
                     _inject_proxy_before_leave(out, proxy_name)
                 in_proxies_list = False
