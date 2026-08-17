@@ -26,3 +26,14 @@ def test_router_installer_atomically_installs_bundled_awg_runtime():
     assert 'AWG_BIN_DIR="/opt/bin"' in text
     assert 'chmod 755 "$AWG_TMP"' in text
     assert 'mv -f "$AWG_TMP" "$AWG_DEST"' in text
+
+
+def test_readme_documents_official_native_awg_runtime():
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "## Официальный AmneziaWG runtime" in text
+    assert "amnezia-vpn/amneziawg-go" in text
+    assert "amnezia-vpn/amneziawg-tools" in text
+    assert "/opt/bin/amneziawg-go" in text
+    assert "/opt/bin/awg" in text
+    assert "S1–S4" in text
+    assert "### Rollback" in text
