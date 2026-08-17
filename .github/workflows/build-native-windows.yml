@@ -68,7 +68,8 @@ jobs:
             $hash = (Get-FileHash -Algorithm SHA256 $file.FullName).Hash.ToLowerInvariant()
             "$hash  $($file.Name)"
           }
-          [IO.File]::WriteAllLines((Join-Path $PWD "dist-artifacts/SHA256SUMS-windows-x64"), $lines, [Text.UTF8Encoding]::new($false))
+          $checksumPath = Join-Path $PWD "dist-artifacts/SHA256SUMS-windows-x64"
+          [IO.File]::WriteAllText($checksumPath, (($lines -join "`n") + "`n"), [Text.UTF8Encoding]::new($false))
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
