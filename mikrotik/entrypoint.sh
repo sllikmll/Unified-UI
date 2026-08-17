@@ -32,6 +32,7 @@ export MIHOMO_CONTROLLER_HOST=127.0.0.1
 export MIHOMO_CONTROLLER_PORT=9090
 export UNIFIED_AWG_GO_BIN="${UNIFIED_AWG_GO_BIN:-/opt/bin/amneziawg-go}"
 export UNIFIED_AWG_BIN="${UNIFIED_AWG_BIN:-/opt/bin/awg}"
+export UNIFIED_AWG_RUNTIME_STATUS=/data/unified-ui/awg-native/runtime-status.json
 
 MIHOMO_RELOAD_SCRIPT=/usr/local/bin/unified-mihomo-reload
 cat > "$MIHOMO_RELOAD_SCRIPT" <<'RELOAD'
@@ -47,10 +48,6 @@ RELOAD
 chmod 755 "$MIHOMO_RELOAD_SCRIPT"
 export MIHOMO_RESTART_CMD="$MIHOMO_RELOAD_SCRIPT"
 export MIHOMO_VALIDATE_CMD='mihomo -t -d /etc/mihomo -f {config}'
-
-if [ ! -c /dev/net/tun ]; then
-  log "/dev/net/tun is not available; native AmneziaWG imports require RouterOS container devices=/dev/net/tun and NET_ADMIN"
-fi
 
 python - <<'PY'
 import os, json
@@ -69,6 +66,32 @@ if secret:
     (state/'secret.key').write_text(secret+'\n')
     (state/'secret.key').chmod(0o600)
 PY
+
+native_awg_preflight() {
+  python - <<'PY'
+import json
+import os
+from pathlib import Path
+
+from services.awg_native import preflight_native_awg_runtime
+
+status_path = Path(os.environ.get("UNIFIED_AWG_RUNTIME_STATUS", "/data/unified-ui/awg-native/runtime-status.json"))
+preflight = preflight_native_awg_runtime(
+    tun="/dev/net/tun",
+    amneziawg_go=os.environ.get("UNIFIED_AWG_GO_BIN", "/opt/bin/amneziawg-go"),
+    awg=os.environ.get("UNIFIED_AWG_BIN", "/opt/bin/awg"),
+)
+payload = preflight.status()
+payload["mode"] = "native-awg"
+status_path.parent.mkdir(parents=True, exist_ok=True)
+status_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+if preflight.ok:
+    print("[unified-mikrotik] native AWG runtime preflight ok", flush=True)
+    raise SystemExit(0)
+print("[unified-mikrotik] native AWG runtime unavailable; skipping native restore: " + "; ".join(preflight.reasons), flush=True)
+raise SystemExit(42)
+PY
+}
 
 if [ ! -s /etc/mihomo/rules/manual-proxy.yaml ]; then
   cat > /etc/mihomo/rules/manual-proxy.yaml <<'YAML'
@@ -182,8 +205,9 @@ Path('/etc/mihomo/config.yaml').write_text(yaml.safe_dump(cfg, allow_unicode=Tru
 PY
 fi
 
-log "restoring native AmneziaWG interfaces"
-python - <<'PY'
+if native_awg_preflight; then
+  log "restoring native AmneziaWG interfaces"
+  python - <<'PY'
 from routes.proxy_connections import _apply_to_mihomo, _managed_connections, _load_registry
 
 data = _load_registry()
@@ -195,6 +219,9 @@ if _managed_connections(data):
 else:
     print("[unified-mikrotik] native AWG restored: 0 interface(s)", flush=True)
 PY
+else
+  log "native AmneziaWG restore skipped; UI and Mihomo will continue without native AWG interfaces"
+fi
 
 log "validating Mihomo config"
 if ! mihomo -t -d /etc/mihomo -f /etc/mihomo/config.yaml; then

@@ -11,11 +11,11 @@
 :local SECRET_KEY "<UI_SECRET_KEY>"
 
 # Native AWG2/AWG3 imports use official amneziawg-go userspace interfaces.
-# Before first boot, make sure this RouterOS container is allowed NET_ADMIN
-# and has /dev/net/tun available. RouterOS exposes container capabilities and
-# device passthrough differently across versions; keep this template's
-# /container/add line valid for your version, then enable those two settings in
-# the container properties if they are not part of /container/add syntax.
+# Current RouterOS container syntax has a devices property; this template passes
+# /dev/net/tun with devices=/dev/net/tun. Empirically on RB5009/RouterOS 7.23.x,
+# amneziawg-go also needs NET_ADMIN-equivalent network privileges inside the
+# container. If your RouterOS build rejects devices= on /container/add, add the
+# container first, then set devices=/dev/net/tun on the container before start.
 
 /system backup save name=pre-unified-ui-mikrotik
 /export file=pre-unified-ui-mikrotik
@@ -46,7 +46,7 @@
 /container/envs add list=UNIFIED_UI_MIKROTIK key=MIHOMO_MIXED_PORT value=1080
 /container/envs add list=UNIFIED_UI_MIKROTIK key=MIHOMO_DNS_PORT value=1053
 
-/container/add file=$CONTAINER_FILE interface=MIHOMO root-dir=$CONTAINER_ROOT envlist=UNIFIED_UI_MIKROTIK hostname=unified-ui-mikrotik logging=yes start-on-boot=yes dns=1.1.1.1,8.8.8.8,9.9.9.9 comment="unified-ui-mikrotik"
+/container/add file=$CONTAINER_FILE interface=MIHOMO root-dir=$CONTAINER_ROOT envlist=UNIFIED_UI_MIKROTIK hostname=unified-ui-mikrotik logging=yes start-on-boot=yes dns=1.1.1.1,8.8.8.8,9.9.9.9 devices=/dev/net/tun comment="unified-ui-mikrotik"
 /container/start [find where comment="unified-ui-mikrotik"]
 
 # After first successful boot, remove sensitive env vars because RouterOS logs env on container start.
