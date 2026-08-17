@@ -5,6 +5,9 @@ on:
   push:
     tags:
       - "v*"
+      - "!v*-openwrt"
+      - "!v*-mikrotik"
+      - "!v*-native"
 
 permissions:
   contents: write

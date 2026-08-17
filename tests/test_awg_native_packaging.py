@@ -16,6 +16,9 @@ def test_release_workflow_builds_pinned_official_arm64_runtime():
     assert "CGO_ENABLED=0 GOOS=linux GOARCH=arm64" in text
     assert "OFFICIAL_AWG_PROVENANCE.json" in text
     assert "package-root/unified-ui/bin" in text
+    assert '"!v*-openwrt"' in text
+    assert '"!v*-mikrotik"' in text
+    assert '"!v*-native"' in text
     assert "(cd package-root/unified-ui/bin && sha256sum -c SHA256SUMS)" in text
 
 
