@@ -461,6 +461,14 @@ def _native_awg_runtime(specs: list[NativeAwgSpec]) -> dict[str, object]:
     ).reconcile(specs)
 
 
+def _native_awg_active_specs() -> list[NativeAwgSpec]:
+    return NativeAwgRuntime(_state_dir() / "awg-native").load_active_specs()
+
+
+def _native_awg_restore(specs: list[NativeAwgSpec]) -> None:
+    _native_awg_runtime(specs)
+
+
 def reconcile_native_awg_startup() -> dict[str, object]:
     data = _load_registry()
     connections, specs, changed = _upgrade_native_awg_connections(_managed_connections(data))
@@ -669,17 +677,26 @@ def _apply_to_mihomo(*, restart: bool = False) -> dict[str, Any]:
     ok, err = validate_yaml_syntax(patched)
     if not ok:
         raise RuntimeError("generated Mihomo YAML is invalid: " + str(err))
+    previous_native_specs = _native_awg_active_specs()
     native_result = _native_awg_runtime(native_specs)
-    if registry_changed:
-        _save_registry(data)
     backup = None
     changed = patched != cfg
-    if changed:
-        backup = _backup_config(cfg_path)
-        cfg_path.write_text(patched, encoding="utf-8")
     log = ""
-    if restart:
-        log = restart_mihomo_and_get_log(patched)
+    try:
+        if changed:
+            backup = _backup_config(cfg_path)
+            cfg_path.write_text(patched, encoding="utf-8")
+        if restart:
+            log = restart_mihomo_and_get_log(patched)
+        if registry_changed:
+            _save_registry(data)
+    except Exception:
+        try:
+            if changed:
+                cfg_path.write_text(cfg, encoding="utf-8")
+        finally:
+            _native_awg_restore(previous_native_specs)
+        raise
     return {
         "ok": True,
         "changed": changed,

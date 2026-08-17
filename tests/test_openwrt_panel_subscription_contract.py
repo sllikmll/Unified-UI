@@ -67,6 +67,29 @@ def test_openwrt_native_awg_contract_uses_direct_outbound_and_private_state():
     assert "routing-mark:" in text
     assert "type: wireguard" not in text
     assert "amnezia-wg-option" not in text
+    assert 'ACTIVE_DESIRED="$STATE_DIR/active-desired"' in text
+    assert 'ACTIVE_CONFIG_DIR="$STATE_DIR/active-configs"' in text
+    assert "persist_active_desired()" in text
+    assert 'active_conf="$ACTIVE_CONFIG_DIR/$iface.conf"' in text
+    assert '[ ! -s "$ACTIVE_DESIRED" ] || reconcile_file "$ACTIVE_DESIRED" || true' in text
+    assert ': > "$ACTIVE_DESIRED"' in text
+
+
+def test_openwrt_proxy_and_subscription_apply_restore_awg_on_commit_or_restart_failure():
+    text = INSTALLER.read_text(encoding="utf-8")
+    assert 'AWG_ACTIVE_DESIRED_FILE="$AWG_STATE_DIR/active-desired"' in text
+    assert "awg_snapshot_state()" in text
+    assert "awg_restore_state()" in text
+    proxy_apply = text.split("apply_proxy_connections_openwrt()", 1)[1].split("PANEL_SUBSCRIPTION_URL_FILE=", 1)[0]
+    assert 'awg_snapshot_state "$tmp_dir/awg-snapshot"' in proxy_apply
+    assert 'return 33' in proxy_apply and 'awg_restore_state "$tmp_dir/awg-snapshot"' in proxy_apply
+    assert 'return 35' in proxy_apply and 'awg_restore_state "$tmp_dir/awg-snapshot"' in proxy_apply
+    assert 'return 37' in proxy_apply and "mihomo_get /version" in proxy_apply
+    subscription_apply = text.split("subscription_import_openwrt()", 1)[1].split("DNS_ROUTES_DIR=", 1)[0]
+    assert 'awg_snapshot_state "$tmp_dir/awg-snapshot"' in subscription_apply
+    assert 'return 18' in subscription_apply and 'awg_restore_state "$tmp_dir/awg-snapshot"' in subscription_apply
+    assert 'return 44' in subscription_apply and 'awg_restore_state "$tmp_dir/awg-snapshot"' in subscription_apply
+    assert 'return 19' in subscription_apply and "mihomo_get /version" in subscription_apply
 
 
 def test_openwrt_native_awg_import_persists_selected_selector_publicly():

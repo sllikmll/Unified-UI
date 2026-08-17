@@ -135,6 +135,7 @@ class NativeAwgRuntime:
         self.state_dir = Path(state_dir)
         self.config_dir = self.state_dir / "configs"
         self.manifest_path = self.state_dir / "manifest.json"
+        self.active_desired_path = self.state_dir / "active-desired.json"
         self.amneziawg_go = amneziawg_go
         self.awg = awg
         self.ip = ip
@@ -163,6 +164,75 @@ class NativeAwgRuntime:
 
     def _config_path(self, spec: NativeAwgSpec) -> Path:
         return self.config_dir / f"{spec.interface}.conf"
+
+    def _spec_to_dict(self, spec: NativeAwgSpec) -> dict[str, object]:
+        return {
+            "name": spec.name,
+            "interface": spec.interface,
+            "addresses": spec.addresses,
+            "mtu": spec.mtu,
+            "setconf": spec.setconf,
+            "routingMark": spec.routing_mark,
+            "routingTable": spec.routing_table,
+            "rulePriority": spec.rule_priority,
+        }
+
+    def _spec_from_dict(self, data: dict[str, object]) -> NativeAwgSpec:
+        addresses_raw = data.get("addresses")
+        addresses = [str(item) for item in addresses_raw] if isinstance(addresses_raw, list) else []
+        mtu_raw = data.get("mtu")
+        mtu = int(mtu_raw) if mtu_raw not in (None, "") else None
+        return NativeAwgSpec(
+            name=str(data.get("name") or "AmneziaWG"),
+            interface=str(data.get("interface") or native_interface_name(str(data.get("name") or "AmneziaWG"))),
+            addresses=addresses,
+            mtu=mtu,
+            setconf=str(data.get("setconf") or ""),
+            routing_mark=int(data.get("routingMark") or 0),
+            routing_table=int(data.get("routingTable") or 0),
+            rule_priority=int(data.get("rulePriority") or 0),
+        )
+
+    def load_active_specs(self) -> list[NativeAwgSpec]:
+        if not self.active_desired_path.exists():
+            return []
+        try:
+            payload = json.loads(self.active_desired_path.read_text(encoding="utf-8"))
+        except Exception:
+            return []
+        items = payload.get("specs") if isinstance(payload, dict) else []
+        specs: list[NativeAwgSpec] = []
+        for item in items if isinstance(items, list) else []:
+            if isinstance(item, dict):
+                spec = self._spec_from_dict(item)
+                if spec.interface and spec.setconf:
+                    specs.append(spec)
+        return specs
+
+    def _write_json_private(self, path: Path, payload: dict[str, object]) -> None:
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        os.chmod(tmp, 0o600)
+        tmp.replace(path)
+
+    def _manifest_payload(self, specs: list[NativeAwgSpec]) -> dict[str, object]:
+        return {
+            "version": 1,
+            "interfaces": [
+                {
+                    "name": spec.name,
+                    "interface": spec.interface,
+                    "routingMark": spec.routing_mark,
+                    "routingTable": spec.routing_table,
+                    "rulePriority": spec.rule_priority,
+                }
+                for spec in specs
+            ],
+        }
+
+    def _active_desired_payload(self, specs: list[NativeAwgSpec]) -> dict[str, object]:
+        return {"version": 1, "specs": [self._spec_to_dict(spec) for spec in specs]}
 
     def _teardown_identity(self, interface: str, routing_mark: int, routing_table: int, rule_priority: int) -> None:
         self._run(
@@ -202,16 +272,16 @@ class NativeAwgRuntime:
             self._teardown_identity(spec.interface, spec.routing_mark, spec.routing_table, spec.rule_priority)
             raise
 
-    def reconcile(self, specs: list[NativeAwgSpec]) -> dict[str, object]:
-        if not specs and not self.manifest_path.exists():
-            return {"ok": True, "count": 0, "interfaces": []}
+    def _restore_specs(self, specs: list[NativeAwgSpec]) -> None:
+        for spec in specs:
+            self.apply(spec)
+        desired = {spec.interface for spec in specs}
         previous: list[dict[str, object]] = []
         if self.manifest_path.exists():
             try:
                 previous = json.loads(self.manifest_path.read_text(encoding="utf-8")).get("interfaces", [])
             except Exception:
                 previous = []
-        desired = {spec.interface for spec in specs}
         for old in previous:
             interface = str(old.get("interface") or "")
             if interface and interface not in desired:
@@ -221,29 +291,45 @@ class NativeAwgRuntime:
                     int(old.get("routingTable") or 0),
                     int(old.get("rulePriority") or 0),
                 )
-                try:
-                    (self.config_dir / f"{interface}.conf").unlink()
-                except FileNotFoundError:
-                    pass
-        for spec in specs:
-            self.apply(spec)
+        self._write_json_private(self.manifest_path, self._manifest_payload(specs))
+        self._write_json_private(self.active_desired_path, self._active_desired_payload(specs))
 
-        payload = {
-            "version": 1,
-            "interfaces": [
-                {
-                    "name": spec.name,
-                    "interface": spec.interface,
-                    "routingMark": spec.routing_mark,
-                    "routingTable": spec.routing_table,
-                    "rulePriority": spec.rule_priority,
-                }
-                for spec in specs
-            ],
-        }
-        self.state_dir.mkdir(parents=True, exist_ok=True)
-        self.manifest_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        os.chmod(self.manifest_path, 0o600)
+    def reconcile(self, specs: list[NativeAwgSpec]) -> dict[str, object]:
+        if not specs and not self.manifest_path.exists():
+            return {"ok": True, "count": 0, "interfaces": []}
+        previous_specs = self.load_active_specs()
+        previous: list[dict[str, object]] = []
+        if self.manifest_path.exists():
+            try:
+                previous = json.loads(self.manifest_path.read_text(encoding="utf-8")).get("interfaces", [])
+            except Exception:
+                previous = []
+        desired = {spec.interface for spec in specs}
+        try:
+            for spec in specs:
+                self.apply(spec)
+            for old in previous:
+                interface = str(old.get("interface") or "")
+                if interface and interface not in desired:
+                    self._teardown_identity(
+                        interface,
+                        int(old.get("routingMark") or 0),
+                        int(old.get("routingTable") or 0),
+                        int(old.get("rulePriority") or 0),
+                    )
+                    try:
+                        (self.config_dir / f"{interface}.conf").unlink()
+                    except FileNotFoundError:
+                        pass
+        except Exception:
+            for spec in specs:
+                self._teardown_identity(spec.interface, spec.routing_mark, spec.routing_table, spec.rule_priority)
+            if previous_specs:
+                self._restore_specs(previous_specs)
+            raise
+
+        self._write_json_private(self.manifest_path, self._manifest_payload(specs))
+        self._write_json_private(self.active_desired_path, self._active_desired_payload(specs))
         return {"ok": True, "count": len(specs), "interfaces": [spec.interface for spec in specs]}
 
 

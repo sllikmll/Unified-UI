@@ -203,13 +203,15 @@ cat > "$AWG_NATIVE_HELPER" <<'AWGN'
 set -eu
 STATE_DIR="${UNIFIED_AWG_STATE_DIR:-/etc/unified-ui/awg-native}"
 CONFIG_DIR="$STATE_DIR/configs"
+ACTIVE_CONFIG_DIR="$STATE_DIR/active-configs"
 MANIFEST="$STATE_DIR/manifest"
+ACTIVE_DESIRED="$STATE_DIR/active-desired"
 AWG_GO_BIN="${UNIFIED_AWG_GO_BIN:-/usr/bin/amneziawg-go}"
 AWG_BIN="${UNIFIED_AWG_BIN:-/usr/bin/awg}"
 IP_BIN="${UNIFIED_IP_BIN:-/sbin/ip}"
 
-mkdir -p "$CONFIG_DIR"
-chmod 700 "$STATE_DIR" "$CONFIG_DIR" 2>/dev/null || true
+mkdir -p "$CONFIG_DIR" "$ACTIVE_CONFIG_DIR"
+chmod 700 "$STATE_DIR" "$CONFIG_DIR" "$ACTIVE_CONFIG_DIR" 2>/dev/null || true
 
 run_optional() { "$@" >/dev/null 2>&1 || true; }
 
@@ -246,6 +248,48 @@ stop_all() {
   fi
 }
 
+stop_desired_file() {
+  desired="$1"
+  [ -n "$desired" ] && [ -f "$desired" ] || return 0
+  while IFS='|' read -r iface conf addresses mtu mark table prio; do
+    [ -n "$iface" ] || continue
+    stop_iface "$iface" "$mark" "$table" "$prio"
+  done < "$desired"
+}
+
+persist_active_desired() {
+  desired="$1"
+  tmp="$ACTIVE_DESIRED.new.$$"
+  : > "$tmp"
+  rm -f "$ACTIVE_CONFIG_DIR"/*.conf 2>/dev/null || true
+  if [ -n "$desired" ] && [ -f "$desired" ]; then
+    while IFS='|' read -r iface conf addresses mtu mark table prio; do
+      [ -n "$iface" ] || continue
+      active_conf="$ACTIVE_CONFIG_DIR/$iface.conf"
+      cp "$conf" "$active_conf"
+      chmod 600 "$active_conf"
+      printf '%s|%s|%s|%s|%s|%s|%s\n' "$iface" "$active_conf" "$addresses" "$mtu" "$mark" "$table" "$prio" >> "$tmp"
+    done < "$desired"
+  fi
+  chmod 600 "$tmp"
+  mv -f "$tmp" "$ACTIVE_DESIRED"
+}
+
+reconcile_file() {
+  desired="$1"
+  stop_all
+  : > "$MANIFEST.new"
+  if [ -n "$desired" ] && [ -f "$desired" ]; then
+    while IFS='|' read -r iface conf addresses mtu mark table prio; do
+      [ -n "$iface" ] || continue
+      start_one "$iface" "$conf" "$addresses" "$mtu" "$mark" "$table" "$prio"
+      printf '%s|%s|%s|%s\n' "$iface" "$mark" "$table" "$prio" >> "$MANIFEST.new"
+    done < "$desired"
+  fi
+  chmod 600 "$MANIFEST.new"
+  mv -f "$MANIFEST.new" "$MANIFEST"
+}
+
 start_one() {
   iface="$1"; conf="$2"; addresses="$3"; mtu="$4"; mark="$5"; table="$6"; prio="$7"
   [ -x "$AWG_GO_BIN" ] || { echo "missing amneziawg-go" >&2; return 10; }
@@ -271,21 +315,22 @@ start_one() {
 case "${1:-}" in
   reconcile)
     desired="${2:-}"
-    stop_all
-    : > "$MANIFEST.new"
-    if [ -n "$desired" ] && [ -f "$desired" ]; then
-      while IFS='|' read -r iface conf addresses mtu mark table prio; do
-        [ -n "$iface" ] || continue
-        start_one "$iface" "$conf" "$addresses" "$mtu" "$mark" "$table" "$prio"
-        printf '%s|%s|%s|%s\n' "$iface" "$mark" "$table" "$prio" >> "$MANIFEST.new"
-      done < "$desired"
+    if reconcile_file "$desired"; then
+      persist_active_desired "$desired"
+    else
+      rc=$?
+      rm -f "$MANIFEST.new"
+      stop_desired_file "$desired"
+      stop_all
+      [ ! -s "$ACTIVE_DESIRED" ] || reconcile_file "$ACTIVE_DESIRED" || true
+      exit "$rc"
     fi
-    chmod 600 "$MANIFEST.new"
-    mv -f "$MANIFEST.new" "$MANIFEST"
     ;;
   stop)
     stop_all
     rm -f "$MANIFEST"
+    : > "$ACTIVE_DESIRED"
+    chmod 600 "$ACTIVE_DESIRED" 2>/dev/null || true
     ;;
   *)
     echo "usage: unified-awg-native reconcile <desired-file>|stop" >&2
@@ -566,12 +611,37 @@ PROXY_REGISTRY="${UNIFIED_UI_CONF_DIR:-/etc/unified-ui}/proxy-connections.json"
 AWG_STATE_DIR="${UNIFIED_UI_CONF_DIR:-/etc/unified-ui}/awg-native"
 AWG_CONFIG_DIR="$AWG_STATE_DIR/configs"
 AWG_DESIRED_FILE="$AWG_STATE_DIR/desired"
+AWG_ACTIVE_DESIRED_FILE="$AWG_STATE_DIR/active-desired"
 AWG_HELPER="${UNIFIED_AWG_HELPER:-/usr/sbin/unified-awg-native}"
 AWG_GO_BIN="${UNIFIED_AWG_GO_BIN:-/usr/bin/amneziawg-go}"
 AWG_BIN="${UNIFIED_AWG_BIN:-/usr/bin/awg}"
 PROXY_MANAGED_START="# unified-managed-proxies:start"
 PROXY_MANAGED_END="# unified-managed-proxies:end"
 AWG_GROUP_MARKER="# unified-managed-awg"
+awg_snapshot_state() {
+  out_dir="$1"
+  mkdir -p "$out_dir"
+  if [ -f "$AWG_DESIRED_FILE" ]; then cp "$AWG_DESIRED_FILE" "$out_dir/desired"; else : > "$out_dir/desired.missing"; fi
+  if [ -f "$AWG_ACTIVE_DESIRED_FILE" ]; then cp "$AWG_ACTIVE_DESIRED_FILE" "$out_dir/active-desired"; else : > "$out_dir/active-desired.missing"; fi
+}
+
+awg_restore_state() {
+  snap="$1"
+  if [ -f "$snap/desired" ]; then
+    cp "$snap/desired" "$AWG_DESIRED_FILE.tmp.$$"
+    chmod 600 "$AWG_DESIRED_FILE.tmp.$$"
+    mv "$AWG_DESIRED_FILE.tmp.$$" "$AWG_DESIRED_FILE"
+  else
+    rm -f "$AWG_DESIRED_FILE"
+  fi
+  [ -x "$AWG_HELPER" ] || return 0
+  if [ -s "$snap/active-desired" ]; then
+    "$AWG_HELPER" reconcile "$snap/active-desired" >/tmp/unified-awg-native.log 2>&1 || true
+  else
+    "$AWG_HELPER" stop >/tmp/unified-awg-native.log 2>&1 || true
+  fi
+}
+
 proxy_protocols_json() {
   printf '[{"id":"wireguard","label":"WireGuard"},{"id":"amnezia","label":"Amnezia"},{"id":"hysteria2","label":"Hysteria2"},{"id":"vless","label":"VLESS"},{"id":"trojan","label":"Trojan"},{"id":"vmess","label":"VMess"},{"id":"shadowsocks","label":"Shadowsocks"},{"id":"mieru","label":"Mieru"},{"id":"naiveproxy","label":"NaiveProxy"},{"id":"telegram","label":"Telegram MTProxy"}]'
 }
@@ -881,6 +951,7 @@ apply_proxy_connections_openwrt() {
   tmp_dir="/tmp/unified-awg-apply-$$"
   mkdir -p "$tmp_dir" "$AWG_CONFIG_DIR" "$UNIFIED_UI_BACKUP_DIR"
   chmod 700 "$tmp_dir" "$AWG_STATE_DIR" "$AWG_CONFIG_DIR" 2>/dev/null || true
+  awg_snapshot_state "$tmp_dir/awg-snapshot"
   body_file="$tmp_dir/proxies.yaml"; desired="$tmp_dir/desired"; members="$tmp_dir/group-members"; : > "$body_file"; : > "$desired"; : > "$members"
   count=0
   if [ -f "$PROXY_REGISTRY" ]; then
@@ -925,7 +996,7 @@ apply_proxy_connections_openwrt() {
     cp "$desired" "$AWG_DESIRED_FILE.tmp.$$"
     chmod 600 "$AWG_DESIRED_FILE.tmp.$$"
     mv "$AWG_DESIRED_FILE.tmp.$$" "$AWG_DESIRED_FILE"
-    "$AWG_HELPER" reconcile "$AWG_DESIRED_FILE" >/tmp/unified-awg-native.log 2>&1 || { rm -rf "$tmp_dir"; return 33; }
+    "$AWG_HELPER" reconcile "$AWG_DESIRED_FILE" >/tmp/unified-awg-native.log 2>&1 || { awg_restore_state "$tmp_dir/awg-snapshot"; rm -rf "$tmp_dir"; return 33; }
   else
     rm -f "$AWG_DESIRED_FILE"
     [ ! -x "$AWG_HELPER" ] || "$AWG_HELPER" stop >/tmp/unified-awg-native.log 2>&1 || true
@@ -935,12 +1006,20 @@ apply_proxy_connections_openwrt() {
     changed=true
     ts="$(date +%Y%m%d-%H%M%S)"
     backup="$UNIFIED_UI_BACKUP_DIR/proxy-connections-$ts.yaml"
-    cp "$profile_real" "$backup" || { rm -rf "$tmp_dir"; return 34; }
+    cp "$profile_real" "$backup" || { awg_restore_state "$tmp_dir/awg-snapshot"; rm -rf "$tmp_dir"; return 34; }
     target_tmp="$profile_real.unified-proxy.$$"
-    cp "$candidate" "$target_tmp" && chmod 600 "$target_tmp" && mv "$target_tmp" "$profile_real" || { rm -f "$target_tmp"; rm -rf "$tmp_dir"; return 35; }
+    cp "$candidate" "$target_tmp" && chmod 600 "$target_tmp" && mv "$target_tmp" "$profile_real" || { rm -f "$target_tmp"; awg_restore_state "$tmp_dir/awg-snapshot"; rm -rf "$tmp_dir"; return 35; }
   fi
   if [ "$restart" = true ] || [ "$restart" = 1 ]; then
     "$MIHOMO_INIT" restart >/tmp/unified-proxy-restart.log 2>&1 || true
+    sleep 3
+    if ! pidof mihomo >/dev/null 2>&1 || ! mihomo_get /version >/dev/null 2>&1; then
+      [ "$changed" != true ] || cp "$backup" "$profile_real" 2>/dev/null || true
+      awg_restore_state "$tmp_dir/awg-snapshot"
+      "$MIHOMO_INIT" restart >/dev/null 2>&1 || true
+      rm -rf "$tmp_dir"
+      return 37
+    fi
   fi
   rm -rf "$tmp_dir"
   printf '%s|%s' "$changed" "$count"
@@ -1104,6 +1183,7 @@ subscription_import_openwrt() {
   mkdir -p "$tmp_dir" "$UNIFIED_UI_BACKUP_DIR" "$UNIFIED_UI_CONF_DIR" "$AWG_CONFIG_DIR"
   chmod 700 "$tmp_dir"
   chmod 700 "$AWG_STATE_DIR" "$AWG_CONFIG_DIR" 2>/dev/null || true
+  awg_snapshot_state "$tmp_dir/awg-snapshot"
   clash="$tmp_dir/clash.yaml"; plain="$tmp_dir/plain.txt"; proxy_body="$tmp_dir/proxies.yaml"; proxy_filtered="$tmp_dir/proxies-filtered.yaml"; desired="$tmp_dir/desired"
   : > "$desired"
   curl -fsSL --max-time 30 -A 'mihomo/1.19.27' "$source_url" > "$clash" || { rm -rf "$tmp_dir"; return 10; }
@@ -1128,15 +1208,15 @@ subscription_import_openwrt() {
   [ "${validation_rc:-1}" = 0 ] || { rm -rf "$tmp_dir"; return 16; }
   ts="$(date +%Y%m%d-%H%M%S)"
   backup="$UNIFIED_UI_BACKUP_DIR/panel-subscription-$ts.yaml"
-  cp "$profile_real" "$backup" || { rm -rf "$tmp_dir"; return 17; }
+  cp "$profile_real" "$backup" || { awg_restore_state "$tmp_dir/awg-snapshot"; rm -rf "$tmp_dir"; return 17; }
   target_tmp="$profile_real.unified-panel.$$"
-  cp "$candidate" "$target_tmp" && chmod 600 "$target_tmp" && mv "$target_tmp" "$profile_real" || { rm -f "$target_tmp"; rm -rf "$tmp_dir"; return 18; }
+  cp "$candidate" "$target_tmp" && chmod 600 "$target_tmp" && mv "$target_tmp" "$profile_real" || { rm -f "$target_tmp"; awg_restore_state "$tmp_dir/awg-snapshot"; rm -rf "$tmp_dir"; return 18; }
   if [ -s "$desired" ]; then
     cp "$desired" "$AWG_DESIRED_FILE.tmp.$$"
     chmod 600 "$AWG_DESIRED_FILE.tmp.$$"
     mv "$AWG_DESIRED_FILE.tmp.$$" "$AWG_DESIRED_FILE"
-    [ -x "$AWG_HELPER" ] || { rm -rf "$tmp_dir"; return 43; }
-    "$AWG_HELPER" reconcile "$AWG_DESIRED_FILE" >/tmp/unified-awg-native.log 2>&1 || { cp "$backup" "$profile_real"; rm -rf "$tmp_dir"; return 44; }
+    [ -x "$AWG_HELPER" ] || { cp "$backup" "$profile_real"; awg_restore_state "$tmp_dir/awg-snapshot"; rm -rf "$tmp_dir"; return 43; }
+    "$AWG_HELPER" reconcile "$AWG_DESIRED_FILE" >/tmp/unified-awg-native.log 2>&1 || { cp "$backup" "$profile_real"; awg_restore_state "$tmp_dir/awg-snapshot"; rm -rf "$tmp_dir"; return 44; }
   fi
   printf '%s\n' "$source_url" > "$PANEL_SUBSCRIPTION_URL_FILE"
   chmod 600 "$PANEL_SUBSCRIPTION_URL_FILE"
@@ -1151,6 +1231,7 @@ subscription_import_openwrt() {
     sleep 3
     if ! pidof mihomo >/dev/null 2>&1 || ! mihomo_get /version >/dev/null 2>&1; then
       cp "$backup" "$profile_real"
+      awg_restore_state "$tmp_dir/awg-snapshot"
       "$MIHOMO_INIT" restart >/dev/null 2>&1 || true
       rm -rf "$tmp_dir"
       return 19
