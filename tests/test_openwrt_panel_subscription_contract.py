@@ -64,6 +64,46 @@ def test_openwrt_native_awg_contract_uses_direct_outbound_and_private_state():
     assert "amnezia-wg-option" not in text
 
 
+def test_openwrt_native_awg_import_persists_selected_selector_publicly():
+    text = INSTALLER.read_text(encoding="utf-8")
+    assert "sanitize_awg_selector()" in text
+    assert "tr -d '\\r\\n|'" in text
+    assert 'selector="GLOBAL"' in text
+    assert "jsonfilter -e '@.selectors[0]'" in text
+    assert 'conn_json="$(import_awg_connection "$proto" "$name" "$content" "$selector")"' in text
+    assert '"selectors":["%s"],"usedBySelectors":["%s"]' in text
+
+
+def test_openwrt_native_awg_apply_syncs_group_memberships_by_marker_only():
+    text = INSTALLER.read_text(encoding="utf-8")
+    assert 'AWG_GROUP_MARKER="# unified-managed-awg"' in text
+    assert "proxy_sync_awg_group_memberships()" in text
+    assert 'index($0, marker) == 0 { print }' in text
+    assert 'print indent "- " proxy_names[i] " " marker' in text
+    assert 'printf \'%s\\t%s\\n\' "$selector" "$(yaml_single_quote "$name")" >> "$members"' in text
+
+
+def test_openwrt_native_awg_apply_fails_before_live_mutation_when_selector_missing():
+    text = INSTALLER.read_text(encoding="utf-8")
+    sync_call = (
+        'proxy_sync_awg_group_memberships "$candidate" "$members" "$candidate_with_groups" '
+        '|| { rm -rf "$tmp_dir"; return 36; }'
+    )
+    assert sync_call in text
+    assert "if (!inserted[i]) exit 43" in text
+    assert text.index(sync_call) < text.index('validation="$(cat "$candidate" | validate_profile_content)"')
+    assert text.index(sync_call) < text.index('mv "$target_tmp" "$profile_real"')
+
+
+def test_openwrt_native_awg_apply_preserves_unmarked_group_memberships():
+    text = INSTALLER.read_text(encoding="utf-8")
+    awg_sync = text.split("proxy_sync_awg_group_memberships()", 1)[1].split("apply_proxy_connections_openwrt()", 1)[0]
+    assert "remove_proxy_from_groups" not in awg_sync
+    assert "AWG-old" not in awg_sync
+    assert 'index($0, marker) == 0 { print }' in awg_sync
+    assert 'if (item != "") print indent "  - " item' in awg_sync
+
+
 def test_openwrt_archive_builder_bundles_official_awg_runtime_when_present():
     text = BUILDER.read_text(encoding="utf-8")
     assert "copy_official_awg_runtime" in text
