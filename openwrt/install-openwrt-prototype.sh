@@ -531,11 +531,22 @@ curl_github() {
 github_latest_json() {
   repo="$(update_repo)"
   tmp="/tmp/unified-ui-gh-latest-$$.json"
-  if curl_github "https://api.github.com/repos/$repo/releases/latest" > "$tmp"; then
-    tag="$(jsonfilter -i "$tmp" -e '@.tag_name' 2>/dev/null || true)"
-    pub="$(jsonfilter -i "$tmp" -e '@.published_at' 2>/dev/null || true)"
-    html="$(jsonfilter -i "$tmp" -e '@.html_url' 2>/dev/null || true)"
-    assets="$(jsonfilter -i "$tmp" -e '@.assets[*].name' 2>/dev/null | awk 'BEGIN{printf "["} {gsub(/"/,"\\\""); if(NR>1)printf ","; printf "{\"name\":\"%s\"}",$0} END{printf "]"}')"
+  if curl_github "https://api.github.com/repos/$repo/releases?per_page=30" > "$tmp"; then
+    idx=0; selected=-1; tag=""
+    while [ "$idx" -lt 30 ]; do
+      candidate="$(jsonfilter -i "$tmp" -e "@[$idx].tag_name" 2>/dev/null || true)"
+      [ -n "$candidate" ] || break
+      case "$candidate" in *-openwrt) selected="$idx"; tag="$candidate"; break ;; esac
+      idx=$((idx + 1))
+    done
+    if [ "$selected" -lt 0 ]; then
+      rm -f "$tmp"
+      printf '{"ok":false,"error":"openwrt_release_not_found","hint":"В последних 30 релизах нет platform tag *-openwrt"}'
+      return 0
+    fi
+    pub="$(jsonfilter -i "$tmp" -e "@[$selected].published_at" 2>/dev/null || true)"
+    html="$(jsonfilter -i "$tmp" -e "@[$selected].html_url" 2>/dev/null || true)"
+    assets="$(jsonfilter -i "$tmp" -e "@[$selected].assets[*].name" 2>/dev/null | awk 'BEGIN{printf "["} {gsub(/"/,"\\\""); if(NR>1)printf ","; printf "{\"name\":\"%s\"}",$0} END{printf "]"}')"
     rm -f "$tmp"
     [ -n "$assets" ] || assets='[]'
     printf '{"ok":true,"latest":{"kind":"stable","tag":"%s","published_at":"%s","url":"%s","assets":%s}}' "$(printf '%s' "$tag" | json_escape)" "$(printf '%s' "$pub" | json_escape)" "$(printf '%s' "$html" | json_escape)" "$assets"

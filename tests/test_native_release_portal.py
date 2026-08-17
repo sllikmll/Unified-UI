@@ -60,7 +60,9 @@ def test_native_release_manifest_fails_when_required_artifacts_are_missing(tmp_p
 
 
 def test_native_download_portal_and_npm_scripts_are_wired():
-    html = PORTAL.read_text(encoding='utf-8')
+    html = PORTAL.read_text(encoding="utf-8")
+    assert "releases/latest" not in html
+    assert "releases/tag/v2.6.8-native" in html
     assert 'Unified UI Native' in html
     assert 'native-release-manifest.json' in html
     assert 'Unified-UI-Native-Setup-2.6.8-x64.exe' in html

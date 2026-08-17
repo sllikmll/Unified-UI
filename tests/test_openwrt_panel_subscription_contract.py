@@ -159,6 +159,13 @@ def test_openwrt_native_awg_registry_upserts_and_deletes_only_requested_id():
     assert 'mv "$registry_backup" "$PROXY_REGISTRY"' in item_route
 
 
+def test_openwrt_update_check_is_platform_scoped():
+    text = INSTALLER.read_text(encoding="utf-8")
+    assert "/releases?per_page=30" in text
+    assert 'case "$candidate" in *-openwrt)' in text
+    assert "/releases/latest" not in text
+
+
 def test_openwrt_archive_builder_bundles_official_awg_runtime_when_present():
     text = BUILDER.read_text(encoding="utf-8")
     assert "copy_official_awg_runtime" in text
