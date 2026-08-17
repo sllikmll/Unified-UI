@@ -9,19 +9,27 @@
 | Что | Ссылка |
 |---|---|
 | Репозиторий | https://github.com/sllikmll/Unified-UI |
-| **Актуальный релиз панели / Keenetic** | **[`v3.0.1`](https://github.com/sllikmll/Unified-UI/releases/tag/v3.0.1)** |
-| **Актуальный Native desktop релиз** | **[`v2.6.7-native`](https://github.com/sllikmll/Unified-UI/releases/tag/v2.6.7-native)** |
-| Windows installer | [Unified-UI-Native-Setup-2.6.7-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-Setup-2.6.7-x64.exe) |
-| Windows standalone EXE | [Unified-UI-Native-2.6.7-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-2.6.7-x64.exe) |
-| Windows portable ZIP | [Unified-UI-Native-2.6.7-windows-x64-portable.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-2.6.7-windows-x64-portable.zip) |
-| macOS Apple Silicon | [Unified-UI-Native-2.6.7-mac-arm64.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-2.6.7-mac-arm64.zip) |
-| Linux portable | [Unified-UI-Native-2.6.7-linux-x64-portable.tar.gz](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-2.6.7-linux-x64-portable.tar.gz) |
-| Linux `.deb` | [Unified-UI-Native-2.6.7-linux-x64.deb](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-2.6.7-linux-x64.deb) |
-| Linux `.rpm` | [Unified-UI-Native-2.6.7-linux-x64.rpm](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-2.6.7-linux-x64.rpm) |
-| SHA256 / manifest | [SHA256SUMS](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/SHA256SUMS), [native-release-manifest.json](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/native-release-manifest.json) |
+| **Keenetic / Entware** | **[`v3.0.1`](https://github.com/sllikmll/Unified-UI/releases/tag/v3.0.1)** · [архив установки](https://github.com/sllikmll/Unified-UI/releases/download/v3.0.1/unified-ui-routing.tar.gz) |
+| **OpenWrt / standalone Mihomo** | **[`v2.4.44-openwrt-dns-routes`](https://github.com/sllikmll/Unified-UI/releases/tag/v2.4.44-openwrt-dns-routes)** · [архив установки](https://github.com/sllikmll/Unified-UI/releases/download/v2.4.44-openwrt-dns-routes/unified-ui-openwrt.tar.gz) |
+| **MikroTik / RouterOS container** | **[`v2.6.4-native`](https://github.com/sllikmll/Unified-UI/releases/tag/v2.6.4-native)** · [Docker archive](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/unified-ui-mikrotik-docker-archive-2.6.4.tar.gz) |
+| **Native Desktop** | **[`v2.6.8-native`](https://github.com/sllikmll/Unified-UI/releases/tag/v2.6.8-native)** · macOS / Windows / Linux |
+| Windows installer | [Unified-UI-Native-Setup-2.6.8-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/Unified-UI-Native-Setup-2.6.8-x64.exe) |
+| Windows standalone EXE | [Unified-UI-Native-2.6.8-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/Unified-UI-Native-2.6.8-x64.exe) |
+| Windows portable ZIP | [Unified-UI-Native-2.6.8-windows-x64-portable.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/Unified-UI-Native-2.6.8-windows-x64-portable.zip) |
+| macOS Apple Silicon | [Unified-UI-Native-2.6.8-mac-arm64.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/Unified-UI-Native-2.6.8-mac-arm64.zip) |
+| Linux portable | [Unified-UI-Native-2.6.8-linux-x64-portable.tar.gz](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/Unified-UI-Native-2.6.8-linux-x64-portable.tar.gz) |
+| Linux `.deb` | [Unified-UI-Native-2.6.8-linux-x64.deb](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/Unified-UI-Native-2.6.8-linux-x64.deb) |
+| Linux `.rpm` | [Unified-UI-Native-2.6.8-linux-x64.rpm](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/Unified-UI-Native-2.6.8-linux-x64.rpm) |
+| SHA256 / manifest | [SHA256SUMS](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/SHA256SUMS), [native-release-manifest.json](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/native-release-manifest.json) |
 | Legacy desktop/docker релиз | https://github.com/sllikmll/Unified-UI/releases/tag/v2.5.2 |
 | Docker image | `ghcr.io/sllikmll/unified-ui:latest` |
 | Версия Mihomo в desktop/native/docker сборках | `v1.19.29` |
+
+### Независимые версии платформ
+
+Keenetic, OpenWrt, MikroTik и Native Desktop выпускаются **отдельными релизными линиями**. Номер версии одной платформы не означает, что в её GitHub Release лежат пакеты остальных платформ.
+
+Не используйте общий URL `releases/latest/download/...` для установки OpenWrt или MikroTik: GitHub `latest` указывает на самый новый релиз репозитория независимо от платформы. Используйте tag-specific ссылки из таблицы выше — так OpenWrt случайно не поедет искать свой архив внутри Keenetic-релиза, где его, внезапно, нет.
 
 ---
 
@@ -33,18 +41,18 @@
 
 | Платформа | Файл | Статус |
 |---|---|---|
-| macOS Apple Silicon | [Unified-UI-Native-2.6.7-mac-arm64.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-2.6.7-mac-arm64.zip) | Есть |
-| Windows x64 installer / setup wizard | [Unified-UI-Native-Setup-2.6.7-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-Setup-2.6.7-x64.exe) | Есть |
-| Windows x64 portable | [Unified-UI-Native-2.6.7-windows-x64-portable.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-2.6.7-windows-x64-portable.zip) | Есть |
-| Windows x64 standalone EXE | [Unified-UI-Native-2.6.7-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-2.6.7-x64.exe) | Есть |
-| Linux x64 portable | [Unified-UI-Native-2.6.7-linux-x64-portable.tar.gz](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-2.6.7-linux-x64-portable.tar.gz) | Есть |
-| Linux Debian/Ubuntu | [Unified-UI-Native-2.6.7-linux-x64.deb](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-2.6.7-linux-x64.deb) | Есть |
-| Linux RPM | [Unified-UI-Native-2.6.7-linux-x64.rpm](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-2.6.7-linux-x64.rpm) | Есть |
+| macOS Apple Silicon | [Unified-UI-Native-2.6.8-mac-arm64.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/Unified-UI-Native-2.6.8-mac-arm64.zip) | Есть |
+| Windows x64 installer / setup wizard | [Unified-UI-Native-Setup-2.6.8-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/Unified-UI-Native-Setup-2.6.8-x64.exe) | Есть |
+| Windows x64 portable | [Unified-UI-Native-2.6.8-windows-x64-portable.zip](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/Unified-UI-Native-2.6.8-windows-x64-portable.zip) | Есть |
+| Windows x64 standalone EXE | [Unified-UI-Native-2.6.8-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/Unified-UI-Native-2.6.8-x64.exe) | Есть |
+| Linux x64 portable | [Unified-UI-Native-2.6.8-linux-x64-portable.tar.gz](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/Unified-UI-Native-2.6.8-linux-x64-portable.tar.gz) | Есть |
+| Linux Debian/Ubuntu | [Unified-UI-Native-2.6.8-linux-x64.deb](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/Unified-UI-Native-2.6.8-linux-x64.deb) | Есть |
+| Linux RPM | [Unified-UI-Native-2.6.8-linux-x64.rpm](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/Unified-UI-Native-2.6.8-linux-x64.rpm) | Есть |
 
 
 ### Поддерживаемые desktop-сборки
 
-Оставлены только рабочие Native 2.6.7 артефакты из релиза [`v2.6.7-native`](https://github.com/sllikmll/Unified-UI/releases/tag/v2.6.7-native). Экспериментальные Avalonia/WPF/C++ preview/final сборки удалены из релизов и документации: они были сырыми, плодили процессы и не считаются поддерживаемым вариантом.
+Оставлены только рабочие Native 2.6.8 артефакты из релиза [`v2.6.8-native`](https://github.com/sllikmll/Unified-UI/releases/tag/v2.6.8-native). Экспериментальные Avalonia/WPF/C++ preview/final сборки удалены из релизов и документации: они были сырыми, плодили процессы и не считаются поддерживаемым вариантом.
 
 ### Download portal / установочная витрина
 
@@ -424,25 +432,25 @@ curl http://<mikrotik-ip>:9090/version
 
 Подробнее: `mikrotik/README.md` и `mikrotik/routeros-install-template.rsc`.
 
-## 3. Desktop Native `2.6.7`
+## 3. Desktop Native `2.6.8`
 
 Актуальная native-сборка — это не WebView и не Flask-панель в окне. Приложение напрямую управляет локальным Mihomo через controller API.
 
-Артефакты релиза `v2.6.7-native`:
+Артефакты релиза `v2.6.8-native`:
 
 | ОС | Файл |
 |---|---|
-| macOS Apple Silicon | `Unified-UI-Native-2.6.7-mac-arm64.zip` |
-| Windows x64 installer / setup wizard | `Unified-UI-Native-Setup-2.6.7-x64.exe` |
-| Windows x64 portable | `Unified-UI-Native-2.6.7-windows-x64-portable.zip` |
-| Windows x64 standalone EXE | `Unified-UI-Native-2.6.7-x64.exe` |
-| Linux portable | `Unified-UI-Native-2.6.7-linux-x64-portable.tar.gz` |
-| Linux Debian/Ubuntu | `Unified-UI-Native-2.6.7-linux-x64.deb` |
-| Linux RPM | `Unified-UI-Native-2.6.7-linux-x64.rpm` |
+| macOS Apple Silicon | `Unified-UI-Native-2.6.8-mac-arm64.zip` |
+| Windows x64 installer / setup wizard | `Unified-UI-Native-Setup-2.6.8-x64.exe` |
+| Windows x64 portable | `Unified-UI-Native-2.6.8-windows-x64-portable.zip` |
+| Windows x64 standalone EXE | `Unified-UI-Native-2.6.8-x64.exe` |
+| Linux portable | `Unified-UI-Native-2.6.8-linux-x64-portable.tar.gz` |
+| Linux Debian/Ubuntu | `Unified-UI-Native-2.6.8-linux-x64.deb` |
+| Linux RPM | `Unified-UI-Native-2.6.8-linux-x64.rpm` |
 
-Что важно в `2.6.7`:
+Что важно в `2.6.8`:
 
-- для Windows рекомендуемый вариант — `Unified-UI-Native-Setup-2.6.7-x64.exe`: NSIS-мастер установки, установка в `Program Files`, ярлыки Start Menu/Desktop и uninstall через “Приложения и компоненты”;
+- для Windows рекомендуемый вариант — `Unified-UI-Native-Setup-2.6.8-x64.exe`: NSIS-мастер установки, установка в `Program Files`, ярлыки Start Menu/Desktop и uninstall через “Приложения и компоненты”;
 - компактные selector-плитки ближе к web-панели;
 - proxy nodes из подписки доступны в selector-группах, а не теряются после импорта;
 - per-node ping: отдельное обновление на узле, зелёный online, красный offline, серый not checked;
@@ -597,7 +605,7 @@ hdiutil create -volname 'Unified UI Qt' \
 ```sh
 cd /opt
 curl -fL -o unified-ui-routing.tar.gz \
-  "https://github.com/sllikmll/Unified-UI/releases/latest/download/unified-ui-routing.tar.gz"
+  "https://github.com/sllikmll/Unified-UI/releases/download/v3.0.1/unified-ui-routing.tar.gz"
 tar -xzf unified-ui-routing.tar.gz
 cd unified-ui
 sh install.sh
@@ -657,7 +665,7 @@ OpenWrt-сборка — full-panel snapshot той же Unified UI, но без
 ```sh
 cd /tmp
 curl -fL -o unified-ui-openwrt.tar.gz \
-  "https://github.com/sllikmll/Unified-UI/releases/latest/download/unified-ui-openwrt.tar.gz"
+  "https://github.com/sllikmll/Unified-UI/releases/download/v2.4.44-openwrt-dns-routes/unified-ui-openwrt.tar.gz"
 rm -rf unified-ui-openwrt
 tar -xzf unified-ui-openwrt.tar.gz -C /tmp
 sh /tmp/unified-ui-openwrt/install.sh

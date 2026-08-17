@@ -35,7 +35,7 @@ import yaml
 
 MIHOMO_VERSION = "1.19.29"
 APP_NAME = "Unified UI Native"
-APP_VERSION = "2.6.7"
+APP_VERSION = "2.6.8"
 APP_RELEASE_LABEL = f"v{APP_VERSION}-native"
 DEFAULT_CONTROLLER_PORT = int(os.environ.get("MIHOMO_CONTROLLER_PORT", "19190"))
 DEFAULT_MIXED_PORT = int(os.environ.get("MIHOMO_MIXED_PORT", "17990"))
