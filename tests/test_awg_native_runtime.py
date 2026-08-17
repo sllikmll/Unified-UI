@@ -31,6 +31,31 @@ AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 """
 
+AWG3_CONF = """[Interface]
+PrivateKey = client-private-key
+Address = 10.203.183.2/32
+DNS = 1.1.1.1
+MTU = 1280
+Jc = 4
+Jmin = 10
+Jmax = 50
+S1 = 128
+S2 = 64
+HeaderProtectionKey = awg3-header-protection-key
+ContentPaddingAddition = 10-100
+RekeyAfterTime = 100-120
+RekeyTimeout = 3-7
+RejectAfterTime = 150-180
+KeepaliveTimeout = 5-15
+MaxHandshakeAttempts = 15-20
+
+[Peer]
+PublicKey = server-public-key
+Endpoint = almaty.example.net:9731
+AllowedIPs = 0.0.0.0/0
+PersistentKeepalive = 25
+"""
+
 
 def test_native_awg_runtime_preserves_official_setconf_fields():
     mod = importlib.import_module("services.awg_native")
@@ -82,6 +107,31 @@ def test_awg_import_uses_native_interface_instead_of_mihomo_wireguard():
     }
     assert "private-key" not in conn["proxyYaml"]
     assert "amnezia-wg-option" not in conn["proxyYaml"]
+
+
+def test_awg3_import_uses_native_direct_runtime_and_preserves_official_fields():
+    routes = importlib.import_module("routes.proxy_connections")
+    payload = base64.urlsafe_b64encode(AWG3_CONF.encode()).decode().rstrip("=")
+    conn = routes._parse_connection("", f"awg3://{payload}#awg3-msk")
+    proxy = yaml.safe_load(conn["proxyYaml"])[0]
+    spec = routes.build_native_awg_spec("awg3-msk", AWG3_CONF)
+
+    assert conn["protocol"] == "amnezia"
+    assert proxy["type"] == "direct"
+    assert proxy["interface-name"] == spec.interface
+    assert proxy["routing-mark"] == spec.routing_mark
+    assert "type: wireguard" not in conn["proxyYaml"]
+    assert "private-key" not in conn["proxyYaml"]
+    for expected in (
+        "HeaderProtectionKey = awg3-header-protection-key",
+        "ContentPaddingAddition = 10-100",
+        "RekeyAfterTime = 100-120",
+        "RekeyTimeout = 3-7",
+        "RejectAfterTime = 150-180",
+        "KeepaliveTimeout = 5-15",
+        "MaxHandshakeAttempts = 15-20",
+    ):
+        assert expected in spec.setconf
 
 
 def test_native_interface_name_is_stable_unique_and_linux_safe():
