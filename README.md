@@ -82,10 +82,10 @@ npm run native:manifest:strict
 
 ### Legacy desktop / Docker
 
-Старые desktop-сборки Electron/Qt-webview и Docker доступны в релизах:
+Старые desktop-сборки Electron/Qt-webview и Docker доступны в legacy-релизе:
 
 ```text
-https://github.com/sllikmll/Unified-UI/releases/latest
+https://github.com/sllikmll/Unified-UI/releases/tag/v2.5.2
 ```
 
 ---
