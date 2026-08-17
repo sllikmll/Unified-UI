@@ -14,7 +14,76 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build-official-awg-arm64:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+
+      - name: Build pinned official AmneziaWG runtime
+        shell: bash
+        run: |
+          set -euxo pipefail
+          GO_TAG="v3.1.20260814"
+          GO_SHA="1b86b2ae0e493e7ea93f8c1a0f0cb6735b1551f1"
+          TOOLS_TAG="v3.1.20260812"
+          TOOLS_SHA="ee0f0a9aa34ff0a0da4b3433b9512781cfe02843"
+
+          rm -rf .tmp/official-awg dist-awg
+          mkdir -p .tmp/official-awg dist-awg
+          git clone --filter=blob:none https://github.com/amnezia-vpn/amneziawg-go.git .tmp/official-awg/amneziawg-go
+          git -C .tmp/official-awg/amneziawg-go checkout --detach "$GO_TAG"
+          test "$(git -C .tmp/official-awg/amneziawg-go rev-parse HEAD)" = "$GO_SHA"
+
+          git clone --filter=blob:none https://github.com/amnezia-vpn/amneziawg-tools.git .tmp/official-awg/amneziawg-tools
+          git -C .tmp/official-awg/amneziawg-tools checkout --detach "$TOOLS_TAG"
+          test "$(git -C .tmp/official-awg/amneziawg-tools rev-parse HEAD)" = "$TOOLS_SHA"
+
+          (
+            cd .tmp/official-awg/amneziawg-go
+            CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o "$GITHUB_WORKSPACE/dist-awg/amneziawg-go" .
+          )
+
+          docker run --rm --platform linux/arm64 \
+            -v "$GITHUB_WORKSPACE:/work" \
+            -w /work/.tmp/official-awg/amneziawg-tools/src \
+            alpine:3.19 sh -euxc 'apk add --no-cache linux-headers build-base && make clean && make && cp wg /work/dist-awg/awg'
+
+          sudo chown -R "$(id -u):$(id -g)" dist-awg
+          chmod 755 dist-awg/amneziawg-go dist-awg/awg
+          cat > dist-awg/OFFICIAL_AWG_PROVENANCE.json <<JSON
+          {
+            "amneziawg-go": {
+              "repository": "https://github.com/amnezia-vpn/amneziawg-go.git",
+              "tag": "$GO_TAG",
+              "commit": "$GO_SHA"
+            },
+            "amneziawg-tools": {
+              "repository": "https://github.com/amnezia-vpn/amneziawg-tools.git",
+              "tag": "$TOOLS_TAG",
+              "commit": "$TOOLS_SHA"
+            },
+            "target": "linux/arm64",
+            "tools_libc": "musl (Alpine 3.19)"
+          }
+          JSON
+          (cd dist-awg && sha256sum amneziawg-go awg > SHA256SUMS)
+          file dist-awg/amneziawg-go dist-awg/awg
+
+      - name: Upload official AWG runtime artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: official-awg-linux-arm64
+          path: dist-awg/
+
   build-release:
+    needs: [build-official-awg-arm64]
     runs-on: ubuntu-latest
 
     steps:
@@ -60,6 +129,18 @@ jobs:
           rsync -a unified-ui/ package-root/unified-ui/ \
             --exclude '__pycache__' \
             --exclude '.DS_Store'
+
+      - name: Add official AmneziaWG arm64 runtime to package
+        uses: actions/download-artifact@v7
+        with:
+          name: official-awg-linux-arm64
+          path: package-root/unified-ui/bin
+
+      - name: Verify bundled AmneziaWG runtime
+        run: |
+          chmod 755 package-root/unified-ui/bin/amneziawg-go package-root/unified-ui/bin/awg
+          (cd package-root/unified-ui/bin && sha256sum -c SHA256SUMS)
+          test -s package-root/unified-ui/bin/OFFICIAL_AWG_PROVENANCE.json
 
 
       - name: Write BUILD.json
