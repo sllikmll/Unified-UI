@@ -10,8 +10,8 @@
 |---|---|
 | Репозиторий | https://github.com/sllikmll/Unified-UI |
 | **Keenetic / Entware** | **[`v3.0.1`](https://github.com/sllikmll/Unified-UI/releases/tag/v3.0.1)** · [архив установки](https://github.com/sllikmll/Unified-UI/releases/download/v3.0.1/unified-ui-routing.tar.gz) |
-| **OpenWrt / standalone Mihomo** | **[`v2.4.44-openwrt-dns-routes`](https://github.com/sllikmll/Unified-UI/releases/tag/v2.4.44-openwrt-dns-routes)** · [архив установки](https://github.com/sllikmll/Unified-UI/releases/download/v2.4.44-openwrt-dns-routes/unified-ui-openwrt.tar.gz) |
-| **MikroTik / RouterOS container** | **[`v2.6.4-native`](https://github.com/sllikmll/Unified-UI/releases/tag/v2.6.4-native)** · [Docker archive](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.4-native/unified-ui-mikrotik-docker-archive-2.6.4.tar.gz) |
+| **OpenWrt / standalone Mihomo** | **[`v3.0.0-openwrt`](https://github.com/sllikmll/Unified-UI/releases/tag/v3.0.0-openwrt)** · [архив установки](https://github.com/sllikmll/Unified-UI/releases/download/v3.0.0-openwrt/unified-ui-openwrt-v3.0.0.tar.gz) |
+| **MikroTik / RouterOS container** | **[`v3.0.0-mikrotik`](https://github.com/sllikmll/Unified-UI/releases/tag/v3.0.0-mikrotik)** · [Docker archive](https://github.com/sllikmll/Unified-UI/releases/download/v3.0.0-mikrotik/unified-ui-mikrotik-docker-archive-v3.0.0.tar.gz) |
 | **Native Desktop** | **[`v2.6.8-native`](https://github.com/sllikmll/Unified-UI/releases/tag/v2.6.8-native)** · macOS / Windows / Linux |
 | Windows installer | [Unified-UI-Native-Setup-2.6.8-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/Unified-UI-Native-Setup-2.6.8-x64.exe) |
 | Windows standalone EXE | [Unified-UI-Native-2.6.8-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.8-native/Unified-UI-Native-2.6.8-x64.exe) |
@@ -30,6 +30,8 @@
 Keenetic, OpenWrt, MikroTik и Native Desktop выпускаются **отдельными релизными линиями**. Номер версии одной платформы не означает, что в её GitHub Release лежат пакеты остальных платформ.
 
 Не используйте общий URL `releases/latest/download/...` для установки OpenWrt или MikroTik: GitHub `latest` указывает на самый новый релиз репозитория независимо от платформы. Используйте tag-specific ссылки из таблицы выше — так OpenWrt случайно не поедет искать свой архив внутри Keenetic-релиза, где его, внезапно, нет.
+
+Подробности: [`docs/releases.md`](docs/releases.md), [`OpenWrt`](docs/platforms/openwrt.md), [`MikroTik`](docs/platforms/mikrotik.md), [`Native`](docs/platforms/native.md).
 
 ---
 
