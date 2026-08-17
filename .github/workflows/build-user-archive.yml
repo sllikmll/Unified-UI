@@ -139,7 +139,7 @@ jobs:
       - name: Verify bundled AmneziaWG runtime
         run: |
           chmod 755 package-root/unified-ui/bin/amneziawg-go package-root/unified-ui/bin/awg
-          sha256sum -c package-root/unified-ui/bin/SHA256SUMS
+          (cd package-root/unified-ui/bin && sha256sum -c SHA256SUMS)
           test -s package-root/unified-ui/bin/OFFICIAL_AWG_PROVENANCE.json
 
 
