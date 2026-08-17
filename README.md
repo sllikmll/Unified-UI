@@ -9,6 +9,7 @@
 | Что | Ссылка |
 |---|---|
 | Репозиторий | https://github.com/sllikmll/Unified-UI |
+| **Актуальный релиз панели / Keenetic** | **[`v3.0.1`](https://github.com/sllikmll/Unified-UI/releases/tag/v3.0.1)** |
 | **Актуальный Native desktop релиз** | **[`v2.6.7-native`](https://github.com/sllikmll/Unified-UI/releases/tag/v2.6.7-native)** |
 | Windows installer | [Unified-UI-Native-Setup-2.6.7-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-Setup-2.6.7-x64.exe) |
 | Windows standalone EXE | [Unified-UI-Native-2.6.7-x64.exe](https://github.com/sllikmll/Unified-UI/releases/download/v2.6.7-native/Unified-UI-Native-2.6.7-x64.exe) |
@@ -118,6 +119,91 @@ https://github.com/sllikmll/Unified-UI/releases/latest
 - Telegram MTProxy — external action, не Mihomo outbound;
 - полный PASS требует VMess, VLESS Reality, Trojan, SS2022, WireGuard/AWG2/AWG3, Hysteria2, Mieru и NaiveProxy;
 - для инфраструктуры `sllikmll` VLESS Reality использует SNI/serverName `yandex.ru`.
+
+## Официальный AmneziaWG runtime
+
+Начиная с [`v3.0.1`](https://github.com/sllikmll/Unified-UI/releases/tag/v3.0.1), AWG/AWG2-подключения на Keenetic больше не используют встроенный WireGuard outbound Mihomo. Data plane работает через официальные проекты организации [`amnezia-vpn`](https://github.com/amnezia-vpn):
+
+- [`amnezia-vpn/amneziawg-go`](https://github.com/amnezia-vpn/amneziawg-go) — userspace AWG interface;
+- [`amnezia-vpn/amneziawg-tools`](https://github.com/amnezia-vpn/amneziawg-tools) — утилита `awg` для применения конфигурации.
+
+Версии upstream для `v3.0.1` зафиксированы в GitHub Actions и `OFFICIAL_AWG_PROVENANCE.json`:
+
+```text
+amneziawg-go:    v3.1.20260814
+amneziawg-tools: v3.1.20260812
+```
+
+Архитектура runtime:
+
+```text
+AWG profile / subscription
+          ↓
+Unified UI parser + connection registry
+          ↓
+official amneziawg-go + awg setconf
+          ↓
+managed uawg-интерфейс + отдельные routing mark/table
+          ↓
+Mihomo direct outbound: interface-name + routing-mark
+```
+
+Что это даёт:
+
+- private key, PSK и AWG-параметры больше не попадают в Mihomo YAML;
+- полностью сохраняются `Jc/Jmin/Jmax`, `S1–S4`, `H1–H4`, адреса, endpoint и allowed IPs;
+- каждый AWG node получает детерминированный интерфейс `uawg...`, отдельную policy routing table и mark;
+- существующие AWG connections мигрируют автоматически из registry — передобавлять ключи вручную не требуется;
+- enabled interfaces восстанавливаются при запуске Unified UI после reboot/restart;
+- если native runtime не поднялся, Unified UI не должен заменять активный Mihomo config поломанной конфигурацией.
+
+Release archive содержит:
+
+```text
+unified-ui/bin/amneziawg-go
+unified-ui/bin/awg
+unified-ui/bin/SHA256SUMS
+unified-ui/bin/OFFICIAL_AWG_PROVENANCE.json
+```
+
+Keenetic installer атомарно устанавливает runtime в:
+
+```text
+/opt/bin/amneziawg-go
+/opt/bin/awg
+```
+
+Предыдущие версии бинарников сохраняются рядом с суффиксом `.unified-ui-prev`.
+
+### Проверка и диагностика AWG
+
+```sh
+# Managed interfaces
+/opt/sbin/ip -o link show | grep uawg
+
+# Policy rules
+/opt/sbin/ip rule show
+
+# Runtime manifest (содержит только имена интерфейсов и routing IDs)
+cat /opt/var/lib/unified-ui/awg-native/manifest.json
+
+# Проверка активного Mihomo config
+/opt/sbin/mihomo -t -f /opt/etc/mihomo/config.yaml
+```
+
+Green delay/handshake сам по себе не считается полной проверкой. Для приёмки нужны повторные HTTP/HTTPS-запросы через node, ожидаемый внешний IP, рост server RX/TX и повторная проверка после рестарта Unified UI и Mihomo.
+
+### Rollback
+
+Перед обновлением сохраняйте:
+
+- `/opt/etc/unified-ui`;
+- `/opt/var/lib/unified-ui/proxy-connections.json`;
+- `/opt/etc/mihomo/config.yaml` и активный profile;
+- `/opt/sbin/mihomo` и init-скрипты;
+- существующие `/opt/bin/amneziawg-go` и `/opt/bin/awg`, если они уже установлены.
+
+При откате остановите Unified UI/Mihomo, удалите managed `uawg...` interfaces и их policy rules/tables, восстановите UI/registry/config/binaries из backup и запустите сервисы обратно.
 
 ---
 
@@ -531,6 +617,8 @@ http://<IP_роутера>:8088/
 - layout `/opt/etc/mihomo`;
 - symlink `config.yaml -> profiles/default.yaml`;
 - `/opt/etc/mihomo/restart-mihomo.sh`;
+- официальный ARM64 AmneziaWG runtime: `/opt/bin/amneziawg-go` и `/opt/bin/awg`;
+- provenance и SHA256 official runtime внутри `/opt/etc/unified-ui/bin/`;
 - optional `xk-geodat`;
 - optional proxy-client artifacts;
 - init-сервис `/opt/etc/init.d/S99unified-ui001`.
