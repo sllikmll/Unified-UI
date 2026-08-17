@@ -72,6 +72,21 @@ def test_openwrt_archive_builder_bundles_official_awg_runtime_when_present():
     assert "copy_official_awg_runtime(tmp_root)" in text
 
 
+def test_openwrt_clean_install_bundles_mihomo_and_procd_without_overwriting_config():
+    installer = INSTALLER.read_text(encoding="utf-8")
+    builder = BUILDER.read_text(encoding="utf-8")
+    assert "MIHOMO_ARM64_SRC" in builder
+    assert "copy_mihomo_arm64_runtime(tmp_root)" in builder
+    assert "MIHOMO_SHA256" in builder
+    assert "install_bundled_mihomo" in installer
+    assert 'if [ ! -s /etc/mihomo/config.yaml ]; then' in installer
+    assert 'if [ ! -f /etc/init.d/mihomo ]; then' in installer
+    assert "USE_PROCD=1" in installer
+    assert "procd_set_param respawn" in installer
+    assert "ipv6: false" in installer
+    assert "/usr/bin/mihomo -t" in installer
+
+
 def test_openwrt_snapshot_whitelist_keeps_all_protocol_views():
     builder = BUILDER.read_text(encoding="utf-8")
     for section in (

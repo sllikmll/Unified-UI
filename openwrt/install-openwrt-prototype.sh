@@ -15,6 +15,7 @@ VERSION="${UNIFIED_OPENWRT_VERSION:-dev-local}"
 UPDATE_URL="${UNIFIED_OPENWRT_UPDATE_URL:-}"
 AWG_BIN_DIR="${UNIFIED_AWG_BIN_DIR:-/usr/bin}"
 AWG_BUNDLE_DIR="$SCRIPT_DIR/bin"
+MIHOMO_BUNDLE="$SCRIPT_DIR/bin/mihomo"
 
 mkdir -p "$UI_ROOT" "$CONF_DIR" /www/cgi-bin "$BACKUP_DIR"
 
@@ -93,6 +94,64 @@ install_bundled_awg_runtime() {
 }
 
 install_bundled_awg_runtime
+
+install_bundled_mihomo() {
+  [ -f "$MIHOMO_BUNDLE" ] || { echo "Bundled ARM64 Mihomo is missing" >&2; return 1; }
+  if [ -f "$SCRIPT_DIR/bin/MIHOMO_SHA256" ]; then
+    (cd "$SCRIPT_DIR/bin" && sha256sum -c MIHOMO_SHA256) >/dev/null
+  fi
+  mkdir -p /usr/bin /etc/mihomo /etc/mihomo/rules /etc/mihomo/profiles /var/log
+  tmp="/usr/bin/mihomo.unified-ui-new.$$"
+  cp "$MIHOMO_BUNDLE" "$tmp"
+  chmod 755 "$tmp"
+  mv -f "$tmp" /usr/bin/mihomo
+  if [ ! -s /etc/mihomo/config.yaml ]; then
+    cat > /etc/mihomo/config.yaml <<'MIHOMOCONF'
+mixed-port: 7890
+allow-lan: true
+bind-address: '*'
+mode: rule
+log-level: info
+ipv6: false
+external-controller: 127.0.0.1:9090
+secret: ''
+profile:
+  store-selected: true
+proxies: []
+proxy-groups:
+  - name: GLOBAL
+    type: select
+    proxies:
+      - DIRECT
+rules:
+  - MATCH,GLOBAL
+MIHOMOCONF
+    chmod 600 /etc/mihomo/config.yaml
+  fi
+  if [ ! -f /etc/init.d/mihomo ]; then
+    cat > /etc/init.d/mihomo <<'MIHOMOINIT'
+#!/bin/sh /etc/rc.common
+START=95
+STOP=10
+USE_PROCD=1
+start_service() {
+  procd_open_instance
+  procd_set_param command /usr/bin/mihomo -d /etc/mihomo -f /etc/mihomo/config.yaml
+  procd_set_param respawn 3600 5 5
+  procd_set_param stdout 1
+  procd_set_param stderr 1
+  procd_close_instance
+}
+service_triggers() { procd_add_reload_trigger mihomo; }
+MIHOMOINIT
+    chmod 755 /etc/init.d/mihomo
+  fi
+  /usr/bin/mihomo -t -d /etc/mihomo -f /etc/mihomo/config.yaml >/dev/null
+  /etc/init.d/mihomo enable >/dev/null 2>&1 || true
+  /etc/init.d/mihomo restart >/dev/null 2>&1
+}
+
+install_bundled_mihomo
 
 cat > "$UPDATE_SCRIPT" <<'UPD'
 #!/bin/sh

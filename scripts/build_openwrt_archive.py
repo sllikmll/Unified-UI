@@ -21,6 +21,7 @@ README_SRC = OPENWRT_DIR / "README.md"
 FETCH_COMPAT_SRC = OPENWRT_DIR / "openwrt-fetch-compat.js"
 UNIFIED_UI_DIR = REPO_ROOT / "unified-ui"
 AWG_RUNTIME_DIR = UNIFIED_UI_DIR / "bin"
+MIHOMO_ARM64_SRC = REPO_ROOT / "mikrotik" / "assets" / "mihomo-linux-arm64"
 ARCHIVE_ROOT = "unified-ui-openwrt"
 DEFAULT_ARCHIVE_PATH = REPO_ROOT / "unified-ui-openwrt.tar.gz"
 
@@ -208,6 +209,18 @@ def copy_official_awg_runtime(dst_root: Path) -> None:
     os.chmod(dst / "awg", 0o755)
 
 
+def copy_mihomo_arm64_runtime(dst_root: Path) -> None:
+    if not MIHOMO_ARM64_SRC.is_file():
+        raise FileNotFoundError(f"bundled ARM64 Mihomo is missing: {MIHOMO_ARM64_SRC}")
+    dst = dst_root / "bin"
+    dst.mkdir(parents=True, exist_ok=True)
+    target = dst / "mihomo"
+    shutil.copy2(MIHOMO_ARM64_SRC, target)
+    os.chmod(target, 0o755)
+    digest = hashlib.sha256(target.read_bytes()).hexdigest().lower()
+    (dst / "MIHOMO_SHA256").write_text(f"{digest}  mihomo\n", encoding="utf-8")
+
+
 def main() -> int:
     args = parse_args()
     if not INSTALLER_SRC.is_file():
@@ -236,6 +249,7 @@ def main() -> int:
         shutil.copy2(README_SRC, tmp_root / "README.md")
         copy_full_panel_assets(tmp_root / "www" / "unified-ui", version=version)
         copy_official_awg_runtime(tmp_root)
+        copy_mihomo_arm64_runtime(tmp_root)
         write_build_json(tmp_root / "BUILD.json", version=version, update_url=update_url)
 
         fd, temp_archive_raw = tempfile.mkstemp(prefix="unified-ui-openwrt-", suffix=".tar.gz", dir=str(archive_path.parent))
