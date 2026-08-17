@@ -230,6 +230,74 @@ class NativeAwgRuntime:
     def _config_path(self, spec: NativeAwgSpec) -> Path:
         return self.config_dir / f"{spec.interface}.conf"
 
+    def _pid_path(self, interface: str) -> Path:
+        return self.state_dir / f"{interface}.pid"
+
+    def _stop_process(self, interface: str) -> None:
+        if self._runner is not None:
+            return
+        pid_path = self._pid_path(interface)
+        pids: set[int] = set()
+        try:
+            pids.add(int(pid_path.read_text(encoding="utf-8").strip()))
+        except (FileNotFoundError, ValueError, OSError):
+            pass
+        # Migration cleanup for older daemonizing launches that left a stale
+        # parent PID. Match only amneziawg-go processes for this interface.
+        for cmdline in Path("/proc").glob("[0-9]*/cmdline"):
+            try:
+                parts = [part.decode(errors="replace") for part in cmdline.read_bytes().split(b"\0") if part]
+                if parts and "amneziawg-go" in Path(parts[0]).name and interface in parts[1:]:
+                    pids.add(int(cmdline.parent.name))
+            except (OSError, ValueError):
+                continue
+        for pid in pids:
+            try:
+                os.kill(pid, 15)
+            except ProcessLookupError:
+                continue
+            except OSError:
+                continue
+        deadline = time.monotonic() + 2
+        while pids and time.monotonic() < deadline:
+            alive: set[int] = set()
+            for pid in pids:
+                try:
+                    os.kill(pid, 0)
+                    alive.add(pid)
+                except OSError:
+                    pass
+            pids = alive
+            if pids:
+                time.sleep(0.05)
+        for pid in pids:
+            try:
+                os.kill(pid, 9)
+            except OSError:
+                pass
+        try:
+            pid_path.unlink()
+        except FileNotFoundError:
+            pass
+
+    def _start_process(self, interface: str) -> None:
+        command = [self.amneziawg_go, "-f", interface]
+        if self._runner is not None:
+            self._run(command)
+            return
+        proc = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        pid_path = self._pid_path(interface)
+        pid_path.write_text(f"{proc.pid}\n", encoding="utf-8")
+        os.chmod(pid_path, 0o600)
+        try:
+            self._wait_for_socket(interface)
+            if proc.poll() is not None:
+                raise RuntimeError(f"amneziawg-go exited before interface startup: {interface}")
+        except Exception:
+            self._stop_process(interface)
+            raise
+
     def _spec_to_dict(self, spec: NativeAwgSpec) -> dict[str, object]:
         return {
             "name": spec.name,
@@ -300,6 +368,7 @@ class NativeAwgRuntime:
         return {"version": 1, "specs": [self._spec_to_dict(spec) for spec in specs]}
 
     def _teardown_identity(self, interface: str, routing_mark: int, routing_table: int, rule_priority: int) -> None:
+        self._stop_process(interface)
         self._run(
             [self.ip, "rule", "del", "priority", str(rule_priority), "fwmark", str(routing_mark), "table", str(routing_table)],
             False,
@@ -321,8 +390,9 @@ class NativeAwgRuntime:
 
         self._teardown_identity(spec.interface, spec.routing_mark, spec.routing_table, spec.rule_priority)
         try:
-            self._run([self.amneziawg_go, spec.interface])
-            self._wait_for_socket(spec.interface)
+            self._start_process(spec.interface)
+            if self._runner is not None:
+                self._wait_for_socket(spec.interface)
             self._run([self.awg, "setconf", spec.interface, str(config_path)])
             for address in spec.addresses:
                 self._run([self.ip, "address", "add", address, "dev", spec.interface])

@@ -235,6 +235,16 @@ stop_iface() {
     [ -z "$pid" ] || kill "$pid" >/dev/null 2>&1 || true
     rm -f "$STATE_DIR/$iface.pid"
   fi
+  for cmdline in /proc/[0-9]*/cmdline; do
+    [ -r "$cmdline" ] || continue
+    cmd="$(tr '\000' ' ' < "$cmdline" 2>/dev/null || true)"
+    case "$cmd" in
+      *amneziawg-go*" $iface"*)
+        orphan_pid="${cmdline#/proc/}"; orphan_pid="${orphan_pid%%/*}"
+        kill "$orphan_pid" >/dev/null 2>&1 || true
+        ;;
+    esac
+  done
   run_optional "$IP_BIN" link del dev "$iface"
   rm -f "/var/run/amneziawg/$iface.sock" "/var/run/wireguard/$iface.sock"
 }
@@ -298,7 +308,7 @@ start_one() {
   [ -f "$conf" ] || { echo "missing config" >&2; return 13; }
   chmod 600 "$conf"
   stop_iface "$iface" "$mark" "$table" "$prio"
-  "$AWG_GO_BIN" "$iface" >/dev/null 2>&1 &
+  "$AWG_GO_BIN" -f "$iface" >/dev/null 2>&1 &
   echo "$!" > "$STATE_DIR/$iface.pid"
   wait_socket "$iface" || { stop_iface "$iface" "$mark" "$table" "$prio"; echo "UAPI socket timeout for $iface" >&2; return 14; }
   "$AWG_BIN" setconf "$iface" "$conf"

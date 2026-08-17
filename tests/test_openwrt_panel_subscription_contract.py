@@ -64,6 +64,8 @@ def test_openwrt_native_awg_contract_uses_direct_outbound_and_private_state():
     assert "chmod 600 \"$conf\"" in text
     assert "printf '%s\\n' \"$addresses\"" in text
     assert "usleep 100000" in text
+    assert '"$AWG_GO_BIN" -f "$iface"' in text
+    assert '/proc/[0-9]*/cmdline' in text
     assert "PrivateKey" in text
     assert "PublicKey" in text
     assert "PresharedKey" in text
@@ -202,6 +204,10 @@ def _stage_openwrt_archive_payload(root: Path, *, source_date_epoch: int) -> Pat
 
 
 def test_openwrt_archive_is_reproducible_and_normalizes_metadata(tmp_path: Path):
+    builder_text = BUILDER.read_text(encoding="utf-8")
+    assert 'sess["csrf"] = "openwrt-static-csrf"' in builder_text
+    assert 'html = html.replace(str(state), "/etc/unified-ui")' in builder_text
+
     epoch = 1_700_000_123
     archives: list[Path] = []
     for idx in range(2):

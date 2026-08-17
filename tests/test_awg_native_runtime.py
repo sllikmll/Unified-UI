@@ -163,7 +163,7 @@ def test_runtime_reconcile_writes_private_config_and_policy_route(tmp_path):
     assert stat.S_IMODE(config_path.stat().st_mode) == 0o600
     assert "PrivateKey = client-private-key" in config_path.read_text()
     assert result["interfaces"] == [spec.interface]
-    assert (["/bundle/amneziawg-go", spec.interface], True) in commands
+    assert (["/bundle/amneziawg-go", "-f", spec.interface], True) in commands
     assert (["/bundle/awg", "setconf", spec.interface, str(config_path)], True) in commands
     assert (["/sbin/ip", "route", "replace", "default", "dev", spec.interface, "table", str(spec.routing_table)], True) in commands
     assert (["/sbin/ip", "rule", "add", "priority", str(spec.rule_priority), "fwmark", str(spec.routing_mark), "table", str(spec.routing_table)], True) in commands
@@ -214,7 +214,7 @@ def test_runtime_reconcile_rolls_back_to_previous_active_desired_on_start_failur
     assert [item["interface"] for item in active["specs"]] == [old_spec.interface]
     assert active["specs"][0]["setconf"] == old_spec.setconf
     assert "10.9.1.9/32" not in runtime.active_desired_path.read_text()
-    assert (["/bundle/amneziawg-go", old_spec.interface], True) in commands
+    assert (["/bundle/amneziawg-go", "-f", old_spec.interface], True) in commands
     assert any(command[:5] == ["/sbin/ip", "link", "del", "dev", new_spec.interface] for command, _ in commands)
 
 

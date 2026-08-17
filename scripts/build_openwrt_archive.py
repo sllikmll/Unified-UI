@@ -201,6 +201,9 @@ def render_full_panel_snapshot(dst_index: Path, *, version: str) -> None:
                     with client.session_transaction() as sess:
                         sess["auth"] = True
                         sess["user"] = "openwrt"
+                        # The static CGI build has its own cookie authentication;
+                        # keep the rendered Flask snapshot byte-reproducible.
+                        sess["csrf"] = "openwrt-static-csrf"
                     resp = client.get("/")
                     if resp.status_code != 200:
                         raise RuntimeError(f"panel render failed: HTTP {resp.status_code}")
@@ -215,6 +218,7 @@ def render_full_panel_snapshot(dst_index: Path, *, version: str) -> None:
             _os.environ.clear()
             _os.environ.update(env_backup)
 
+    html = html.replace(str(state), "/etc/unified-ui")
     html = re.sub(r'<div class="dt-rename-row">\s*<span class="dt-rename-label">Роутинг Xray</span>\s*<input[^>]*data-tab-key="view:routing"[^>]*>\s*</div>', '', html)
     html = html.replace('Роутинг Xray', 'Маршрутизация')
     html = html.replace('/private/etc/mihomo/config.yaml', '/etc/mihomo/config.yaml')
