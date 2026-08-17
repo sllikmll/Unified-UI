@@ -10,6 +10,13 @@
 :local AUTH_PASSWORD "<UI_PASSWORD>"
 :local SECRET_KEY "<UI_SECRET_KEY>"
 
+# Native AWG2/AWG3 imports use official amneziawg-go userspace interfaces.
+# Before first boot, make sure this RouterOS container is allowed NET_ADMIN
+# and has /dev/net/tun available. RouterOS exposes container capabilities and
+# device passthrough differently across versions; keep this template's
+# /container/add line valid for your version, then enable those two settings in
+# the container properties if they are not part of /container/add syntax.
+
 /system backup save name=pre-unified-ui-mikrotik
 /export file=pre-unified-ui-mikrotik
 

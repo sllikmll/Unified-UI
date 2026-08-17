@@ -3,7 +3,14 @@ set -euo pipefail
 
 log() { printf '[unified-mikrotik] %s\n' "$*" >&2; }
 
-mkdir -p /etc/mihomo/rules /etc/mihomo/profiles /etc/mihomo/templates /data/unified-ui /var/log/unified-ui
+mkdir -p \
+  /etc/mihomo/rules \
+  /etc/mihomo/profiles \
+  /etc/mihomo/templates \
+  /data/unified-ui/awg-native \
+  /var/log/unified-ui \
+  /var/run/amneziawg \
+  /dev/net
 
 : "${UNIFIED_UI_AUTH_USER:=pavel}"
 : "${UNIFIED_UI_AUTH_PASSWORD:=admin}"
@@ -23,6 +30,12 @@ export MIHOMO_CONFIG_FILE=/etc/mihomo/config.yaml
 export MIHOMO_CONTROLLER_URL=http://127.0.0.1:9090
 export MIHOMO_CONTROLLER_HOST=127.0.0.1
 export MIHOMO_CONTROLLER_PORT=9090
+export UNIFIED_AWG_GO_BIN="${UNIFIED_AWG_GO_BIN:-/opt/bin/amneziawg-go}"
+export UNIFIED_AWG_BIN="${UNIFIED_AWG_BIN:-/opt/bin/awg}"
+
+if [ ! -c /dev/net/tun ]; then
+  log "/dev/net/tun is not available; native AmneziaWG imports require RouterOS container devices=/dev/net/tun and NET_ADMIN"
+fi
 
 python - <<'PY'
 import os, json
@@ -153,6 +166,20 @@ if os.environ.get('MIHOMO_ENABLE_TUN','').lower() in ('1','true','yes','on'):
 Path('/etc/mihomo/config.yaml').write_text(yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False), encoding='utf-8')
 PY
 fi
+
+log "restoring native AmneziaWG interfaces"
+python - <<'PY'
+from routes.proxy_connections import _apply_to_mihomo, _managed_connections, _load_registry
+
+data = _load_registry()
+if _managed_connections(data):
+    result = _apply_to_mihomo(restart=False)
+    native = result.get("nativeAwg") if isinstance(result, dict) else {}
+    count = native.get("count", 0) if isinstance(native, dict) else 0
+    print(f"[unified-mikrotik] native AWG restored: {count} interface(s)", flush=True)
+else:
+    print("[unified-mikrotik] native AWG restored: 0 interface(s)", flush=True)
+PY
 
 log "validating Mihomo config"
 if ! mihomo -t -d /etc/mihomo -f /etc/mihomo/config.yaml; then
