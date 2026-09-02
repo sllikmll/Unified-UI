@@ -26,6 +26,7 @@ from typing import Any
 import subprocess
 import tempfile
 from urllib import request as urlrequest
+from .mihomo_xray_json import convert_outbound_to_mihomo
 
 GATEWAY_ENDPOINT = os.environ.get("AMNEZIA_GATEWAY_ENDPOINT") or "http://gw.amnezia.org:80/"
 KEY_ENV = "AMNEZIA_VPN_URI"
@@ -307,6 +308,50 @@ def _awg_keypair() -> tuple[str, str]:
     if not public:
         raise RuntimeError("Amnezia Gateway generated an empty AWG public key")
     return private, public
+
+
+def fetch_gateway_profile(vpn_key: str, *, country: str | None = None, protocol: str = "awg") -> dict[str, Any]:
+    """Resolve one official Gateway country/protocol into its local runtime form."""
+    protocol = str(protocol or "").lower()
+    if protocol not in {"awg", "vless"}:
+        raise ValueError("unsupported Amnezia Gateway protocol")
+    key = decode_vpn_key(vpn_key)
+    private_b64 = ""
+    if protocol == "awg":
+        private_b64, public_key = _awg_keypair()
+    else:
+        public_key = str(uuid.uuid4())
+    payload = _request_payload(key, public_key, country=country)
+    payload["service_protocol"] = protocol
+    answer = _post("v1/config", payload)
+    encoded = str(answer.get("config") or "")
+    if not encoded:
+        raise RuntimeError("Amnezia Gateway did not return a config")
+    server = _decode_config(encoded)
+    api = server.get("api_config") if isinstance(server.get("api_config"), dict) else {}
+    countries = api.get("available_countries") if isinstance(api.get("available_countries"), list) else []
+    selected = str(api.get("server_country_code") or country or "").lower()
+    result = {
+        "fingerprint": key.fingerprint, "name": key.name, "description": key.description,
+        "country": selected, "protocol": protocol,
+        "countries": [{"code": str(item.get("server_country_code") or "").lower(), "name": str(item.get("server_country_name") or item.get("server_country_code") or ""), "protocols": [str(p) for p in (item.get("available_protocols") or []) if str(p)]} for item in countries if isinstance(item, dict)],
+    }
+    if protocol == "awg":
+        result["config"] = _awg_text(server, private_b64)
+        return result
+    containers = server.get("containers") if isinstance(server.get("containers"), list) else []
+    for container in containers:
+        xray = container.get("xray") if isinstance(container, dict) else None
+        try:
+            cfg = json.loads(str(xray.get("last_config") or "")) if isinstance(xray, dict) else {}
+        except Exception:
+            cfg = {}
+        for outbound in cfg.get("outbounds", []) if isinstance(cfg, dict) else []:
+            converted = convert_outbound_to_mihomo(outbound, f"Amnezia · {selected.upper()} · VLESS")
+            if converted:
+                result["proxyYaml"] = converted.yaml
+                return result
+    raise RuntimeError("Amnezia Gateway VLESS config has no compatible Xray outbound")
 
 
 def fetch_awg_profile(vpn_key: str, *, country: str | None = None) -> dict[str, Any]:

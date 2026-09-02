@@ -103,6 +103,8 @@ https://github.com/sllikmll/Unified-UI/releases/tag/v2.5.2
 
 ## Возможности
 
+- **Amnezia VPN Gateway key (`vpn://`)** — импорт без сохранения ключа в registry; выбор страны и протокола из live-каталога Gateway. Поддерживаются **AmneziaWG** (native `amneziawg-go`) и **VLESS** (Mihomo); переключение атомарное, с rollback при ошибке runtime.
+
 | Раздел | Что делает |
 |---|---|
 | **Маршрутизация** | Runtime-переключение selector-групп Mihomo, режим плиток/списков, ping одного или всех узлов |

@@ -49,7 +49,7 @@ from services.awg_native import (
     native_mihomo_proxy_yaml,
     preflight_native_awg_runtime,
 )
-from services.amnezia_gateway import KEY_ENV as AMNEZIA_GATEWAY_KEY_ENV, fetch_awg_profile
+from services.amnezia_gateway import KEY_ENV as AMNEZIA_GATEWAY_KEY_ENV, fetch_awg_profile, fetch_gateway_profile
 
 PROTOCOLS: dict[str, dict[str, Any]] = {
     "wireguard": {"label": "WireGuard", "schemes": ["wireguard://"], "mihomo": True},
@@ -963,6 +963,9 @@ def create_proxy_connections_blueprint() -> Blueprint:
     def api_amnezia_country(conn_id: str):
         body = request.get_json(silent=True) or {}
         country = str(body.get("country") or "").strip().lower()
+        protocol = str(body.get("protocol") or "awg").strip().lower()
+        if protocol not in {"awg", "vless"}:
+            return jsonify({"ok": False, "error": "unsupported Amnezia Gateway protocol"}), 400
         if not country or not re.fullmatch(r"[a-z]{2}", country):
             return jsonify({"ok": False, "error": "country must be ISO-2 code"}), 400
         data = _load_registry()
@@ -977,17 +980,26 @@ def create_proxy_connections_blueprint() -> Blueprint:
             vpn_key = str(os.environ.get(key_env) or "").strip()
             if not vpn_key:
                 return jsonify({"ok": False, "error": f"Amnezia key is missing in {key_env}"}), 409
-            profile = fetch_awg_profile(vpn_key, country=country)
+            profile = fetch_gateway_profile(vpn_key, country=country, protocol=protocol)
             countries = profile.get("countries") if isinstance(profile.get("countries"), list) else []
-            if country not in {str(item.get("code") or "").lower() for item in countries if isinstance(item, dict)}:
-                return jsonify({"ok": False, "error": "Gateway did not confirm selected country"}), 502
-            label = next((str(item.get("name") or country.upper()) for item in countries if str(item.get("code") or "").lower() == country), country.upper())
-            resolved = _parse_connection("amnezia", str(profile["config"]), custom_name=f"Amnezia · {label}")
+            selected_country = str(profile.get("country") or country).lower()
+            country_info = next((item for item in countries if str(item.get("code") or "").lower() == selected_country), {})
+            if not isinstance(country_info, dict) or protocol not in [str(p).lower() for p in (country_info.get("protocols") or [])]:
+                return jsonify({"ok": False, "error": "Gateway did not confirm selected country/protocol"}), 502
+            label = str(country_info.get("name") or selected_country.upper())
+            name = f"Amnezia · {label} · {'AmneziaWG' if protocol == 'awg' else 'VLESS'}"
+            if protocol == "awg":
+                resolved = _parse_connection("amnezia", str(profile["config"]), custom_name=name)
+            else:
+                resolved = {"id": old["id"], "protocol": "vless", "protocolLabel": "VLESS", "name": name,
+                            "sourceType": "amnezia-gateway", "mihomoSupported": True,
+                            "proxyYaml": _strip_proxy_yaml_header(str(profile["proxyYaml"])),
+                            "createdAt": old.get("createdAt") or _now_iso(), "updatedAt": _now_iso(), "enabled": True}
             resolved.update({
                 "id": old["id"], "createdAt": old.get("createdAt") or resolved["createdAt"],
                 "selectors": old.get("selectors") or _default_selectors_for_config(_read_text(_mihomo_config_path())),
                 "sourceType": "amnezia-gateway",
-                "gateway": {"keyEnv": key_env, "fingerprint": str(profile.get("fingerprint") or ""), "country": country, "countries": countries},
+                "gateway": {"keyEnv": key_env, "fingerprint": str(profile.get("fingerprint") or ""), "country": selected_country, "protocol": protocol, "countries": countries},
             })
             conns[index] = resolved
             data["connections"] = conns

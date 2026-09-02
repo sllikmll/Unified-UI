@@ -66,8 +66,11 @@ function renderProtocol(proto) {
     const configured = Array.isArray(c.selectors) ? c.selectors : [];
     const badges = used.length ? used.map((x) => `<span class="routing-editor-badge is-good">${esc(x)}</span>`).join('') : '<span class="routing-editor-badge is-muted">не добавлен в selector</span>';
     const gateway = c.gateway && typeof c.gateway === 'object' ? c.gateway : null;
-    const countryOptions = gateway ? (gateway.countries || []).filter((x) => Array.isArray(x.protocols) && x.protocols.includes('awg')).map((x) => `<option value="${esc(x.code)}"${String(x.code).toLowerCase() === String(gateway.country).toLowerCase() ? ' selected' : ''}>${esc(x.name)} · ${esc(String(x.code).toUpperCase())}</option>`).join('') : '';
-    const gatewayControl = gateway ? `<label class="xk-protocol-field"><span>Amnezia Gateway: страна · ${esc(String(gateway.country || '').toUpperCase())} · ${Number((gateway.countries || []).length)} доступно</span><div class="xk-protocol-item-actions"><select class="terminal-input" data-amnezia-country="${esc(c.id)}">${countryOptions}</select><button type="button" class="btn-secondary" data-amnezia-country-apply="${esc(c.id)}">Сменить страну</button></div></label>` : '';
+    const activeProtocol = String(gateway?.protocol || (c.protocol === 'vless' ? 'vless' : 'awg')).toLowerCase();
+    const countryOptions = gateway ? (gateway.countries || []).map((x) => `<option value="${esc(x.code)}"${String(x.code).toLowerCase() === String(gateway.country).toLowerCase() ? ' selected' : ''}>${esc(x.name)} · ${esc(String(x.code).toUpperCase())}</option>`).join('') : '';
+    const activeCountry = gateway ? (gateway.countries || []).find((x) => String(x.code).toLowerCase() === String(gateway.country).toLowerCase()) : null;
+    const protocolOptions = Array.isArray(activeCountry?.protocols) ? activeCountry.protocols.filter((p) => ['awg', 'vless'].includes(String(p).toLowerCase())).map((p) => { const id = String(p).toLowerCase(); return `<label class="xk-checkbox-inline"><input type="radio" name="amnezia-protocol-${esc(c.id)}" value="${esc(id)}" data-amnezia-protocol="${esc(c.id)}"${id === activeProtocol ? ' checked' : ''}> ${id === 'awg' ? 'AmneziaWG' : 'VLESS'}</label>`; }).join('') : '';
+    const gatewayControl = gateway ? `<label class="xk-protocol-field"><span>Amnezia Gateway: страна · ${esc(String(gateway.country || '').toUpperCase())} · ${Number((gateway.countries || []).length)} доступно</span><div class="xk-protocol-item-actions"><select class="terminal-input" data-amnezia-country="${esc(c.id)}">${countryOptions}</select><button type="button" class="btn-secondary" data-amnezia-country-apply="${esc(c.id)}">Сменить страну</button></div><span>VPN protocol</span><div class="xk-protocol-item-actions">${protocolOptions || '<span class="muted">Нет поддерживаемых протоколов</span>'}</div></label>` : '';
     return `<article class="xk-protocol-item" data-conn-id="${esc(c.id)}">
       <div class="xk-protocol-item-head">
         <div>
@@ -153,8 +156,9 @@ async function updateConnection(id) {
 }
 async function changeAmneziaCountry(id) {
   const country = $(`[data-amnezia-country="${CSS.escape(id)}"]`)?.value || '';
+  const protocol = $(`[data-amnezia-protocol="${CSS.escape(id)}"]:checked`)?.value || 'awg';
   if (!country) throw new Error('Выбери страну');
-  await fetchJson('/api/proxy-connections/' + encodeURIComponent(id) + '/amnezia-country', { method: 'POST', body: JSON.stringify({ country }) });
+  await fetchJson('/api/proxy-connections/' + encodeURIComponent(id) + '/amnezia-country', { method: 'POST', body: JSON.stringify({ country, protocol }) });
   await loadConnections();
 }
 
@@ -205,6 +209,7 @@ function bind() {
     const del = event.target && event.target.closest ? event.target.closest('[data-conn-delete]') : null;
     const action = event.target && event.target.closest ? event.target.closest('[data-conn-action]') : null;
     const country = event.target && event.target.closest ? event.target.closest('[data-amnezia-country-apply]') : null;
+    const amneziaProtocol = event.target && event.target.closest ? event.target.closest('[data-amnezia-protocol]') : null;
     if (save) {
       const id = save.getAttribute('data-conn-save') || '';
       updateConnection(id).then(() => { const conn = (cache.connections || []).find((x) => x.id === id); return applyManaged(conn?.protocol || 'wireguard', true); }).then(loadConnections).catch((e) => alert(e.message));
@@ -217,6 +222,11 @@ function bind() {
       const id = country.getAttribute('data-amnezia-country-apply') || '';
       country.disabled = true;
       changeAmneziaCountry(id).catch((e) => alert(e.message)).finally(() => { country.disabled = false; });
+    }
+    if (amneziaProtocol) {
+      const id = amneziaProtocol.getAttribute('data-amnezia-protocol') || '';
+      amneziaProtocol.disabled = true;
+      changeAmneziaCountry(id).catch((e) => alert(e.message)).finally(() => { amneziaProtocol.disabled = false; });
     }
     if (action) {
       const id = action.getAttribute('data-conn-action') || '';

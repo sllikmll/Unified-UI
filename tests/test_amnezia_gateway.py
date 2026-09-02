@@ -70,3 +70,25 @@ def test_gateway_import_persists_safe_catalog_not_vpn_key(monkeypatch):
     assert conn["nativeRuntime"]["engine"] == "amneziawg-go"
     assert source not in rendered
     assert "test-only-api-key" not in rendered
+
+
+def test_gateway_vless_profile_becomes_mihomo_proxy(monkeypatch):
+    gateway = importlib.import_module("services.amnezia_gateway")
+    source = _vpn_key()
+    xray = {
+        "containers": [{"xray": {"last_config": json.dumps({"outbounds": [{
+            "protocol": "vless",
+            "settings": {"vnext": [{"address": "vless.example.test", "port": 443, "users": [{"id": "11111111-1111-1111-1111-111111111111", "encryption": "none"}]}]},
+            "streamSettings": {"network": "tcp", "security": "reality", "realitySettings": {"serverName": "example.com", "publicKey": "key", "shortId": "abcd"}},
+        }]})}}],
+        "api_config": {"server_country_code": "se", "available_countries": [{"server_country_code": "se", "server_country_name": "Швеция", "available_protocols": ["awg", "vless"]}]},
+    }
+    monkeypatch.setattr(gateway, "_post", lambda *_a, **_kw: {"config": "synthetic"})
+    monkeypatch.setattr(gateway, "_decode_config", lambda _value: xray)
+
+    profile = gateway.fetch_gateway_profile(source, country="se", protocol="vless")
+
+    assert profile["protocol"] == "vless"
+    assert profile["country"] == "se"
+    assert "type: vless" in profile["proxyYaml"]
+    assert "vless.example.test" in profile["proxyYaml"]
