@@ -49,10 +49,12 @@ from services.awg_native import (
     native_mihomo_proxy_yaml,
     preflight_native_awg_runtime,
 )
+from services.amnezia_gateway import KEY_ENV as AMNEZIA_GATEWAY_KEY_ENV, fetch_awg_profile
 
 PROTOCOLS: dict[str, dict[str, Any]] = {
     "wireguard": {"label": "WireGuard", "schemes": ["wireguard://"], "mihomo": True},
     "amnezia": {"label": "Amnezia AWG", "schemes": ["awg://", "awg3://", "amneziawg://"], "mihomo": True},
+    "amnezia-gateway": {"label": "Amnezia VPN key", "schemes": ["vpn://"], "mihomo": True},
     "hysteria2": {"label": "Hysteria2", "schemes": ["hysteria2://", "hy2://", "hysteria://"], "mihomo": True},
     "vless": {"label": "VLESS", "schemes": ["vless://"], "mihomo": True},
     "trojan": {"label": "Trojan", "schemes": ["trojan://"], "mihomo": True},
@@ -147,7 +149,9 @@ def _save_registry(data: dict[str, Any]) -> None:
     data["updatedAt"] = _now_iso()
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.chmod(tmp, 0o600)
     tmp.replace(path)
+    os.chmod(path, 0o600)
 
 
 def _slug(value: str) -> str:
@@ -316,10 +320,30 @@ def _parse_connection(protocol: str, source_text: str, custom_name: str | None =
     text = str(source_text or "").strip()
     if not proto or proto not in PROTOCOLS:
         proto = _detect_protocol(text)
-    if not text:
+    if not text and proto != "amnezia-gateway":
         raise ValueError("empty connection content")
 
     native_runtime: dict[str, Any] | None = None
+    if proto == "amnezia-gateway":
+        # vpn:// is a Gateway subscription key, not a usable WG config.  Resolve
+        # it once, then persist only the AWG profile plus safe catalogue metadata.
+        # The original key is never stored in proxy-connections.json.
+        gateway_key = text or str(os.environ.get(AMNEZIA_GATEWAY_KEY_ENV) or "").strip()
+        if not gateway_key:
+            raise ValueError(f"Amnezia Gateway key is missing; set {AMNEZIA_GATEWAY_KEY_ENV}")
+        profile = fetch_awg_profile(gateway_key)
+        country = str(profile.get("country") or "").upper()
+        country_name = next((str(item.get("name") or "") for item in profile.get("countries", []) if str(item.get("code") or "").lower() == str(profile.get("country") or "").lower()), country)
+        resolved_name = custom_name or f"Amnezia · {country_name or country or 'AWG'}"
+        connection = _parse_connection("amnezia", str(profile["config"]), custom_name=resolved_name)
+        connection["sourceType"] = "amnezia-gateway"
+        connection["gateway"] = {
+            "keyEnv": AMNEZIA_GATEWAY_KEY_ENV,
+            "fingerprint": str(profile.get("fingerprint") or ""),
+            "country": str(profile.get("country") or "").lower(),
+            "countries": profile.get("countries") if isinstance(profile.get("countries"), list) else [],
+        }
+        return connection
     if proto in {"wireguard", "amnezia"}:
         conf = _wireguard_from_uri(text) if proto == "wireguard" else _wireguard_from_data_url(text)
         result = parse_wireguard(conf, custom_name=custom_name)
@@ -934,6 +958,49 @@ def create_proxy_connections_blueprint() -> Blueprint:
         if str(conn.get("protocol") or "") != "telegram" or not str(conn.get("raw") or "").startswith("tg://proxy"):
             return jsonify({"ok": False, "error": "no explicit action for this connection"}), 400
         return jsonify({"ok": True, "action": "open", "url": str(conn.get("raw"))})
+
+    @bp.post("/api/proxy-connections/<conn_id>/amnezia-country")
+    def api_amnezia_country(conn_id: str):
+        body = request.get_json(silent=True) or {}
+        country = str(body.get("country") or "").strip().lower()
+        if not country or not re.fullmatch(r"[a-z]{2}", country):
+            return jsonify({"ok": False, "error": "country must be ISO-2 code"}), 400
+        data = _load_registry()
+        conns = _managed_connections(data)
+        for index, old in enumerate(conns):
+            if str(old.get("id") or "") != conn_id:
+                continue
+            if str(old.get("sourceType") or "") != "amnezia-gateway":
+                return jsonify({"ok": False, "error": "not an Amnezia Gateway connection"}), 409
+            gateway = old.get("gateway") if isinstance(old.get("gateway"), dict) else {}
+            key_env = str(gateway.get("keyEnv") or AMNEZIA_GATEWAY_KEY_ENV)
+            vpn_key = str(os.environ.get(key_env) or "").strip()
+            if not vpn_key:
+                return jsonify({"ok": False, "error": f"Amnezia key is missing in {key_env}"}), 409
+            profile = fetch_awg_profile(vpn_key, country=country)
+            countries = profile.get("countries") if isinstance(profile.get("countries"), list) else []
+            if country not in {str(item.get("code") or "").lower() for item in countries if isinstance(item, dict)}:
+                return jsonify({"ok": False, "error": "Gateway did not confirm selected country"}), 502
+            label = next((str(item.get("name") or country.upper()) for item in countries if str(item.get("code") or "").lower() == country), country.upper())
+            resolved = _parse_connection("amnezia", str(profile["config"]), custom_name=f"Amnezia · {label}")
+            resolved.update({
+                "id": old["id"], "createdAt": old.get("createdAt") or resolved["createdAt"],
+                "selectors": old.get("selectors") or _default_selectors_for_config(_read_text(_mihomo_config_path())),
+                "sourceType": "amnezia-gateway",
+                "gateway": {"keyEnv": key_env, "fingerprint": str(profile.get("fingerprint") or ""), "country": country, "countries": countries},
+            })
+            conns[index] = resolved
+            data["connections"] = conns
+            _save_registry(data)
+            try:
+                applied = _apply_to_mihomo(restart=True)
+            except Exception:
+                conns[index] = old
+                data["connections"] = conns
+                _save_registry(data)
+                raise
+            return jsonify({"ok": True, "connection": _connection_public(resolved), "apply": applied})
+        return jsonify({"ok": False, "error": "connection not found"}), 404
 
     @bp.patch("/api/proxy-connections/<conn_id>")
     def api_update(conn_id: str):

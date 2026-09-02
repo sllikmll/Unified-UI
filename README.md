@@ -7,7 +7,7 @@
 | Что | Ссылка |
 |---|---|
 | Репозиторий | https://github.com/sllikmll/Unified-UI |
-| **Keenetic / Entware** | **[`v3.0.1`](https://github.com/sllikmll/Unified-UI/releases/tag/v3.0.1)** · [архив установки](https://github.com/sllikmll/Unified-UI/releases/download/v3.0.1/unified-ui-routing.tar.gz) |
+| **Keenetic / Entware** | **[`v3.0.2`](https://github.com/sllikmll/Unified-UI/releases/tag/v3.0.2)** · [архив установки](https://github.com/sllikmll/Unified-UI/releases/download/v3.0.2/unified-ui-routing.tar.gz) |
 | **OpenWrt / standalone Mihomo** | **[`v3.0.0-openwrt`](https://github.com/sllikmll/Unified-UI/releases/tag/v3.0.0-openwrt)** · [архив установки](https://github.com/sllikmll/Unified-UI/releases/download/v3.0.0-openwrt/unified-ui-openwrt-v3.0.0.tar.gz) |
 | **MikroTik / RouterOS container** | **[`v3.0.0-mikrotik`](https://github.com/sllikmll/Unified-UI/releases/tag/v3.0.0-mikrotik)** · [Docker archive](https://github.com/sllikmll/Unified-UI/releases/download/v3.0.0-mikrotik/unified-ui-mikrotik-docker-archive-v3.0.0.tar.gz) |
 | **Native Desktop** | **[`v2.6.8-native`](https://github.com/sllikmll/Unified-UI/releases/tag/v2.6.8-native)** · macOS / Windows / Linux |
@@ -110,7 +110,7 @@ https://github.com/sllikmll/Unified-UI/releases/tag/v2.5.2
 | **Соединения** | Активные Mihomo connections, фильтры, детали, принудительный разрыв соединений |
 | **DAT GeoIP / GeoSite** | Обновление, просмотр и редактирование локальных GeoIP/GeoSite/rule-provider данных |
 | **Маршруты DNS** | Keenetic-style DNS/domain/IP/service lists с привязкой к интерфейсам роутера |
-| **WireGuard / Amnezia AWG2/AWG3 / Hysteria2 / VLESS / Trojan / Mieru / NaiveProxy** | Импорт подключений ссылкой или файлом, добавление в selector-группы |
+| **WireGuard / Amnezia AWG2/AWG3 / Amnezia VPN key / Hysteria2 / VLESS / Trojan / Mieru / NaiveProxy** | Импорт подключений ссылкой или файлом, добавление в selector-группы; `vpn://` ключ Amnezia Gateway хранится только в защищённом env, показывает каталог стран/ISO-коды и умеет безопасно переключать native AWG профиль без утечки ключа. |
 | **Mihomo Генератор** | Встроенный генератор конфига без iframe и отдельной страницы |
 | **Файлы / Команды / Настройки** | File manager, runtime команды, обновления, env/status |
 

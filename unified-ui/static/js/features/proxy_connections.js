@@ -65,6 +65,9 @@ function renderProtocol(proto) {
     const used = Array.isArray(c.usedBySelectors) ? c.usedBySelectors : [];
     const configured = Array.isArray(c.selectors) ? c.selectors : [];
     const badges = used.length ? used.map((x) => `<span class="routing-editor-badge is-good">${esc(x)}</span>`).join('') : '<span class="routing-editor-badge is-muted">не добавлен в selector</span>';
+    const gateway = c.gateway && typeof c.gateway === 'object' ? c.gateway : null;
+    const countryOptions = gateway ? (gateway.countries || []).filter((x) => Array.isArray(x.protocols) && x.protocols.includes('awg')).map((x) => `<option value="${esc(x.code)}"${String(x.code).toLowerCase() === String(gateway.country).toLowerCase() ? ' selected' : ''}>${esc(x.name)} · ${esc(String(x.code).toUpperCase())}</option>`).join('') : '';
+    const gatewayControl = gateway ? `<label class="xk-protocol-field"><span>Amnezia Gateway: страна · ${esc(String(gateway.country || '').toUpperCase())} · ${Number((gateway.countries || []).length)} доступно</span><div class="xk-protocol-item-actions"><select class="terminal-input" data-amnezia-country="${esc(c.id)}">${countryOptions}</select><button type="button" class="btn-secondary" data-amnezia-country-apply="${esc(c.id)}">Сменить страну</button></div></label>` : '';
     return `<article class="xk-protocol-item" data-conn-id="${esc(c.id)}">
       <div class="xk-protocol-item-head">
         <div>
@@ -77,6 +80,7 @@ function renderProtocol(proto) {
         </div>
       </div>
       <div class="xk-protocol-used"><b>В selector’ах сейчас:</b> ${badges}</div>
+      ${gatewayControl}
       ${c.readOnly ? '' : `<label class="xk-protocol-field"><span>Должен быть в selector’ах</span><select class="terminal-input" multiple size="6" data-conn-selectors="${esc(c.id)}">${selectorOptions(configured)}</select></label>`}
       <details class="xk-protocol-details"><summary>YAML / metadata</summary>${yamlSnippet(c.proxyYaml)}</details>
     </article>`;
@@ -147,6 +151,13 @@ async function updateConnection(id) {
   const selectors = selectedValues($(`[data-conn-selectors="${CSS.escape(id)}"]`));
   await fetchJson('/api/proxy-connections/' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify({ enabled, selectors }) });
 }
+async function changeAmneziaCountry(id) {
+  const country = $(`[data-amnezia-country="${CSS.escape(id)}"]`)?.value || '';
+  if (!country) throw new Error('Выбери страну');
+  await fetchJson('/api/proxy-connections/' + encodeURIComponent(id) + '/amnezia-country', { method: 'POST', body: JSON.stringify({ country }) });
+  await loadConnections();
+}
+
 async function deleteConnection(id) {
   if (!window.confirm('Удалить подключение из registry? После применения оно исчезнет из managed-блока Mihomo.')) return;
   await fetchJson('/api/proxy-connections/' + encodeURIComponent(id) + '?apply=1&restart=1', { method: 'DELETE' });
@@ -193,6 +204,7 @@ function bind() {
     const save = event.target && event.target.closest ? event.target.closest('[data-conn-save]') : null;
     const del = event.target && event.target.closest ? event.target.closest('[data-conn-delete]') : null;
     const action = event.target && event.target.closest ? event.target.closest('[data-conn-action]') : null;
+    const country = event.target && event.target.closest ? event.target.closest('[data-amnezia-country-apply]') : null;
     if (save) {
       const id = save.getAttribute('data-conn-save') || '';
       updateConnection(id).then(() => { const conn = (cache.connections || []).find((x) => x.id === id); return applyManaged(conn?.protocol || 'wireguard', true); }).then(loadConnections).catch((e) => alert(e.message));
@@ -200,6 +212,11 @@ function bind() {
     if (del) {
       const id = del.getAttribute('data-conn-delete') || '';
       deleteConnection(id).then(loadConnections).catch((e) => alert(e.message));
+    }
+    if (country) {
+      const id = country.getAttribute('data-amnezia-country-apply') || '';
+      country.disabled = true;
+      changeAmneziaCountry(id).catch((e) => alert(e.message)).finally(() => { country.disabled = false; });
     }
     if (action) {
       const id = action.getAttribute('data-conn-action') || '';

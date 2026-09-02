@@ -102,8 +102,12 @@ def native_interface_name(name: str) -> str:
 
 
 def _routing_identity(name: str) -> tuple[int, int, int]:
+    # Keenetic/NDMS occupies low fwmark values for WAN and policy tables.  A
+    # low random AWG mark can be consumed by those earlier rules, leaving an
+    # interface handshaking while actual Mihomo traffic exits via WAN.  Keep
+    # Unified native AWG in an explicit high-bit namespace instead.
     value = int(hashlib.sha256(str(name or "awg").encode()).hexdigest()[:8], 16) % 10000
-    return 50000 + value, 20000 + value, 30000 + value
+    return 0x40000000 + value, 20000 + value, 12000 + value
 
 
 def _parse_sections(conf_text: str) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
