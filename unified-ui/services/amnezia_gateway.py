@@ -27,10 +27,22 @@ import subprocess
 import tempfile
 from urllib import request as urlrequest
 
-GATEWAY_ENDPOINT = "http://gw.amnezia.org:80/"
+GATEWAY_ENDPOINT = os.environ.get("AMNEZIA_GATEWAY_ENDPOINT") or "http://gw.amnezia.org:80/"
 KEY_ENV = "AMNEZIA_VPN_URI"
 INSTALLATION_UUID_ENV = "AMNEZIA_GATEWAY_INSTALLATION_UUID"
 PUBLIC_KEY_ENV = "AMNEZIA_GATEWAY_PUBLIC_KEY"
+# Production storage origins extracted from the official AmneziaVPN 5.0.0.5
+# release by the NixOS package. They host encrypted official bypass pools.
+PROXY_STORAGE_PRIMARY = (
+    "https://s3.eu-north-1.amazonaws.com/amnezia/",
+    "https://storage.googleapis.com/lambda-list/",
+    "https://amnzstrg01.blob.core.windows.net/lambda-list/",
+    "https://objectstorage.eu-zurich-1.oraclecloud.com/n/zrhfyaq6qxvh/b/lambda-list/o/",
+)
+PROXY_STORAGE_FALLBACK = (
+    "https://storage.mwsapis.ru/lambda-list/",
+    "https://46.8.209.252/lambda-list/",
+)
 
 # Public production Gateway encryption key from the official AmneziaVPN client.
 DEFAULT_PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
@@ -172,6 +184,46 @@ def _request_payload(key: AmneziaKey, client_public_key: str, *, country: str | 
     return {name: value for name, value in payload.items() if value not in (None, "", {}, [])}
 
 
+def _official_bypass_urls(payload: dict[str, Any]) -> list[str]:
+    """Resolve Amnezia's encrypted bypass pool exactly like GatewayController."""
+    service = str(payload.get("service_type") or "")
+    user_country = str(payload.get("user_country_code") or "")
+    paths = []
+    if service:
+        import base64 as _b64
+        suffix = _b64.urlsafe_b64encode(f"endpoints-{service}-{user_country}".encode()).decode().rstrip("=") + ".json"
+        paths.append(suffix)
+    paths.append("endpoints.json")
+    # Upstream hashes the PEM macro without its file-terminal newline.
+    digest = hashlib.sha512(_public_key_pem().rstrip("\n").encode()).digest()
+    urls: list[str] = []
+    for base in (*PROXY_STORAGE_PRIMARY, *PROXY_STORAGE_FALLBACK):
+        for path in paths:
+            try:
+                with urlrequest.urlopen(base.rstrip("/") + "/" + path, timeout=3) as response:
+                    wire = response.read(1024 * 1024)
+                decoded = _decrypt_aes(base64.b64decode(wire), digest[:32], digest[32:48])
+                candidates = json.loads(decoded)
+                if isinstance(candidates, list):
+                    urls.extend(str(x).rstrip("/") + "/" for x in candidates if isinstance(x, str) and x.startswith(("http://", "https://")))
+                    if urls:
+                        return urls
+            except Exception:
+                continue
+    return urls
+
+
+def _gateway_wire(url: str, body: bytes, timeout: int) -> bytes:
+    req = urlrequest.Request(url, data=body, headers={"Content-Type": "application/json", "X-Client-Request-ID": str(uuid.uuid4())})
+    with urlrequest.urlopen(req, timeout=timeout) as response:
+        return response.read(2 * 1024 * 1024 + 1)
+
+
+def _gateway_health(url: str) -> None:
+    with urlrequest.urlopen(url, timeout=1) as response:
+        response.read(1024)
+
+
 def _post(path: str, payload: dict[str, Any], *, timeout: int = 35) -> dict[str, Any]:
     aes_key, aes_iv, aes_salt = os.urandom(32), os.urandom(32), os.urandom(8)
     key_payload = json.dumps(
@@ -181,13 +233,20 @@ def _post(path: str, payload: dict[str, Any], *, timeout: int = 35) -> dict[str,
     encrypted_key = _rsa_encrypt(key_payload)
     encrypted_payload = _encrypt_aes(json.dumps(payload, separators=(",", ":")).encode(), aes_key, aes_iv)
     body = json.dumps({"key_payload": base64.b64encode(encrypted_key).decode(), "api_payload": base64.b64encode(encrypted_payload).decode()}).encode()
-    endpoint = (os.environ.get("AMNEZIA_GATEWAY_ENDPOINT") or GATEWAY_ENDPOINT).rstrip("/") + "/" + path.lstrip("/")
-    req = urlrequest.Request(endpoint, data=body, headers={"Content-Type": "application/json", "X-Client-Request-ID": str(uuid.uuid4())})
-    try:
-        with urlrequest.urlopen(req, timeout=timeout) as response:
-            wire = response.read(2 * 1024 * 1024 + 1)
-    except Exception as exc:
-        raise RuntimeError("Amnezia Gateway request failed") from exc
+    direct = (os.environ.get("AMNEZIA_GATEWAY_ENDPOINT") or GATEWAY_ENDPOINT).rstrip("/") + "/"
+    candidates = [direct]
+    last_error: Exception | None = None
+    for base in candidates + _official_bypass_urls(payload):
+        try:
+            if base != direct:
+                # Official client probes this exact health path before retrying.
+                _gateway_health(base.rstrip("/") + "/lmbd-health")
+            wire = _gateway_wire(base.rstrip("/") + "/" + path.lstrip("/"), body, timeout)
+            break
+        except Exception as exc:
+            last_error = exc
+    else:
+        raise RuntimeError("Amnezia Gateway is unavailable directly and via official bypass endpoints") from last_error
     if len(wire) > 2 * 1024 * 1024:
         raise RuntimeError("Amnezia Gateway response is too large")
     try:
