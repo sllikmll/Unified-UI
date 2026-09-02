@@ -112,7 +112,7 @@ https://github.com/sllikmll/Unified-UI/releases/tag/v2.5.2
 | **Соединения** | Активные Mihomo connections, фильтры, детали, принудительный разрыв соединений |
 | **DAT GeoIP / GeoSite** | Обновление, просмотр и редактирование локальных GeoIP/GeoSite/rule-provider данных |
 | **Маршруты DNS** | Keenetic-style DNS/domain/IP/service lists с привязкой к интерфейсам роутера |
-| **WireGuard / Amnezia AWG2/AWG3 / Amnezia VPN key / Hysteria2 / VLESS / Trojan / Mieru / NaiveProxy** | Импорт подключений ссылкой или файлом, добавление в selector-группы; `vpn://` ключ Amnezia Gateway хранится только в защищённом env, показывает каталог стран/ISO-коды и умеет безопасно переключать native AWG профиль без утечки ключа. |
+| **WireGuard / Amnezia AWG2/AWG3 / Amnezia VPN key / Hysteria2 / VLESS / Trojan / Mieru / NaiveProxy** | Импорт подключений ссылкой или файлом, добавление в selector-группы. `vpn://` ключ Amnezia Gateway хранится только в защищённом env, показывает live-каталог стран и протоколов. Gateway-карточка всегда остаётся во вкладке **Amnezia**: **AmneziaWG** работает через native runtime, **VLESS** — через Mihomo; при смене страна+протокол применяются одной атомарной операцией. Доступность VLESS зависит от конкретного Gateway endpoint и должна подтверждаться transport/delay-проверкой. |
 | **Mihomo Генератор** | Встроенный генератор конфига без iframe и отдельной страницы |
 | **Файлы / Команды / Настройки** | File manager, runtime команды, обновления, env/status |
 
