@@ -53,7 +53,11 @@ function yamlSnippet(text) {
 function renderProtocol(proto) {
   const list = $(`[data-protocol-list="${CSS.escape(proto)}"]`);
   if (!list) return;
-  const conns = (cache.connections || []).filter((c) => c.protocol === proto);
+  const conns = (cache.connections || []).filter((c) => {
+    const gateway = c && c.sourceType === 'amnezia-gateway';
+    if (proto === 'amnezia') return c.protocol === 'amnezia' || gateway;
+    return c.protocol === proto && !gateway;
+  });
   const select = $(`[data-protocol-selectors="${CSS.escape(proto)}"]`);
   if (select) select.innerHTML = selectorOptions([]);
   if (!conns.length) {
